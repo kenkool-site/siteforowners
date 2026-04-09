@@ -22,16 +22,20 @@ export async function POST(request: Request) {
       phone,
       color_theme,
       tagline,
+      description,
       services,
       address,
+      uploaded_images,
     } = body as {
       business_name: string;
       business_type: BusinessType;
       phone?: string;
       color_theme: ColorTheme;
       tagline?: string;
+      description?: string;
       services: ServiceItem[];
       address?: string;
+      uploaded_images?: string[];
     };
 
     if (!business_name || !business_type || !color_theme) {
@@ -46,12 +50,17 @@ export async function POST(request: Request) {
       businessName: business_name,
       businessType: business_type,
       tagline,
+      description,
       services: services.filter((s) => s.name.trim()),
       address,
     });
 
     const slug = generateSlug(business_name);
-    const images = STOCK_PHOTOS[business_type] || [];
+    const stockImages = STOCK_PHOTOS[business_type] || [];
+    const images =
+      uploaded_images && uploaded_images.length > 0
+        ? uploaded_images
+        : stockImages;
 
     // For MVP, store in a simple JSON file or return directly
     // TODO: Week 2 — store in Supabase previews table

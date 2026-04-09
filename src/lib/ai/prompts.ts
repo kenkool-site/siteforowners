@@ -34,6 +34,7 @@ export function buildUserPrompt(params: {
   businessName: string;
   businessType: BusinessType;
   tagline?: string;
+  description?: string;
   services: { name: string; price: string }[];
   address?: string;
 }): string {
@@ -45,6 +46,7 @@ export function buildUserPrompt(params: {
 
 BUSINESS NAME: ${params.businessName}
 TYPE: ${params.businessType}
+${params.description ? `BUSINESS DESCRIPTION: ${params.description}` : ""}
 ${params.tagline ? `TAGLINE PREFERENCE: ${params.tagline}` : ""}
 ${params.address ? `ADDRESS: ${params.address}` : ""}
 

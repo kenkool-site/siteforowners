@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { DEFAULT_SERVICES } from "@/lib/templates/default-services";
@@ -55,6 +56,7 @@ export default function PreviewWizard() {
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState<BusinessType | "">("");
   const [phone, setPhone] = useState("");
+  const [description, setDescription] = useState("");
 
   // Step 2
   const [colorTheme, setColorTheme] = useState<ColorTheme | "">("");
@@ -64,7 +66,36 @@ export default function PreviewWizard() {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [address, setAddress] = useState("");
 
-  // Step 4: skip photos for MVP — use stock
+  // Step 4: Photos
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    Array.from(files).forEach((file) => formData.append("images", file));
+
+    try {
+      const res = await fetch("/api/upload-images", {
+        method: "POST",
+        body: formData,
+      });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      setUploadedImages((prev) => [...prev, ...data.urls]);
+    } catch {
+      setError("Failed to upload images. Please try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setUploadedImages((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const canAdvance = () => {
     switch (step) {
@@ -113,8 +144,10 @@ export default function PreviewWizard() {
           phone,
           color_theme: colorTheme,
           tagline,
+          description,
           services,
           address,
+          uploaded_images: uploadedImages,
         }),
       });
       if (!res.ok) {
@@ -243,6 +276,22 @@ export default function PreviewWizard() {
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
               </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Tell us about your business{" "}
+                  <span className="text-gray-400">(optional — helps us write better content)</span>
+                </label>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="e.g. Family-owned Dominican salon in Flatbush, been in the neighborhood for 12 years. We specialize in silk press, color treatments, and natural hair care. Our clients are like family."
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  What makes your business special? How long have you been open? What do your customers love about you?
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -261,7 +310,7 @@ export default function PreviewWizard() {
                 <label className="mb-3 block text-sm font-medium text-gray-700">
                   Color Theme
                 </label>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                   {THEMES_BY_VERTICAL[businessType]?.map((theme) => (
                     <button
                       key={theme.id}
@@ -387,31 +436,79 @@ export default function PreviewWizard() {
               Add Photos
             </h1>
             <p className="mb-8 text-gray-600">
-              Upload your own photos, or skip and we&apos;ll use professional
-              stock photos that match your business type.
+              Upload photos of your business, or skip and we&apos;ll use
+              professional stock photos.
             </p>
-            <div className="rounded-xl border-2 border-dashed border-gray-300 p-12 text-center">
-              <svg
-                className="mx-auto mb-4 h-12 w-12 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
-              <p className="mb-2 text-sm font-medium text-gray-700">
-                Photo upload coming soon
+
+            {/* Uploaded images grid */}
+            {uploadedImages.length > 0 && (
+              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                {uploadedImages.map((url, i) => (
+                  <div key={i} className="group relative aspect-square overflow-hidden rounded-lg">
+                    <Image
+                      src={url}
+                      alt={`Upload ${i + 1}`}
+                      fill
+                      sizes="(max-width: 640px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                    <button
+                      onClick={() => removeImage(i)}
+                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Upload area */}
+            <label className="block cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-amber-400 hover:bg-amber-50/30">
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleImageUpload}
+                className="hidden"
+                disabled={uploading}
+              />
+              {uploading ? (
+                <>
+                  <div className="mx-auto mb-3 h-10 w-10 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
+                  <p className="text-sm font-medium text-gray-700">Uploading...</p>
+                </>
+              ) : (
+                <>
+                  <svg
+                    className="mx-auto mb-3 h-10 w-10 text-gray-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                  <p className="mb-1 text-sm font-medium text-gray-700">
+                    Tap to upload photos
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    JPG, PNG up to 5MB each &middot; Up to 10 photos
+                  </p>
+                </>
+              )}
+            </label>
+            {uploadedImages.length === 0 && (
+              <p className="mt-4 text-center text-xs text-gray-400">
+                No photos? No problem — we&apos;ll use curated stock photos for your preview.
               </p>
-              <p className="text-xs text-gray-500">
-                For now, we&apos;ll use curated professional photos for your
-                preview
-              </p>
-            </div>
+            )}
           </div>
         )}
 

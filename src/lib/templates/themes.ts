@@ -57,6 +57,32 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
       },
       previewSwatch: ['#6B4226', '#D4B896', '#FAF6F1'],
     },
+    {
+      id: 'salon_lavender',
+      name: 'Lavender & Sage',
+      colors: {
+        primary: '#7B68AE',
+        secondary: '#D4E2D4',
+        accent: '#9B8EC4',
+        background: '#FAF8FF',
+        foreground: '#2D2540',
+        muted: '#EDE8F5',
+      },
+      previewSwatch: ['#7B68AE', '#D4E2D4', '#FAF8FF'],
+    },
+    {
+      id: 'salon_midnight',
+      name: 'Midnight Glam',
+      colors: {
+        primary: '#E8B4B8',
+        secondary: '#1A1A2E',
+        accent: '#F0C4C8',
+        background: '#16213E',
+        foreground: '#F5F0F0',
+        muted: '#2A2A4A',
+      },
+      previewSwatch: ['#E8B4B8', '#1A1A2E', '#16213E'],
+    },
   ],
   barbershop: [
     {
@@ -97,6 +123,32 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
         muted: '#E0D8C8',
       },
       previewSwatch: ['#2D5016', '#D2B48C', '#F5F2EB'],
+    },
+    {
+      id: 'barbershop_burgundy',
+      name: 'Burgundy & Cream',
+      colors: {
+        primary: '#800020',
+        secondary: '#F5F0E8',
+        accent: '#A0153E',
+        background: '#FFF8F2',
+        foreground: '#1A0008',
+        muted: '#F0E0D0',
+      },
+      previewSwatch: ['#800020', '#F5F0E8', '#FFF8F2'],
+    },
+    {
+      id: 'barbershop_charcoal',
+      name: 'Charcoal & Copper',
+      colors: {
+        primary: '#B87333',
+        secondary: '#2C2C2C',
+        accent: '#D4956A',
+        background: '#1C1C1C',
+        foreground: '#E8E0D8',
+        muted: '#3A3A3A',
+      },
+      previewSwatch: ['#B87333', '#2C2C2C', '#1C1C1C'],
     },
   ],
   restaurant: [
@@ -139,6 +191,32 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
       },
       previewSwatch: ['#1E6091', '#F5DEB3', '#FAF8F5'],
     },
+    {
+      id: 'restaurant_terracotta',
+      name: 'Terracotta & Herb',
+      colors: {
+        primary: '#C4632A',
+        secondary: '#4A7C59',
+        accent: '#E07B39',
+        background: '#FFF9F2',
+        foreground: '#2C1608',
+        muted: '#F0E4D4',
+      },
+      previewSwatch: ['#C4632A', '#4A7C59', '#FFF9F2'],
+    },
+    {
+      id: 'restaurant_midnight',
+      name: 'Midnight & Amber',
+      colors: {
+        primary: '#D4A017',
+        secondary: '#1A1A2E',
+        accent: '#E8B830',
+        background: '#0F0F1A',
+        foreground: '#F5F0E0',
+        muted: '#2A2A3E',
+      },
+      previewSwatch: ['#D4A017', '#1A1A2E', '#0F0F1A'],
+    },
   ],
   nails: [
     {
@@ -180,6 +258,32 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
       },
       previewSwatch: ['#8B008B', '#FFD700', '#FFF8F5'],
     },
+    {
+      id: 'nails_rose_gold',
+      name: 'Rose Gold & Marble',
+      colors: {
+        primary: '#B76E79',
+        secondary: '#F5F0EC',
+        accent: '#D4A0A7',
+        background: '#FFFAF8',
+        foreground: '#3D2025',
+        muted: '#F0E4E0',
+      },
+      previewSwatch: ['#B76E79', '#F5F0EC', '#FFFAF8'],
+    },
+    {
+      id: 'nails_midnight',
+      name: 'Midnight & Neon',
+      colors: {
+        primary: '#FF1493',
+        secondary: '#0D0D2B',
+        accent: '#00FFFF',
+        background: '#0A0A1A',
+        foreground: '#F5F0FF',
+        muted: '#1A1A3A',
+      },
+      previewSwatch: ['#FF1493', '#0D0D2B', '#0A0A1A'],
+    },
   ],
   braids: [
     {
@@ -220,6 +324,32 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
         muted: '#E8D8C4',
       },
       previewSwatch: ['#A0522D', '#DEB887', '#FDF5E6'],
+    },
+    {
+      id: 'braids_ocean',
+      name: 'Ocean & Teal',
+      colors: {
+        primary: '#008080',
+        secondary: '#E0F0F0',
+        accent: '#20B2AA',
+        background: '#F0FAFA',
+        foreground: '#003030',
+        muted: '#D0E8E8',
+      },
+      previewSwatch: ['#008080', '#E0F0F0', '#F0FAFA'],
+    },
+    {
+      id: 'braids_sunset',
+      name: 'Sunset & Bronze',
+      colors: {
+        primary: '#CD7F32',
+        secondary: '#FF6B35',
+        accent: '#E8963E',
+        background: '#FFF5EB',
+        foreground: '#2A1A08',
+        muted: '#F5E0C8',
+      },
+      previewSwatch: ['#CD7F32', '#FF6B35', '#FFF5EB'],
     },
   ],
 };

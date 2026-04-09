@@ -2,15 +2,15 @@ export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'br
 
 export type ColorTheme =
   // Salon
-  | 'salon_gold' | 'salon_rose' | 'salon_mocha'
+  | 'salon_gold' | 'salon_rose' | 'salon_mocha' | 'salon_lavender' | 'salon_midnight'
   // Barbershop
-  | 'barbershop_black_gold' | 'barbershop_navy' | 'barbershop_forest'
+  | 'barbershop_black_gold' | 'barbershop_navy' | 'barbershop_forest' | 'barbershop_burgundy' | 'barbershop_charcoal'
   // Restaurant
-  | 'restaurant_burgundy' | 'restaurant_olive' | 'restaurant_ocean'
+  | 'restaurant_burgundy' | 'restaurant_olive' | 'restaurant_ocean' | 'restaurant_terracotta' | 'restaurant_midnight'
   // Nails
-  | 'nails_pink' | 'nails_coral' | 'nails_berry'
+  | 'nails_pink' | 'nails_coral' | 'nails_berry' | 'nails_rose_gold' | 'nails_midnight'
   // Braids
-  | 'braids_kente' | 'braids_royal' | 'braids_earth';
+  | 'braids_kente' | 'braids_royal' | 'braids_earth' | 'braids_ocean' | 'braids_sunset';
 
 export interface ServiceItem {
   name: string;

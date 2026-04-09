@@ -8,6 +8,7 @@ interface GenerateCopyParams {
   businessName: string;
   businessType: BusinessType;
   tagline?: string;
+  description?: string;
   services: ServiceItem[];
   address?: string;
 }
@@ -26,6 +27,7 @@ export async function generateWebsiteCopy(
           businessName: params.businessName,
           businessType: params.businessType,
           tagline: params.tagline,
+          description: params.description,
           services: params.services,
           address: params.address,
         }),
