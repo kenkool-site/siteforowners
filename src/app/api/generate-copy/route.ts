@@ -89,6 +89,25 @@ function darken(hex: string, amount: number): string {
   } catch { return "#1A1A1A"; }
 }
 
+type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm';
+
+const ALL_TEMPLATES: TemplateName[] = ['classic', 'bold', 'elegant', 'vibrant', 'warm'];
+
+const CONTRAST_PAIRS: Record<TemplateName, TemplateName[]> = {
+  classic: ['bold', 'vibrant'],
+  bold: ['elegant', 'warm'],
+  elegant: ['vibrant', 'bold'],
+  vibrant: ['elegant', 'warm'],
+  warm: ['bold', 'vibrant'],
+};
+
+function pickTwoTemplates(): [TemplateName, TemplateName] {
+  const a = ALL_TEMPLATES[Math.floor(Math.random() * ALL_TEMPLATES.length)];
+  const pairs = CONTRAST_PAIRS[a];
+  const b = pairs[Math.floor(Math.random() * pairs.length)];
+  return [a, b];
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -151,6 +170,8 @@ export async function POST(request: Request) {
       ? buildCustomPalettes(brand_colors)
       : null;
     const variantLabels = ["A", "B"];
+    const [templateA, templateB] = pickTwoTemplates();
+    const templates = [templateA, templateB];
 
     const supabase = createAdminClient();
     const previewRows = variants.map((variant, i) => ({
@@ -171,7 +192,7 @@ export async function POST(request: Request) {
         ...(customPalettes ? { custom_colors: customPalettes[i] } : {}),
         ...(logo ? { logo } : {}),
       },
-      template_variant: `${business_type}_${variant.style}`,
+      template_variant: templates[i],
       group_id: groupId,
       variant_label: variantLabels[i],
     }));
