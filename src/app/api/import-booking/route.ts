@@ -35,14 +35,16 @@ export async function POST(request: Request) {
 
     const html = await res.text();
 
-    // Use Claude to extract structured data from the page
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 3000,
-      messages: [
-        {
-          role: "user",
-          content: `Extract business information from this booking page HTML. Pull out EVERYTHING you can find.
+    // Use Claude to extract structured data from the page (with retry for transient errors)
+    const createMessage = async (attempt = 0): Promise<Anthropic.Message> => {
+      try {
+        return await anthropic.messages.create({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 3000,
+          messages: [
+            {
+              role: "user",
+              content: `Extract business information from this booking page HTML. Pull out EVERYTHING you can find.
 
 Return ONLY valid JSON with this structure (omit fields you can't find):
 {
@@ -69,9 +71,20 @@ Rules:
 
 HTML content (first 20000 chars):
 ${html.slice(0, 20000)}`,
-        },
-      ],
-    });
+            },
+          ],
+        });
+      } catch (err: unknown) {
+        const status = (err as { status?: number }).status;
+        if ((status === 529 || status === 503 || status === 500) && attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+          return createMessage(attempt + 1);
+        }
+        throw err;
+      }
+    };
+
+    const message = await createMessage();
 
     const text =
       message.content[0].type === "text" ? message.content[0].text : "";
@@ -96,11 +109,13 @@ ${html.slice(0, 20000)}`,
       brand_colors: extracted.brand_colors || [],
       booking_url: fullUrl,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Import booking error:", error);
-    return NextResponse.json(
-      { error: "Failed to import data. Please try again." },
-      { status: 500 }
-    );
+    const status = (error as { status?: number }).status;
+    const msg =
+      status === 529 || status === 503
+        ? "AI service is temporarily busy. Please wait a moment and try again."
+        : "Failed to import data. Please try again.";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
