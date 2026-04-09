@@ -1,47 +1,42 @@
 "use client";
 
 import Image from "next/image";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 
-interface TemplateHeroProps {
+interface ClassicHeroProps {
   businessName: string;
   headline: string;
   subheadline: string;
   heroImage?: string;
   logo?: string;
   colors: ThemeColors;
-  ctaText?: string;
   bookingUrl?: string;
   phone?: string;
 }
 
-export function TemplateHero({
+export function ClassicHero({
   businessName,
   headline,
   subheadline,
   heroImage,
   logo,
   colors,
-  ctaText = "Book Now",
   bookingUrl,
   phone,
-}: TemplateHeroProps) {
+}: ClassicHeroProps) {
   const ctaHref = bookingUrl || (phone ? `tel:${phone}` : undefined);
 
   return (
     <section
       className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
-      style={{
-        backgroundColor: colors.foreground,
-        color: colors.background,
-      }}
+      style={{ backgroundColor: colors.foreground, color: colors.background }}
     >
-      {/* Background image with overlay — only use actual photos, not logos */}
       {heroImage && (
         <>
           <div
-            className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
+            className="absolute inset-0 bg-cover bg-center"
             style={{ backgroundImage: `url(${heroImage})` }}
           />
           <div
@@ -53,10 +48,15 @@ export function TemplateHero({
         </>
       )}
 
-      {/* Logo — rendered cleanly as an element, not stretched as background */}
       {logo && (
-        <div className="relative z-10 mb-6">
-          <div className="mx-auto h-24 w-24 overflow-hidden rounded-full border-2 shadow-lg md:h-32 md:w-32"
+        <motion.div
+          className="relative z-10 mb-6"
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6 }}
+        >
+          <div
+            className="mx-auto h-24 w-24 overflow-hidden rounded-full border-2 shadow-lg md:h-32 md:w-32"
             style={{ borderColor: `${colors.primary}40` }}
           >
             <Image
@@ -68,48 +68,64 @@ export function TemplateHero({
               unoptimized
             />
           </div>
-        </div>
+        </motion.div>
       )}
 
-      {/* Decorative accent line (only if no logo) */}
       {!logo && (
-        <div className="relative z-10 mb-8">
-          <div
-            className="mx-auto h-0.5 w-16"
-            style={{ backgroundColor: colors.primary }}
-          />
-        </div>
+        <motion.div
+          className="relative z-10 mb-8"
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.8, delay: 0.2 }}
+        >
+          <div className="mx-auto h-0.5 w-16" style={{ backgroundColor: colors.primary }} />
+        </motion.div>
       )}
 
       <div className="relative z-10 max-w-3xl">
-        <p
+        <motion.p
           className="mb-6 text-sm font-semibold uppercase tracking-[0.3em]"
           style={{ color: colors.primary }}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
         >
           {businessName}
-        </p>
-        <h1 className="mb-8 text-5xl font-bold leading-[1.1] md:text-7xl">
+        </motion.p>
+        <motion.h1
+          className="mb-8 text-5xl font-bold leading-[1.1] md:text-7xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+        >
           {headline}
-        </h1>
-        <p className="mx-auto mb-12 max-w-xl text-lg opacity-80 md:text-xl">
+        </motion.h1>
+        <motion.p
+          className="mx-auto mb-12 max-w-xl text-lg opacity-80 md:text-xl"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
           {subheadline}
-        </p>
-        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+        </motion.p>
+        <motion.div
+          className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.5 }}
+        >
           <Button
             size="lg"
             className="rounded-full px-12 py-7 text-base font-semibold tracking-wide shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
-            style={{
-              backgroundColor: colors.primary,
-              color: colors.background,
-            }}
+            style={{ backgroundColor: colors.primary, color: colors.background }}
             asChild={!!ctaHref}
           >
             {ctaHref ? (
               <a href={ctaHref} target={bookingUrl ? "_blank" : undefined} rel={bookingUrl ? "noopener noreferrer" : undefined}>
-                {ctaText}
+                Book Now
               </a>
             ) : (
-              <span>{ctaText}</span>
+              <span>Book Now</span>
             )}
           </Button>
           {phone && bookingUrl && (
@@ -117,24 +133,18 @@ export function TemplateHero({
               size="lg"
               variant="outline"
               className="rounded-full px-10 py-7 text-base font-semibold"
-              style={{
-                borderColor: `${colors.primary}80`,
-                color: colors.background,
-              }}
+              style={{ borderColor: `${colors.primary}80`, color: colors.background }}
               asChild
             >
               <a href={`tel:${phone}`}>Call Us</a>
             </Button>
           )}
-        </div>
+        </motion.div>
       </div>
 
-      {/* Bottom fade */}
       <div
         className="absolute bottom-0 left-0 right-0 h-32"
-        style={{
-          background: `linear-gradient(to top, ${colors.background}, transparent)`,
-        }}
+        style={{ background: `linear-gradient(to top, ${colors.background}, transparent)` }}
       />
     </section>
   );

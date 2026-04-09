@@ -11,9 +11,12 @@ interface CompareClientProps {
   groupId: string;
 }
 
-const VARIANT_STYLES: Record<string, { name: string; desc: string; icon: string }> = {
-  A: { name: "Design A", desc: "Bold & Energetic", icon: "🔥" },
-  B: { name: "Design B", desc: "Warm & Personal", icon: "🤝" },
+const TEMPLATE_META: Record<string, { desc: string; icon: string }> = {
+  classic: { desc: "Clean & Professional", icon: "💼" },
+  bold: { desc: "Bold & Modern", icon: "🔥" },
+  elegant: { desc: "Elegant & Minimal", icon: "✨" },
+  vibrant: { desc: "Fun & Energetic", icon: "🎉" },
+  warm: { desc: "Warm & Personal", icon: "🤝" },
 };
 
 export function CompareClient({ previews, groupId }: CompareClientProps) {
@@ -67,7 +70,8 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
         <div className="space-y-4">
           {previews.map((preview) => {
             const label = preview.variant_label || "A";
-            const style = VARIANT_STYLES[label] || VARIANT_STYLES.A;
+            const templateName = preview.template_variant || "classic";
+            const meta = TEMPLATE_META[templateName] || TEMPLATE_META.classic;
             const theme = getTheme(preview);
             const isSelected = selected === preview.slug;
             const headline = preview.generated_copy?.en?.hero_headline;
@@ -91,12 +95,12 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
                     {/* Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-xl">{style.icon}</span>
+                        <span className="text-xl">{meta.icon}</span>
                         <h3 className="text-lg font-semibold text-gray-900">
-                          {style.name}
+                          Design {label}
                         </h3>
                         <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs text-gray-500">
-                          {style.desc}
+                          {meta.desc}
                         </span>
                       </div>
                       {headline && (

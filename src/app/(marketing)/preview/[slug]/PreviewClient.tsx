@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { TemplateRenderer } from "@/components/templates";
+import { TemplateOrchestrator } from "@/components/templates";
 import type { PreviewData } from "@/lib/ai/types";
 
 interface PreviewClientProps {
@@ -121,7 +121,7 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
               viewMode === "mobile" ? "h-[700px] overflow-y-auto" : ""
             }
           >
-            <TemplateRenderer data={data} locale={locale} />
+            <TemplateOrchestrator data={data} locale={locale} />
           </div>
         </div>
       </div>

@@ -17,6 +17,8 @@ export type ColorTheme =
   | 'braids_kente' | 'braids_royal' | 'braids_earth' | 'braids_ocean' | 'braids_sunset'
   | 'braids_midnight' | 'braids_coral' | 'braids_jade';
 
+export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm';
+
 export interface ServiceItem {
   name: string;
   price: string;
