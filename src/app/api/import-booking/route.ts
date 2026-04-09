@@ -14,8 +14,11 @@ export async function POST(request: Request) {
       );
     }
 
+    // Auto-prepend https:// if missing
+    const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+
     // Fetch the booking page HTML
-    const res = await fetch(url, {
+    const res = await fetch(fullUrl, {
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
@@ -82,7 +85,7 @@ ${html.slice(0, 15000)}`,
       phone: extracted.phone || null,
       address: extracted.address || null,
       services: extracted.services || [],
-      booking_url: url,
+      booking_url: fullUrl,
     });
   } catch (error) {
     console.error("Import booking error:", error);
