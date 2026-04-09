@@ -19,9 +19,10 @@ interface TemplateRendererProps {
 }
 
 function getColors(data: PreviewData): ThemeColors {
-  // Use custom brand colors if available (from Smart Import)
-  if (data.custom_colors) {
-    return data.custom_colors;
+  // Use custom brand colors if available (from Smart Import, stored in generated_copy)
+  const customColors = (data.generated_copy as unknown as Record<string, unknown>)?.custom_colors as ThemeColors | undefined;
+  if (customColors && customColors.primary) {
+    return customColors;
   }
   const themes = THEMES_BY_VERTICAL[data.business_type];
   const theme = themes?.find((t) => t.id === data.color_theme);
@@ -35,6 +36,10 @@ function getColors(data: PreviewData): ThemeColors {
   };
 }
 
+function getLogo(data: PreviewData): string | undefined {
+  return (data.generated_copy as unknown as Record<string, unknown>)?.logo as string | undefined;
+}
+
 function getCopy(data: PreviewData, locale: "en" | "es"): GeneratedCopy["en"] | null {
   if (!data.generated_copy) return null;
   return data.generated_copy[locale];
@@ -42,6 +47,7 @@ function getCopy(data: PreviewData, locale: "en" | "es"): GeneratedCopy["en"] | 
 
 export function TemplateRenderer({ data, locale = "en" }: TemplateRendererProps) {
   const colors = getColors(data);
+  const logo = getLogo(data);
   const copy = getCopy(data, locale);
 
   const services = data.services.map((s) => ({
@@ -56,7 +62,7 @@ export function TemplateRenderer({ data, locale = "en" }: TemplateRendererProps)
         headline={copy?.hero_headline ?? `Welcome to ${data.business_name}`}
         subheadline={copy?.hero_subheadline ?? "Your neighborhood destination for quality service."}
         heroImage={data.images?.[0]}
-        logo={data.logo}
+        logo={logo}
         colors={colors}
         bookingUrl={data.booking_url}
         phone={data.phone}

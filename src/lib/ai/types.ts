@@ -69,18 +69,9 @@ export interface PreviewData {
   booking_url?: string;
   hours?: BusinessHours;
   address?: string;
-  logo?: string;
   images?: string[];
   generated_copy?: GeneratedCopy;
   template_variant?: string;
-  custom_colors?: {
-    primary: string;
-    secondary: string;
-    accent: string;
-    background: string;
-    foreground: string;
-    muted: string;
-  };
   group_id?: string; // links preview variants together
   variant_label?: string; // "A", "B"
   is_selected?: boolean; // user's chosen variant

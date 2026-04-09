@@ -163,14 +163,17 @@ export async function POST(request: Request) {
       products: products?.filter((p) => p.name.trim()) || [],
       booking_url,
       address,
-      logo: logo || null,
       images,
-      generated_copy: { en: variant.en, es: variant.es },
+      generated_copy: {
+        en: variant.en,
+        es: variant.es,
+        // Embed brand-derived colors and logo in the jsonb field
+        ...(customPalettes ? { custom_colors: customPalettes[i] } : {}),
+        ...(logo ? { logo } : {}),
+      },
       template_variant: `${business_type}_${variant.style}`,
       group_id: groupId,
       variant_label: variantLabels[i],
-      // Use brand-derived colors when available
-      ...(customPalettes ? { custom_colors: customPalettes[i] } : {}),
     }));
 
     const { error: insertError } = await supabase
