@@ -18,12 +18,41 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-function pickThreeThemes(businessType: BusinessType) {
+function pickTwoThemes(businessType: BusinessType, brandColors?: string[]) {
   const themes = THEMES_BY_VERTICAL[businessType] || [];
-  // Pick 3 diverse themes: one light, one dark, one accent-heavy
-  // Shuffle and pick first 3 for variety
+  if (!themes.length) return themes.slice(0, 2);
+
+  // If brand colors are provided, find the closest matching themes
+  if (brandColors && brandColors.length > 0) {
+    const scored = themes.map((theme) => {
+      const score = brandColors.reduce((acc, bc) => {
+        const dist = colorDistance(bc, theme.colors.primary);
+        return acc + dist;
+      }, 0);
+      return { theme, score };
+    });
+    scored.sort((a, b) => a.score - b.score);
+    // Pick the best match and one contrasting option
+    return [scored[0].theme, scored[Math.min(scored.length - 1, Math.floor(scored.length / 2))].theme];
+  }
+
+  // Default: shuffle and pick 2
   const shuffled = [...themes].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 3);
+  return shuffled.slice(0, 2);
+}
+
+function colorDistance(hex1: string, hex2: string): number {
+  const toRgb = (hex: string) => {
+    const h = hex.replace("#", "");
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  };
+  try {
+    const [r1, g1, b1] = toRgb(hex1);
+    const [r2, g2, b2] = toRgb(hex2);
+    return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
+  } catch {
+    return 999;
+  }
 }
 
 export async function POST(request: Request) {
@@ -41,6 +70,7 @@ export async function POST(request: Request) {
       booking_url,
       address,
       uploaded_images,
+      brand_colors,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -52,6 +82,7 @@ export async function POST(request: Request) {
       booking_url?: string;
       address?: string;
       uploaded_images?: string[];
+      brand_colors?: string[];
     };
 
     if (!business_name || !business_type) {
@@ -61,7 +92,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate 3 AI copy variants in one call
+    // Generate 2 AI copy variants in one call
     const variants = await generateWebsiteCopyVariants({
       businessName: business_name,
       businessType: business_type,
@@ -79,8 +110,8 @@ export async function POST(request: Request) {
         : stockImages;
 
     const groupId = generateGroupId();
-    const themes = pickThreeThemes(business_type);
-    const variantLabels = ["A", "B", "C"];
+    const themes = pickTwoThemes(business_type, brand_colors);
+    const variantLabels = ["A", "B"];
 
     const supabase = createAdminClient();
     const previewRows = variants.map((variant, i) => ({

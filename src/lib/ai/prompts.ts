@@ -47,7 +47,7 @@ export function buildUserPrompt(params: {
     ? params.products.map((p) => `- ${p.name} (${p.price})`).join("\n")
     : "";
 
-  return `Generate website copy for this business. Create 3 DISTINCT VARIANTS — each should feel like a completely different writer with a different creative vision, while still matching the business.
+  return `Generate website copy for this business. Create 2 DISTINCT VARIANTS — each should feel like a completely different writer with a different creative vision, while still matching the business.
 
 BUSINESS NAME: ${params.businessName}
 TYPE: ${params.businessType}
@@ -60,7 +60,7 @@ ${serviceList}
 
 ${productList ? `PRODUCTS:\n${productList}` : ""}
 
-For EACH of the 3 variants, generate in BOTH English (en) and Spanish (es):
+For EACH of the 2 variants, generate in BOTH English (en) and Spanish (es):
 
 1. hero_headline — A bold, attention-grabbing headline (under 10 words)
 2. hero_subheadline — Supporting text (1 sentence, under 20 words)
@@ -75,7 +75,6 @@ ${productList ? '5. product_descriptions — A short description for EACH produc
 VARIANT GUIDELINES:
 - Variant A: Bold, confident, energetic — makes the reader excited
 - Variant B: Warm, personal, storytelling — makes the reader feel at home
-- Variant C: Elegant, sophisticated, premium — makes the business feel upscale
 
 IMPORTANT: Return ONLY valid JSON matching this exact structure:
 {
@@ -96,11 +95,6 @@ IMPORTANT: Return ONLY valid JSON matching this exact structure:
     },
     {
       "style": "warm",
-      "en": { ... },
-      "es": { ... }
-    },
-    {
-      "style": "elegant",
       "en": { ... },
       "es": { ... }
     }

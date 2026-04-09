@@ -72,6 +72,7 @@ export default function PreviewWizard() {
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
+  const [brandColors, setBrandColors] = useState<string[]>([]);
 
   // Step 4: Photos
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
@@ -131,6 +132,9 @@ export default function PreviewWizard() {
             price: s.price || "",
           }))
         );
+      }
+      if (data.brand_colors && data.brand_colors.length > 0) {
+        setBrandColors(data.brand_colors);
       }
       if (data.images && data.images.length > 0) {
         const validImages = data.images.filter(
@@ -198,6 +202,7 @@ export default function PreviewWizard() {
           booking_url: bookingUrl || undefined,
           address,
           uploaded_images: uploadedImages,
+          brand_colors: brandColors.length > 0 ? brandColors : undefined,
         }),
       });
       if (!res.ok) {
@@ -759,7 +764,7 @@ export default function PreviewWizard() {
               onClick={handleGenerate}
               className="rounded-full bg-amber-600 px-8 text-white hover:bg-amber-700"
             >
-              Generate 3 Designs
+              Generate 2 Designs
             </Button>
           )}
         </div>

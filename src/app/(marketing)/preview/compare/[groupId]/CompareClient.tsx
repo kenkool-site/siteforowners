@@ -14,7 +14,6 @@ interface CompareClientProps {
 const VARIANT_STYLES: Record<string, { name: string; desc: string; icon: string }> = {
   A: { name: "Design A", desc: "Bold & Energetic", icon: "🔥" },
   B: { name: "Design B", desc: "Warm & Personal", icon: "🤝" },
-  C: { name: "Design C", desc: "Elegant & Premium", icon: "✨" },
 };
 
 export function CompareClient({ previews, groupId }: CompareClientProps) {
@@ -57,7 +56,7 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
       <div className="mx-auto max-w-3xl px-6 py-10">
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-bold text-gray-900">
-            Your 3 website designs are ready
+            Your 2 website designs are ready
           </h1>
           <p className="mt-3 text-gray-600">
             Preview each one, then pick your favorite for{" "}
