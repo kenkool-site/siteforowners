@@ -1,20 +1,25 @@
 import { notFound } from "next/navigation";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import { PreviewClient } from "./PreviewClient";
 
 async function getPreviewData(slug: string): Promise<PreviewData | null> {
-  // MVP: read from /tmp file system
-  // TODO: Week 2 — read from Supabase previews table
-  try {
-    const fs = await import("fs/promises");
-    const data = await fs.readFile(
-      `/tmp/siteforowners-previews/${slug}.json`,
-      "utf-8"
-    );
-    return JSON.parse(data) as PreviewData;
-  } catch {
-    return null;
-  }
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("previews")
+    .select("*")
+    .eq("slug", slug)
+    .single();
+
+  if (error || !data) return null;
+
+  // Increment view count
+  await supabase
+    .from("previews")
+    .update({ view_count: (data.view_count || 0) + 1 })
+    .eq("slug", slug);
+
+  return data as PreviewData;
 }
 
 export default async function PreviewPage({

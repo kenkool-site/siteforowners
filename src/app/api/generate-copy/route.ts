@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateWebsiteCopy } from "@/lib/ai/generate-copy";
 import { STOCK_PHOTOS } from "@/lib/templates/stock-photos";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { BusinessType, ColorTheme, ServiceItem } from "@/lib/ai/types";
 
 function generateSlug(businessName: string): string {
@@ -62,8 +63,6 @@ export async function POST(request: Request) {
         ? uploaded_images
         : stockImages;
 
-    // For MVP, store in a simple JSON file or return directly
-    // TODO: Week 2 — store in Supabase previews table
     const previewData = {
       slug,
       business_name,
@@ -75,17 +74,17 @@ export async function POST(request: Request) {
       images,
       generated_copy,
       template_variant: `${business_type}_${color_theme.split("_").slice(1).join("_")}`,
-      created_at: new Date().toISOString(),
     };
 
-    // Store in /tmp for MVP (replaced with Supabase in Week 2)
-    const fs = await import("fs/promises");
-    const dir = "/tmp/siteforowners-previews";
-    await fs.mkdir(dir, { recursive: true });
-    await fs.writeFile(
-      `${dir}/${slug}.json`,
-      JSON.stringify(previewData, null, 2)
-    );
+    const supabase = createAdminClient();
+    const { error: insertError } = await supabase
+      .from("previews")
+      .insert(previewData);
+
+    if (insertError) {
+      console.error("Supabase insert error:", insertError);
+      throw new Error("Failed to store preview");
+    }
 
     return NextResponse.json({ slug, preview: previewData });
   } catch (error) {
