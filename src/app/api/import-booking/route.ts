@@ -68,7 +68,7 @@ Rules:
 - If a price is a range, use the starting price
 - For logo: find the business logo image (usually in header, navbar, or og:image meta tag). Return the single best logo URL. Must be a full absolute URL.
 - For images: extract image URLs that are PHOTOS of work, gallery images, or service photos. NOT logos, NOT icons, NOT tiny images. Include full absolute URLs. Skip SVGs and tracking pixels.
-- For brand_colors: extract hex colors from inline styles, CSS custom properties, background-color, color properties, or meta theme-color tags. Include the 2-3 most prominent brand colors.
+- For brand_colors: extract the BUSINESS's brand colors, NOT the booking platform's UI colors. Look for: custom background colors on the page body or main containers, header/banner background colors, colors applied to the business name/logo area, CSS custom properties set by the business owner, meta theme-color tags. IGNORE default platform UI colors (like Acuity's green buttons #27ae60/#3DBE8B, Booksy blue, Vagaro teal, Calendly blue) — those belong to the booking platform, not the business. Include 2-3 hex colors that represent the BUSINESS's visual identity.
 - For description: look for meta description, og:description, or any about/bio text
 
 HTML content (first 20000 chars):
