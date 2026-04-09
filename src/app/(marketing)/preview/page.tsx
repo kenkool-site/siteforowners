@@ -133,7 +133,12 @@ export default function PreviewWizard() {
         );
       }
       if (data.images && data.images.length > 0) {
-        setUploadedImages(data.images);
+        const validImages = data.images.filter(
+          (img: string) => img.startsWith("https://") && !img.endsWith(".svg")
+        );
+        if (validImages.length > 0) {
+          setUploadedImages(validImages);
+        }
       }
       setImported(true);
     } catch (e) {
