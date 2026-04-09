@@ -18,41 +18,75 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-function pickTwoThemes(businessType: BusinessType, brandColors?: string[]) {
+function pickTwoThemes(businessType: BusinessType) {
   const themes = THEMES_BY_VERTICAL[businessType] || [];
-  if (!themes.length) return themes.slice(0, 2);
-
-  // If brand colors are provided, find the closest matching themes
-  if (brandColors && brandColors.length > 0) {
-    const scored = themes.map((theme) => {
-      const score = brandColors.reduce((acc, bc) => {
-        const dist = colorDistance(bc, theme.colors.primary);
-        return acc + dist;
-      }, 0);
-      return { theme, score };
-    });
-    scored.sort((a, b) => a.score - b.score);
-    // Pick the best match and one contrasting option
-    return [scored[0].theme, scored[Math.min(scored.length - 1, Math.floor(scored.length / 2))].theme];
-  }
-
-  // Default: shuffle and pick 2
   const shuffled = [...themes].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, 2);
 }
 
-function colorDistance(hex1: string, hex2: string): number {
-  const toRgb = (hex: string) => {
-    const h = hex.replace("#", "");
-    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+// Build a full color palette from brand colors
+function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors] {
+  const primary = brandColors[0];
+  const secondary = brandColors[1] || lighten(primary, 0.7);
+  const accent = brandColors[2] || darken(primary, 0.2);
+
+  // Variant A: Light background with brand primary
+  const paletteA = {
+    primary,
+    secondary,
+    accent,
+    background: lighten(primary, 0.92),
+    foreground: darken(primary, 0.6),
+    muted: lighten(primary, 0.8),
   };
+
+  // Variant B: Dark background with brand primary as accent
+  const paletteB = {
+    primary,
+    secondary: lighten(primary, 0.3),
+    accent,
+    background: darken(primary, 0.7),
+    foreground: lighten(primary, 0.92),
+    muted: darken(primary, 0.5),
+  };
+
+  return [paletteA, paletteB];
+}
+
+interface CustomColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+  foreground: string;
+  muted: string;
+}
+
+function toRgb(hex: string): [number, number, number] {
+  const h = hex.replace("#", "");
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+
+function toHex(r: number, g: number, b: number): string {
+  return "#" + [r, g, b].map((c) => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, "0")).join("");
+}
+
+function lighten(hex: string, amount: number): string {
   try {
-    const [r1, g1, b1] = toRgb(hex1);
-    const [r2, g2, b2] = toRgb(hex2);
-    return Math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2);
-  } catch {
-    return 999;
-  }
+    const [r, g, b] = toRgb(hex);
+    return toHex(
+      r + (255 - r) * amount,
+      g + (255 - g) * amount,
+      b + (255 - b) * amount
+    );
+  } catch { return "#FFFFFF"; }
+}
+
+function darken(hex: string, amount: number): string {
+  try {
+    const [r, g, b] = toRgb(hex);
+    return toHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
+  } catch { return "#1A1A1A"; }
 }
 
 export async function POST(request: Request) {
@@ -69,6 +103,7 @@ export async function POST(request: Request) {
       products,
       booking_url,
       address,
+      logo,
       uploaded_images,
       brand_colors,
     } = body as {
@@ -81,6 +116,7 @@ export async function POST(request: Request) {
       products?: ProductItem[];
       booking_url?: string;
       address?: string;
+      logo?: string;
       uploaded_images?: string[];
       brand_colors?: string[];
     };
@@ -110,7 +146,10 @@ export async function POST(request: Request) {
         : stockImages;
 
     const groupId = generateGroupId();
-    const themes = pickTwoThemes(business_type, brand_colors);
+    const themes = pickTwoThemes(business_type);
+    const customPalettes = brand_colors && brand_colors.length > 0
+      ? buildCustomPalettes(brand_colors)
+      : null;
     const variantLabels = ["A", "B"];
 
     const supabase = createAdminClient();
@@ -124,11 +163,14 @@ export async function POST(request: Request) {
       products: products?.filter((p) => p.name.trim()) || [],
       booking_url,
       address,
+      logo: logo || null,
       images,
       generated_copy: { en: variant.en, es: variant.es },
       template_variant: `${business_type}_${variant.style}`,
       group_id: groupId,
       variant_label: variantLabels[i],
+      // Use brand-derived colors when available
+      ...(customPalettes ? { custom_colors: customPalettes[i] } : {}),
     }));
 
     const { error: insertError } = await supabase

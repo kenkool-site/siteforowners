@@ -19,6 +19,10 @@ interface TemplateRendererProps {
 }
 
 function getColors(data: PreviewData): ThemeColors {
+  // Use custom brand colors if available (from Smart Import)
+  if (data.custom_colors) {
+    return data.custom_colors;
+  }
   const themes = THEMES_BY_VERTICAL[data.business_type];
   const theme = themes?.find((t) => t.id === data.color_theme);
   return theme?.colors ?? themes?.[0]?.colors ?? {
@@ -52,6 +56,7 @@ export function TemplateRenderer({ data, locale = "en" }: TemplateRendererProps)
         headline={copy?.hero_headline ?? `Welcome to ${data.business_name}`}
         subheadline={copy?.hero_subheadline ?? "Your neighborhood destination for quality service."}
         heroImage={data.images?.[0]}
+        logo={data.logo}
         colors={colors}
         bookingUrl={data.booking_url}
         phone={data.phone}

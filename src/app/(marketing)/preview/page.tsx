@@ -75,6 +75,7 @@ export default function PreviewWizard() {
   const [brandColors, setBrandColors] = useState<string[]>([]);
 
   // Step 4: Photos
+  const [logo, setLogo] = useState<string>("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
@@ -132,6 +133,9 @@ export default function PreviewWizard() {
             price: s.price || "",
           }))
         );
+      }
+      if (data.logo) {
+        setLogo(data.logo);
       }
       if (data.brand_colors && data.brand_colors.length > 0) {
         setBrandColors(data.brand_colors);
@@ -201,6 +205,7 @@ export default function PreviewWizard() {
           products: hasProducts ? products.filter((p) => p.name.trim()) : [],
           booking_url: bookingUrl || undefined,
           address,
+          logo: logo || undefined,
           uploaded_images: uploadedImages,
           brand_colors: brandColors.length > 0 ? brandColors : undefined,
         }),

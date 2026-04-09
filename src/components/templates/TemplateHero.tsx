@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 
@@ -8,6 +9,7 @@ interface TemplateHeroProps {
   headline: string;
   subheadline: string;
   heroImage?: string;
+  logo?: string;
   colors: ThemeColors;
   ctaText?: string;
   bookingUrl?: string;
@@ -19,6 +21,7 @@ export function TemplateHero({
   headline,
   subheadline,
   heroImage,
+  logo,
   colors,
   ctaText = "Book Now",
   bookingUrl,
@@ -34,7 +37,7 @@ export function TemplateHero({
         color: colors.background,
       }}
     >
-      {/* Background image with overlay */}
+      {/* Background image with overlay — only use actual photos, not logos */}
       {heroImage && (
         <>
           <div
@@ -50,13 +53,33 @@ export function TemplateHero({
         </>
       )}
 
-      {/* Decorative accent line */}
-      <div className="relative z-10 mb-8">
-        <div
-          className="mx-auto h-0.5 w-16"
-          style={{ backgroundColor: colors.primary }}
-        />
-      </div>
+      {/* Logo — rendered cleanly as an element, not stretched as background */}
+      {logo && (
+        <div className="relative z-10 mb-6">
+          <div className="mx-auto h-24 w-24 overflow-hidden rounded-full border-2 shadow-lg md:h-32 md:w-32"
+            style={{ borderColor: `${colors.primary}40` }}
+          >
+            <Image
+              src={logo}
+              alt={`${businessName} logo`}
+              width={128}
+              height={128}
+              className="h-full w-full object-cover"
+              unoptimized
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Decorative accent line (only if no logo) */}
+      {!logo && (
+        <div className="relative z-10 mb-8">
+          <div
+            className="mx-auto h-0.5 w-16"
+            style={{ backgroundColor: colors.primary }}
+          />
+        </div>
+      )}
 
       <div className="relative z-10 max-w-3xl">
         <p

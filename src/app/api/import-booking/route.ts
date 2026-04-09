@@ -54,7 +54,8 @@ Return ONLY valid JSON with this structure (omit fields you can't find):
   "services": [
     {"name": "Service Name", "price": "$XX", "duration": "XX min"}
   ],
-  "images": ["https://full-url-to-image.jpg"],
+  "logo": "https://url-to-logo-image.jpg",
+  "images": ["https://full-url-to-photo.jpg"],
   "brand_colors": ["#hex1", "#hex2"],
   "description": "Brief description of the business if found"
 }
@@ -65,7 +66,8 @@ Rules:
 - Format phone as (XXX) XXX-XXXX
 - Keep service names clean and concise
 - If a price is a range, use the starting price
-- For images: extract ALL image URLs (src attributes) that look like business photos, logos, or gallery images. Include full absolute URLs. Skip tiny icons, tracking pixels, and SVGs.
+- For logo: find the business logo image (usually in header, navbar, or og:image meta tag). Return the single best logo URL. Must be a full absolute URL.
+- For images: extract image URLs that are PHOTOS of work, gallery images, or service photos. NOT logos, NOT icons, NOT tiny images. Include full absolute URLs. Skip SVGs and tracking pixels.
 - For brand_colors: extract hex colors from inline styles, CSS custom properties, background-color, color properties, or meta theme-color tags. Include the 2-3 most prominent brand colors.
 - For description: look for meta description, og:description, or any about/bio text
 
@@ -105,6 +107,7 @@ ${html.slice(0, 20000)}`,
       address: extracted.address || null,
       description: extracted.description || null,
       services: extracted.services || [],
+      logo: extracted.logo || null,
       images: extracted.images || [],
       brand_colors: extracted.brand_colors || [],
       booking_url: fullUrl,
