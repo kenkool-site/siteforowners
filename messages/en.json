@@ -1,0 +1,110 @@
+{
+  "common": {
+    "brandName": "SiteForOwners",
+    "getStarted": "Get Started",
+    "learnMore": "Learn More",
+    "goLive": "Go Live",
+    "textUs": "Text Us",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "close": "Close"
+  },
+  "marketing": {
+    "hero": {
+      "title": "Your website, built for you",
+      "subtitle": "See it free in 5 minutes",
+      "cta": "Build My Preview",
+      "description": "Professional websites for small businesses. $65/month. No setup fee. We handle everything."
+    },
+    "howItWorks": {
+      "title": "How It Works",
+      "step1": "Tell us about your business",
+      "step1Detail": "Business name, services, and a few photos — that's all we need.",
+      "step2": "AI builds your website",
+      "step2Detail": "Our AI creates a professional website with your info in minutes.",
+      "step3": "Go live for $65/month",
+      "step3Detail": "Love it? We handle hosting, domain, updates — everything."
+    },
+    "pricing": {
+      "title": "Simple Pricing",
+      "starter": "Starter",
+      "starterPrice": "$65/mo",
+      "starterFeatures": "Professional website, hosting, domain, 2 updates/month",
+      "growth": "Growth",
+      "growthPrice": "$99/mo",
+      "growthFeatures": "Everything in Starter + Google Business Profile + basic SEO",
+      "pro": "Pro",
+      "proPrice": "$149/mo",
+      "proFeatures": "Everything in Growth + review management + SMS notifications"
+    }
+  },
+  "wizard": {
+    "title": "Let's build your website",
+    "step1": {
+      "title": "About Your Business",
+      "businessName": "Business Name",
+      "businessType": "What type of business?",
+      "phone": "Your Phone Number",
+      "types": {
+        "salon": "Hair Salon",
+        "barbershop": "Barbershop",
+        "restaurant": "Restaurant",
+        "nails": "Nail Salon",
+        "braids": "Braiding Salon"
+      }
+    },
+    "step2": {
+      "title": "Pick Your Style",
+      "colorTheme": "Choose a color theme",
+      "tagline": "Pick a tagline or write your own"
+    },
+    "step3": {
+      "title": "Your Services",
+      "addService": "Add a service",
+      "serviceName": "Service name",
+      "servicePrice": "Price",
+      "hours": "Business Hours",
+      "address": "Business Address"
+    },
+    "step4": {
+      "title": "Add Photos",
+      "upload": "Upload photos",
+      "uploadHint": "Logo, storefront, or examples of your work (3-5 photos)",
+      "skip": "Skip — we'll use professional stock photos"
+    },
+    "generating": {
+      "title": "Building your website...",
+      "subtitle": "Our AI is writing your content in English and Spanish"
+    }
+  },
+  "preview": {
+    "title": "Your Website Preview",
+    "goLive": "Love it? Go live for $65/mo",
+    "goLiveDetail": "We handle hosting, domain, updates — everything.",
+    "textUs": "Text us to get started",
+    "share": "Share this preview",
+    "mobile": "Mobile",
+    "desktop": "Desktop"
+  },
+  "dashboard": {
+    "welcome": "Welcome back",
+    "traffic": "Traffic",
+    "leads": "Leads",
+    "bookings": "Bookings",
+    "billing": "Billing",
+    "updates": "Updates",
+    "needHelp": "Need help? Text us",
+    "noLeads": "No leads yet — they'll show up here when someone contacts you through your website."
+  },
+  "auth": {
+    "login": "Log In",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?",
+    "resetPassword": "Reset Password"
+  }
+}

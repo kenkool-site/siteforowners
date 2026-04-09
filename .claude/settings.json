@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "npm install *",
+      "npm run *",
+      "npx shadcn@latest *",
+      "npx supabase *",
+      "git *",
+      "mkdir *",
+      "ls *"
+    ],
+    "deny": [
+      "rm -rf *",
+      "curl * | sh",
+      "env",
+      "printenv"
+    ]
+  }
+}

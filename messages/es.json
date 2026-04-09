@@ -1,0 +1,110 @@
+{
+  "common": {
+    "brandName": "SiteForOwners",
+    "getStarted": "Comenzar",
+    "learnMore": "Más Información",
+    "goLive": "Publicar",
+    "textUs": "Escríbenos",
+    "loading": "Cargando...",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "close": "Cerrar"
+  },
+  "marketing": {
+    "hero": {
+      "title": "Tu sitio web, hecho para ti",
+      "subtitle": "Véalo gratis en 5 minutos",
+      "cta": "Crear Mi Vista Previa",
+      "description": "Sitios web profesionales para pequeños negocios. $65/mes. Sin costo de instalación. Nosotros nos encargamos de todo."
+    },
+    "howItWorks": {
+      "title": "Cómo Funciona",
+      "step1": "Cuéntanos sobre tu negocio",
+      "step1Detail": "Nombre del negocio, servicios y algunas fotos — es todo lo que necesitamos.",
+      "step2": "La IA crea tu sitio web",
+      "step2Detail": "Nuestra IA crea un sitio web profesional con tu información en minutos.",
+      "step3": "Publícalo por $65/mes",
+      "step3Detail": "¿Te gusta? Nosotros nos encargamos del hosting, dominio, actualizaciones — todo."
+    },
+    "pricing": {
+      "title": "Precios Simples",
+      "starter": "Básico",
+      "starterPrice": "$65/mes",
+      "starterFeatures": "Sitio web profesional, hosting, dominio, 2 actualizaciones/mes",
+      "growth": "Crecimiento",
+      "growthPrice": "$99/mes",
+      "growthFeatures": "Todo en Básico + perfil de Google Business + SEO básico",
+      "pro": "Pro",
+      "proPrice": "$149/mes",
+      "proFeatures": "Todo en Crecimiento + gestión de reseñas + notificaciones SMS"
+    }
+  },
+  "wizard": {
+    "title": "Vamos a crear tu sitio web",
+    "step1": {
+      "title": "Sobre Tu Negocio",
+      "businessName": "Nombre del Negocio",
+      "businessType": "¿Qué tipo de negocio?",
+      "phone": "Tu Número de Teléfono",
+      "types": {
+        "salon": "Salón de Belleza",
+        "barbershop": "Barbería",
+        "restaurant": "Restaurante",
+        "nails": "Salón de Uñas",
+        "braids": "Salón de Trenzas"
+      }
+    },
+    "step2": {
+      "title": "Elige Tu Estilo",
+      "colorTheme": "Elige un tema de color",
+      "tagline": "Elige un eslogan o escribe el tuyo"
+    },
+    "step3": {
+      "title": "Tus Servicios",
+      "addService": "Agregar un servicio",
+      "serviceName": "Nombre del servicio",
+      "servicePrice": "Precio",
+      "hours": "Horario de Atención",
+      "address": "Dirección del Negocio"
+    },
+    "step4": {
+      "title": "Agrega Fotos",
+      "upload": "Subir fotos",
+      "uploadHint": "Logo, fachada o ejemplos de tu trabajo (3-5 fotos)",
+      "skip": "Omitir — usaremos fotos profesionales"
+    },
+    "generating": {
+      "title": "Creando tu sitio web...",
+      "subtitle": "Nuestra IA está escribiendo tu contenido en inglés y español"
+    }
+  },
+  "preview": {
+    "title": "Vista Previa de Tu Sitio Web",
+    "goLive": "¿Te gusta? Publícalo por $65/mes",
+    "goLiveDetail": "Nosotros nos encargamos del hosting, dominio, actualizaciones — todo.",
+    "textUs": "Escríbenos para comenzar",
+    "share": "Compartir esta vista previa",
+    "mobile": "Móvil",
+    "desktop": "Escritorio"
+  },
+  "dashboard": {
+    "welcome": "Bienvenido de vuelta",
+    "traffic": "Tráfico",
+    "leads": "Contactos",
+    "bookings": "Citas",
+    "billing": "Facturación",
+    "updates": "Actualizaciones",
+    "needHelp": "¿Necesitas ayuda? Escríbenos",
+    "noLeads": "Aún no hay contactos — aparecerán aquí cuando alguien te contacte a través de tu sitio web."
+  },
+  "auth": {
+    "login": "Iniciar Sesión",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "forgotPassword": "¿Olvidaste tu contraseña?",
+    "resetPassword": "Restablecer Contraseña"
+  }
+}
