@@ -38,11 +38,11 @@ export async function POST(request: Request) {
     // Use Claude to extract structured data from the page
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-20250514",
-      max_tokens: 2000,
+      max_tokens: 3000,
       messages: [
         {
           role: "user",
-          content: `Extract business information from this booking page HTML. Pull out everything you can find.
+          content: `Extract business information from this booking page HTML. Pull out EVERYTHING you can find.
 
 Return ONLY valid JSON with this structure (omit fields you can't find):
 {
@@ -51,7 +51,10 @@ Return ONLY valid JSON with this structure (omit fields you can't find):
   "address": "...",
   "services": [
     {"name": "Service Name", "price": "$XX", "duration": "XX min"}
-  ]
+  ],
+  "images": ["https://full-url-to-image.jpg"],
+  "brand_colors": ["#hex1", "#hex2"],
+  "description": "Brief description of the business if found"
 }
 
 Rules:
@@ -60,9 +63,12 @@ Rules:
 - Format phone as (XXX) XXX-XXXX
 - Keep service names clean and concise
 - If a price is a range, use the starting price
+- For images: extract ALL image URLs (src attributes) that look like business photos, logos, or gallery images. Include full absolute URLs. Skip tiny icons, tracking pixels, and SVGs.
+- For brand_colors: extract hex colors from inline styles, CSS custom properties, background-color, color properties, or meta theme-color tags. Include the 2-3 most prominent brand colors.
+- For description: look for meta description, og:description, or any about/bio text
 
-HTML content (first 15000 chars):
-${html.slice(0, 15000)}`,
+HTML content (first 20000 chars):
+${html.slice(0, 20000)}`,
         },
       ],
     });
@@ -84,7 +90,10 @@ ${html.slice(0, 15000)}`,
       business_name: extracted.business_name || null,
       phone: extracted.phone || null,
       address: extracted.address || null,
+      description: extracted.description || null,
       services: extracted.services || [],
+      images: extracted.images || [],
+      brand_colors: extracted.brand_colors || [],
       booking_url: fullUrl,
     });
   } catch (error) {

@@ -122,6 +122,7 @@ export default function PreviewWizard() {
       if (data.business_name) setBusinessName(data.business_name);
       if (data.phone) setPhone(data.phone);
       if (data.address) setAddress(data.address);
+      if (data.description) setDescription(data.description);
       if (data.booking_url) setBookingUrl(data.booking_url);
       if (data.services && data.services.length > 0) {
         setServices(
@@ -130,6 +131,9 @@ export default function PreviewWizard() {
             price: s.price || "",
           }))
         );
+      }
+      if (data.images && data.images.length > 0) {
+        setUploadedImages(data.images);
       }
       setImported(true);
     } catch (e) {
