@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { isEmbeddableBookingUrl } from "../TemplateBooking";
 
 interface WarmHeroProps {
   businessName: string;
@@ -26,7 +27,8 @@ export function WarmHero({
   bookingUrl,
   phone,
 }: WarmHeroProps) {
-  const ctaHref = bookingUrl || (phone ? `tel:${phone}` : undefined);
+  const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
+  const ctaHref = canEmbed ? "#booking" : bookingUrl || (phone ? `tel:${phone}` : undefined);
 
   return (
     <section className="min-h-[90vh] md:grid md:grid-cols-2">
@@ -109,7 +111,7 @@ export function WarmHero({
             asChild={!!ctaHref}
           >
             {ctaHref ? (
-              <a href={ctaHref} target={bookingUrl ? "_blank" : undefined} rel={bookingUrl ? "noopener noreferrer" : undefined}>
+              <a href={ctaHref} target={canEmbed ? undefined : (bookingUrl ? "_blank" : undefined)} rel={canEmbed ? undefined : (bookingUrl ? "noopener noreferrer" : undefined)}>
                 Come Visit Us
               </a>
             ) : (

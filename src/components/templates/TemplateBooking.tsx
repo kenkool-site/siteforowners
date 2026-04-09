@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 
@@ -12,7 +12,7 @@ interface TemplateBookingProps {
   colors: ThemeColors;
 }
 
-function isEmbeddable(url: string): boolean {
+export function isEmbeddableBookingUrl(url: string): boolean {
   const embeddablePatterns = [
     "booksy.com",
     "vagaro.com",
@@ -36,10 +36,24 @@ export function TemplateBooking({
   colors,
 }: TemplateBookingProps) {
   const [showEmbed, setShowEmbed] = useState(false);
-  const canEmbed = bookingUrl && isEmbeddable(bookingUrl);
+  const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
+
+  // Auto-open embed when navigated to via #booking anchor (from hero CTA)
+  useEffect(() => {
+    if (!canEmbed) return;
+    const handleHash = () => {
+      if (window.location.hash === "#booking") {
+        setShowEmbed(true);
+      }
+    };
+    handleHash();
+    window.addEventListener("hashchange", handleHash);
+    return () => window.removeEventListener("hashchange", handleHash);
+  }, [canEmbed]);
 
   return (
     <section
+      id="booking"
       className="px-6 py-20"
       style={{ backgroundColor: colors.foreground }}
     >
@@ -108,7 +122,7 @@ export function TemplateBooking({
             <iframe
               src={bookingUrl}
               title="Book an appointment"
-              className="h-[600px] w-full border-0"
+              className="h-[700px] w-full border-0"
               allow="payment"
             />
           </div>
