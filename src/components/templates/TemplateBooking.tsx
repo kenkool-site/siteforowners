@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 
@@ -9,6 +12,21 @@ interface TemplateBookingProps {
   colors: ThemeColors;
 }
 
+function isEmbeddable(url: string): boolean {
+  const embeddablePatterns = [
+    "booksy.com",
+    "vagaro.com",
+    "squareup.com",
+    "square.site",
+    "acuityscheduling.com",
+    "calendly.com",
+    "cal.com",
+  ];
+  return embeddablePatterns.some((pattern) =>
+    url.toLowerCase().includes(pattern)
+  );
+}
+
 export function TemplateBooking({
   title = "Book an Appointment",
   subtitle = "Ready to look your best? Book your appointment today.",
@@ -16,12 +34,15 @@ export function TemplateBooking({
   phone,
   colors,
 }: TemplateBookingProps) {
+  const [showEmbed, setShowEmbed] = useState(false);
+  const canEmbed = bookingUrl && isEmbeddable(bookingUrl);
+
   return (
     <section
       className="px-6 py-20"
       style={{ backgroundColor: colors.foreground }}
     >
-      <div className="mx-auto max-w-2xl text-center">
+      <div className="mx-auto max-w-3xl text-center">
         <h2
           className="mb-4 text-3xl font-bold md:text-4xl"
           style={{ color: colors.background }}
@@ -41,11 +62,16 @@ export function TemplateBooking({
                 backgroundColor: colors.primary,
                 color: colors.background,
               }}
-              asChild
+              onClick={canEmbed ? () => setShowEmbed(!showEmbed) : undefined}
+              asChild={!canEmbed}
             >
-              <a href={bookingUrl} target="_blank" rel="noopener noreferrer">
-                Book Online
-              </a>
+              {canEmbed ? (
+                <span>{showEmbed ? "Close Booking" : "Book Online"}</span>
+              ) : (
+                <a href={bookingUrl} target="_blank" rel="noopener noreferrer">
+                  Book Online
+                </a>
+              )}
             </Button>
           )}
           {phone && (
@@ -75,6 +101,17 @@ export function TemplateBooking({
             </Button>
           )}
         </div>
+
+        {canEmbed && showEmbed && (
+          <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl">
+            <iframe
+              src={bookingUrl}
+              title="Book an appointment"
+              className="h-[600px] w-full border-0"
+              allow="payment"
+            />
+          </div>
+        )}
       </div>
     </section>
   );

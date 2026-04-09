@@ -3,19 +3,31 @@ export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'br
 export type ColorTheme =
   // Salon
   | 'salon_gold' | 'salon_rose' | 'salon_mocha' | 'salon_lavender' | 'salon_midnight'
+  | 'salon_emerald' | 'salon_peach' | 'salon_noir'
   // Barbershop
   | 'barbershop_black_gold' | 'barbershop_navy' | 'barbershop_forest' | 'barbershop_burgundy' | 'barbershop_charcoal'
+  | 'barbershop_slate' | 'barbershop_vintage' | 'barbershop_ice'
   // Restaurant
   | 'restaurant_burgundy' | 'restaurant_olive' | 'restaurant_ocean' | 'restaurant_terracotta' | 'restaurant_midnight'
+  | 'restaurant_sage' | 'restaurant_fire' | 'restaurant_noir'
   // Nails
   | 'nails_pink' | 'nails_coral' | 'nails_berry' | 'nails_rose_gold' | 'nails_midnight'
+  | 'nails_seafoam' | 'nails_lilac' | 'nails_champagne'
   // Braids
-  | 'braids_kente' | 'braids_royal' | 'braids_earth' | 'braids_ocean' | 'braids_sunset';
+  | 'braids_kente' | 'braids_royal' | 'braids_earth' | 'braids_ocean' | 'braids_sunset'
+  | 'braids_midnight' | 'braids_coral' | 'braids_jade';
 
 export interface ServiceItem {
   name: string;
   price: string;
   description?: string;
+}
+
+export interface ProductItem {
+  name: string;
+  price: string;
+  description?: string;
+  image?: string;
 }
 
 export interface BusinessHours {
@@ -53,9 +65,14 @@ export interface PreviewData {
   phone?: string;
   color_theme: ColorTheme;
   services: ServiceItem[];
+  products?: ProductItem[];
+  booking_url?: string;
   hours?: BusinessHours;
   address?: string;
   images?: string[];
   generated_copy?: GeneratedCopy;
   template_variant?: string;
+  group_id?: string; // links 3 preview variants together
+  variant_label?: string; // "A", "B", "C"
+  is_selected?: boolean; // user's chosen variant
 }

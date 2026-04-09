@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
-import { generateWebsiteCopy } from "@/lib/ai/generate-copy";
+import { generateWebsiteCopyVariants } from "@/lib/ai/generate-copy";
 import { STOCK_PHOTOS } from "@/lib/templates/stock-photos";
+import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { BusinessType, ColorTheme, ServiceItem } from "@/lib/ai/types";
+import type { BusinessType, ServiceItem, ProductItem } from "@/lib/ai/types";
 
 function generateSlug(businessName: string): string {
   const base = businessName
@@ -13,6 +14,18 @@ function generateSlug(businessName: string): string {
   return `${base}-${rand}`;
 }
 
+function generateGroupId(): string {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+function pickThreeThemes(businessType: BusinessType) {
+  const themes = THEMES_BY_VERTICAL[businessType] || [];
+  // Pick 3 diverse themes: one light, one dark, one accent-heavy
+  // Shuffle and pick first 3 for variety
+  const shuffled = [...themes].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, 3);
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -21,72 +34,85 @@ export async function POST(request: Request) {
       business_name,
       business_type,
       phone,
-      color_theme,
       tagline,
       description,
       services,
+      products,
+      booking_url,
       address,
       uploaded_images,
     } = body as {
       business_name: string;
       business_type: BusinessType;
       phone?: string;
-      color_theme: ColorTheme;
       tagline?: string;
       description?: string;
       services: ServiceItem[];
+      products?: ProductItem[];
+      booking_url?: string;
       address?: string;
       uploaded_images?: string[];
     };
 
-    if (!business_name || !business_type || !color_theme) {
+    if (!business_name || !business_type) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Generate AI copy
-    const generated_copy = await generateWebsiteCopy({
+    // Generate 3 AI copy variants in one call
+    const variants = await generateWebsiteCopyVariants({
       businessName: business_name,
       businessType: business_type,
       tagline,
       description,
       services: services.filter((s) => s.name.trim()),
+      products: products?.filter((p) => p.name.trim()),
       address,
     });
 
-    const slug = generateSlug(business_name);
     const stockImages = STOCK_PHOTOS[business_type] || [];
     const images =
       uploaded_images && uploaded_images.length > 0
         ? uploaded_images
         : stockImages;
 
-    const previewData = {
-      slug,
+    const groupId = generateGroupId();
+    const themes = pickThreeThemes(business_type);
+    const variantLabels = ["A", "B", "C"];
+
+    const supabase = createAdminClient();
+    const previewRows = variants.map((variant, i) => ({
+      slug: generateSlug(business_name),
       business_name,
       business_type,
       phone,
-      color_theme,
+      color_theme: themes[i].id,
       services: services.filter((s) => s.name.trim()),
+      products: products?.filter((p) => p.name.trim()) || [],
+      booking_url,
       address,
       images,
-      generated_copy,
-      template_variant: `${business_type}_${color_theme.split("_").slice(1).join("_")}`,
-    };
+      generated_copy: { en: variant.en, es: variant.es },
+      template_variant: `${business_type}_${variant.style}`,
+      group_id: groupId,
+      variant_label: variantLabels[i],
+    }));
 
-    const supabase = createAdminClient();
     const { error: insertError } = await supabase
       .from("previews")
-      .insert(previewData);
+      .insert(previewRows);
 
     if (insertError) {
       console.error("Supabase insert error:", insertError);
-      throw new Error("Failed to store preview");
+      throw new Error("Failed to store previews");
     }
 
-    return NextResponse.json({ slug, preview: previewData });
+    return NextResponse.json({
+      group_id: groupId,
+      slugs: previewRows.map((r) => r.slug),
+    });
   } catch (error) {
     console.error("Generate copy error:", error);
     return NextResponse.json(

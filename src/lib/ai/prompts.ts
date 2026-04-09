@@ -36,13 +36,18 @@ export function buildUserPrompt(params: {
   tagline?: string;
   description?: string;
   services: { name: string; price: string }[];
+  products?: { name: string; price: string }[];
   address?: string;
 }): string {
   const serviceList = params.services
     .map((s) => `- ${s.name} (${s.price})`)
     .join("\n");
 
-  return `Generate website copy for this business:
+  const productList = params.products && params.products.length > 0
+    ? params.products.map((p) => `- ${p.name} (${p.price})`).join("\n")
+    : "";
+
+  return `Generate website copy for this business. Create 3 DISTINCT VARIANTS — each should feel like a completely different writer with a different creative vision, while still matching the business.
 
 BUSINESS NAME: ${params.businessName}
 TYPE: ${params.businessType}
@@ -53,38 +58,52 @@ ${params.address ? `ADDRESS: ${params.address}` : ""}
 SERVICES:
 ${serviceList}
 
-Generate the following in BOTH English (en) and Spanish (es):
+${productList ? `PRODUCTS:\n${productList}` : ""}
+
+For EACH of the 3 variants, generate in BOTH English (en) and Spanish (es):
 
 1. hero_headline — A bold, attention-grabbing headline (under 10 words)
 2. hero_subheadline — Supporting text (1 sentence, under 20 words)
 3. about_paragraphs — 2-3 paragraphs telling the business story (each 2-3 sentences)
 4. service_descriptions — A short description for EACH service listed above (1-2 sentences each). Use the exact service names as keys.
-5. seo_title — Page title for search engines (under 60 chars)
-6. seo_description — Meta description for search engines (under 160 chars)
-7. footer_tagline — A short memorable phrase (under 8 words)
-8. google_business_description — A description for Google Business Profile (2-3 sentences)
+${productList ? '5. product_descriptions — A short description for EACH product listed above (1 sentence each). Use the exact product names as keys.' : ''}
+6. seo_title — Page title for search engines (under 60 chars)
+7. seo_description — Meta description for search engines (under 160 chars)
+8. footer_tagline — A short memorable phrase (under 8 words)
+9. google_business_description — A description for Google Business Profile (2-3 sentences)
+
+VARIANT GUIDELINES:
+- Variant A: Bold, confident, energetic — makes the reader excited
+- Variant B: Warm, personal, storytelling — makes the reader feel at home
+- Variant C: Elegant, sophisticated, premium — makes the business feel upscale
 
 IMPORTANT: Return ONLY valid JSON matching this exact structure:
 {
-  "en": {
-    "hero_headline": "...",
-    "hero_subheadline": "...",
-    "about_paragraphs": ["...", "..."],
-    "service_descriptions": {"Service Name": "..."},
-    "seo_title": "...",
-    "seo_description": "...",
-    "footer_tagline": "...",
-    "google_business_description": "..."
-  },
-  "es": {
-    "hero_headline": "...",
-    "hero_subheadline": "...",
-    "about_paragraphs": ["...", "..."],
-    "service_descriptions": {"Service Name": "..."},
-    "seo_title": "...",
-    "seo_description": "...",
-    "footer_tagline": "...",
-    "google_business_description": "..."
-  }
+  "variants": [
+    {
+      "style": "bold",
+      "en": {
+        "hero_headline": "...",
+        "hero_subheadline": "...",
+        "about_paragraphs": ["...", "..."],
+        "service_descriptions": {"Service Name": "..."}${productList ? ',\n        "product_descriptions": {"Product Name": "..."}' : ''},
+        "seo_title": "...",
+        "seo_description": "...",
+        "footer_tagline": "...",
+        "google_business_description": "..."
+      },
+      "es": { ... same structure ... }
+    },
+    {
+      "style": "warm",
+      "en": { ... },
+      "es": { ... }
+    },
+    {
+      "style": "elegant",
+      "en": { ... },
+      "es": { ... }
+    }
+  ]
 }`;
 }

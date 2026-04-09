@@ -10,7 +10,8 @@ interface TemplateHeroProps {
   heroImage?: string;
   colors: ThemeColors;
   ctaText?: string;
-  onCtaClick?: () => void;
+  bookingUrl?: string;
+  phone?: string;
 }
 
 export function TemplateHero({
@@ -20,45 +21,98 @@ export function TemplateHero({
   heroImage,
   colors,
   ctaText = "Book Now",
-  onCtaClick,
+  bookingUrl,
+  phone,
 }: TemplateHeroProps) {
+  const ctaHref = bookingUrl || (phone ? `tel:${phone}` : undefined);
+
   return (
     <section
-      className="relative flex min-h-[85vh] flex-col items-center justify-center px-6 py-20 text-center"
+      className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
       style={{
         backgroundColor: colors.foreground,
         color: colors.background,
       }}
     >
+      {/* Background image with overlay */}
       {heroImage && (
-        <div
-          className="absolute inset-0 bg-cover bg-center opacity-30"
-          style={{ backgroundImage: `url(${heroImage})` }}
-        />
+        <>
+          <div
+            className="absolute inset-0 bg-cover bg-center transition-transform duration-700"
+            style={{ backgroundImage: `url(${heroImage})` }}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              background: `linear-gradient(to bottom, ${colors.foreground}CC, ${colors.foreground}99, ${colors.foreground}DD)`,
+            }}
+          />
+        </>
       )}
-      <div className="relative z-10 max-w-2xl">
+
+      {/* Decorative accent line */}
+      <div className="relative z-10 mb-8">
+        <div
+          className="mx-auto h-0.5 w-16"
+          style={{ backgroundColor: colors.primary }}
+        />
+      </div>
+
+      <div className="relative z-10 max-w-3xl">
         <p
-          className="mb-4 text-sm font-medium uppercase tracking-[0.25em]"
+          className="mb-6 text-sm font-semibold uppercase tracking-[0.3em]"
           style={{ color: colors.primary }}
         >
           {businessName}
         </p>
-        <h1 className="mb-6 text-4xl font-bold leading-tight md:text-6xl">
+        <h1 className="mb-8 text-5xl font-bold leading-[1.1] md:text-7xl">
           {headline}
         </h1>
-        <p className="mb-10 text-lg opacity-80 md:text-xl">{subheadline}</p>
-        <Button
-          size="lg"
-          className="rounded-full px-10 py-6 text-base font-semibold tracking-wide"
-          style={{
-            backgroundColor: colors.primary,
-            color: colors.background,
-          }}
-          onClick={onCtaClick}
-        >
-          {ctaText}
-        </Button>
+        <p className="mx-auto mb-12 max-w-xl text-lg opacity-80 md:text-xl">
+          {subheadline}
+        </p>
+        <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+          <Button
+            size="lg"
+            className="rounded-full px-12 py-7 text-base font-semibold tracking-wide shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
+            style={{
+              backgroundColor: colors.primary,
+              color: colors.background,
+            }}
+            asChild={!!ctaHref}
+          >
+            {ctaHref ? (
+              <a href={ctaHref} target={bookingUrl ? "_blank" : undefined} rel={bookingUrl ? "noopener noreferrer" : undefined}>
+                {ctaText}
+              </a>
+            ) : (
+              <span>{ctaText}</span>
+            )}
+          </Button>
+          {phone && bookingUrl && (
+            <Button
+              size="lg"
+              variant="outline"
+              className="rounded-full px-10 py-7 text-base font-semibold"
+              style={{
+                borderColor: `${colors.primary}80`,
+                color: colors.background,
+              }}
+              asChild
+            >
+              <a href={`tel:${phone}`}>Call Us</a>
+            </Button>
+          )}
+        </div>
       </div>
+
+      {/* Bottom fade */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-32"
+        style={{
+          background: `linear-gradient(to top, ${colors.background}, transparent)`,
+        }}
+      />
     </section>
   );
 }

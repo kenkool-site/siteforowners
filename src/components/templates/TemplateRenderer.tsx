@@ -7,6 +7,7 @@ import { TemplateHero } from "./TemplateHero";
 import { TemplateServices } from "./TemplateServices";
 import { TemplateGallery } from "./TemplateGallery";
 import { TemplateAbout } from "./TemplateAbout";
+import { TemplateProducts } from "./TemplateProducts";
 import { TemplateBooking } from "./TemplateBooking";
 import { TemplateContact } from "./TemplateContact";
 import { TemplateMap } from "./TemplateMap";
@@ -52,6 +53,8 @@ export function TemplateRenderer({ data, locale = "en" }: TemplateRendererProps)
         subheadline={copy?.hero_subheadline ?? "Your neighborhood destination for quality service."}
         heroImage={data.images?.[0]}
         colors={colors}
+        bookingUrl={data.booking_url}
+        phone={data.phone}
       />
 
       <TemplateServices
@@ -75,8 +78,16 @@ export function TemplateRenderer({ data, locale = "en" }: TemplateRendererProps)
         colors={colors}
       />
 
+      {data.products && data.products.length > 0 && (
+        <TemplateProducts
+          products={data.products}
+          colors={colors}
+        />
+      )}
+
       <TemplateBooking
         phone={data.phone}
+        bookingUrl={data.booking_url}
         colors={colors}
       />
 

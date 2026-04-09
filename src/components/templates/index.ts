@@ -2,6 +2,7 @@ export { TemplateHero } from "./TemplateHero";
 export { TemplateServices } from "./TemplateServices";
 export { TemplateGallery } from "./TemplateGallery";
 export { TemplateAbout } from "./TemplateAbout";
+export { TemplateProducts } from "./TemplateProducts";
 export { TemplateBooking } from "./TemplateBooking";
 export { TemplateContact } from "./TemplateContact";
 export { TemplateMap } from "./TemplateMap";

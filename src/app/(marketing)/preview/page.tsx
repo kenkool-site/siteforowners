@@ -3,9 +3,8 @@
 import { useState } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { DEFAULT_SERVICES } from "@/lib/templates/default-services";
-import type { BusinessType, ColorTheme, ServiceItem } from "@/lib/ai/types";
+import type { BusinessType, ServiceItem, ProductItem } from "@/lib/ai/types";
 import { useRouter } from "next/navigation";
 
 const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = [
@@ -44,7 +43,8 @@ const TAGLINES: Record<BusinessType, string[]> = {
   ],
 };
 
-type Step = 1 | 2 | 3 | 4;
+type Step = 1 | 2 | 3 | 4 | 5;
+const TOTAL_STEPS = 5;
 
 export default function PreviewWizard() {
   const router = useRouter();
@@ -52,32 +52,34 @@ export default function PreviewWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Step 1
+  // Step 1: Business basics
   const [businessName, setBusinessName] = useState("");
   const [businessType, setBusinessType] = useState<BusinessType | "">("");
   const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
 
-  // Step 2
-  const [colorTheme, setColorTheme] = useState<ColorTheme | "">("");
-  const [tagline, setTagline] = useState("");
-
-  // Step 3
+  // Step 2: Services & address
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [address, setAddress] = useState("");
+  const [tagline, setTagline] = useState("");
+
+  // Step 3: Products & booking
+  const [products, setProducts] = useState<ProductItem[]>([]);
+  const [bookingUrl, setBookingUrl] = useState("");
+  const [hasProducts, setHasProducts] = useState(false);
 
   // Step 4: Photos
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
 
+  // Step 5: Review & generate
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-
     setUploading(true);
     const formData = new FormData();
     Array.from(files).forEach((file) => formData.append("images", file));
-
     try {
       const res = await fetch("/api/upload-images", {
         method: "POST",
@@ -102,10 +104,12 @@ export default function PreviewWizard() {
       case 1:
         return businessName.trim() && businessType;
       case 2:
-        return colorTheme;
+        return services.some((s) => s.name.trim());
       case 3:
-        return services.length > 0;
+        return true; // products and booking are optional
       case 4:
+        return true; // photos are optional
+      case 5:
         return true;
     }
   };
@@ -117,12 +121,8 @@ export default function PreviewWizard() {
   const handleNext = () => {
     if (step === 1 && businessType) {
       initServicesForType(businessType as BusinessType);
-      const themes = THEMES_BY_VERTICAL[businessType as BusinessType];
-      if (themes?.[0] && !colorTheme) {
-        setColorTheme(themes[0].id);
-      }
     }
-    if (step < 4) {
+    if (step < TOTAL_STEPS) {
       setStep((step + 1) as Step);
     }
   };
@@ -142,10 +142,11 @@ export default function PreviewWizard() {
           business_name: businessName,
           business_type: businessType,
           phone,
-          color_theme: colorTheme,
           tagline,
           description,
           services,
+          products: hasProducts ? products.filter((p) => p.name.trim()) : [],
+          booking_url: bookingUrl || undefined,
           address,
           uploaded_images: uploadedImages,
         }),
@@ -154,7 +155,7 @@ export default function PreviewWizard() {
         throw new Error("Failed to generate. Please try again.");
       }
       const data = await res.json();
-      router.push(`/preview/${data.slug}`);
+      router.push(`/preview/compare/${data.group_id}`);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
       setLoading(false);
@@ -175,16 +176,33 @@ export default function PreviewWizard() {
     setServices((prev) => [...prev, { name: "", price: "" }]);
   };
 
+  const updateProduct = (index: number, field: keyof ProductItem, value: string) => {
+    setProducts((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, [field]: value } : p))
+    );
+  };
+
+  const removeProduct = (index: number) => {
+    setProducts((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const addProduct = () => {
+    setProducts((prev) => [...prev, { name: "", price: "" }]);
+  };
+
   if (loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6">
         <div className="text-center">
           <div className="mx-auto mb-8 h-16 w-16 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
           <h1 className="mb-3 text-2xl font-bold text-gray-900">
-            Building your website...
+            Building 3 website designs for you...
           </h1>
           <p className="text-gray-600">
             Our AI is writing your content in English and Spanish
+          </p>
+          <p className="mt-2 text-sm text-gray-400">
+            This usually takes 15-30 seconds
           </p>
         </div>
       </main>
@@ -199,7 +217,7 @@ export default function PreviewWizard() {
           <span className="text-lg font-bold text-gray-900">
             Site<span className="text-amber-600">ForOwners</span>
           </span>
-          <span className="text-sm text-gray-500">Step {step} of 4</span>
+          <span className="text-sm text-gray-500">Step {step} of {TOTAL_STEPS}</span>
         </div>
       </div>
 
@@ -207,7 +225,7 @@ export default function PreviewWizard() {
       <div className="h-1 bg-gray-200">
         <div
           className="h-1 bg-amber-600 transition-all duration-300"
-          style={{ width: `${(step / 4) * 100}%` }}
+          style={{ width: `${(step / TOTAL_STEPS) * 100}%` }}
         />
       </div>
 
@@ -296,82 +314,8 @@ export default function PreviewWizard() {
           </div>
         )}
 
-        {/* Step 2: Style */}
-        {step === 2 && businessType && (
-          <div>
-            <h1 className="mb-2 text-2xl font-bold text-gray-900">
-              Pick Your Style
-            </h1>
-            <p className="mb-8 text-gray-600">
-              Choose a color theme for your website.
-            </p>
-            <div className="space-y-6">
-              <div>
-                <label className="mb-3 block text-sm font-medium text-gray-700">
-                  Color Theme
-                </label>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  {THEMES_BY_VERTICAL[businessType]?.map((theme) => (
-                    <button
-                      key={theme.id}
-                      onClick={() => setColorTheme(theme.id)}
-                      className={`rounded-xl border-2 p-4 transition-all ${
-                        colorTheme === theme.id
-                          ? "border-amber-600 bg-amber-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <div className="mb-3 flex gap-1">
-                        {theme.previewSwatch.map((color, i) => (
-                          <div
-                            key={i}
-                            className="h-8 flex-1 rounded"
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                      <p className="text-sm font-medium text-gray-900">
-                        {theme.name}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="mb-3 block text-sm font-medium text-gray-700">
-                  Tagline
-                </label>
-                <div className="space-y-2">
-                  {TAGLINES[businessType]?.map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => setTagline(t)}
-                      className={`w-full rounded-lg border-2 px-4 py-3 text-left text-sm transition-all ${
-                        tagline === t
-                          ? "border-amber-600 bg-amber-50"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
-                  <input
-                    type="text"
-                    value={
-                      TAGLINES[businessType]?.includes(tagline) ? "" : tagline
-                    }
-                    onChange={(e) => setTagline(e.target.value)}
-                    placeholder="Or write your own..."
-                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Services */}
-        {step === 3 && (
+        {/* Step 2: Services & Tagline */}
+        {step === 2 && (
           <div>
             <h1 className="mb-2 text-2xl font-bold text-gray-900">
               Your Services
@@ -413,6 +357,7 @@ export default function PreviewWizard() {
                 + Add a service
               </button>
             </div>
+
             <div className="mt-8">
               <label className="mb-2 block text-sm font-medium text-gray-700">
                 Business Address{" "}
@@ -425,6 +370,136 @@ export default function PreviewWizard() {
                 placeholder="e.g. 1430 Flatbush Ave, Brooklyn, NY 11210"
                 className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
+            </div>
+
+            {businessType && (
+              <div className="mt-8">
+                <label className="mb-3 block text-sm font-medium text-gray-700">
+                  Tagline <span className="text-gray-400">(optional)</span>
+                </label>
+                <div className="space-y-2">
+                  {TAGLINES[businessType as BusinessType]?.map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => setTagline(tagline === t ? "" : t)}
+                      className={`w-full rounded-lg border-2 px-4 py-3 text-left text-sm transition-all ${
+                        tagline === t
+                          ? "border-amber-600 bg-amber-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                  <input
+                    type="text"
+                    value={
+                      TAGLINES[businessType as BusinessType]?.includes(tagline) ? "" : tagline
+                    }
+                    onChange={(e) => setTagline(e.target.value)}
+                    placeholder="Or write your own..."
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 3: Products & Booking */}
+        {step === 3 && (
+          <div>
+            <h1 className="mb-2 text-2xl font-bold text-gray-900">
+              Products & Booking
+            </h1>
+            <p className="mb-8 text-gray-600">
+              Optional — add products you sell and your booking link.
+            </p>
+
+            {/* Booking URL */}
+            <div className="mb-8">
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Online Booking Link{" "}
+                <span className="text-gray-400">(Booksy, Vagaro, Square, Calendly, etc.)</span>
+              </label>
+              <input
+                type="url"
+                value={bookingUrl}
+                onChange={(e) => setBookingUrl(e.target.value)}
+                placeholder="e.g. https://booksy.com/en-us/your-business"
+                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                We&apos;ll add a &quot;Book Online&quot; button to your website. Supported platforms get embedded directly.
+              </p>
+            </div>
+
+            {/* Products toggle */}
+            <div className="rounded-xl border border-gray-200 p-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900">
+                    Do you sell products?
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Hair products, accessories, merchandise, etc.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setHasProducts(!hasProducts);
+                    if (!hasProducts && products.length === 0) {
+                      setProducts([{ name: "", price: "" }]);
+                    }
+                  }}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    hasProducts ? "bg-amber-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      hasProducts ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {hasProducts && (
+                <div className="mt-5 space-y-3">
+                  {products.map((product, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={product.name}
+                        onChange={(e) => updateProduct(i, "name", e.target.value)}
+                        placeholder="Product name"
+                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                      />
+                      <input
+                        type="text"
+                        value={product.price}
+                        onChange={(e) => updateProduct(i, "price", e.target.value)}
+                        placeholder="$0"
+                        className="w-24 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => removeProduct(i)}
+                        className="text-gray-400 hover:text-red-500"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={addProduct}
+                    className="w-full rounded-lg border-2 border-dashed border-gray-300 py-3 text-sm text-gray-500 hover:border-amber-500 hover:text-amber-600"
+                  >
+                    + Add a product
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -440,7 +515,6 @@ export default function PreviewWizard() {
               professional stock photos.
             </p>
 
-            {/* Uploaded images grid */}
             {uploadedImages.length > 0 && (
               <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {uploadedImages.map((url, i) => (
@@ -465,7 +539,6 @@ export default function PreviewWizard() {
               </div>
             )}
 
-            {/* Upload area */}
             <label className="block cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-amber-400 hover:bg-amber-50/30">
               <input
                 type="file"
@@ -512,6 +585,71 @@ export default function PreviewWizard() {
           </div>
         )}
 
+        {/* Step 5: Review */}
+        {step === 5 && (
+          <div>
+            <h1 className="mb-2 text-2xl font-bold text-gray-900">
+              Ready to Build Your Website?
+            </h1>
+            <p className="mb-8 text-gray-600">
+              We&apos;ll generate 3 unique website designs for you to choose from.
+              Each will have different colors, styles, and copy — all personalized for {businessName || "your business"}.
+            </p>
+
+            <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
+              <div className="flex justify-between border-b border-gray-100 pb-3">
+                <span className="text-sm text-gray-500">Business</span>
+                <span className="text-sm font-medium text-gray-900">{businessName}</span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-3">
+                <span className="text-sm text-gray-500">Type</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {BUSINESS_TYPES.find((bt) => bt.value === businessType)?.label}
+                </span>
+              </div>
+              <div className="flex justify-between border-b border-gray-100 pb-3">
+                <span className="text-sm text-gray-500">Services</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {services.filter((s) => s.name.trim()).length} services
+                </span>
+              </div>
+              {hasProducts && products.filter((p) => p.name.trim()).length > 0 && (
+                <div className="flex justify-between border-b border-gray-100 pb-3">
+                  <span className="text-sm text-gray-500">Products</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {products.filter((p) => p.name.trim()).length} products
+                  </span>
+                </div>
+              )}
+              {bookingUrl && (
+                <div className="flex justify-between border-b border-gray-100 pb-3">
+                  <span className="text-sm text-gray-500">Booking</span>
+                  <span className="text-sm font-medium text-green-600">Connected</span>
+                </div>
+              )}
+              <div className="flex justify-between border-b border-gray-100 pb-3">
+                <span className="text-sm text-gray-500">Photos</span>
+                <span className="text-sm font-medium text-gray-900">
+                  {uploadedImages.length > 0
+                    ? `${uploadedImages.length} uploaded`
+                    : "Professional stock photos"}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Languages</span>
+                <span className="text-sm font-medium text-gray-900">English & Spanish</span>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-xl bg-amber-50 p-4">
+              <p className="text-center text-sm text-amber-800">
+                You&apos;ll get <strong>3 unique designs</strong> to compare and choose from.
+                Each one will look completely different — different colors, different vibe, same great content.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Navigation */}
         <div className="mt-10 flex items-center justify-between">
           {step > 1 ? (
@@ -521,7 +659,7 @@ export default function PreviewWizard() {
           ) : (
             <div />
           )}
-          {step < 4 ? (
+          {step < TOTAL_STEPS ? (
             <Button
               onClick={handleNext}
               disabled={!canAdvance()}
@@ -534,7 +672,7 @@ export default function PreviewWizard() {
               onClick={handleGenerate}
               className="rounded-full bg-amber-600 px-8 text-white hover:bg-amber-700"
             >
-              Generate My Website
+              Generate 3 Designs
             </Button>
           )}
         </div>
