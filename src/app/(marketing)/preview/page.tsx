@@ -68,6 +68,11 @@ export default function PreviewWizard() {
   const [bookingUrl, setBookingUrl] = useState("");
   const [hasProducts, setHasProducts] = useState(false);
 
+  // Smart import
+  const [importUrl, setImportUrl] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [imported, setImported] = useState(false);
+
   // Step 4: Photos
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -99,6 +104,41 @@ export default function PreviewWizard() {
     setUploadedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleImport = async () => {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/import-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: importUrl.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || "Import failed");
+      }
+      const data = await res.json();
+      if (data.business_name) setBusinessName(data.business_name);
+      if (data.phone) setPhone(data.phone);
+      if (data.address) setAddress(data.address);
+      if (data.booking_url) setBookingUrl(data.booking_url);
+      if (data.services && data.services.length > 0) {
+        setServices(
+          data.services.map((s: { name: string; price: string }) => ({
+            name: s.name,
+            price: s.price || "",
+          }))
+        );
+      }
+      setImported(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Import failed. You can still fill in manually.");
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const canAdvance = () => {
     switch (step) {
       case 1:
@@ -119,7 +159,7 @@ export default function PreviewWizard() {
   };
 
   const handleNext = () => {
-    if (step === 1 && businessType) {
+    if (step === 1 && businessType && !imported) {
       initServicesForType(businessType as BusinessType);
     }
     if (step < TOTAL_STEPS) {
@@ -245,6 +285,44 @@ export default function PreviewWizard() {
             <p className="mb-8 text-gray-600">
               Let&apos;s start with the basics.
             </p>
+
+            {/* Smart Import */}
+            {!imported && (
+              <div className="mb-8 rounded-xl border-2 border-amber-200 bg-amber-50/50 p-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  <h3 className="text-sm font-semibold text-amber-900">Quick Import</h3>
+                </div>
+                <p className="mb-3 text-xs text-amber-800">
+                  Have a Booksy, Acuity, Vagaro, or Square page? Paste the link and we&apos;ll pull in your services and info automatically.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={importUrl}
+                    onChange={(e) => setImportUrl(e.target.value)}
+                    placeholder="e.g. letstrylocs.as.me or booksy.com/..."
+                    className="flex-1 rounded-lg border border-amber-300 bg-white px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                    disabled={importing}
+                  />
+                  <Button
+                    onClick={handleImport}
+                    disabled={importing || !importUrl.trim()}
+                    className="rounded-lg bg-amber-600 px-4 text-sm text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {importing ? "Importing..." : "Import"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {imported && (
+              <div className="mb-8 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                Imported successfully! Review and edit the details below.
+              </div>
+            )}
             <div className="space-y-6">
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">

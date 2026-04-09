@@ -19,6 +19,7 @@ function isEmbeddable(url: string): boolean {
     "squareup.com",
     "square.site",
     "acuityscheduling.com",
+    "as.me",
     "calendly.com",
     "cal.com",
   ];
