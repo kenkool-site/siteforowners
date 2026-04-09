@@ -18,42 +18,149 @@ const PLATFORM_COLORS = new Set([
 function isPlatformColor(hex: string): boolean {
   const normalized = hex.toLowerCase().trim();
   if (PLATFORM_COLORS.has(normalized)) return true;
-  // Skip very dark or very light colors (likely text/bg defaults)
   const r = parseInt(normalized.slice(1, 3), 16);
   const g = parseInt(normalized.slice(3, 5), 16);
   const b = parseInt(normalized.slice(5, 7), 16);
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   if (brightness < 30 || brightness > 245) return true;
-  // Skip pure grays
   if (Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15) return true;
   return false;
 }
 
-// Extract brand colors directly from HTML/CSS patterns before sending to Claude
 function extractColorsFromHtml(html: string): string[] {
   const colors: string[] = [];
 
-  // Acuity: look for scheduler background color in their config
   const acuityBgMatch = html.match(/background[_-]?color['":\s]*['"]?(#[0-9a-fA-F]{6})/i);
   if (acuityBgMatch) colors.push(acuityBgMatch[1]);
 
-  // Look for custom CSS properties with color values
   const cssVarRegex = /--[a-z-]*color[^:]*:\s*(#[0-9a-fA-F]{6})/gi;
   let cssVarMatch: RegExpExecArray | null;
   while ((cssVarMatch = cssVarRegex.exec(html)) !== null) colors.push(cssVarMatch[1]);
 
-  // Look for inline style background colors on main containers
   const inlineStyleRegex = /style="[^"]*background(?:-color)?:\s*(#[0-9a-fA-F]{6})/gi;
   let inlineMatch: RegExpExecArray | null;
   while ((inlineMatch = inlineStyleRegex.exec(html)) !== null) colors.push(inlineMatch[1]);
 
-  // Look for meta theme-color
   const themeColorMatch = html.match(/meta[^>]*name=["']theme-color["'][^>]*content=["'](#[0-9a-fA-F]{6})/i);
   if (themeColorMatch) colors.push(themeColorMatch[1]);
 
-  // Deduplicate and filter out platform colors
   const unique = Array.from(new Set(colors.map((c) => c.toLowerCase())));
   return unique.filter((c) => !isPlatformColor(c));
+}
+
+// Fetch an image and return base64 + media type, or null if it fails
+async function fetchImageAsBase64(
+  imageUrl: string
+): Promise<{ base64: string; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" } | null> {
+  try {
+    const res = await fetch(imageUrl, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!res.ok) return null;
+
+    const contentType = res.headers.get("content-type") || "";
+    // Only process actual images
+    if (!contentType.startsWith("image/")) return null;
+    // Skip SVGs
+    if (contentType.includes("svg")) return null;
+
+    const buffer = await res.arrayBuffer();
+    // Skip tiny images (likely icons/tracking pixels) — under 5KB
+    if (buffer.byteLength < 5000) return null;
+    // Skip very large images to avoid token limits — over 2MB
+    if (buffer.byteLength > 2 * 1024 * 1024) return null;
+
+    const base64 = Buffer.from(buffer).toString("base64");
+
+    let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
+    if (contentType.includes("png")) mediaType = "image/png";
+    else if (contentType.includes("gif")) mediaType = "image/gif";
+    else if (contentType.includes("webp")) mediaType = "image/webp";
+
+    return { base64, mediaType };
+  } catch {
+    return null;
+  }
+}
+
+// Use Claude Vision to classify images as photos vs promotional graphics
+async function classifyImages(
+  imageUrls: string[]
+): Promise<{ photos: string[]; logo: string | null }> {
+  if (imageUrls.length === 0) return { photos: [], logo: null };
+
+  // Fetch up to 8 images in parallel
+  const candidates = imageUrls.slice(0, 8);
+  const fetched = await Promise.all(
+    candidates.map(async (url) => ({
+      url,
+      data: await fetchImageAsBase64(url),
+    }))
+  );
+
+  const validImages = fetched.filter((f) => f.data !== null);
+  if (validImages.length === 0) return { photos: [], logo: null };
+
+  // Build a single vision request with all images
+  const content: Anthropic.MessageCreateParams["messages"][0]["content"] = [];
+
+  content.push({
+    type: "text",
+    text: `I have ${validImages.length} images from a small business booking page. For each image, classify it as one of:
+- "photo" — a real photograph of hair, nails, food, a person, the business interior/exterior, or their work results. These are gallery-worthy.
+- "graphic" — a promotional flyer, infographic, text overlay image, banner with text, instructional graphic, collage with text, product packaging, social media post screenshot, or any image with significant text/typography on it.
+- "logo" — the business logo or brand mark.
+
+Return ONLY valid JSON as an array of objects:
+[{"index": 0, "type": "photo|graphic|logo"}]
+
+Be strict: if an image has ANY significant text overlaid on it (prices, dates, policies, promotional messages), classify it as "graphic" even if it also contains a photo underneath. We only want clean photos for a website gallery.`,
+  });
+
+  validImages.forEach((img, i) => {
+    content.push({
+      type: "text",
+      text: `Image ${i} (${img.url.split("/").pop()}):`,
+    });
+    content.push({
+      type: "image",
+      source: {
+        type: "base64",
+        media_type: img.data!.mediaType,
+        data: img.data!.base64,
+      },
+    });
+  });
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 500,
+      messages: [{ role: "user", content }],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return { photos: validImages.map((v) => v.url), logo: null };
+
+    const classifications = JSON.parse(jsonMatch[0]) as Array<{ index: number; type: string }>;
+
+    const photos: string[] = [];
+    let logo: string | null = null;
+
+    for (const c of classifications) {
+      const img = validImages[c.index];
+      if (!img) continue;
+      if (c.type === "photo") photos.push(img.url);
+      if (c.type === "logo" && !logo) logo = img.url;
+    }
+
+    return { photos, logo };
+  } catch (err) {
+    console.error("Vision classification failed, using all images:", err);
+    return { photos: validImages.map((v) => v.url), logo: null };
+  }
 }
 
 export async function POST(request: Request) {
@@ -67,10 +174,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Auto-prepend https:// if missing
     const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
 
-    // Fetch the booking page HTML
     const res = await fetch(fullUrl, {
       headers: {
         "User-Agent":
@@ -87,11 +192,9 @@ export async function POST(request: Request) {
     }
 
     const html = await res.text();
-
-    // Pre-extract colors from HTML patterns (more reliable than LLM guessing)
     const htmlColors = extractColorsFromHtml(html);
 
-    // Use Claude to extract structured data from the page (with retry for transient errors)
+    // Step 1: Extract structured data from HTML using Claude
     const createMessage = async (attempt = 0): Promise<Anthropic.Message> => {
       try {
         return await anthropic.messages.create({
@@ -100,7 +203,7 @@ export async function POST(request: Request) {
           messages: [
             {
               role: "user",
-              content: `Extract business information from this booking page HTML. Pull out EVERYTHING you can find.
+              content: `Extract business information from this booking page HTML.
 
 Return ONLY valid JSON with this structure (omit fields you can't find):
 {
@@ -111,7 +214,7 @@ Return ONLY valid JSON with this structure (omit fields you can't find):
     {"name": "Service Name", "price": "$XX", "duration": "XX min"}
   ],
   "logo": "https://url-to-logo-image.jpg",
-  "images": ["https://full-url-to-photo.jpg"],
+  "images": ["https://full-url-to-image.jpg"],
   "brand_colors": ["#hex1", "#hex2"],
   "description": "Brief description of the business if found"
 }
@@ -120,24 +223,15 @@ Rules:
 - Include ALL services/appointment types you find
 - Format prices with $ sign
 - Format phone as (XXX) XXX-XXXX
-- Keep service names clean and concise
 - If a price is a range, use the starting price
-- For logo: find the business logo image (usually in header, navbar, or og:image meta tag). Return the single best logo URL. Must be a full absolute URL.
-
-IMAGE CLASSIFICATION — CRITICAL:
-- For images: you must ONLY include images that are REAL PHOTOGRAPHS of hair, nails, food, the business, or their work.
-- EXCLUDE any image that appears to be: a promotional flyer, infographic, text overlay image, banner with text, instructional graphic, product packaging photo, icon, SVG, tiny image, or tracking pixel.
-- How to tell: look at the image filename, alt text, surrounding HTML context, and image dimensions. If the image is inside a description/bio section or has text-heavy alt text, it's likely a promotional graphic — SKIP IT.
-- If you're unsure whether an image is a real photo or a graphic, EXCLUDE it. We only want clean gallery-worthy photos.
-- Include full absolute URLs.
+- For logo: find the business logo image URL. Must be a full absolute URL.
+- For images: include ALL image URLs you find (we will filter them visually in a later step). Include full absolute URLs. Skip SVGs and tracking pixels.
 
 BRAND COLORS — CRITICAL:
 - Extract the BUSINESS's brand colors, NOT the booking platform's UI colors.
-- For Acuity pages: look for the "schedulerBackgroundColor", "background-color" on the .scheduling-page or #schedule-container, or any custom color set in the scheduler config. The page's main background tint IS the brand color.
-- IGNORE these platform UI colors completely: Acuity green (#27ae60, #3DBE8B), Acuity category colors (#ED7087, #F08300, #FFE767, #73C1ED, #6FCF97, #8339B0, #B7A6EB), Booksy blue, Vagaro teal, Calendly blue, any pure grays (#666, #414141, #333).
-- Look for: page background color, header/banner colors, colors applied to the business name.
-- Include 2-3 hex colors that represent the BUSINESS's visual identity.
-${htmlColors.length > 0 ? `\nHINT: I pre-extracted these potential brand colors from the HTML: ${htmlColors.join(", ")}. Verify these and include them if they look like real brand colors (not platform defaults).` : ""}
+- For Acuity pages: look for "schedulerBackgroundColor", "background-color" on scheduling containers, or any custom color in the scheduler config. The page background tint IS the brand color.
+- IGNORE platform UI colors: Acuity green (#27ae60, #3DBE8B), category colors (#ED7087, #F08300, #FFE767, #73C1ED, #6FCF97, #8339B0, #B7A6EB), any pure grays.
+${htmlColors.length > 0 ? `\nHINT: Pre-extracted brand colors from HTML: ${htmlColors.join(", ")}. Include these if they look like real brand colors.` : ""}
 - For description: look for meta description, og:description, or any about/bio text
 
 HTML content (first 25000 chars):
@@ -156,7 +250,6 @@ ${html.slice(0, 25000)}`,
     };
 
     const message = await createMessage();
-
     const text =
       message.content[0].type === "text" ? message.content[0].text : "";
 
@@ -170,11 +263,22 @@ ${html.slice(0, 25000)}`,
 
     const extracted = JSON.parse(jsonMatch[0]);
 
-    // Post-process brand colors: merge HTML-extracted colors with Claude's picks,
-    // filter out any platform colors that slipped through
+    // Step 2: Use Claude Vision to classify images (photo vs graphic vs logo)
+    const candidateImages: string[] = [
+      ...(extracted.logo ? [extracted.logo] : []),
+      ...(extracted.images || []),
+    ];
+
+    const { photos, logo: visionLogo } = await classifyImages(candidateImages);
+
+    // Use vision-detected logo, fall back to HTML-extracted logo
+    const finalLogo = visionLogo || extracted.logo || null;
+    // Use only vision-classified photos (excluding the logo)
+    const finalImages = photos.filter((p: string) => p !== finalLogo);
+
+    // Post-process brand colors
     let brandColors: string[] = extracted.brand_colors || [];
     if (htmlColors.length > 0) {
-      // Prepend HTML-extracted colors (more reliable), deduplicate
       brandColors = Array.from(new Set(htmlColors.concat(brandColors).map((c: string) => c.toLowerCase())));
     }
     brandColors = brandColors.filter((c: string) => !isPlatformColor(c)).slice(0, 3);
@@ -185,8 +289,8 @@ ${html.slice(0, 25000)}`,
       address: extracted.address || null,
       description: extracted.description || null,
       services: extracted.services || [],
-      logo: extracted.logo || null,
-      images: extracted.images || [],
+      logo: finalLogo,
+      images: finalImages,
       brand_colors: brandColors,
       booking_url: fullUrl,
     });
