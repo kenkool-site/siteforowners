@@ -89,6 +89,17 @@ function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors
   }
   // 4. foreground on muted (contact form text): 4.5:1
   fgA = ensureContrast(fgA, mutedA, 4.5);
+  // 5. background on foreground (text on inverted sections: heroes, booking, footer): 4.5:1
+  if (contrastRatio(bgA, fgA) < 4.5) {
+    fgA = ensureContrast(fgA, bgA, 4.5);
+  }
+  // 6. primary on foreground (quotes, links on inverted sections): 3:1
+  if (contrastRatio(primaryA, fgA) < 3) {
+    primaryA = isLight(primaryA) ? lighten(primaryA, 0.3) : lighten(primaryA, 0.5);
+    primaryA = ensureContrast(primaryA, fgA, 3);
+    // Re-check primary on background after adjustment
+    primaryA = ensureContrast(primaryA, bgA, 3);
+  }
 
   const paletteA: CustomColors = {
     primary: primaryA,
@@ -107,19 +118,27 @@ function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors
 
   // 1. foreground on background (body text on dark): 4.5:1
   fgB = ensureContrast(fgB, bgB, 4.5);
-  // 2. background on foreground — text on dark hero/footer: this is fgB text on bgB background, already checked
-  // 3. primary on foreground (dark) surface — links in footer: 3:1
+  // 2. primary on background (links, prices on dark bg): 3:1
   primaryB = ensureContrast(primaryB, bgB, 3);
-  // 4. If primary is too close to foreground, separate them
+  // 3. If primary is too close to foreground, separate them
   if (contrastRatio(primaryB, fgB) < 1.5) {
     primaryB = isLight(primaryB) ? darken(primaryB, 0.2) : lighten(primaryB, 0.2);
     primaryB = ensureContrast(primaryB, bgB, 3);
   }
-  // 5. foreground on primary (button text): 3:1
+  // 4. foreground on primary (button text): 3:1
   if (contrastRatio(fgB, primaryB) < 3) {
     fgB = ensureContrast(fgB, primaryB, 3);
-    // Re-check fgB on bgB after adjustment
     fgB = ensureContrast(fgB, bgB, 4.5);
+  }
+  // 5. background on foreground (inverted sections text): 4.5:1
+  if (contrastRatio(bgB, fgB) < 4.5) {
+    fgB = ensureContrast(fgB, bgB, 4.5);
+  }
+  // 6. primary on foreground (quotes, links on inverted dark sections): 3:1
+  if (contrastRatio(primaryB, fgB) < 3) {
+    primaryB = isLight(fgB) ? darken(primaryB, 0.3) : lighten(primaryB, 0.3);
+    primaryB = ensureContrast(primaryB, fgB, 3);
+    primaryB = ensureContrast(primaryB, bgB, 3);
   }
 
   const paletteB: CustomColors = {
