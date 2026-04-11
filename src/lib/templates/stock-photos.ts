@@ -1,39 +1,50 @@
 import type { BusinessType } from "@/lib/ai/types";
 
+// All images from Pexels (free for commercial use, no attribution required)
+// Curated per vertical — verified accessible as of 2026-04-11
+
+const pexels = (id: number) =>
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800`;
+
 export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
   salon: [
-    "https://images.unsplash.com/photo-1560066984-138dadb4c035?w=800&q=80",
-    "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80",
-    "https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?w=800&q=80",
-    "https://images.unsplash.com/photo-1521590832167-7bcbfaa6381f?w=800&q=80",
-    "https://images.unsplash.com/photo-1562322140-8baeececf3df?w=800&q=80",
+    pexels(8834026),  // Woman standing near round mirrors of a salon
+    pexels(8834071),  // Woman cutting hair of client
+    pexels(3993468),  // Woman in salon chair
+    pexels(14564860), // Salon interior
+    pexels(3736396),  // Salon styling station
+    pexels(3993293),  // Salon setup
   ],
   barbershop: [
-    "https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=800&q=80",
-    "https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&q=80",
-    "https://images.unsplash.com/photo-1621605815971-fbc98d665033?w=800&q=80",
-    "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=800&q=80",
-    "https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=800&q=80",
+    pexels(34865582), // Vintage barbershop interior with empty chairs
+    pexels(30668154), // Barbershop interior
+    pexels(2174113),  // Man sitting in barber chair
+    pexels(7697351),  // Barber at work
+    pexels(18704464), // Barbershop tools
+    pexels(1860567),  // Barber cutting hair
   ],
   restaurant: [
-    "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=800&q=80",
-    "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80",
-    "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=800&q=80",
-    "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80",
-    "https://images.unsplash.com/photo-1466978913421-dad2ebd01d17?w=800&q=80",
+    pexels(15945660), // Restaurant interior
+    pexels(36183154), // Elegant dining table in cozy restaurant
+    pexels(14064612), // Round table inside a restaurant
+    pexels(10445929), // Wine glasses on table
+    pexels(28999499), // Restaurant dining scene
+    pexels(239975),   // Restaurant plate setting
   ],
   nails: [
-    "https://images.unsplash.com/photo-1604654894610-df63bc536371?w=800&q=80",
-    "https://images.unsplash.com/photo-1632345031435-8727f6897d53?w=800&q=80",
-    "https://images.unsplash.com/photo-1610992015732-2449b76344bc?w=800&q=80",
-    "https://images.unsplash.com/photo-1607779097040-26e80aa78e66?w=800&q=80",
-    "https://images.unsplash.com/photo-1519014816548-bf5fe059798b?w=800&q=80",
+    pexels(34871553), // Elegant red and white manicure close-up
+    pexels(6135675),  // Person's hand getting a manicure
+    pexels(34971940), // Stylish turquoise nail art
+    pexels(6135685),  // Person getting a manicure
+    pexels(34835291), // Stylish floral nail art on hand
+    pexels(5871915),  // Beautiful manicured nails
   ],
   braids: [
-    "https://images.unsplash.com/photo-1595959183082-7b570b7e1e6b?w=800&q=80",
-    "https://images.unsplash.com/photo-1580618672591-eb180b1a973f?w=800&q=80",
-    "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=800&q=80",
-    "https://images.unsplash.com/photo-1596178060810-72f53ce9a65c?w=800&q=80",
-    "https://images.unsplash.com/photo-1589710751893-f9a6770ad71b?w=800&q=80",
+    pexels(13212603), // Person braiding a woman's hair
+    pexels(10810251), // Close up of woman with braided hair
+    pexels(7607802),  // Close-up of woman with braided hairstyle
+    pexels(10283310), // Woman with braided hair
+    pexels(7190007),  // Side profile of woman with braided hair
+    pexels(4671331),  // Braids hairstyle
   ],
 };
