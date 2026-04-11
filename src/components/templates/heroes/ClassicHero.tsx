@@ -134,8 +134,8 @@ export function ClassicHero({
             <Button
               size="lg"
               variant="outline"
-              className="rounded-full border-2 px-10 py-7 text-base font-semibold backdrop-blur-sm"
-              style={{ borderColor: "rgba(255,255,255,0.5)", color: "#FFFFFF", backgroundColor: "rgba(255,255,255,0.1)" }}
+              className="rounded-full border-2 !bg-white/10 px-10 py-7 text-base font-semibold text-white backdrop-blur-sm"
+              style={{ borderColor: "rgba(255,255,255,0.5)" }}
               asChild
             >
               <a href={`tel:${phone}`}>Call Us</a>

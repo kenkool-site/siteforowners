@@ -97,7 +97,7 @@ export function ElegantHero({
         <Button
           size="lg"
           variant="outline"
-          className="rounded-none border px-12 py-7 text-xs font-medium uppercase tracking-[0.2em]"
+          className="rounded-none border !bg-transparent px-12 py-7 text-xs font-medium uppercase tracking-[0.2em]"
           style={{ borderColor: colors.foreground, color: colors.foreground }}
           asChild={!!ctaHref}
         >

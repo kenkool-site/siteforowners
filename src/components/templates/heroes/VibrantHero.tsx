@@ -117,7 +117,7 @@ export function VibrantHero({
           <Button
             size="lg"
             variant="outline"
-            className="rounded-full border-2 border-white/40 px-10 py-7 text-base font-semibold text-white hover:bg-white/10"
+            className="rounded-full border-2 border-white/40 !bg-transparent px-10 py-7 text-base font-semibold text-white hover:!bg-white/10"
             asChild
           >
             <a href={`tel:${phone}`}>Call Us</a>
