@@ -27,7 +27,7 @@ export function BoldServices({ services, colors }: ServicesProps) {
                 style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
               >
                 <div className="mb-2 flex items-start justify-between">
-                  <h3 className="text-lg font-bold" style={{ color: colors.background }}>
+                  <h3 className="text-lg font-bold" style={{ color: colors.foreground }}>
                     {service.name}
                   </h3>
                   <span className="ml-3 whitespace-nowrap font-bold" style={{ color: colors.primary }}>
@@ -35,7 +35,7 @@ export function BoldServices({ services, colors }: ServicesProps) {
                   </span>
                 </div>
                 {service.description && (
-                  <p className="text-sm opacity-60" style={{ color: colors.background }}>
+                  <p className="text-sm opacity-60" style={{ color: colors.foreground }}>
                     {service.description}
                   </p>
                 )}
