@@ -209,6 +209,10 @@ export default function PreviewWizard() {
           const newImages = data.images.filter((img: string) => !existing.has(img));
           if (newImages.length > 0) {
             setHasHeroImage(true); // Google CDN images are high-res
+            // Put Maps images first if imported images were low-res (no hero)
+            if (!hasHeroImage) {
+              return [...newImages, ...prev];
+            }
             return [...prev, ...newImages];
           }
           return prev;
