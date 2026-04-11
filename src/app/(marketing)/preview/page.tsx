@@ -78,6 +78,7 @@ export default function PreviewWizard() {
   // Step 4: Photos
   const [logo, setLogo] = useState<string>("");
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
+  const [hasHeroImage, setHasHeroImage] = useState<boolean>(true);
   const [uploading, setUploading] = useState(false);
 
   // Step 5: Review & generate
@@ -149,6 +150,7 @@ export default function PreviewWizard() {
         if (validImages.length > 0) {
           setUploadedImages(validImages);
         }
+        setHasHeroImage(data.has_hero_image !== false);
       }
       setImported(true);
     } catch (e) {
@@ -209,6 +211,7 @@ export default function PreviewWizard() {
           address,
           logo: logo || undefined,
           uploaded_images: uploadedImages,
+          has_hero_image: hasHeroImage,
           brand_colors: brandColors.length > 0 ? brandColors : undefined,
           booking_categories: bookingCategories || undefined,
         }),
