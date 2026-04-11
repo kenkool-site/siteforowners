@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 
@@ -28,6 +28,24 @@ export function isEmbeddableBookingUrl(url: string): boolean {
   );
 }
 
+// Detect platform from URL and return crop offset (px to hide the welcome banner)
+function getBookingPlatform(url: string): { platform: string; cropTop: number } {
+  const lower = url.toLowerCase();
+  if (lower.includes("acuityscheduling.com") || lower.includes("as.me")) {
+    return { platform: "acuity", cropTop: 550 };
+  }
+  if (lower.includes("calendly.com")) {
+    return { platform: "calendly", cropTop: 0 }; // Calendly embeds are already clean
+  }
+  if (lower.includes("booksy.com")) {
+    return { platform: "booksy", cropTop: 300 };
+  }
+  if (lower.includes("vagaro.com")) {
+    return { platform: "vagaro", cropTop: 200 };
+  }
+  return { platform: "other", cropTop: 0 };
+}
+
 export function TemplateBooking({
   title = "Book an Appointment",
   subtitle = "Ready to look your best? Book your appointment today.",
@@ -36,7 +54,10 @@ export function TemplateBooking({
   colors,
 }: TemplateBookingProps) {
   const [showEmbed, setShowEmbed] = useState(false);
+  const [iframeHeight, setIframeHeight] = useState(700);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
+  const { cropTop } = bookingUrl ? getBookingPlatform(bookingUrl) : { cropTop: 0 };
 
   // Auto-open embed when navigated to via #booking anchor (from hero CTA)
   useEffect(() => {
@@ -50,6 +71,25 @@ export function TemplateBooking({
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
   }, [canEmbed]);
+
+  // Listen for Acuity embed sizing messages to auto-size the iframe
+  const handleMessage = useCallback((e: MessageEvent) => {
+    if (typeof e.data !== "string") return;
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.height && typeof msg.height === "number") {
+        setIframeHeight(Math.max(msg.height - cropTop, 500));
+      }
+    } catch {
+      // Not a JSON message, ignore
+    }
+  }, [cropTop]);
+
+  useEffect(() => {
+    if (!showEmbed) return;
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
+  }, [showEmbed, handleMessage]);
 
   return (
     <section
@@ -118,11 +158,19 @@ export function TemplateBooking({
         </div>
 
         {canEmbed && showEmbed && (
-          <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl">
+          <div
+            className="mt-8 overflow-hidden rounded-2xl shadow-2xl"
+            style={{ height: iframeHeight }}
+          >
             <iframe
+              ref={iframeRef}
               src={bookingUrl}
               title="Book an appointment"
-              className="h-[700px] w-full border-0"
+              className="w-full border-0"
+              style={{
+                height: iframeHeight + cropTop,
+                marginTop: -cropTop,
+              }}
               allow="payment"
             />
           </div>
