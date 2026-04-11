@@ -73,6 +73,7 @@ export default function PreviewWizard() {
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
   const [brandColors, setBrandColors] = useState<string[]>([]);
+  const [bookingCategories, setBookingCategories] = useState<unknown[] | null>(null);
 
   // Step 4: Photos
   const [logo, setLogo] = useState<string>("");
@@ -126,6 +127,7 @@ export default function PreviewWizard() {
       if (data.address) setAddress(data.address);
       if (data.description) setDescription(data.description);
       if (data.booking_url) setBookingUrl(data.booking_url);
+      if (data.booking_categories) setBookingCategories(data.booking_categories);
       if (data.services && data.services.length > 0) {
         setServices(
           data.services.map((s: { name: string; price: string }) => ({
@@ -208,6 +210,7 @@ export default function PreviewWizard() {
           logo: logo || undefined,
           uploaded_images: uploadedImages,
           brand_colors: brandColors.length > 0 ? brandColors : undefined,
+          booking_categories: bookingCategories || undefined,
         }),
       });
       if (!res.ok) {

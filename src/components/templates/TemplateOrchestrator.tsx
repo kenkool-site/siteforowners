@@ -109,8 +109,17 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     <TemplateProducts products={data.products} colors={colors} />
   ) : null;
 
+  const bookingCategories = (data.generated_copy as unknown as Record<string, unknown>)?.booking_categories as
+    | { name: string; services: { name: string; price: string; duration: string; id: number }[]; directUrl: string }[]
+    | undefined;
+
   const bookingSection = (
-    <TemplateBooking phone={data.phone} bookingUrl={data.booking_url} colors={colors} />
+    <TemplateBooking
+      phone={data.phone}
+      bookingUrl={data.booking_url}
+      colors={colors}
+      bookingCategories={bookingCategories}
+    />
   );
 
   const contactSection = <TemplateContact colors={colors} previewMode />;
