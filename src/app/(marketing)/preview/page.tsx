@@ -81,6 +81,12 @@ export default function PreviewWizard() {
   const [hasHeroImage, setHasHeroImage] = useState<boolean>(true);
   const [uploading, setUploading] = useState(false);
 
+  // Google Maps data
+  const [mapsRating, setMapsRating] = useState<number | null>(null);
+  const [mapsReviewCount, setMapsReviewCount] = useState<number | null>(null);
+  const [mapsEnriched, setMapsEnriched] = useState(false);
+  const [mapsLoading, setMapsLoading] = useState(false);
+
   // Step 5: Review & generate
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,9 +185,51 @@ export default function PreviewWizard() {
     setServices(DEFAULT_SERVICES[type] || []);
   };
 
+  const enrichFromMaps = async () => {
+    if (!businessName.trim() || !address.trim() || mapsEnriched || mapsLoading) return;
+    setMapsLoading(true);
+    try {
+      const res = await fetch("/api/import-maps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business_name: businessName.trim(),
+          address: address.trim(),
+        }),
+      });
+      if (!res.ok) throw new Error("Maps lookup failed");
+      const data = await res.json();
+      if (data.rating) setMapsRating(data.rating);
+      if (data.reviewCount) setMapsReviewCount(data.reviewCount);
+      if (data.phone && !phone) setPhone(data.phone);
+      // Merge Maps images — high-res Google CDN photos
+      if (data.images && data.images.length > 0) {
+        setUploadedImages((prev) => {
+          const existing = new Set(prev);
+          const newImages = data.images.filter((img: string) => !existing.has(img));
+          if (newImages.length > 0) {
+            setHasHeroImage(true); // Google CDN images are high-res
+            return [...prev, ...newImages];
+          }
+          return prev;
+        });
+      }
+      setMapsEnriched(true);
+    } catch (e) {
+      console.error("Maps enrichment failed:", e);
+      // Non-blocking — wizard continues without Maps data
+    } finally {
+      setMapsLoading(false);
+    }
+  };
+
   const handleNext = () => {
     if (step === 1 && businessType && !imported) {
       initServicesForType(businessType as BusinessType);
+    }
+    // Fire Maps enrichment in background when leaving step 2 with an address
+    if (step === 2 && address.trim() && businessName.trim() && !mapsEnriched) {
+      enrichFromMaps();
     }
     if (step < TOTAL_STEPS) {
       setStep((step + 1) as Step);
@@ -214,6 +262,8 @@ export default function PreviewWizard() {
           has_hero_image: hasHeroImage,
           brand_colors: brandColors.length > 0 ? brandColors : undefined,
           booking_categories: bookingCategories || undefined,
+          rating: mapsRating || undefined,
+          review_count: mapsReviewCount || undefined,
         }),
       });
       if (!res.ok) {
@@ -680,7 +730,24 @@ export default function PreviewWizard() {
                 </>
               )}
             </label>
-            {uploadedImages.length === 0 && (
+            {/* Maps enrichment status */}
+            {mapsLoading && (
+              <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-blue-300 border-t-blue-600" />
+                <p className="text-sm text-blue-700">Searching Google Maps for photos...</p>
+              </div>
+            )}
+            {mapsEnriched && (
+              <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3">
+                <p className="text-sm text-green-800">
+                  Found on Google Maps
+                  {mapsRating ? ` — ${mapsRating}★` : ""}
+                  {mapsReviewCount ? ` (${mapsReviewCount} reviews)` : ""}
+                  {uploadedImages.length > 0 ? ` · ${uploadedImages.length} photos` : ""}
+                </p>
+              </div>
+            )}
+            {uploadedImages.length === 0 && !mapsLoading && (
               <p className="mt-4 text-center text-xs text-gray-400">
                 No photos? No problem — we&apos;ll use curated stock photos for your preview.
               </p>
@@ -738,6 +805,14 @@ export default function PreviewWizard() {
                     : "Professional stock photos"}
                 </span>
               </div>
+              {mapsRating && (
+                <div className="flex justify-between border-b border-gray-100 pb-3">
+                  <span className="text-sm text-gray-500">Google Rating</span>
+                  <span className="text-sm font-medium text-gray-900">
+                    {mapsRating}★{mapsReviewCount ? ` (${mapsReviewCount} reviews)` : ""}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-sm text-gray-500">Languages</span>
                 <span className="text-sm font-medium text-gray-900">English & Spanish</span>

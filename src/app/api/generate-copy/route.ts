@@ -227,6 +227,8 @@ export async function POST(request: Request) {
       brand_colors,
       booking_categories,
       has_hero_image,
+      rating,
+      review_count,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -242,6 +244,8 @@ export async function POST(request: Request) {
       has_hero_image?: boolean;
       brand_colors?: string[];
       booking_categories?: unknown[];
+      rating?: number;
+      review_count?: number;
     };
 
     if (!business_name || !business_type) {
@@ -297,6 +301,8 @@ export async function POST(request: Request) {
       booking_url,
       address,
       images,
+      rating: rating || null,
+      review_count: review_count || null,
       generated_copy: {
         en: variant.en,
         es: variant.es,

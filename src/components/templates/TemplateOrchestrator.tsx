@@ -41,6 +41,7 @@ import { TemplateBooking } from "./TemplateBooking";
 import { TemplateContact } from "./TemplateContact";
 import { TemplateMap } from "./TemplateMap";
 import { TemplateFooter } from "./TemplateFooter";
+import { TemplateRating } from "./TemplateRating";
 
 type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm";
 
@@ -122,6 +123,10 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     />
   );
 
+  const ratingSection = data.rating ? (
+    <TemplateRating rating={data.rating} reviewCount={data.review_count} colors={colors} />
+  ) : null;
+
   const contactSection = <TemplateContact colors={colors} previewMode />;
   const mapSection = <TemplateMap address={data.address} colors={colors} />;
   const footerSection = (
@@ -152,6 +157,7 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           {galleryImages.length > 0 && <BoldGallery images={galleryImages} colors={colors} />}
           <BoldServices services={services} colors={colors} />
           <BoldAbout paragraphs={aboutParagraphs} colors={colors} />
+          {ratingSection}
           {productsSection}
           {bookingSection}
           {contactSection}
@@ -175,6 +181,7 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           <ElegantAbout paragraphs={aboutParagraphs} colors={colors} />
           <ElegantServices services={services} colors={colors} />
           {galleryImages.length > 0 && <ElegantGallery images={galleryImages} colors={colors} />}
+          {ratingSection}
           {productsSection}
           {bookingSection}
           {contactSection}
@@ -196,7 +203,7 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
             phone={data.phone}
           />
           <VibrantServices services={services} colors={colors} />
-          <VibrantStats serviceCount={services.length} address={data.address} colors={colors} />
+          <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
           {galleryImages.length > 0 && <VibrantGallery images={galleryImages} colors={colors} />}
           <VibrantAbout paragraphs={aboutParagraphs} colors={colors} />
           {productsSection}
@@ -223,6 +230,7 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           <WarmAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} />
           {galleryImages.length > 0 && <WarmGallery images={galleryImages} colors={colors} />}
           <WarmServices services={services} colors={colors} />
+          {ratingSection}
           {productsSection}
           {bookingSection}
           {contactSection}
@@ -248,6 +256,7 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           <ClassicServices services={services} colors={colors} />
           {galleryImages.length > 0 && <ClassicGallery images={galleryImages} colors={colors} />}
           <ClassicAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} />
+          {ratingSection}
           {productsSection}
           {bookingSection}
           {contactSection}
