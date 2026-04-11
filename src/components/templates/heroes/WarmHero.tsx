@@ -31,7 +31,7 @@ export function WarmHero({
   const ctaHref = canEmbed ? "#booking" : bookingUrl || (phone ? `tel:${phone}` : undefined);
 
   return (
-    <section className="min-h-[90vh] md:grid md:grid-cols-2">
+    <section className="min-h-[90vh] md:grid md:grid-cols-[1fr_4px_1fr]">
       {/* Left: Image/Logo area */}
       <motion.div
         className="relative flex h-[40vh] items-center justify-center overflow-hidden md:h-auto"
@@ -73,7 +73,7 @@ export function WarmHero({
 
       {/* Accent bar — desktop only */}
       <div
-        className="hidden h-auto w-1 md:block"
+        className="hidden md:block"
         style={{ background: `linear-gradient(to bottom, ${colors.primary}, ${colors.accent})` }}
       />
 

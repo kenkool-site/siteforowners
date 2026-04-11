@@ -24,6 +24,33 @@ function pickTwoThemes(businessType: BusinessType) {
   return shuffled.slice(0, 2);
 }
 
+// Relative luminance for contrast checking (WCAG)
+function luminance(hex: string): number {
+  const [r, g, b] = toRgb(hex).map((c) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function contrastRatio(hex1: string, hex2: string): number {
+  const l1 = luminance(hex1);
+  const l2 = luminance(hex2);
+  const lighter = Math.max(l1, l2);
+  const darker = Math.min(l1, l2);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+// Ensure foreground has at least 4.5:1 contrast against background
+function ensureContrast(fg: string, bg: string, isLightBg: boolean): string {
+  let current = fg;
+  for (let i = 0; i < 10; i++) {
+    if (contrastRatio(current, bg) >= 4.5) return current;
+    current = isLightBg ? darken(current, 0.15) : lighten(current, 0.15);
+  }
+  return isLightBg ? "#1A1A1A" : "#F5F5F5";
+}
+
 // Build a full color palette from brand colors
 function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors] {
   const primary = brandColors[0];
@@ -31,22 +58,26 @@ function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors
   const accent = brandColors[2] || darken(primary, 0.2);
 
   // Variant A: Light background with brand primary
+  const bgA = lighten(primary, 0.92);
+  const fgA = ensureContrast(darken(primary, 0.6), bgA, true);
   const paletteA = {
     primary,
     secondary,
     accent,
-    background: lighten(primary, 0.92),
-    foreground: darken(primary, 0.6),
+    background: bgA,
+    foreground: fgA,
     muted: lighten(primary, 0.8),
   };
 
   // Variant B: Dark background with brand primary as accent
+  const bgB = darken(primary, 0.7);
+  const fgB = ensureContrast(lighten(primary, 0.92), bgB, false);
   const paletteB = {
     primary,
     secondary: lighten(primary, 0.3),
     accent,
-    background: darken(primary, 0.7),
-    foreground: lighten(primary, 0.92),
+    background: bgB,
+    foreground: fgB,
     muted: darken(primary, 0.5),
   };
 
