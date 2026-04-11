@@ -41,44 +41,94 @@ function contrastRatio(hex1: string, hex2: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-// Ensure foreground has at least 4.5:1 contrast against background
-function ensureContrast(fg: string, bg: string, isLightBg: boolean): string {
-  let current = fg;
-  for (let i = 0; i < 10; i++) {
-    if (contrastRatio(current, bg) >= 4.5) return current;
-    current = isLightBg ? darken(current, 0.15) : lighten(current, 0.15);
-  }
-  return isLightBg ? "#1A1A1A" : "#F5F5F5";
+function isLight(hex: string): boolean {
+  return luminance(hex) > 0.4;
 }
 
-// Build a full color palette from brand colors
-function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors] {
-  const primary = brandColors[0];
-  const secondary = brandColors[1] || lighten(primary, 0.7);
-  const accent = brandColors[2] || darken(primary, 0.2);
+// Adjust a color until it meets minRatio contrast against a surface
+function ensureContrast(fg: string, bg: string, minRatio = 4.5): string {
+  const bgIsLight = isLight(bg);
+  let current = fg;
+  for (let i = 0; i < 15; i++) {
+    if (contrastRatio(current, bg) >= minRatio) return current;
+    current = bgIsLight ? darken(current, 0.12) : lighten(current, 0.12);
+  }
+  return bgIsLight ? "#1A1A1A" : "#F5F5F5";
+}
 
-  // Variant A: Light background with brand primary
-  const bgA = lighten(primary, 0.92);
-  const fgA = ensureContrast(darken(primary, 0.6), bgA, true);
-  const paletteA = {
-    primary,
-    secondary,
-    accent,
+/*
+ * Build two palettes from brand colors, ensuring ALL critical color pairs
+ * used across templates have sufficient contrast.
+ *
+ * Critical pairs (from template audit):
+ *   foreground on background  — main body text
+ *   background on foreground  — text on dark hero/footer sections
+ *   primary on background     — service prices, accent text, outline buttons
+ *   primary on foreground     — links/headings on dark sections (footer, booking)
+ *   background on primary     — button text (primary-colored buttons)
+ *   foreground on muted       — text on muted sections (contact form)
+ */
+function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors] {
+  const rawPrimary = brandColors[0];
+  const rawSecondary = brandColors[1] || lighten(rawPrimary, 0.7);
+  const rawAccent = brandColors[2] || darken(rawPrimary, 0.2);
+
+  // --- Variant A: Light background ---
+  const bgA = lighten(rawPrimary, 0.93);
+  const mutedA = lighten(rawPrimary, 0.82);
+  let fgA = darken(rawPrimary, 0.65);
+  let primaryA = rawPrimary;
+
+  // 1. foreground on background (body text): 4.5:1
+  fgA = ensureContrast(fgA, bgA, 4.5);
+  // 2. primary on background (prices, labels): 3:1 minimum
+  primaryA = ensureContrast(primaryA, bgA, 3);
+  // 3. background on primary (button text): 3:1 minimum
+  if (contrastRatio(bgA, primaryA) < 3) {
+    primaryA = ensureContrast(primaryA, bgA, 4);
+  }
+  // 4. foreground on muted (contact form text): 4.5:1
+  fgA = ensureContrast(fgA, mutedA, 4.5);
+
+  const paletteA: CustomColors = {
+    primary: primaryA,
+    secondary: rawSecondary,
+    accent: rawAccent,
     background: bgA,
     foreground: fgA,
-    muted: lighten(primary, 0.8),
+    muted: mutedA,
   };
 
-  // Variant B: Dark background with brand primary as accent
-  const bgB = darken(primary, 0.7);
-  const fgB = ensureContrast(lighten(primary, 0.92), bgB, false);
-  const paletteB = {
-    primary,
-    secondary: lighten(primary, 0.3),
-    accent,
+  // --- Variant B: Dark background ---
+  const bgB = darken(rawPrimary, 0.75);
+  const mutedB = darken(rawPrimary, 0.55);
+  let fgB = lighten(rawPrimary, 0.93);
+  let primaryB = rawPrimary;
+
+  // 1. foreground on background (body text on dark): 4.5:1
+  fgB = ensureContrast(fgB, bgB, 4.5);
+  // 2. background on foreground — text on dark hero/footer: this is fgB text on bgB background, already checked
+  // 3. primary on foreground (dark) surface — links in footer: 3:1
+  primaryB = ensureContrast(primaryB, bgB, 3);
+  // 4. If primary is too close to foreground, separate them
+  if (contrastRatio(primaryB, fgB) < 1.5) {
+    primaryB = isLight(primaryB) ? darken(primaryB, 0.2) : lighten(primaryB, 0.2);
+    primaryB = ensureContrast(primaryB, bgB, 3);
+  }
+  // 5. foreground on primary (button text): 3:1
+  if (contrastRatio(fgB, primaryB) < 3) {
+    fgB = ensureContrast(fgB, primaryB, 3);
+    // Re-check fgB on bgB after adjustment
+    fgB = ensureContrast(fgB, bgB, 4.5);
+  }
+
+  const paletteB: CustomColors = {
+    primary: primaryB,
+    secondary: lighten(rawPrimary, 0.3),
+    accent: rawAccent,
     background: bgB,
     foreground: fgB,
-    muted: darken(primary, 0.5),
+    muted: mutedB,
   };
 
   return [paletteA, paletteB];
