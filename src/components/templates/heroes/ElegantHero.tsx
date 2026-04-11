@@ -61,7 +61,7 @@ export function ElegantHero({
       )}
 
       <motion.p
-        className="mb-8 text-sm font-semibold uppercase tracking-[0.4em] md:text-base"
+        className="mb-8 text-base font-semibold uppercase tracking-[0.4em] md:text-xl"
         style={{ color: colors.primary }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}

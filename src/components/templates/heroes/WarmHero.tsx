@@ -86,7 +86,7 @@ export function WarmHero({
         transition={{ duration: 0.7, ease: "easeOut" }}
       >
         <p
-          className="mb-4 text-sm font-semibold uppercase tracking-[0.2em] md:text-base"
+          className="mb-4 text-base font-semibold uppercase tracking-[0.2em] md:text-xl"
           style={{ color: colors.primary }}
         >
           {businessName}
