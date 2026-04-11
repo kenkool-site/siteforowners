@@ -17,6 +17,7 @@ interface BoldHeroProps {
 }
 
 export function BoldHero({
+  businessName,
   headline,
   heroImage,
   colors,
@@ -60,6 +61,15 @@ export function BoldHero({
       />
 
       <div className="relative z-10 max-w-4xl">
+        <motion.p
+          className="mb-4 text-base font-semibold uppercase tracking-[0.25em] md:text-xl"
+          style={{ color: colors.primary }}
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {businessName}
+        </motion.p>
         <motion.h1
           className="mb-10 text-6xl font-black leading-[0.95] tracking-tight md:text-8xl"
           initial={{ opacity: 0, scale: 0.8 }}
