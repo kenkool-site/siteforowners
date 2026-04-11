@@ -163,6 +163,50 @@ Be strict: if an image has ANY significant text overlaid on it (prices, dates, p
   }
 }
 
+// Extract structured booking data from Acuity's embedded BUSINESS JSON
+interface BookingCategory {
+  name: string;
+  services: { name: string; price: string; duration: string; id: number }[];
+  directUrl: string;
+}
+
+function extractAcuityData(html: string): {
+  categories: BookingCategory[];
+  ownerId: number | null;
+  schedulerColor: string | null;
+} | null {
+  const businessMatch = html.match(/var\s+BUSINESS\s*=\s*(\{[\s\S]*?\});\s*(?:var|$)/);
+  if (!businessMatch) return null;
+
+  try {
+    const biz = JSON.parse(businessMatch[1]);
+    const ownerId: number = biz.id;
+    const schedulerColor: string | null = biz.styles?.colors?.schedulerBackground || null;
+    const appointmentTypes = biz.appointmentTypes || {};
+
+    const categories: BookingCategory[] = [];
+    for (const [categoryName, services] of Object.entries(appointmentTypes)) {
+      const svcList = services as Array<{
+        id: number; name: string; price: string; duration: number;
+      }>;
+      categories.push({
+        name: categoryName.replace(/^\d+\./, "").trim(),
+        services: svcList.map((s) => ({
+          name: s.name,
+          price: `$${parseFloat(s.price).toFixed(0)}`,
+          duration: `${s.duration} min`,
+          id: s.id,
+        })),
+        directUrl: `https://app.acuityscheduling.com/schedule.php?owner=${ownerId}&appointmentType=category:${encodeURIComponent(categoryName)}`,
+      });
+    }
+
+    return { categories, ownerId, schedulerColor };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const { url } = await request.json();
@@ -193,6 +237,12 @@ export async function POST(request: Request) {
 
     const html = await res.text();
     const htmlColors = extractColorsFromHtml(html);
+
+    // Try to extract structured Acuity data directly from HTML
+    const acuityData = extractAcuityData(html);
+    if (acuityData?.schedulerColor && !isPlatformColor(acuityData.schedulerColor)) {
+      htmlColors.push(acuityData.schedulerColor);
+    }
 
     // Step 1: Extract structured data from HTML using Claude
     const createMessage = async (attempt = 0): Promise<Anthropic.Message> => {
@@ -293,6 +343,7 @@ ${html.slice(0, 25000)}`,
       images: finalImages,
       brand_colors: brandColors,
       booking_url: fullUrl,
+      booking_categories: acuityData?.categories || null,
     });
   } catch (error: unknown) {
     console.error("Import booking error:", error);

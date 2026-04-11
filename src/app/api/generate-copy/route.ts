@@ -156,6 +156,7 @@ export async function POST(request: Request) {
       logo,
       uploaded_images,
       brand_colors,
+      booking_categories,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -169,6 +170,7 @@ export async function POST(request: Request) {
       logo?: string;
       uploaded_images?: string[];
       brand_colors?: string[];
+      booking_categories?: unknown[];
     };
 
     if (!business_name || !business_type) {
@@ -222,6 +224,7 @@ export async function POST(request: Request) {
         // Embed brand-derived colors and logo in the jsonb field
         ...(customPalettes ? { custom_colors: customPalettes[i] } : {}),
         ...(logo ? { logo } : {}),
+        ...(booking_categories ? { booking_categories } : {}),
       },
       template_variant: templates[i],
       group_id: groupId,
