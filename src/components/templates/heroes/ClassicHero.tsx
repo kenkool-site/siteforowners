@@ -37,9 +37,14 @@ export function ClassicHero({
     >
       {heroImage && (
         <>
-          <div
-            className="absolute inset-0 bg-cover bg-center"
-            style={{ backgroundImage: `url(${heroImage})` }}
+          <Image
+            src={heroImage}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="100vw"
+            priority
+            unoptimized
           />
           <div
             className="absolute inset-0"

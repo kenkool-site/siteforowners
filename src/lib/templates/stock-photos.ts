@@ -4,7 +4,7 @@ import type { BusinessType } from "@/lib/ai/types";
 // Curated per vertical — verified accessible as of 2026-04-11
 
 const pexels = (id: number) =>
-  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=800`;
+  `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=1600`;
 
 export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
   salon: [
