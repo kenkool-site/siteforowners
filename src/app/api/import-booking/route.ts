@@ -96,10 +96,10 @@ function getHighResUrl(url: string): string {
   }
 }
 
-// Fetch an image and return base64 + media type, or null if it fails
+// Fetch an image and return base64 + media type + file size, or null if it fails
 async function fetchImageAsBase64(
   imageUrl: string
-): Promise<{ base64: string; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" } | null> {
+): Promise<{ base64: string; mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp"; sizeKB: number } | null> {
   try {
     const res = await fetch(imageUrl, {
       headers: { "User-Agent": "Mozilla/5.0" },
@@ -120,13 +120,14 @@ async function fetchImageAsBase64(
     if (buffer.byteLength > 2 * 1024 * 1024) return null;
 
     const base64 = Buffer.from(buffer).toString("base64");
+    const sizeKB = Math.round(buffer.byteLength / 1024);
 
     let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
     if (contentType.includes("png")) mediaType = "image/png";
     else if (contentType.includes("gif")) mediaType = "image/gif";
     else if (contentType.includes("webp")) mediaType = "image/webp";
 
-    return { base64, mediaType };
+    return { base64, mediaType, sizeKB };
   } catch {
     return null;
   }
@@ -135,8 +136,8 @@ async function fetchImageAsBase64(
 // Use Claude Vision to classify images as photos vs promotional graphics
 async function classifyImages(
   imageUrls: string[]
-): Promise<{ photos: string[]; logo: string | null }> {
-  if (imageUrls.length === 0) return { photos: [], logo: null };
+): Promise<{ photos: string[]; logo: string | null; hasHeroImage: boolean }> {
+  if (imageUrls.length === 0) return { photos: [], logo: null, hasHeroImage: false };
 
   // Fetch up to 8 images in parallel
   const candidates = imageUrls.slice(0, 8);
@@ -148,7 +149,7 @@ async function classifyImages(
   );
 
   const validImages = fetched.filter((f) => f.data !== null);
-  if (validImages.length === 0) return { photos: [], logo: null };
+  if (validImages.length === 0) return { photos: [], logo: null, hasHeroImage: false };
 
   // Build a single vision request with all images
   const content: Anthropic.MessageCreateParams["messages"][0]["content"] = [];
@@ -202,28 +203,37 @@ The BEST photo (highest quality) will be used as the hero/banner image on the we
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
     const jsonMatch = text.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) return { photos: validImages.map((v) => v.url), logo: null };
+    if (!jsonMatch) return { photos: validImages.map((v) => v.url), logo: null, hasHeroImage: false };
 
     const classifications = JSON.parse(jsonMatch[0]) as Array<{ index: number; type: string; quality?: number }>;
 
-    const photoEntries: { url: string; quality: number }[] = [];
+    const photoEntries: { url: string; quality: number; heroWorthy: boolean }[] = [];
     let logo: string | null = null;
 
     for (const c of classifications) {
       const img = validImages[c.index];
       if (!img) continue;
-      if (c.type === "photo") photoEntries.push({ url: img.url, quality: c.quality ?? 5 });
+      if (c.type === "photo") {
+        const sizeKB = img.data!.sizeKB;
+        // Images under 50KB are likely <600px — too small for full-width hero
+        const heroWorthy = sizeKB >= 50;
+        photoEntries.push({ url: img.url, quality: c.quality ?? 5, heroWorthy });
+      }
       if (c.type === "logo" && !logo) logo = img.url;
     }
 
-    // Sort by quality descending — best photo first (becomes hero image)
-    photoEntries.sort((a, b) => b.quality - a.quality);
+    // Sort: hero-worthy images first, then by quality descending
+    photoEntries.sort((a, b) => {
+      if (a.heroWorthy !== b.heroWorthy) return a.heroWorthy ? -1 : 1;
+      return b.quality - a.quality;
+    });
     const photos = photoEntries.map((p) => p.url);
+    const hasHeroImage = photoEntries.length > 0 && photoEntries[0].heroWorthy;
 
-    return { photos, logo };
+    return { photos, logo, hasHeroImage };
   } catch (err) {
     console.error("Vision classification failed, using all images:", err);
-    return { photos: validImages.map((v) => v.url), logo: null };
+    return { photos: validImages.map((v) => v.url), logo: null, hasHeroImage: false };
   }
 }
 
@@ -383,7 +393,7 @@ ${html.slice(0, 25000)}`,
       ...(extracted.images || []),
     ];
 
-    const { photos, logo: visionLogo } = await classifyImages(candidateImages);
+    const { photos, logo: visionLogo, hasHeroImage: heroWorthy } = await classifyImages(candidateImages);
 
     // Use vision-detected logo, fall back to HTML-extracted logo
     const finalLogo = visionLogo || extracted.logo || null;
@@ -391,6 +401,8 @@ ${html.slice(0, 25000)}`,
     const finalImages = photos
       .filter((p: string) => p !== finalLogo)
       .map(getHighResUrl);
+    // Check if the top image is hero-worthy (large enough for full-width display)
+    const hasHeroImage = heroWorthy && finalImages.length > 0;
 
     // Post-process brand colors
     let brandColors: string[] = extracted.brand_colors || [];
@@ -408,6 +420,7 @@ ${html.slice(0, 25000)}`,
       services: extracted.services || [],
       logo: finalLogo,
       images: finalImages,
+      has_hero_image: hasHeroImage,
       brand_colors: brandColors,
       booking_url: fullUrl,
       booking_categories: acuityData?.categories || null,

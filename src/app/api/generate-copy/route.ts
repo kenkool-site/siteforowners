@@ -226,6 +226,9 @@ export async function POST(request: Request) {
       uploaded_images,
       brand_colors,
       booking_categories,
+      has_hero_image,
+      rating,
+      review_count,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -238,8 +241,11 @@ export async function POST(request: Request) {
       address?: string;
       logo?: string;
       uploaded_images?: string[];
+      has_hero_image?: boolean;
       brand_colors?: string[];
       booking_categories?: unknown[];
+      rating?: number;
+      review_count?: number;
     };
 
     if (!business_name || !business_type) {
@@ -261,10 +267,18 @@ export async function POST(request: Request) {
     });
 
     const stockImages = STOCK_PHOTOS[business_type] || [];
-    const images =
-      uploaded_images && uploaded_images.length > 0
-        ? uploaded_images
-        : stockImages;
+    let images: string[];
+    if (uploaded_images && uploaded_images.length > 0) {
+      if (has_hero_image === false && stockImages.length > 0) {
+        // Imported images are too low-res for hero — use stock photo as hero,
+        // imported images go to gallery positions
+        images = [stockImages[0], ...uploaded_images];
+      } else {
+        images = uploaded_images;
+      }
+    } else {
+      images = stockImages;
+    }
 
     const groupId = generateGroupId();
     const themes = pickTwoThemes(business_type);
@@ -287,6 +301,8 @@ export async function POST(request: Request) {
       booking_url,
       address,
       images,
+      rating: rating || null,
+      review_count: review_count || null,
       generated_copy: {
         en: variant.en,
         es: variant.es,

@@ -72,6 +72,8 @@ export interface PreviewData {
   hours?: BusinessHours;
   address?: string;
   images?: string[];
+  rating?: number;
+  review_count?: number;
   generated_copy?: GeneratedCopy;
   template_variant?: string;
   group_id?: string; // links preview variants together

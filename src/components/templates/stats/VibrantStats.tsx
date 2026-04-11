@@ -8,6 +8,8 @@ interface VibrantStatsProps {
   serviceCount: number;
   address?: string;
   colors: ThemeColors;
+  rating?: number;
+  reviewCount?: number;
 }
 
 function useCountUp(target: number, inView: boolean, duration = 1500): number {
@@ -30,21 +32,25 @@ function useCountUp(target: number, inView: boolean, duration = 1500): number {
   return count;
 }
 
-export function VibrantStats({ serviceCount, address, colors }: VibrantStatsProps) {
+export function VibrantStats({ serviceCount, address, colors, rating, reviewCount }: VibrantStatsProps) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
 
   const servicesNum = useCountUp(serviceCount, inView);
-  const ratingNum = useCountUp(5, inView, 800);
+  const displayRating = rating || 5;
+  // Count up to the integer part, we'll append the decimal
+  const ratingWhole = useCountUp(Math.floor(displayRating), inView, 800);
 
   // Try to extract neighborhood from address
   const neighborhood = address
     ? address.split(",").find((part) => part.trim().match(/brooklyn|queens|bronx|manhattan|harlem|flatbush|bed-stuy|crown heights|bushwick/i))?.trim() || "NYC"
     : null;
 
-  const stats = [
+  const ratingDecimal = displayRating % 1 > 0 ? `.${Math.round((displayRating % 1) * 10)}` : "";
+
+  const stats: { value: number | null; display?: string; suffix: string | null; label: string }[] = [
     { value: servicesNum, suffix: "+", label: "Services Offered" },
-    { value: ratingNum, suffix: "★", label: "Star Rating" },
+    { value: ratingWhole, display: `${ratingWhole}${ratingDecimal}`, suffix: "★", label: reviewCount ? `${reviewCount} Reviews` : "Star Rating" },
     { value: null, suffix: null, label: neighborhood ? `Proudly in ${neighborhood}` : `${serviceCount}+ Happy Clients` },
   ];
 
@@ -55,7 +61,7 @@ export function VibrantStats({ serviceCount, address, colors }: VibrantStatsProp
           <div key={i}>
             {stat.value !== null ? (
               <p className="text-4xl font-bold md:text-5xl" style={{ color: colors.primary }}>
-                {stat.value}{stat.suffix}
+                {stat.display || stat.value}{stat.suffix}
               </p>
             ) : (
               <p className="text-2xl font-bold md:text-3xl" style={{ color: colors.primary }}>
