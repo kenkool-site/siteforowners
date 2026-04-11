@@ -15,7 +15,21 @@ const PLATFORM_COLORS = new Set([
   "#ffffff", "#000000",             // Black/white
 ]);
 
-function isPlatformColor(hex: string): boolean {
+function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return [0, 0, l];
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h = 0;
+  if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+  else if (max === g) h = ((b - r) / d + 2) / 6;
+  else h = ((r - g) / d + 4) / 6;
+  return [h * 360, s, l];
+}
+
+function isPlatformColor(hex: string, isAcuity = false): boolean {
   const normalized = hex.toLowerCase().trim();
   if (PLATFORM_COLORS.has(normalized)) return true;
   const r = parseInt(normalized.slice(1, 3), 16);
@@ -23,7 +37,13 @@ function isPlatformColor(hex: string): boolean {
   const b = parseInt(normalized.slice(5, 7), 16);
   const brightness = (r * 299 + g * 587 + b * 114) / 1000;
   if (brightness < 30 || brightness > 245) return true;
+  // Near-gray
   if (Math.abs(r - g) < 15 && Math.abs(g - b) < 15 && Math.abs(r - b) < 15) return true;
+  // On Acuity pages, reject greens (hue 100-160) — always Acuity's UI, not the business
+  if (isAcuity) {
+    const [h, s] = rgbToHsl(r, g, b);
+    if (s > 0.25 && h >= 100 && h <= 160) return true;
+  }
   return false;
 }
 
@@ -284,7 +304,7 @@ export async function POST(request: Request) {
 
     // Try to extract structured Acuity data directly from HTML
     const acuityData = extractAcuityData(html);
-    if (acuityData?.schedulerColor && !isPlatformColor(acuityData.schedulerColor)) {
+    if (acuityData?.schedulerColor && !isPlatformColor(acuityData.schedulerColor, true)) {
       htmlColors.push(acuityData.schedulerColor);
     }
 
@@ -324,7 +344,7 @@ Rules:
 BRAND COLORS — CRITICAL:
 - Extract the BUSINESS's brand colors, NOT the booking platform's UI colors.
 - For Acuity pages: look for "schedulerBackgroundColor", "background-color" on scheduling containers, or any custom color in the scheduler config. The page background tint IS the brand color.
-- IGNORE platform UI colors: Acuity green (#27ae60, #3DBE8B), category colors (#ED7087, #F08300, #FFE767, #73C1ED, #6FCF97, #8339B0, #B7A6EB), any pure grays.
+- IGNORE platform UI colors: ANY shade of green from Acuity (the platform UI is green — #27ae60, #3DBE8B, #2ecc71, #4CAF50, #5cb85c, #6fcf97 and similar), category colors (#ED7087, #F08300, #FFE767, #73C1ED, #6FCF97, #8339B0, #B7A6EB), any pure grays. If the ONLY colors you find are greens from Acuity UI, return an EMPTY brand_colors array.
 ${htmlColors.length > 0 ? `\nHINT: Pre-extracted brand colors from HTML: ${htmlColors.join(", ")}. Include these if they look like real brand colors.` : ""}
 - For description: look for meta description, og:description, or any about/bio text
 
@@ -377,7 +397,8 @@ ${html.slice(0, 25000)}`,
     if (htmlColors.length > 0) {
       brandColors = Array.from(new Set(htmlColors.concat(brandColors).map((c: string) => c.toLowerCase())));
     }
-    brandColors = brandColors.filter((c: string) => !isPlatformColor(c)).slice(0, 3);
+    const isAcuityPage = !!acuityData;
+    brandColors = brandColors.filter((c: string) => !isPlatformColor(c, isAcuityPage)).slice(0, 3);
 
     return NextResponse.json({
       business_name: extracted.business_name || null,
