@@ -17,7 +17,7 @@ const geistMono = localFont({
 export const metadata: Metadata = {
   title: "SiteForOwners — Your website, built for you",
   description:
-    "Professional websites for small businesses. $65/month. No setup fee. We handle everything.",
+    "Professional websites for small businesses. $50/month. No setup fee. We handle everything.",
 };
 
 export default function RootLayout({
