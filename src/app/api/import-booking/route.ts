@@ -107,15 +107,27 @@ async function classifyImages(
 
   content.push({
     type: "text",
-    text: `I have ${validImages.length} images from a small business booking page. For each image, classify it as one of:
+    text: `I have ${validImages.length} images from a small business booking page. For each image:
+
+1. Classify it as one of:
 - "photo" — a real photograph of hair, nails, food, a person, the business interior/exterior, or their work results. These are gallery-worthy.
 - "graphic" — a promotional flyer, infographic, text overlay image, banner with text, instructional graphic, collage with text, product packaging, social media post screenshot, or any image with significant text/typography on it.
 - "logo" — the business logo or brand mark.
 
-Return ONLY valid JSON as an array of objects:
-[{"index": 0, "type": "photo|graphic|logo"}]
+2. For photos ONLY, rate visual quality from 1-10:
+- 9-10: Professional, well-lit, well-composed, beautiful result showcase. Perfect for a website hero image.
+- 7-8: Good quality, clear, presentable. Solid gallery image.
+- 4-6: Acceptable but not impressive. Mediocre lighting, awkward angle, or cluttered background.
+- 1-3: Poor quality — blurry, unflattering, messy, bad lighting, too close-up, or unappealing.
 
-Be strict: if an image has ANY significant text overlaid on it (prices, dates, policies, promotional messages), classify it as "graphic" even if it also contains a photo underneath. We only want clean photos for a website gallery.`,
+Return ONLY valid JSON as an array of objects:
+[{"index": 0, "type": "photo|graphic|logo", "quality": 8}]
+
+"quality" is required for photos, omit for graphics/logos.
+
+Be strict: if an image has ANY significant text overlaid on it (prices, dates, policies, promotional messages), classify it as "graphic" even if it also contains a photo underneath. We only want clean photos for a website gallery.
+
+The BEST photo (highest quality) will be used as the hero/banner image on the website, so rate carefully — prefer well-composed, professional-looking shots.`,
   });
 
   validImages.forEach((img, i) => {
@@ -144,17 +156,21 @@ Be strict: if an image has ANY significant text overlaid on it (prices, dates, p
     const jsonMatch = text.match(/\[[\s\S]*\]/);
     if (!jsonMatch) return { photos: validImages.map((v) => v.url), logo: null };
 
-    const classifications = JSON.parse(jsonMatch[0]) as Array<{ index: number; type: string }>;
+    const classifications = JSON.parse(jsonMatch[0]) as Array<{ index: number; type: string; quality?: number }>;
 
-    const photos: string[] = [];
+    const photoEntries: { url: string; quality: number }[] = [];
     let logo: string | null = null;
 
     for (const c of classifications) {
       const img = validImages[c.index];
       if (!img) continue;
-      if (c.type === "photo") photos.push(img.url);
+      if (c.type === "photo") photoEntries.push({ url: img.url, quality: c.quality ?? 5 });
       if (c.type === "logo" && !logo) logo = img.url;
     }
+
+    // Sort by quality descending — best photo first (becomes hero image)
+    photoEntries.sort((a, b) => b.quality - a.quality);
+    const photos = photoEntries.map((p) => p.url);
 
     return { photos, logo };
   } catch (err) {
