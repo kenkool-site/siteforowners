@@ -14,7 +14,7 @@ const STEPS = [
   },
   {
     num: "3",
-    title: "Go live for $65/month",
+    title: "Go live for $50/month",
     desc: "Love it? We handle hosting, domain, updates — everything.",
   },
 ];
@@ -30,7 +30,7 @@ const VERTICALS = [
 const PLANS = [
   {
     name: "Starter",
-    price: "$65",
+    price: "$50",
     features: [
       "Professional website",
       "Hosting & domain included",
@@ -43,7 +43,7 @@ const PLANS = [
   },
   {
     name: "Growth",
-    price: "$99",
+    price: "$50",
     features: [
       "Everything in Starter",
       "Google Business Profile setup",
@@ -56,7 +56,7 @@ const PLANS = [
   },
   {
     name: "Pro",
-    price: "$149",
+    price: "$50",
     features: [
       "Everything in Growth",
       "Review management",
@@ -95,7 +95,7 @@ export default function MarketingPage() {
             See it free in 5 minutes
           </p>
           <p className="mb-10 text-base text-gray-500 md:text-lg">
-            Professional websites for small businesses. $65/month. No setup fee.
+            Professional websites for small businesses. $50/month. No setup fee.
             We handle everything.
           </p>
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">

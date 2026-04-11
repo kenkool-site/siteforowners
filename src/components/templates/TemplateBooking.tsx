@@ -254,7 +254,7 @@ export function TemplateBooking({
                 <Button
                   size="lg"
                   variant="outline"
-                  className="rounded-full px-10 py-6 text-base font-semibold"
+                  className="rounded-full !bg-transparent px-10 py-6 text-base font-semibold"
                   style={{
                     borderColor: colors.primary,
                     color: colors.primary,
@@ -298,7 +298,7 @@ export function TemplateBooking({
             <Button
               size="lg"
               variant="outline"
-              className="rounded-full px-10 py-6 text-base font-semibold"
+              className="rounded-full !bg-transparent px-10 py-6 text-base font-semibold"
               style={{
                 borderColor: colors.primary,
                 color: colors.primary,

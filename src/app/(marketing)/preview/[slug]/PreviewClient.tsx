@@ -131,7 +131,7 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-gray-900">
-              Love it? Go live for $65/mo
+              Love it? Go live for $50/mo
             </p>
             <p className="text-xs text-gray-500">
               We handle hosting, domain, updates — everything.

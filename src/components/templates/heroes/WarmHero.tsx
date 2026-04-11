@@ -122,7 +122,7 @@ export function WarmHero({
             <Button
               size="lg"
               variant="outline"
-              className="rounded-full px-10 py-7 text-base font-semibold"
+              className="rounded-full !bg-transparent px-10 py-7 text-base font-semibold"
               style={{ borderColor: colors.primary, color: colors.primary }}
               asChild
             >
