@@ -48,6 +48,34 @@ function extractColorsFromHtml(html: string): string[] {
   return unique.filter((c) => !isPlatformColor(c));
 }
 
+// Try to get a higher-resolution version of an image URL
+function getHighResUrl(url: string): string {
+  try {
+    const u = new URL(url);
+    // Acuity/Square: bump width params
+    for (const key of ["w", "width", "sz", "size"]) {
+      if (u.searchParams.has(key)) {
+        u.searchParams.set(key, "1200");
+      }
+    }
+    // Height params too
+    for (const key of ["h", "height"]) {
+      if (u.searchParams.has(key)) {
+        u.searchParams.delete(key); // remove height to keep aspect ratio
+      }
+    }
+    // Common CDN resize patterns in path: /s300/, /w300/, /300x300/
+    let path = u.pathname;
+    path = path.replace(/\/s\d{2,4}\//g, "/s1200/");
+    path = path.replace(/\/w\d{2,4}\//g, "/w1200/");
+    path = path.replace(/\/\d{2,4}x\d{2,4}\//g, "/1200x1200/");
+    u.pathname = path;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 // Fetch an image and return base64 + media type, or null if it fails
 async function fetchImageAsBase64(
   imageUrl: string
@@ -291,7 +319,7 @@ Rules:
 - Format phone as (XXX) XXX-XXXX
 - If a price is a range, use the starting price
 - For logo: find the business logo image URL. Must be a full absolute URL.
-- For images: include ALL image URLs you find (we will filter them visually in a later step). Include full absolute URLs. Skip SVGs and tracking pixels.
+- For images: include ALL image URLs you find (we will filter them visually in a later step). Include full absolute URLs. Skip SVGs and tracking pixels. IMPORTANT: prefer the highest-resolution version of each image — if a URL has size/width parameters (like ?w=300 or ?sz=thumb), use the largest available or remove size constraints.
 
 BRAND COLORS — CRITICAL:
 - Extract the BUSINESS's brand colors, NOT the booking platform's UI colors.
@@ -339,8 +367,10 @@ ${html.slice(0, 25000)}`,
 
     // Use vision-detected logo, fall back to HTML-extracted logo
     const finalLogo = visionLogo || extracted.logo || null;
-    // Use only vision-classified photos (excluding the logo)
-    const finalImages = photos.filter((p: string) => p !== finalLogo);
+    // Use only vision-classified photos (excluding the logo), request high-res versions
+    const finalImages = photos
+      .filter((p: string) => p !== finalLogo)
+      .map(getHighResUrl);
 
     // Post-process brand colors
     let brandColors: string[] = extracted.brand_colors || [];
