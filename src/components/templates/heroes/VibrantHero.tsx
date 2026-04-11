@@ -67,7 +67,7 @@ export function VibrantHero({
       )}
 
       <motion.p
-        className="relative z-10 mb-4 text-sm font-semibold uppercase tracking-[0.2em] opacity-80"
+        className="relative z-10 mb-4 text-base font-semibold uppercase tracking-[0.2em] opacity-80 md:text-xl"
         initial={{ opacity: 0 }}
         animate={{ opacity: 0.8 }}
         transition={{ duration: 0.5 }}

@@ -86,7 +86,7 @@ export function ClassicHero({
 
       <div className="relative z-10 max-w-3xl">
         <motion.p
-          className="mb-6 text-sm font-semibold uppercase tracking-[0.3em]"
+          className="mb-6 text-base font-semibold uppercase tracking-[0.3em] md:text-xl"
           style={{ color: colors.primary }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
