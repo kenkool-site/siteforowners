@@ -279,12 +279,12 @@ export function TemplateBooking({
             </div>
 
             {canEmbed && showFallbackEmbed && (
-              <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl" style={{ height: 700 }}>
+              <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl" style={{ height: 800 }}>
                 <iframe
                   src={bookingUrl}
                   title="Book an appointment"
                   className="w-full border-0"
-                  style={{ height: 1250, marginTop: -550 }}
+                  style={{ height: 1600, marginTop: -200 }}
                   allow="payment"
                 />
               </div>
