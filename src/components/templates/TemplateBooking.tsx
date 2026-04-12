@@ -28,9 +28,12 @@ interface TemplateBookingProps {
 }
 
 export function isEmbeddableBookingUrl(url: string): boolean {
+  // Vagaro pages embed their full profile (About/Staff/Services/Reviews) in iframes
+  // which looks cluttered — better to open in a new tab
+  if (url.toLowerCase().includes("vagaro.com")) return false;
+
   const embeddablePatterns = [
     "booksy.com",
-    "vagaro.com",
     "squareup.com",
     "square.site",
     "acuityscheduling.com",
