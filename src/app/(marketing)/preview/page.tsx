@@ -87,6 +87,7 @@ export default function PreviewWizard() {
   const [mapsEnriched, setMapsEnriched] = useState(false);
   const [mapsLoading, setMapsLoading] = useState(false);
   const [mapsReviews, setMapsReviews] = useState<{ authorName: string; rating: number; text: string; relativeTime: string }[]>([]);
+  const [mapsHours, setMapsHours] = useState<Record<string, { open: string; close: string; closed?: boolean }> | null>(null);
 
   // Step 5: Review & generate
 
@@ -204,6 +205,26 @@ export default function PreviewWizard() {
       if (data.reviewCount) setMapsReviewCount(data.reviewCount);
       if (data.reviews && data.reviews.length > 0) setMapsReviews(data.reviews);
       if (data.phone && !phone) setPhone(data.phone);
+      // Parse hours string: "Monday: 10:00 AM – 7:00 PM; Tuesday: ..."
+      if (data.hours) {
+        const parsed: Record<string, { open: string; close: string; closed?: boolean }> = {};
+        const entries = (data.hours as string).split("; ");
+        for (const entry of entries) {
+          const colonIdx = entry.indexOf(": ");
+          if (colonIdx === -1) continue;
+          const day = entry.slice(0, colonIdx).trim();
+          const timeRange = entry.slice(colonIdx + 2).trim();
+          if (timeRange.toLowerCase() === "closed") {
+            parsed[day] = { open: "", close: "", closed: true };
+          } else {
+            const parts = timeRange.split(/\s*[–-]\s*/);
+            if (parts.length === 2) {
+              parsed[day] = { open: parts[0].trim(), close: parts[1].trim() };
+            }
+          }
+        }
+        if (Object.keys(parsed).length > 0) setMapsHours(parsed);
+      }
       // Merge Maps images — high-res Google CDN photos
       if (data.images && data.images.length > 0) {
         setUploadedImages((prev) => {
@@ -271,6 +292,7 @@ export default function PreviewWizard() {
           rating: mapsRating || undefined,
           review_count: mapsReviewCount || undefined,
           google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,
+          hours: mapsHours || undefined,
         }),
       });
       if (!res.ok) {

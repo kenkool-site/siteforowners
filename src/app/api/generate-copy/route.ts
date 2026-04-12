@@ -230,6 +230,7 @@ export async function POST(request: Request) {
       rating,
       review_count,
       google_reviews,
+      hours,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -248,6 +249,7 @@ export async function POST(request: Request) {
       rating?: number;
       review_count?: number;
       google_reviews?: { authorName: string; rating: number; text: string; relativeTime: string }[];
+      hours?: Record<string, { open: string; close: string; closed?: boolean }>;
     };
 
     if (!business_name || !business_type) {
@@ -305,6 +307,7 @@ export async function POST(request: Request) {
       booking_url,
       address,
       images,
+      hours: hours || null,
       rating: rating || null,
       review_count: review_count || null,
       generated_copy: {
