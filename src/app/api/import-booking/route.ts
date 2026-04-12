@@ -237,6 +237,44 @@ The BEST photo (highest quality) will be used as the hero/banner image on the we
   }
 }
 
+// Extract data from Vagaro pages using meta tags (services are client-rendered)
+function extractVagaroData(html: string, url: string): {
+  business_name: string | null;
+  description: string | null;
+  images: string[];
+  booking_url: string;
+} | null {
+  if (!url.includes("vagaro.com")) return null;
+
+  // Business name from title: "Rika Nail Salon - Brooklyn NY | Vagaro"
+  const titleMatch = html.match(/<title>\s*(.*?)\s*<\/title>/i);
+  const business_name = titleMatch
+    ? titleMatch[1].replace(/\s*[-|].*vagaro.*/i, "").trim()
+    : null;
+
+  // Description from meta
+  const descMatch = html.match(/name="description"\s+content="([^"]*)"/i);
+  const description = descMatch ? descMatch[1].replace(/&amp;/g, "&") : null;
+
+  // Extract og:image URLs — Vagaro has many, get up to 10
+  const ogImageRegex = /property="og:image"\s+content="([^"]*)"/gi;
+  const images: string[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = ogImageRegex.exec(html)) !== null && images.length < 10) {
+    let imgUrl = match[1];
+    // Upgrade from 340x340 thumbnails to larger size
+    imgUrl = imgUrl.replace(/\/340x340\//g, "/1200x1200/");
+    images.push(imgUrl);
+  }
+
+  return {
+    business_name,
+    description,
+    images,
+    booking_url: url,
+  };
+}
+
 // Extract structured booking data from Acuity's embedded BUSINESS JSON
 interface BookingCategory {
   name: string;
@@ -311,6 +349,30 @@ export async function POST(request: Request) {
 
     const html = await res.text();
     const htmlColors = extractColorsFromHtml(html);
+
+    // Try Vagaro-specific extraction (services are client-rendered, so use meta tags)
+    const vagaroData = extractVagaroData(html, fullUrl);
+    if (vagaroData) {
+      // For Vagaro, we have images and business info from meta tags.
+      // Services aren't in the HTML so we skip Claude parsing and let the wizard
+      // use default services for the business type.
+      const { photos, logo: visionLogo, hasHeroImage: heroWorthy } = await classifyImages(vagaroData.images);
+      const finalImages = photos.map(getHighResUrl);
+
+      return NextResponse.json({
+        business_name: vagaroData.business_name,
+        phone: null,
+        address: null,
+        description: vagaroData.description,
+        services: [],
+        logo: visionLogo || null,
+        images: finalImages,
+        has_hero_image: heroWorthy && finalImages.length > 0,
+        brand_colors: [],
+        booking_url: vagaroData.booking_url,
+        booking_categories: null,
+      });
+    }
 
     // Try to extract structured Acuity data directly from HTML
     const acuityData = extractAcuityData(html);
