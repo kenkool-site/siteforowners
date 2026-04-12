@@ -27,13 +27,19 @@ interface TemplateBookingProps {
   bookingCategories?: BookingCategory[];
 }
 
-export function isEmbeddableBookingUrl(url: string): boolean {
-  // Vagaro pages embed their full profile (About/Staff/Services/Reviews) in iframes
-  // which looks cluttered — better to open in a new tab
-  if (url.toLowerCase().includes("vagaro.com")) return false;
+// For Vagaro URLs, ensure the embed loads the /services page directly
+function getEmbedUrl(url: string): string {
+  if (url.toLowerCase().includes("vagaro.com")) {
+    const base = url.replace(/\/+$/, "").replace(/\/(services|about|staff)$/i, "");
+    return `${base}/services`;
+  }
+  return url;
+}
 
+export function isEmbeddableBookingUrl(url: string): boolean {
   const embeddablePatterns = [
     "booksy.com",
+    "vagaro.com",
     "squareup.com",
     "square.site",
     "acuityscheduling.com",
@@ -284,7 +290,7 @@ export function TemplateBooking({
             {canEmbed && showFallbackEmbed && (
               <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl" style={{ height: 800 }}>
                 <iframe
-                  src={bookingUrl}
+                  src={getEmbedUrl(bookingUrl)}
                   title="Book an appointment"
                   className="w-full border-0"
                   style={{ height: 1600, marginTop: -200 }}
