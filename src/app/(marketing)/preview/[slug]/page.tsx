@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import { PreviewClient } from "./PreviewClient";
@@ -20,6 +21,34 @@ async function getPreviewData(slug: string): Promise<PreviewData | null> {
     .eq("slug", slug);
 
   return data as PreviewData;
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: { slug: string };
+}): Promise<Metadata> {
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("previews")
+    .select("business_name, images")
+    .eq("slug", params.slug)
+    .single();
+
+  const name = data?.business_name || "Your Business";
+  const title = `${name} — Website Preview | SiteForOwners`;
+  const description = `We created this website preview for ${name}. See how your business could look online — fully customized, ready to go live.`;
+  const image = data?.images?.[0];
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      ...(image ? { images: [{ url: image }] } : {}),
+    },
+  };
 }
 
 export default async function PreviewPage({
