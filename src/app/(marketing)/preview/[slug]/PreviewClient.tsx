@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { TemplateOrchestrator } from "@/components/templates";
+import { GetStartedModal } from "@/components/GetStartedModal";
 import type { PreviewData } from "@/lib/ai/types";
 
 interface PreviewClientProps {
@@ -14,6 +15,7 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
   const [locale, setLocale] = useState<"en" | "es">("en");
   const [viewMode, setViewMode] = useState<"mobile" | "desktop">("desktop");
   const [copied, setCopied] = useState(false);
+  const [showGetStarted, setShowGetStarted] = useState(false);
 
   const previewUrl =
     typeof window !== "undefined"
@@ -138,7 +140,7 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
             </p>
           </div>
           <div className="flex gap-2">
-            <a href="https://wa.me/1XXXXXXXXXX" target="_blank" rel="noopener noreferrer">
+            <a href="sms:6159183580?body=Hi, I saw my website preview and I'm interested!">
               <Button variant="outline" size="sm">
                 Text Us
               </Button>
@@ -146,12 +148,21 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
             <Button
               size="sm"
               className="bg-amber-600 text-white hover:bg-amber-700"
+              onClick={() => setShowGetStarted(true)}
             >
               Get Started
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Get Started Modal */}
+      <GetStartedModal
+        isOpen={showGetStarted}
+        onClose={() => setShowGetStarted(false)}
+        previewSlug={slug}
+        businessName={data.business_name}
+      />
     </div>
   );
 }
