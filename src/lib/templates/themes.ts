@@ -20,16 +20,16 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
   salon: [
     {
       id: 'salon_gold',
-      name: 'Gold & Cream',
+      name: 'Espresso & Gold',
       colors: {
-        primary: '#B8860B',
-        secondary: '#FFFDD0',
-        accent: '#DAA520',
-        background: '#FFF8F0',
-        foreground: '#2D2017',
-        muted: '#F5E6D3',
+        primary: '#C9A96E',
+        secondary: '#3B2F2F',
+        accent: '#D4B483',
+        background: '#FAF6F1',
+        foreground: '#2A1F1A',
+        muted: '#EDE5DA',
       },
-      previewSwatch: ['#B8860B', '#FFFDD0', '#FFF8F0'],
+      previewSwatch: ['#C9A96E', '#3B2F2F', '#FAF6F1'],
     },
     {
       id: 'salon_rose',

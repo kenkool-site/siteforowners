@@ -86,9 +86,11 @@ function getHighResUrl(url: string): string {
     }
     // Common CDN resize patterns in path: /s300/, /w300/, /300x300/
     let path = u.pathname;
-    path = path.replace(/\/s\d{2,4}\//g, "/s1200/");
-    path = path.replace(/\/w\d{2,4}\//g, "/w1200/");
-    path = path.replace(/\/\d{2,4}x\d{2,4}\//g, "/1200x1200/");
+    const isVagaro = u.hostname.includes("rackcdn.com");
+    const maxSize = isVagaro ? "800" : "1200";
+    path = path.replace(/\/s\d{2,4}\//g, `/s${maxSize}/`);
+    path = path.replace(/\/w\d{2,4}\//g, `/w${maxSize}/`);
+    path = path.replace(/\/\d{2,4}x\d{2,4}\//g, `/${maxSize}x${maxSize}/`);
     u.pathname = path;
     return u.toString();
   } catch {
@@ -281,8 +283,8 @@ function extractVagaroData(html: string, url: string): {
   let match: RegExpExecArray | null;
   while ((match = ogImageRegex.exec(html)) !== null && images.length < 10) {
     let imgUrl = match[1];
-    // Upgrade from 340x340 thumbnails to larger size
-    imgUrl = imgUrl.replace(/\/340x340\//g, "/1200x1200/");
+    // Upgrade from 340x340 thumbnails — 800x800 is the max Vagaro CDN supports
+    imgUrl = imgUrl.replace(/\/340x340\//g, "/800x800/");
     images.push(imgUrl);
   }
 
