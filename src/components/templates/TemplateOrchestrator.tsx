@@ -122,6 +122,8 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
       bookingUrl={data.booking_url}
       colors={colors}
       bookingCategories={bookingCategories}
+      services={data.services}
+      businessName={data.business_name}
     />
   );
 
