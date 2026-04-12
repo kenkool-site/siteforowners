@@ -229,6 +229,7 @@ export async function POST(request: Request) {
       has_hero_image,
       rating,
       review_count,
+      google_reviews,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -246,6 +247,7 @@ export async function POST(request: Request) {
       booking_categories?: unknown[];
       rating?: number;
       review_count?: number;
+      google_reviews?: { authorName: string; rating: number; text: string; relativeTime: string }[];
     };
 
     if (!business_name || !business_type) {
@@ -310,6 +312,7 @@ export async function POST(request: Request) {
         ...(customPalettes ? { custom_colors: customPalettes[i] } : {}),
         ...(logo ? { logo } : {}),
         ...(booking_categories ? { booking_categories } : {}),
+        ...(google_reviews && google_reviews.length > 0 ? { google_reviews } : {}),
       },
       template_variant: templates[i],
       group_id: groupId,

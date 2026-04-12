@@ -86,6 +86,7 @@ export default function PreviewWizard() {
   const [mapsReviewCount, setMapsReviewCount] = useState<number | null>(null);
   const [mapsEnriched, setMapsEnriched] = useState(false);
   const [mapsLoading, setMapsLoading] = useState(false);
+  const [mapsReviews, setMapsReviews] = useState<{ authorName: string; rating: number; text: string; relativeTime: string }[]>([]);
 
   // Step 5: Review & generate
 
@@ -201,6 +202,7 @@ export default function PreviewWizard() {
       const data = await res.json();
       if (data.rating) setMapsRating(data.rating);
       if (data.reviewCount) setMapsReviewCount(data.reviewCount);
+      if (data.reviews && data.reviews.length > 0) setMapsReviews(data.reviews);
       if (data.phone && !phone) setPhone(data.phone);
       // Merge Maps images — high-res Google CDN photos
       if (data.images && data.images.length > 0) {
@@ -268,6 +270,7 @@ export default function PreviewWizard() {
           booking_categories: bookingCategories || undefined,
           rating: mapsRating || undefined,
           review_count: mapsReviewCount || undefined,
+          google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,
         }),
       });
       if (!res.ok) {
