@@ -22,7 +22,6 @@ export function BoldHero({
   heroImage,
   colors,
   bookingUrl,
-  phone,
 }: BoldHeroProps) {
   const isInternal = !bookingUrl || isEmbeddableBookingUrl(bookingUrl);
   const ctaHref = bookingUrl

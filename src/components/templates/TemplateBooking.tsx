@@ -385,7 +385,7 @@ export function TemplateBooking({
     handleHash();
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
-  }, [hasCategories, canEmbed, bookingCategories]);
+  }, [hasCategories, canEmbed, showMock, bookingCategories]);
 
   return (
     <section

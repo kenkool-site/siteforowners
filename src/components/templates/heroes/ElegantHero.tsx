@@ -23,7 +23,6 @@ export function ElegantHero({
   logo,
   colors,
   bookingUrl,
-  phone,
 }: ElegantHeroProps) {
   const isInternal = !bookingUrl || isEmbeddableBookingUrl(bookingUrl);
   const ctaHref = bookingUrl
