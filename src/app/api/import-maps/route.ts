@@ -137,14 +137,31 @@ async function findBusinessOnMaps(
   }
 
   // Step 3: Extract top reviews (4+ stars, sorted by rating)
-  const reviews: PlaceReview[] = (place.reviews || [])
-    .filter((r: { rating?: number; text?: { text?: string } }) => (r.rating || 0) >= 4 && r.text?.text)
+  // Places API (New) review shape:
+  //   authorDisplayName: { text: string }, rating: number,
+  //   text: { text: string }, relativePublishTimeDescription: string
+  const rawReviews = place.reviews || [];
+  console.log(`Maps: found ${rawReviews.length} reviews for "${place.displayName?.text}"`);
+
+  const reviews: PlaceReview[] = rawReviews
+    .filter((r: { rating?: number; text?: { text?: string }; originalText?: { text?: string } }) =>
+      (r.rating || 0) >= 4 && (r.text?.text || r.originalText?.text)
+    )
     .sort((a: { rating?: number }, b: { rating?: number }) => (b.rating || 0) - (a.rating || 0))
     .slice(0, 3)
-    .map((r: { authorDisplayName?: string; rating?: number; text?: { text?: string }; relativePublishTimeDescription?: string }) => ({
-      authorName: r.authorDisplayName || "Customer",
+    .map((r: {
+      authorDisplayName?: { text?: string } | string;
+      rating?: number;
+      text?: { text?: string };
+      originalText?: { text?: string };
+      relativePublishTimeDescription?: string;
+    }) => ({
+      authorName:
+        (typeof r.authorDisplayName === "object"
+          ? r.authorDisplayName?.text
+          : r.authorDisplayName) || "Customer",
       rating: r.rating || 5,
-      text: r.text?.text || "",
+      text: r.text?.text || r.originalText?.text || "",
       relativeTime: r.relativePublishTimeDescription || "",
     }));
 

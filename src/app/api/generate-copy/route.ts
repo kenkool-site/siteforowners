@@ -257,6 +257,8 @@ export async function POST(request: Request) {
       );
     }
 
+    console.log(`Generate copy: rating=${rating}, review_count=${review_count}, google_reviews=${google_reviews?.length || 0}`);
+
     // Generate 2 AI copy variants in one call
     const variants = await generateWebsiteCopyVariants({
       businessName: business_name,
