@@ -26,7 +26,7 @@ export function VibrantHero({
   phone,
 }: VibrantHeroProps) {
   const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
-  const ctaHref = canEmbed ? "#booking" : bookingUrl || (phone ? `tel:${phone}` : undefined);
+  const ctaHref = canEmbed ? "#booking" : bookingUrl || "#booking";
 
   return (
     <section

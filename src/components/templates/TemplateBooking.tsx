@@ -371,14 +371,14 @@ export function TemplateBooking({
 
   // Auto-open when navigated to via #booking anchor
   useEffect(() => {
-    if (!hasCategories && !canEmbed) return;
     const handleHash = () => {
       if (window.location.hash === "#booking") {
         if (hasCategories) {
-          // Auto-expand first category
-          setExpandedCategory(bookingCategories[0].name);
-        } else {
+          setExpandedCategory(bookingCategories![0].name);
+        } else if (canEmbed) {
           setShowFallbackEmbed(true);
+        } else if (showMock) {
+          setShowMockCalendar(true);
         }
       }
     };

@@ -28,7 +28,7 @@ export function WarmHero({
   phone,
 }: WarmHeroProps) {
   const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
-  const ctaHref = canEmbed ? "#booking" : bookingUrl || (phone ? `tel:${phone}` : undefined);
+  const ctaHref = canEmbed ? "#booking" : bookingUrl || "#booking";
 
   return (
     <section className="min-h-[90vh] md:grid md:grid-cols-[1fr_4px_1fr]">
