@@ -237,10 +237,14 @@ The BEST photo (highest quality) will be used as the hero/banner image on the we
   }
 }
 
-// Extract data from Vagaro pages using meta tags (services are client-rendered)
+// Extract data from Vagaro pages using meta tags + embedded JSON
+// Services are client-rendered on Vagaro, so we extract business info and
+// use Claude to generate typical services from the business description.
 function extractVagaroData(html: string, url: string): {
   business_name: string | null;
   description: string | null;
+  phone: string | null;
+  address: string | null;
   images: string[];
   booking_url: string;
 } | null {
@@ -256,6 +260,21 @@ function extractVagaroData(html: string, url: string): {
   const descMatch = html.match(/name="description"\s+content="([^"]*)"/i);
   const description = descMatch ? descMatch[1].replace(/&amp;/g, "&") : null;
 
+  // Try to extract phone and address from embedded BusinessDetail JSON
+  // Vagaro uses escaped JSON (\\") in embedded script data
+  let phone: string | null = null;
+  let address: string | null = null;
+  const phoneMatch = html.match(/\\"Telephone\\":\\"(\d{10,11})\\"/);
+  if (phoneMatch) {
+    const p = phoneMatch[1];
+    phone = `(${p.slice(0, 3)}) ${p.slice(3, 6)}-${p.slice(6)}`;
+  }
+  // Find address block — Street, City, and StateCode appear together in the business data
+  const addrBlockMatch = html.match(/\\"Street\\":\\"([^\\]+)\\"[^}]{0,200}\\"City\\":\\"([^\\]+)\\"[^}]{0,200}\\"StateCode\\":\\"([^\\]+)\\"/);
+  if (addrBlockMatch) {
+    address = `${addrBlockMatch[1]}, ${addrBlockMatch[2]}, ${addrBlockMatch[3]}`;
+  }
+
   // Extract og:image URLs — Vagaro has many, get up to 10
   const ogImageRegex = /property="og:image"\s+content="([^"]*)"/gi;
   const images: string[] = [];
@@ -270,9 +289,50 @@ function extractVagaroData(html: string, url: string): {
   return {
     business_name,
     description,
+    phone,
+    address,
     images,
     booking_url: url,
   };
+}
+
+// Generate typical services for a business using Claude, based on its name and description
+async function generateVagaroServices(
+  businessName: string,
+  description: string | null
+): Promise<{ name: string; price: string }[]> {
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 500,
+      messages: [
+        {
+          role: "user",
+          content: `Based on this business name and description, generate a realistic list of 8-12 services they likely offer with typical NYC prices.
+
+Business: ${businessName}
+Description: ${description || "No description available"}
+
+Return ONLY valid JSON array:
+[{"name": "Service Name", "price": "$XX"}]
+
+Rules:
+- Use realistic market prices for Brooklyn, NY
+- Include a mix of basic and premium services
+- Format prices with $ sign, round to nearest $5
+- No descriptions, just name and price`,
+        },
+      ],
+    });
+
+    const text = response.content[0].type === "text" ? response.content[0].text : "";
+    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) return [];
+    return JSON.parse(jsonMatch[0]);
+  } catch (err) {
+    console.error("Failed to generate Vagaro services:", err);
+    return [];
+  }
 }
 
 // Extract structured booking data from Acuity's embedded BUSINESS JSON
@@ -350,21 +410,25 @@ export async function POST(request: Request) {
     const html = await res.text();
     const htmlColors = extractColorsFromHtml(html);
 
-    // Try Vagaro-specific extraction (services are client-rendered, so use meta tags)
+    // Try Vagaro-specific extraction (services are client-rendered, so use meta tags + AI)
     const vagaroData = extractVagaroData(html, fullUrl);
     if (vagaroData) {
-      // For Vagaro, we have images and business info from meta tags.
-      // Services aren't in the HTML so we skip Claude parsing and let the wizard
-      // use default services for the business type.
-      const { photos, logo: visionLogo, hasHeroImage: heroWorthy } = await classifyImages(vagaroData.images);
+      // For Vagaro, services are loaded client-side via JS — not in static HTML.
+      // We extract business info from meta tags and embedded JSON, then use Claude
+      // to generate realistic services based on the business name and description.
+      const [imageResult, services] = await Promise.all([
+        classifyImages(vagaroData.images),
+        generateVagaroServices(vagaroData.business_name || "Business", vagaroData.description),
+      ]);
+      const { photos, logo: visionLogo, hasHeroImage: heroWorthy } = imageResult;
       const finalImages = photos.map(getHighResUrl);
 
       return NextResponse.json({
         business_name: vagaroData.business_name,
-        phone: null,
-        address: null,
+        phone: vagaroData.phone,
+        address: vagaroData.address,
         description: vagaroData.description,
-        services: [],
+        services,
         logo: visionLogo || null,
         images: finalImages,
         has_hero_image: heroWorthy && finalImages.length > 0,
