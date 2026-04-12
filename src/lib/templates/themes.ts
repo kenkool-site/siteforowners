@@ -444,16 +444,16 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
   braids: [
     {
       id: 'braids_kente',
-      name: 'Kente Gold',
+      name: 'Terracotta & Cream',
       colors: {
-        primary: '#DAA520',
-        secondary: '#8B4513',
-        accent: '#FF4500',
-        background: '#FFF8E7',
-        foreground: '#2A1F00',
-        muted: '#F0E8C8',
+        primary: '#C4704B',
+        secondary: '#3D2B1F',
+        accent: '#D4896A',
+        background: '#FDF6F0',
+        foreground: '#2A1810',
+        muted: '#F0E4D8',
       },
-      previewSwatch: ['#DAA520', '#8B4513', '#FFF8E7'],
+      previewSwatch: ['#C4704B', '#3D2B1F', '#FDF6F0'],
     },
     {
       id: 'braids_royal',
