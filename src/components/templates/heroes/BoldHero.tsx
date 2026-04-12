@@ -24,8 +24,10 @@ export function BoldHero({
   bookingUrl,
   phone,
 }: BoldHeroProps) {
-  const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
-  const ctaHref = canEmbed ? "#booking" : bookingUrl || "#booking";
+  const isInternal = !bookingUrl || isEmbeddableBookingUrl(bookingUrl);
+  const ctaHref = bookingUrl
+    ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
+    : "#booking";
 
   return (
     <section
@@ -90,7 +92,7 @@ export function BoldHero({
             asChild={!!ctaHref}
           >
             {ctaHref ? (
-              <a href={ctaHref} target={canEmbed ? undefined : (bookingUrl ? "_blank" : undefined)} rel={canEmbed ? undefined : (bookingUrl ? "noopener noreferrer" : undefined)}>
+              <a href={ctaHref} target={isInternal ? undefined : "_blank"} rel={isInternal ? undefined : "noopener noreferrer"}>
                 Book Now
               </a>
             ) : (

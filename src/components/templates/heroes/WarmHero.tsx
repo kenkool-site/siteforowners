@@ -27,8 +27,10 @@ export function WarmHero({
   bookingUrl,
   phone,
 }: WarmHeroProps) {
-  const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
-  const ctaHref = canEmbed ? "#booking" : bookingUrl || "#booking";
+  const isInternal = !bookingUrl || isEmbeddableBookingUrl(bookingUrl);
+  const ctaHref = bookingUrl
+    ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
+    : "#booking";
 
   return (
     <section className="min-h-[90vh] md:grid md:grid-cols-[1fr_4px_1fr]">
@@ -116,7 +118,7 @@ export function WarmHero({
             asChild={!!ctaHref}
           >
             {ctaHref ? (
-              <a href={ctaHref} target={canEmbed ? undefined : (bookingUrl ? "_blank" : undefined)} rel={canEmbed ? undefined : (bookingUrl ? "noopener noreferrer" : undefined)}>
+              <a href={ctaHref} target={isInternal ? undefined : "_blank"} rel={isInternal ? undefined : "noopener noreferrer"}>
                 Come Visit Us
               </a>
             ) : (
