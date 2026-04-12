@@ -1,5 +1,12 @@
 import { NextResponse } from "next/server";
 
+interface PlaceReview {
+  authorName: string;
+  rating: number;
+  text: string;
+  relativeTime: string;
+}
+
 interface PlaceResult {
   name: string | null;
   category: string | null;
@@ -10,9 +17,38 @@ interface PlaceResult {
   hours: string | null;
   images: string[];
   website: string | null;
+  reviews: PlaceReview[];
 }
 
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+
+/**
+ * Check if the returned place name matches the searched business name.
+ * Uses word overlap — at least 50% of significant words must match,
+ * OR one name fully contains the other.
+ */
+function isNameMatch(searched: string, returned: string): boolean {
+  // Direct containment: "Brooklyn Hair Studio" matches "Brooklyn Hair Studio & Spa"
+  if (returned.includes(searched) || searched.includes(returned)) {
+    return true;
+  }
+
+  // Word overlap: strip common filler words, compare significant words
+  const filler = new Set(["the", "of", "and", "&", "a", "an", "at", "in", "on", "by", "llc", "inc", "corp"]);
+  const toWords = (s: string) =>
+    s.replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > 1 && !filler.has(w));
+
+  const searchedWords = toWords(searched);
+  const returnedWords = toWords(returned);
+
+  if (searchedWords.length === 0 || returnedWords.length === 0) return false;
+
+  const returnedSet = new Set(returnedWords);
+  const matchCount = searchedWords.filter((w) => returnedSet.has(w)).length;
+  const matchRatio = matchCount / searchedWords.length;
+
+  return matchRatio >= 0.5;
+}
 
 /**
  * Find a business on Google Maps using the Places API (New).
@@ -35,7 +71,7 @@ async function findBusinessOnMaps(
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_API_KEY,
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.websiteUri,places.primaryType,places.currentOpeningHours,places.photos",
+          "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.websiteUri,places.primaryType,places.currentOpeningHours,places.photos,places.reviews",
       },
       body: JSON.stringify({
         textQuery: `${businessName} ${address}`,
@@ -53,18 +89,32 @@ async function findBusinessOnMaps(
   const searchData = await searchRes.json();
   const place = searchData.places?.[0];
 
+  const emptyResult: PlaceResult = {
+    name: null,
+    category: null,
+    rating: null,
+    reviewCount: null,
+    phone: null,
+    address: null,
+    hours: null,
+    images: [],
+    website: null,
+    reviews: [],
+  };
+
   if (!place) {
-    return {
-      name: null,
-      category: null,
-      rating: null,
-      reviewCount: null,
-      phone: null,
-      address: null,
-      hours: null,
-      images: [],
-      website: null,
-    };
+    return emptyResult;
+  }
+
+  // Validate that the result matches the searched business name.
+  // Shared addresses (strip malls, buildings) can return a different business.
+  const returnedName = (place.displayName?.text || "").toLowerCase();
+  const searchedName = businessName.toLowerCase();
+  if (!isNameMatch(searchedName, returnedName)) {
+    console.log(
+      `Maps name mismatch: searched "${businessName}", got "${place.displayName?.text}". Skipping.`
+    );
+    return emptyResult;
   }
 
   // Step 2: Fetch photo URLs (up to 10)
@@ -86,6 +136,18 @@ async function findBusinessOnMaps(
     hours = place.currentOpeningHours.weekdayDescriptions.join("; ");
   }
 
+  // Step 3: Extract top reviews (4+ stars, sorted by rating)
+  const reviews: PlaceReview[] = (place.reviews || [])
+    .filter((r: { rating?: number; text?: { text?: string } }) => (r.rating || 0) >= 4 && r.text?.text)
+    .sort((a: { rating?: number }, b: { rating?: number }) => (b.rating || 0) - (a.rating || 0))
+    .slice(0, 3)
+    .map((r: { authorDisplayName?: string; rating?: number; text?: { text?: string }; relativePublishTimeDescription?: string }) => ({
+      authorName: r.authorDisplayName || "Customer",
+      rating: r.rating || 5,
+      text: r.text?.text || "",
+      relativeTime: r.relativePublishTimeDescription || "",
+    }));
+
   return {
     name: place.displayName?.text || null,
     category: place.primaryType || null,
@@ -96,6 +158,7 @@ async function findBusinessOnMaps(
     hours,
     images,
     website: place.websiteUri || null,
+    reviews,
   };
 }
 
