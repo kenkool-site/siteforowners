@@ -104,6 +104,19 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
         </div>
       </div>
 
+      {/* Personalization Banner */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
+        <div className="mx-auto max-w-3xl px-4 py-5 text-center">
+          <p className="text-base font-semibold text-gray-900">
+            We created this website preview for{" "}
+            <span className="text-amber-700">{data.business_name}</span>
+          </p>
+          <p className="mt-1 text-sm text-gray-500">
+            This is a sample of how your business could look online — fully customized, ready to go live.
+          </p>
+        </div>
+      </div>
+
       {/* Preview Frame */}
       <div className="mx-auto py-6" style={{ maxWidth: viewMode === "mobile" ? "390px" : "100%" }}>
         <div
