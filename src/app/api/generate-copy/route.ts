@@ -1,3 +1,5 @@
+export const maxDuration = 60;
+
 import { NextResponse } from "next/server";
 import { generateWebsiteCopyVariants } from "@/lib/ai/generate-copy";
 import { STOCK_PHOTOS } from "@/lib/templates/stock-photos";
