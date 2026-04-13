@@ -205,6 +205,15 @@ export default function PreviewWizard() {
       if (data.reviewCount) setMapsReviewCount(data.reviewCount);
       if (data.reviews && data.reviews.length > 0) setMapsReviews(data.reviews);
       if (data.phone && !phone) setPhone(data.phone);
+      // Use Maps-generated services if booking app didn't provide any
+      if (data.services && data.services.length > 0 && !imported) {
+        setServices(
+          data.services.map((s: { name: string; price: string }) => ({
+            name: s.name,
+            price: s.price || "",
+          }))
+        );
+      }
       // Parse hours string: "Monday: 10:00 AM – 7:00 PM; Tuesday: ..."
       if (data.hours) {
         const parsed: Record<string, { open: string; close: string; closed?: boolean }> = {};

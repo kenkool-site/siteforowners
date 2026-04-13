@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import Anthropic from "@anthropic-ai/sdk";
+
+const anthropic = new Anthropic();
 
 interface PlaceReview {
   authorName: string;
@@ -18,6 +21,7 @@ interface PlaceResult {
   images: string[];
   website: string | null;
   reviews: PlaceReview[];
+  services: { name: string; price: string }[] | null;
 }
 
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
@@ -71,7 +75,7 @@ async function findBusinessOnMaps(
         "Content-Type": "application/json",
         "X-Goog-Api-Key": GOOGLE_API_KEY,
         "X-Goog-FieldMask":
-          "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.websiteUri,places.primaryType,places.currentOpeningHours,places.photos,places.reviews",
+          "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.websiteUri,places.primaryType,places.primaryTypeDisplayName,places.editorialSummary,places.currentOpeningHours,places.photos,places.reviews",
       },
       body: JSON.stringify({
         textQuery: `${businessName} ${address}`,
@@ -100,6 +104,7 @@ async function findBusinessOnMaps(
     images: [],
     website: null,
     reviews: [],
+    services: null,
   };
 
   if (!place) {
@@ -165,6 +170,27 @@ async function findBusinessOnMaps(
       relativeTime: r.relativePublishTimeDescription || "",
     }));
 
+  // Generate services from Maps data (editorial summary, reviews, category)
+  let services: { name: string; price: string }[] | null = null;
+  const displayName = place.displayName?.text || businessName;
+  const editorialSummary = place.editorialSummary?.text || null;
+  const categoryName = place.primaryTypeDisplayName?.text || place.primaryType || null;
+  const reviewTexts = reviews.map((r) => r.text).filter(Boolean).slice(0, 3);
+
+  // Only generate if we have enough context
+  if (displayName && (editorialSummary || categoryName || reviewTexts.length > 0)) {
+    try {
+      services = await generateServicesFromMaps(
+        displayName,
+        categoryName,
+        editorialSummary,
+        reviewTexts
+      );
+    } catch (e) {
+      console.error("Maps service generation failed:", e);
+    }
+  }
+
   return {
     name: place.displayName?.text || null,
     category: place.primaryType || null,
@@ -176,7 +202,53 @@ async function findBusinessOnMaps(
     images,
     website: place.websiteUri || null,
     reviews,
+    services,
   };
+}
+
+/**
+ * Use AI to generate realistic services from Google Maps data.
+ * Uses business name, category, editorial summary, and review snippets.
+ */
+async function generateServicesFromMaps(
+  businessName: string,
+  category: string | null,
+  editorialSummary: string | null,
+  reviewSnippets: string[]
+): Promise<{ name: string; price: string }[]> {
+  const context = [
+    `Business: ${businessName}`,
+    category ? `Category: ${category}` : null,
+    editorialSummary ? `Description: ${editorialSummary}` : null,
+    reviewSnippets.length > 0
+      ? `Customer reviews mention:\n${reviewSnippets.map((r) => `- "${r.slice(0, 150)}"`).join("\n")}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const response = await anthropic.messages.create({
+    model: "claude-haiku-4-5-20251001",
+    max_tokens: 500,
+    messages: [
+      {
+        role: "user",
+        content: `Based on this Google Maps business info, generate a realistic list of 8-12 services they likely offer with typical NYC prices.
+
+${context}
+
+Return ONLY valid JSON array:
+[{"name": "Service Name", "price": "$XX"}]
+
+Use realistic NYC pricing. If reviews mention specific services, include those.`,
+      },
+    ],
+  });
+
+  const text = response.content[0].type === "text" ? response.content[0].text : "";
+  const jsonMatch = text.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return [];
+  return JSON.parse(jsonMatch[0]) as { name: string; price: string }[];
 }
 
 export async function POST(request: Request) {
