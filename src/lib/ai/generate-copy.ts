@@ -27,7 +27,7 @@ export async function generateWebsiteCopyVariants(
     try {
       return await anthropic.messages.create({
         model: "claude-haiku-4-5-20251001",
-        max_tokens: 5000,
+        max_tokens: 8000,
         system: buildSystemPrompt(params.businessType),
         messages: [
           {
@@ -76,11 +76,18 @@ export async function generateWebsiteCopyVariants(
   try {
     parsed = JSON.parse(jsonStr) as { variants: CopyVariant[] };
   } catch {
-    // Try to repair: close any unclosed strings, objects, arrays
     let repaired = jsonStr;
-    // Remove trailing incomplete string value
-    repaired = repaired.replace(/,\s*"[^"]*":\s*"[^"]*$/, "");
+    // Close any unclosed string (odd number of unescaped quotes)
+    const quoteCount = (repaired.match(/(?<!\\)"/g) || []).length;
+    if (quoteCount % 2 !== 0) {
+      // Truncated inside a string value — close it
+      repaired += '"';
+    }
+    // Remove trailing incomplete key-value pairs
+    repaired = repaired.replace(/,\s*"[^"]*":\s*"[^"]*"\s*$/, "");
+    repaired = repaired.replace(/,\s*"[^"]*":\s*$/, "");
     repaired = repaired.replace(/,\s*"[^"]*$/, "");
+    repaired = repaired.replace(/,\s*$/, "");
     // Close open structures
     const opens = (repaired.match(/\{/g) || []).length;
     const closes = (repaired.match(/\}/g) || []).length;
@@ -88,7 +95,28 @@ export async function generateWebsiteCopyVariants(
     const closeBrackets = (repaired.match(/\]/g) || []).length;
     repaired += "]".repeat(Math.max(0, openBrackets - closeBrackets));
     repaired += "}".repeat(Math.max(0, opens - closes));
-    parsed = JSON.parse(repaired) as { variants: CopyVariant[] };
+    try {
+      parsed = JSON.parse(repaired) as { variants: CopyVariant[] };
+    } catch {
+      // Last resort: try stripping everything after the last complete property
+      repaired = jsonStr;
+      // Find the last complete "key": "value" or "key": [...] or "key": {...}
+      const lastGoodEnd = Math.max(
+        repaired.lastIndexOf('",'),
+        repaired.lastIndexOf('"],'),
+        repaired.lastIndexOf('"},'),
+      );
+      if (lastGoodEnd > 0) {
+        repaired = repaired.slice(0, lastGoodEnd + 1);
+        const o = (repaired.match(/\{/g) || []).length;
+        const c = (repaired.match(/\}/g) || []).length;
+        const ob = (repaired.match(/\[/g) || []).length;
+        const cb = (repaired.match(/\]/g) || []).length;
+        repaired += "]".repeat(Math.max(0, ob - cb));
+        repaired += "}".repeat(Math.max(0, o - c));
+      }
+      parsed = JSON.parse(repaired) as { variants: CopyVariant[] };
+    }
   }
 
   if (!parsed.variants || parsed.variants.length < 2) {
