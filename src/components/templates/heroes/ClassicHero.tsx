@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { ensureReadable } from "@/lib/templates/contrast";
 import { isEmbeddableBookingUrl } from "../TemplateBooking";
 
 interface ClassicHeroProps {
@@ -32,10 +33,15 @@ export function ClassicHero({
     ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
     : "#booking";
 
+  // With hero image, text is on dark overlay → force white
+  const textColor = heroImage ? "#FFFFFF" : ensureReadable(colors.background, colors.foreground);
+  const accentColor = heroImage ? ensureReadable(colors.primary, "#333333", 3) : ensureReadable(colors.primary, colors.foreground, 3);
+  const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
+
   return (
     <section
       className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
-      style={{ backgroundColor: colors.foreground, color: colors.background }}
+      style={{ backgroundColor: colors.foreground, color: textColor }}
     >
       {heroImage && (
         <>
@@ -48,14 +54,7 @@ export function ClassicHero({
             priority
             unoptimized
           />
-          {/* Dark base ensures text readability regardless of theme */}
-          <div className="absolute inset-0 bg-black/50" />
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(to bottom, ${colors.foreground}88, ${colors.foreground}66, ${colors.foreground}99)`,
-            }}
-          />
+          <div className="absolute inset-0 bg-black/60" />
         </>
       )}
 
@@ -96,7 +95,7 @@ export function ClassicHero({
       <div className="relative z-10 max-w-3xl">
         <motion.p
           className="mb-6 text-base font-semibold uppercase tracking-[0.3em] md:text-xl"
-          style={{ color: colors.primary }}
+          style={{ color: accentColor }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
@@ -128,7 +127,7 @@ export function ClassicHero({
           <Button
             size="lg"
             className="rounded-full px-12 py-7 text-base font-semibold tracking-wide shadow-lg transition-all hover:shadow-xl hover:-translate-y-0.5"
-            style={{ backgroundColor: colors.primary, color: colors.background }}
+            style={{ backgroundColor: colors.primary, color: btnTextColor }}
             asChild={!!ctaHref}
           >
             {ctaHref ? (

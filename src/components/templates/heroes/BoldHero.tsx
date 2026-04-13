@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { readableColors, ensureReadable } from "@/lib/templates/contrast";
 import { isEmbeddableBookingUrl } from "../TemplateBooking";
 
 interface BoldHeroProps {
@@ -28,10 +29,17 @@ export function BoldHero({
     ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
     : "#booking";
 
+  // Dynamic contrast: pick readable colors based on actual background
+  const rc = readableColors(colors);
+  // With hero image, text is always on dark overlay → force white
+  const textColor = heroImage ? "#FFFFFF" : rc.textOnFg;
+  const accentColor = heroImage ? ensureReadable(colors.primary, "#333333", 3) : rc.primaryOnFg;
+  const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
+
   return (
     <section
       className="relative flex min-h-[100vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
-      style={{ backgroundColor: colors.foreground, color: colors.background }}
+      style={{ backgroundColor: colors.foreground, color: textColor }}
     >
       {heroImage && (
         <>
@@ -44,14 +52,7 @@ export function BoldHero({
             priority
             unoptimized
           />
-          {/* Dark base ensures text readability regardless of theme */}
-          <div className="absolute inset-0 bg-black/50" />
-          <div
-            className="absolute inset-0"
-            style={{
-              background: `linear-gradient(135deg, ${colors.foreground}99, ${colors.primary}44, ${colors.foreground}88)`,
-            }}
-          />
+          <div className="absolute inset-0 bg-black/60" />
         </>
       )}
 
@@ -66,7 +67,7 @@ export function BoldHero({
       <div className="relative z-10 max-w-4xl">
         <motion.p
           className="mb-4 text-base font-semibold uppercase tracking-[0.25em] md:text-xl"
-          style={{ color: colors.primary }}
+          style={{ color: accentColor }}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -89,7 +90,7 @@ export function BoldHero({
           <Button
             size="lg"
             className="rounded-full px-14 py-8 text-lg font-bold uppercase tracking-wider shadow-2xl transition-all hover:shadow-xl hover:-translate-y-1"
-            style={{ backgroundColor: colors.primary, color: colors.background }}
+            style={{ backgroundColor: colors.primary, color: btnTextColor }}
             asChild={!!ctaHref}
           >
             {ctaHref ? (

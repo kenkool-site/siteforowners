@@ -1,5 +1,6 @@
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface AboutProps {
@@ -9,6 +10,7 @@ interface AboutProps {
 }
 
 export function ClassicAbout({ paragraphs, image, colors }: AboutProps) {
+  const rc = readableColors(colors);
   return (
     <section className="px-6 py-20" style={{ backgroundColor: colors.background }}>
       <div className="mx-auto grid max-w-5xl items-center gap-12 md:grid-cols-2">
@@ -21,11 +23,11 @@ export function ClassicAbout({ paragraphs, image, colors }: AboutProps) {
         )}
         <AnimateSection animation={image ? "slide-right" : "fade-up"}>
           <div className={image ? "" : "md:col-span-2 md:mx-auto md:max-w-2xl"}>
-            <h2 className="mb-8 text-3xl font-bold md:text-4xl" style={{ color: colors.foreground }}>
+            <h2 className="mb-8 text-3xl font-bold md:text-4xl" style={{ color: rc.textOnBg }}>
               About Us
             </h2>
             {paragraphs.map((p, i) => (
-              <p key={i} className="mb-4 text-base leading-relaxed opacity-80 md:text-lg" style={{ color: colors.foreground }}>
+              <p key={i} className="mb-4 text-base leading-relaxed opacity-80 md:text-lg" style={{ color: rc.textOnBg }}>
                 {p}
               </p>
             ))}

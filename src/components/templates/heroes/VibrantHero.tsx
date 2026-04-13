@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { readableTextColor, ensureReadable } from "@/lib/templates/contrast";
 import { isEmbeddableBookingUrl } from "../TemplateBooking";
 
 interface VibrantHeroProps {
@@ -30,12 +31,16 @@ export function VibrantHero({
     ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
     : "#booking";
 
+  // Dynamic: pick white or dark text based on primary color luminance
+  const textColor = readableTextColor(colors.primary);
+  const btnTextColor = ensureReadable(colors.primary, "#FFFFFF", 3);
+
   return (
     <section
       className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
       style={{
         background: `linear-gradient(135deg, ${colors.primary}, ${colors.accent})`,
-        color: "#FFFFFF",
+        color: textColor,
       }}
     >
       {/* Decorative blurred circles */}
@@ -104,7 +109,7 @@ export function VibrantHero({
         <Button
           size="lg"
           className="rounded-full bg-white px-12 py-7 text-base font-bold shadow-xl transition-all hover:-translate-y-1 hover:shadow-2xl"
-          style={{ color: colors.primary }}
+          style={{ color: btnTextColor }}
           asChild={!!ctaHref}
         >
           {ctaHref ? (
@@ -119,7 +124,8 @@ export function VibrantHero({
           <Button
             size="lg"
             variant="outline"
-            className="rounded-full border-2 border-white/40 !bg-transparent px-10 py-7 text-base font-semibold text-white hover:!bg-white/10"
+            className="rounded-full border-2 !bg-transparent px-10 py-7 text-base font-semibold hover:!bg-white/10"
+            style={{ borderColor: `${textColor}66`, color: textColor }}
             asChild
           >
             <a href={`tel:${phone}`}>Call Us</a>

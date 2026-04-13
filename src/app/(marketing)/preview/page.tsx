@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_SERVICES } from "@/lib/templates/default-services";
@@ -86,6 +86,8 @@ export default function PreviewWizard() {
   const [mapsReviewCount, setMapsReviewCount] = useState<number | null>(null);
   const [mapsEnriched, setMapsEnriched] = useState(false);
   const [mapsLoading, setMapsLoading] = useState(false);
+  const mapsLoadingRef = useRef(false);
+  useEffect(() => { mapsLoadingRef.current = mapsLoading; }, [mapsLoading]);
   const [mapsReviews, setMapsReviews] = useState<{ authorName: string; rating: number; text: string; relativeTime: string }[]>([]);
   const [mapsHours, setMapsHours] = useState<Record<string, { open: string; close: string; closed?: boolean }> | null>(null);
 
@@ -278,9 +280,22 @@ export default function PreviewWizard() {
     if (step > 1) setStep((step - 1) as Step);
   };
 
+  // Wait for Maps enrichment to complete before generating
+  const waitForMaps = async (maxWait = 10000) => {
+    if (!mapsLoading) return;
+    const start = Date.now();
+    while (Date.now() - start < maxWait) {
+      await new Promise((r) => setTimeout(r, 300));
+      // Check if mapsLoading has been set to false by re-reading via ref
+      if (!mapsLoadingRef.current) return;
+    }
+  };
+
   const handleGenerate = async () => {
     setLoading(true);
     setError("");
+    // Wait for Maps data if it's still loading
+    await waitForMaps();
     try {
       const res = await fetch("/api/generate-copy", {
         method: "POST",

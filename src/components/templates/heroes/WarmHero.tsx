@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { readableColors, ensureReadable } from "@/lib/templates/contrast";
 import { isEmbeddableBookingUrl } from "../TemplateBooking";
 
 interface WarmHeroProps {
@@ -31,6 +32,9 @@ export function WarmHero({
   const ctaHref = bookingUrl
     ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
     : "#booking";
+
+  const rc = readableColors(colors);
+  const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
 
   return (
     <section className="min-h-[90vh] md:grid md:grid-cols-[1fr_4px_1fr]">
@@ -96,19 +100,19 @@ export function WarmHero({
       >
         <p
           className="mb-4 text-base font-semibold uppercase tracking-[0.2em] md:text-xl"
-          style={{ color: colors.primary }}
+          style={{ color: rc.primaryOnBg }}
         >
           {businessName}
         </p>
         <h1
           className="mb-6 text-4xl font-semibold leading-[1.15] md:text-6xl"
-          style={{ color: colors.foreground }}
+          style={{ color: rc.textOnBg }}
         >
           {headline}
         </h1>
         <p
           className="mb-10 max-w-md text-lg opacity-70"
-          style={{ color: colors.foreground }}
+          style={{ color: rc.textOnBg }}
         >
           {subheadline}
         </p>
@@ -116,7 +120,7 @@ export function WarmHero({
           <Button
             size="lg"
             className="rounded-full px-10 py-7 text-base font-semibold shadow-lg transition-all hover:-translate-y-0.5"
-            style={{ backgroundColor: colors.primary, color: colors.background }}
+            style={{ backgroundColor: colors.primary, color: btnTextColor }}
             asChild={!!ctaHref}
           >
             {ctaHref ? (

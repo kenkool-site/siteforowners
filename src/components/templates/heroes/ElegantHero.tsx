@@ -4,6 +4,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { readableColors } from "@/lib/templates/contrast";
 import { isEmbeddableBookingUrl } from "../TemplateBooking";
 
 interface ElegantHeroProps {
@@ -29,10 +30,12 @@ export function ElegantHero({
     ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
     : "#booking";
 
+  const rc = readableColors(colors);
+
   return (
     <section
       className="flex min-h-[90vh] flex-col items-center justify-center px-6 py-32 text-center"
-      style={{ backgroundColor: colors.background, color: colors.foreground }}
+      style={{ backgroundColor: colors.background, color: rc.textOnBg }}
     >
       {/* Decorative line */}
       <motion.div
@@ -63,7 +66,7 @@ export function ElegantHero({
 
       <motion.p
         className="mb-8 text-base font-semibold uppercase tracking-[0.4em] md:text-xl"
-        style={{ color: colors.primary }}
+        style={{ color: rc.primaryOnBg }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1.2, delay: 0.3 }}
@@ -73,7 +76,7 @@ export function ElegantHero({
 
       <motion.h1
         className="mb-8 max-w-3xl text-5xl font-light leading-[1.15] md:text-7xl"
-        style={{ color: colors.foreground }}
+        style={{ color: rc.textOnBg }}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 1.2, delay: 0.4 }}
@@ -99,7 +102,7 @@ export function ElegantHero({
           size="lg"
           variant="outline"
           className="rounded-none border !bg-transparent px-12 py-7 text-xs font-medium uppercase tracking-[0.2em]"
-          style={{ borderColor: colors.foreground, color: colors.foreground }}
+          style={{ borderColor: rc.textOnBg, color: rc.textOnBg }}
           asChild={!!ctaHref}
         >
           {ctaHref ? (

@@ -1,5 +1,6 @@
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { BusinessHours } from "@/lib/ai/types";
+import { readableColors } from "@/lib/templates/contrast";
 
 interface TemplateFooterProps {
   businessName: string;
@@ -28,6 +29,7 @@ export function TemplateFooter({
   hours,
   colors,
 }: TemplateFooterProps) {
+  const rc = readableColors(colors);
   return (
     <footer
       className="px-6 py-16"
@@ -38,12 +40,12 @@ export function TemplateFooter({
         <div>
           <h3
             className="mb-3 text-xl font-bold"
-            style={{ color: colors.background }}
+            style={{ color: rc.textOnFg }}
           >
             {businessName}
           </h3>
           {tagline && (
-            <p className="text-sm opacity-60" style={{ color: colors.background }}>
+            <p className="text-sm opacity-60" style={{ color: rc.textOnFg }}>
               {tagline}
             </p>
           )}
@@ -53,12 +55,12 @@ export function TemplateFooter({
         <div>
           <h4
             className="mb-3 text-sm font-semibold uppercase tracking-wider"
-            style={{ color: colors.primary }}
+            style={{ color: rc.primaryOnFg }}
           >
             Contact
           </h4>
           {address && (
-            <p className="mb-2 text-sm opacity-70" style={{ color: colors.background }}>
+            <p className="mb-2 text-sm opacity-70" style={{ color: rc.textOnFg }}>
               {address}
             </p>
           )}
@@ -66,7 +68,7 @@ export function TemplateFooter({
             <a
               href={`tel:${phone}`}
               className="text-sm font-medium hover:underline"
-              style={{ color: colors.primary }}
+              style={{ color: rc.primaryOnFg }}
             >
               {phone}
             </a>
@@ -78,7 +80,7 @@ export function TemplateFooter({
           <div>
             <h4
               className="mb-3 text-sm font-semibold uppercase tracking-wider"
-              style={{ color: colors.primary }}
+              style={{ color: rc.primaryOnFg }}
             >
               Hours
             </h4>
@@ -90,7 +92,7 @@ export function TemplateFooter({
                   <div
                     key={day}
                     className="flex justify-between text-sm opacity-70"
-                    style={{ color: colors.background }}
+                    style={{ color: rc.textOnFg }}
                   >
                     <span>{day.slice(0, 3)}</span>
                     <span>{h.closed ? "Closed" : `${h.open} – ${h.close}`}</span>
@@ -105,8 +107,8 @@ export function TemplateFooter({
       <div
         className="mx-auto mt-12 max-w-5xl border-t pt-6 text-center text-xs opacity-40"
         style={{
-          borderColor: colors.background + "20",
-          color: colors.background,
+          borderColor: rc.textOnFg + "20",
+          color: rc.textOnFg,
         }}
       >
         &copy; {new Date().getFullYear()} {businessName}. Powered by{" "}

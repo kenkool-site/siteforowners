@@ -1,6 +1,7 @@
 "use client";
 
 import type { ThemeColors } from "@/lib/templates/themes";
+import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
@@ -9,11 +10,12 @@ interface ServicesProps {
 }
 
 export function BoldServices({ services, colors }: ServicesProps) {
+  const rc = readableColors(colors);
   return (
     <section className="px-6 py-20" style={{ backgroundColor: colors.foreground }}>
       <div className="mx-auto max-w-5xl">
         <AnimateSection>
-          <h2 className="mb-12 text-3xl font-black uppercase tracking-wider md:text-4xl" style={{ color: colors.background }}>
+          <h2 className="mb-12 text-3xl font-black uppercase tracking-wider md:text-4xl" style={{ color: rc.textOnFg }}>
             Services
           </h2>
         </AnimateSection>
@@ -27,15 +29,15 @@ export function BoldServices({ services, colors }: ServicesProps) {
                 style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
               >
                 <div className="mb-2 flex items-start justify-between">
-                  <h3 className="text-lg font-bold" style={{ color: colors.foreground }}>
+                  <h3 className="text-lg font-bold" style={{ color: rc.textOnMuted }}>
                     {service.name}
                   </h3>
-                  <span className="ml-3 whitespace-nowrap font-bold" style={{ color: colors.primary }}>
+                  <span className="ml-3 whitespace-nowrap font-bold" style={{ color: rc.primaryOnMuted }}>
                     {service.price}
                   </span>
                 </div>
                 {service.description && (
-                  <p className="text-sm opacity-60" style={{ color: colors.foreground }}>
+                  <p className="text-sm opacity-60" style={{ color: rc.textOnMuted }}>
                     {service.description}
                   </p>
                 )}

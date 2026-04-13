@@ -1,6 +1,7 @@
 "use client";
 
 import type { ThemeColors } from "@/lib/templates/themes";
+import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
@@ -9,11 +10,12 @@ interface ServicesProps {
 }
 
 export function VibrantServices({ services, colors }: ServicesProps) {
+  const rc = readableColors(colors);
   return (
     <section className="px-6 py-20" style={{ backgroundColor: colors.background }}>
       <div className="mx-auto max-w-5xl">
         <AnimateSection>
-          <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl" style={{ color: colors.foreground }}>
+          <h2 className="mb-12 text-center text-3xl font-bold md:text-4xl" style={{ color: rc.textOnBg }}>
             What We Offer
           </h2>
         </AnimateSection>
@@ -29,17 +31,17 @@ export function VibrantServices({ services, colors }: ServicesProps) {
                   className="mb-3 h-3 w-3 rounded-full"
                   style={{ backgroundColor: colors.primary }}
                 />
-                <h3 className="mb-1 text-base font-bold" style={{ color: colors.foreground }}>
+                <h3 className="mb-1 text-base font-bold" style={{ color: rc.textOnMuted }}>
                   {service.name}
                 </h3>
                 {service.description && (
-                  <p className="mb-3 text-sm opacity-60" style={{ color: colors.foreground }}>
+                  <p className="mb-3 text-sm opacity-60" style={{ color: rc.textOnMuted }}>
                     {service.description}
                   </p>
                 )}
                 <span
                   className="inline-block rounded-full px-3 py-1 text-sm font-semibold"
-                  style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}
+                  style={{ backgroundColor: `${colors.primary}15`, color: rc.primaryOnMuted }}
                 >
                   {service.price}
                 </span>
