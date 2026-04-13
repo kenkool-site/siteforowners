@@ -206,7 +206,9 @@ export default function PreviewWizard() {
       if (data.reviews && data.reviews.length > 0) setMapsReviews(data.reviews);
       if (data.phone && !phone) setPhone(data.phone);
       // Use Maps-generated services if booking app didn't provide any
+      console.log(`Maps enrichment: services=${data.services?.length || 0}, imported=${imported}`);
       if (data.services && data.services.length > 0 && !imported) {
+        console.log("Maps: applying generated services", data.services);
         setServices(
           data.services.map((s: { name: string; price: string }) => ({
             name: s.name,

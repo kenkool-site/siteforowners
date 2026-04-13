@@ -44,10 +44,12 @@ export function BoldHero({
             priority
             unoptimized
           />
+          {/* Dark base ensures text readability regardless of theme */}
+          <div className="absolute inset-0 bg-black/50" />
           <div
             className="absolute inset-0"
             style={{
-              background: `linear-gradient(135deg, ${colors.foreground}EE, ${colors.primary}66, ${colors.foreground}DD)`,
+              background: `linear-gradient(135deg, ${colors.foreground}99, ${colors.primary}44, ${colors.foreground}88)`,
             }}
           />
         </>

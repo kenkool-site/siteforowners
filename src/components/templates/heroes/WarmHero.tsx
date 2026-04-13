@@ -53,9 +53,11 @@ export function WarmHero({
               priority
               unoptimized
             />
+            {/* Dark base ensures text readability regardless of theme */}
+            <div className="absolute inset-0 bg-black/40" />
             <div
               className="absolute inset-0"
-              style={{ backgroundColor: `${colors.foreground}40` }}
+              style={{ backgroundColor: `${colors.foreground}30` }}
             />
           </>
         ) : null}

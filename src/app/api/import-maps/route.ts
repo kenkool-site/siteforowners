@@ -178,6 +178,7 @@ async function findBusinessOnMaps(
   const reviewTexts = reviews.map((r) => r.text).filter(Boolean).slice(0, 3);
 
   // Only generate if we have enough context
+  console.log(`Maps service gen: name="${displayName}", category="${categoryName}", summary="${editorialSummary?.slice(0, 50)}", reviews=${reviewTexts.length}`);
   if (displayName && (editorialSummary || categoryName || reviewTexts.length > 0)) {
     try {
       services = await generateServicesFromMaps(
@@ -186,6 +187,7 @@ async function findBusinessOnMaps(
         editorialSummary,
         reviewTexts
       );
+      console.log(`Maps service gen: got ${services?.length || 0} services`);
     } catch (e) {
       console.error("Maps service generation failed:", e);
     }

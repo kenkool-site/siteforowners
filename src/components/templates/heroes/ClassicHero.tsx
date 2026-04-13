@@ -48,10 +48,12 @@ export function ClassicHero({
             priority
             unoptimized
           />
+          {/* Dark base ensures text readability regardless of theme */}
+          <div className="absolute inset-0 bg-black/50" />
           <div
             className="absolute inset-0"
             style={{
-              background: `linear-gradient(to bottom, ${colors.foreground}CC, ${colors.foreground}99, ${colors.foreground}DD)`,
+              background: `linear-gradient(to bottom, ${colors.foreground}88, ${colors.foreground}66, ${colors.foreground}99)`,
             }}
           />
         </>
