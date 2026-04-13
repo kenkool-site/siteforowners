@@ -57,10 +57,10 @@ export default function PreviewWizard() {
   const [businessType, setBusinessType] = useState<BusinessType | "">("");
   const [phone, setPhone] = useState("");
   const [description, setDescription] = useState("");
-
-  // Step 2: Services & address
-  const [services, setServices] = useState<ServiceItem[]>([]);
   const [address, setAddress] = useState("");
+
+  // Step 2: Services
+  const [services, setServices] = useState<ServiceItem[]>([]);
   const [tagline, setTagline] = useState("");
 
   // Step 3: Products & booking
@@ -264,12 +264,14 @@ export default function PreviewWizard() {
   };
 
   const handleNext = () => {
-    if (step === 1 && businessType && !imported) {
-      initServicesForType(businessType as BusinessType);
-    }
-    // Fire Maps enrichment in background when leaving step 2 with an address
-    if (step === 2 && address.trim() && businessName.trim() && !mapsEnriched) {
-      enrichFromMaps();
+    if (step === 1) {
+      // Fire Maps enrichment when leaving step 1 — populates services, reviews, images
+      if (address.trim() && businessName.trim() && !mapsEnriched) {
+        enrichFromMaps();
+      }
+      if (businessType && !imported) {
+        initServicesForType(businessType as BusinessType);
+      }
     }
     if (step < TOTAL_STEPS) {
       setStep((step + 1) as Step);
@@ -504,6 +506,19 @@ export default function PreviewWizard() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
+                  Business Address{" "}
+                  <span className="text-gray-400">(helps us find reviews, photos & services)</span>
+                </label>
+                <input
+                  type="text"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="e.g. 1430 Flatbush Ave, Brooklyn, NY 11210"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-gray-700">
                   Tell us about your business{" "}
                   <span className="text-gray-400">(optional — helps us write better content)</span>
                 </label>
@@ -564,20 +579,6 @@ export default function PreviewWizard() {
               >
                 + Add a service
               </button>
-            </div>
-
-            <div className="mt-8">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                Business Address{" "}
-                <span className="text-gray-400">(optional — for map)</span>
-              </label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="e.g. 1430 Flatbush Ave, Brooklyn, NY 11210"
-                className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-              />
             </div>
 
             {businessType && (
