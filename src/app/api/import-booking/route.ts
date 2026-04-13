@@ -200,7 +200,7 @@ The BEST photo (highest quality) will be used as the hero/banner image on the we
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 500,
       messages: [{ role: "user", content }],
     });
@@ -307,7 +307,7 @@ async function generateVagaroServices(
 ): Promise<{ name: string; price: string }[]> {
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-haiku-4-5-20251001",
       max_tokens: 500,
       messages: [
         {
@@ -452,7 +452,7 @@ export async function POST(request: Request) {
     const createMessage = async (attempt = 0): Promise<Anthropic.Message> => {
       try {
         return await anthropic.messages.create({
-          model: "claude-sonnet-4-20250514",
+          model: "claude-haiku-4-5-20251001",
           max_tokens: 3000,
           messages: [
             {

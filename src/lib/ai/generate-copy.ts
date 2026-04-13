@@ -26,8 +26,8 @@ export async function generateWebsiteCopyVariants(
   const callClaude = async (attempt = 0): Promise<Anthropic.Message> => {
     try {
       return await anthropic.messages.create({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 10000,
+        model: "claude-haiku-4-5-20251001",
+        max_tokens: 5000,
         system: buildSystemPrompt(params.businessType),
         messages: [
           {
