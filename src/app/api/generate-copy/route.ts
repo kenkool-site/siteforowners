@@ -20,12 +20,6 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-function pickTwoThemes(businessType: BusinessType) {
-  const themes = THEMES_BY_VERTICAL[businessType] || [];
-  const shuffled = [...themes].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, 2);
-}
-
 // Relative luminance for contrast checking (WCAG)
 function luminance(hex: string): number {
   const [r, g, b] = toRgb(hex).map((c) => {
@@ -233,6 +227,7 @@ export async function POST(request: Request) {
       review_count,
       google_reviews,
       hours,
+      templates: requestedTemplates,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -252,6 +247,7 @@ export async function POST(request: Request) {
       review_count?: number;
       google_reviews?: { authorName: string; rating: number; text: string; relativeTime: string }[];
       hours?: Record<string, { open: string; close: string; closed?: boolean }>;
+      templates?: string[];
     };
 
     if (!business_name || !business_type) {
@@ -289,42 +285,51 @@ export async function POST(request: Request) {
     }
 
     const groupId = generateGroupId();
-    const themes = pickTwoThemes(business_type);
     const customPalettes = brand_colors && brand_colors.length > 0
       ? buildCustomPalettes(brand_colors)
       : null;
-    const variantLabels = ["A", "B"];
-    const [templateA, templateB] = pickTwoTemplates();
-    const templates = [templateA, templateB];
+
+    // Use requested templates or auto-pick 2
+    const templates: TemplateName[] = requestedTemplates && requestedTemplates.length > 0
+      ? requestedTemplates.filter((t): t is TemplateName => ALL_TEMPLATES.includes(t as TemplateName))
+      : [...pickTwoTemplates()];
+
+    // Pick themes — one per template (shuffle and cycle)
+    const allThemes = [...(THEMES_BY_VERTICAL[business_type] || [])].sort(() => Math.random() - 0.5);
+    const variantLabels = ["A", "B", "C"];
 
     const supabase = createAdminClient();
-    const previewRows = variants.map((variant, i) => ({
-      slug: generateSlug(business_name),
-      business_name,
-      business_type,
-      phone,
-      color_theme: themes[i].id,
-      services: services.filter((s) => s.name.trim()),
-      products: products?.filter((p) => p.name.trim()) || [],
-      booking_url,
-      address,
-      images,
-      hours: hours || null,
-      rating: rating || null,
-      review_count: review_count || null,
-      generated_copy: {
-        en: variant.en,
-        es: variant.es,
-        // Embed brand-derived colors and logo in the jsonb field
-        ...(customPalettes ? { custom_colors: customPalettes[i] } : {}),
-        ...(logo ? { logo } : {}),
-        ...(booking_categories ? { booking_categories } : {}),
-        ...(google_reviews && google_reviews.length > 0 ? { google_reviews } : {}),
-      },
-      template_variant: templates[i],
-      group_id: groupId,
-      variant_label: variantLabels[i],
-    }));
+    const previewRows = templates.map((tmpl, i) => {
+      // Cycle through AI copy variants (we generate 2, reuse for 3rd)
+      const variant = variants[i % variants.length];
+      const theme = allThemes[i % allThemes.length];
+      return {
+        slug: generateSlug(business_name),
+        business_name,
+        business_type,
+        phone,
+        color_theme: theme.id,
+        services: services.filter((s) => s.name.trim()),
+        products: products?.filter((p) => p.name.trim()) || [],
+        booking_url,
+        address,
+        images,
+        hours: hours || null,
+        rating: rating || null,
+        review_count: review_count || null,
+        generated_copy: {
+          en: variant.en,
+          es: variant.es,
+          ...(customPalettes ? { custom_colors: customPalettes[i % customPalettes.length] } : {}),
+          ...(logo ? { logo } : {}),
+          ...(booking_categories ? { booking_categories } : {}),
+          ...(google_reviews && google_reviews.length > 0 ? { google_reviews } : {}),
+        },
+        template_variant: tmpl,
+        group_id: groupId,
+        variant_label: variantLabels[i] || String.fromCharCode(65 + i),
+      };
+    });
 
     const { error: insertError } = await supabase
       .from("previews")

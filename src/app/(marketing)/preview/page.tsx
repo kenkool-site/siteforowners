@@ -91,7 +91,26 @@ export default function PreviewWizard() {
   const [mapsReviews, setMapsReviews] = useState<{ authorName: string; rating: number; text: string; relativeTime: string }[]>([]);
   const [mapsHours, setMapsHours] = useState<Record<string, { open: string; close: string; closed?: boolean }> | null>(null);
 
-  // Step 5: Review & generate
+  // Step 5: Template selection & generate
+  const TEMPLATE_OPTIONS: { id: string; name: string; description: string }[] = [
+    { id: "classic", name: "Classic", description: "Clean, professional layout with centered hero" },
+    { id: "bold", name: "Bold", description: "Full-bleed hero image with large typography" },
+    { id: "elegant", name: "Elegant", description: "Minimalist, refined with lots of whitespace" },
+    { id: "vibrant", name: "Vibrant", description: "Colorful gradient hero, energetic feel" },
+    { id: "warm", name: "Warm", description: "Split layout, friendly and inviting" },
+  ];
+  const [selectedTemplates, setSelectedTemplates] = useState<string[]>(["classic", "bold"]);
+
+  const toggleTemplate = (id: string) => {
+    setSelectedTemplates((prev) => {
+      if (prev.includes(id)) {
+        if (prev.length <= 1) return prev; // must keep at least 1
+        return prev.filter((t) => t !== id);
+      }
+      if (prev.length >= 3) return prev; // max 3
+      return [...prev, id];
+    });
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -321,6 +340,7 @@ export default function PreviewWizard() {
           review_count: mapsReviewCount || undefined,
           google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,
           hours: mapsHours || undefined,
+          templates: selectedTemplates,
         }),
       });
       if (!res.ok) {
@@ -360,6 +380,31 @@ export default function PreviewWizard() {
 
   const addProduct = () => {
     setProducts((prev) => [...prev, { name: "", price: "" }]);
+  };
+
+  const handleProductImageUpload = async (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("images", file);
+    try {
+      const res = await fetch("/api/upload-images", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const data = await res.json();
+      if (data.urls?.[0]) {
+        setProducts((prev) =>
+          prev.map((p, i) => (i === index ? { ...p, image: data.urls[0] } : p))
+        );
+      }
+    } catch {
+      setError("Failed to upload product image.");
+    }
+  };
+
+  const removeProductImage = (index: number) => {
+    setProducts((prev) =>
+      prev.map((p, i) => (i === index ? { ...p, image: undefined } : p))
+    );
   };
 
   if (loading) {
@@ -674,31 +719,66 @@ export default function PreviewWizard() {
               </div>
 
               {hasProducts && (
-                <div className="mt-5 space-y-3">
+                <div className="mt-5 space-y-4">
                   {products.map((product, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        value={product.name}
-                        onChange={(e) => updateProduct(i, "name", e.target.value)}
-                        placeholder="Product name"
-                        className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
-                      />
-                      <input
-                        type="text"
-                        value={product.price}
-                        onChange={(e) => updateProduct(i, "price", e.target.value)}
-                        placeholder="$0"
-                        className="w-24 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
-                      />
-                      <button
-                        onClick={() => removeProduct(i)}
-                        className="text-gray-400 hover:text-red-500"
-                      >
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                    <div key={i} className="rounded-lg border border-gray-200 p-3">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={product.name}
+                          onChange={(e) => updateProduct(i, "name", e.target.value)}
+                          placeholder="Product name"
+                          className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                        />
+                        <input
+                          type="text"
+                          value={product.price}
+                          onChange={(e) => updateProduct(i, "price", e.target.value)}
+                          placeholder="$0"
+                          className="w-24 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                        />
+                        <button
+                          onClick={() => removeProduct(i)}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                      {/* Product image */}
+                      <div className="mt-2 flex items-center gap-2">
+                        {product.image ? (
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-gray-200">
+                            <Image
+                              src={product.image}
+                              alt={product.name || "Product"}
+                              fill
+                              className="object-cover"
+                              unoptimized
+                            />
+                            <button
+                              onClick={() => removeProductImage(i)}
+                              className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white shadow"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ) : (
+                          <label className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3 py-1.5 text-xs text-gray-400 transition-colors hover:border-amber-400 hover:text-amber-600">
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            Add photo
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleProductImageUpload(i, e)}
+                            />
+                          </label>
+                        )}
+                      </div>
                     </div>
                   ))}
                   <button
@@ -815,13 +895,52 @@ export default function PreviewWizard() {
         {step === 5 && (
           <div>
             <h1 className="mb-2 text-2xl font-bold text-gray-900">
-              Ready to Build Your Website?
+              Choose Your Design Styles
             </h1>
             <p className="mb-8 text-gray-600">
-              We&apos;ll generate 3 unique website designs for you to choose from.
-              Each will have different colors, styles, and copy — all personalized for {businessName || "your business"}.
+              Pick 1–3 templates. We&apos;ll generate each with unique colors and copy for {businessName || "your business"}.
             </p>
 
+            {/* Template picker */}
+            <div className="mb-8 space-y-3">
+              {TEMPLATE_OPTIONS.map((tmpl) => {
+                const selected = selectedTemplates.includes(tmpl.id);
+                return (
+                  <button
+                    key={tmpl.id}
+                    onClick={() => toggleTemplate(tmpl.id)}
+                    className={`flex w-full items-center gap-4 rounded-xl border-2 p-4 text-left transition-all ${
+                      selected
+                        ? "border-amber-600 bg-amber-50"
+                        : "border-gray-200 hover:border-gray-300"
+                    }`}
+                  >
+                    <div
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border-2 transition-colors ${
+                        selected
+                          ? "border-amber-600 bg-amber-600 text-white"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      {selected && (
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{tmpl.name}</p>
+                      <p className="text-xs text-gray-500">{tmpl.description}</p>
+                    </div>
+                  </button>
+                );
+              })}
+              <p className="text-center text-xs text-gray-400">
+                {selectedTemplates.length}/3 selected
+              </p>
+            </div>
+
+            {/* Summary */}
             <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
               <div className="flex justify-between border-b border-gray-100 pb-3">
                 <span className="text-sm text-gray-500">Business</span>
@@ -874,13 +993,6 @@ export default function PreviewWizard() {
                 <span className="text-sm font-medium text-gray-900">English & Spanish</span>
               </div>
             </div>
-
-            <div className="mt-6 rounded-xl bg-amber-50 p-4">
-              <p className="text-center text-sm text-amber-800">
-                You&apos;ll get <strong>3 unique designs</strong> to compare and choose from.
-                Each one will look completely different — different colors, different vibe, same great content.
-              </p>
-            </div>
           </div>
         )}
 
@@ -906,7 +1018,7 @@ export default function PreviewWizard() {
               onClick={handleGenerate}
               className="rounded-full bg-amber-600 px-8 text-white hover:bg-amber-700"
             >
-              Generate 2 Designs
+              Generate {selectedTemplates.length} Design{selectedTemplates.length > 1 ? "s" : ""}
             </Button>
           )}
         </div>
