@@ -35,6 +35,9 @@ import { WarmAbout } from "./about/WarmAbout";
 // Stats (Vibrant only)
 import { VibrantStats } from "./stats/VibrantStats";
 
+// Navigation
+import { SiteNav } from "./SiteNav";
+
 // Shared
 import { TemplateProducts } from "./TemplateProducts";
 import { TemplateBooking } from "./TemplateBooking";
@@ -107,9 +110,21 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     "Visit us today and experience the difference.",
   ];
 
+  // Build nav items dynamically based on what sections exist
+  const hasProducts = data.products && data.products.length > 0;
+  const navItems = [
+    { id: "hero", label: "Home" },
+    { id: "services", label: "Services" },
+    ...(hasProducts ? [{ id: "products", label: "Products" }] : []),
+    { id: "gallery", label: "Gallery" },
+    { id: "about", label: "About" },
+    { id: "booking", label: "Book Now" },
+    { id: "contact", label: "Contact" },
+  ];
+
   // Shared sections rendered in all templates
-  const productsSection = data.products && data.products.length > 0 ? (
-    <TemplateProducts products={data.products} colors={colors} />
+  const productsSection = hasProducts ? (
+    <div id="products"><TemplateProducts products={data.products!} colors={colors} /></div>
   ) : null;
 
   const bookingCategories = (data.generated_copy as unknown as Record<string, unknown>)?.booking_categories as
@@ -137,7 +152,7 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     <TemplateRating rating={data.rating} reviewCount={data.review_count} colors={colors} />
   ) : null;
 
-  const contactSection = <TemplateContact colors={colors} previewMode />;
+  const contactSection = <div id="contact"><TemplateContact colors={colors} previewMode /></div>;
   const mapSection = <TemplateMap address={data.address} colors={colors} />;
   const footerSection = (
     <TemplateFooter
@@ -155,19 +170,12 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     case "bold":
       return (
         <div>
-          <BoldHero
-            businessName={data.business_name}
-            headline={headline}
-            subheadline={subheadline}
-            heroImage={heroImage}
-            colors={colors}
-            bookingUrl={data.booking_url}
-            phone={data.phone}
-          />
-          {galleryImages.length > 0 && <BoldGallery images={galleryImages} colors={colors} />}
-          <BoldServices services={services} colors={colors} />
+          <SiteNav items={navItems} colors={colors} />
+          <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          {galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
+          <div id="services"><BoldServices services={services} colors={colors} /></div>
           {productsSection}
-          <BoldAbout paragraphs={aboutParagraphs} colors={colors} />
+          <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>
           {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
@@ -179,19 +187,12 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     case "elegant":
       return (
         <div>
-          <ElegantHero
-            businessName={data.business_name}
-            headline={headline}
-            subheadline={subheadline}
-            logo={logo}
-            colors={colors}
-            bookingUrl={data.booking_url}
-            phone={data.phone}
-          />
-          <ElegantAbout paragraphs={aboutParagraphs} colors={colors} />
-          <ElegantServices services={services} colors={colors} />
+          <SiteNav items={navItems} colors={colors} />
+          <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>
+          <div id="services"><ElegantServices services={services} colors={colors} /></div>
           {productsSection}
-          {galleryImages.length > 0 && <ElegantGallery images={galleryImages} colors={colors} />}
+          {galleryImages.length > 0 && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
@@ -203,20 +204,13 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     case "vibrant":
       return (
         <div>
-          <VibrantHero
-            businessName={data.business_name}
-            headline={headline}
-            subheadline={subheadline}
-            logo={logo}
-            colors={colors}
-            bookingUrl={data.booking_url}
-            phone={data.phone}
-          />
-          <VibrantServices services={services} colors={colors} />
+          <SiteNav items={navItems} colors={colors} />
+          <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          <div id="services"><VibrantServices services={services} colors={colors} /></div>
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
-          {galleryImages.length > 0 && <VibrantGallery images={galleryImages} colors={colors} />}
+          {galleryImages.length > 0 && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
-          <VibrantAbout paragraphs={aboutParagraphs} colors={colors} />
+          <div id="about"><VibrantAbout paragraphs={aboutParagraphs} colors={colors} /></div>
           {testimonialsSection}
           {bookingSection}
           {contactSection}
@@ -228,19 +222,11 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     case "warm":
       return (
         <div>
-          <WarmHero
-            businessName={data.business_name}
-            headline={headline}
-            subheadline={subheadline}
-            heroImage={heroImage}
-            logo={logo}
-            colors={colors}
-            bookingUrl={data.booking_url}
-            phone={data.phone}
-          />
-          <WarmAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} />
-          {galleryImages.length > 0 && <WarmGallery images={galleryImages} colors={colors} />}
-          <WarmServices services={services} colors={colors} />
+          <SiteNav items={navItems} colors={colors} />
+          <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} /></div>
+          {galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
+          <div id="services"><WarmServices services={services} colors={colors} /></div>
           {productsSection}
           {testimonialsSection || ratingSection}
           {bookingSection}
@@ -254,20 +240,12 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
     default:
       return (
         <div>
-          <ClassicHero
-            businessName={data.business_name}
-            headline={headline}
-            subheadline={subheadline}
-            heroImage={heroImage}
-            logo={logo}
-            colors={colors}
-            bookingUrl={data.booking_url}
-            phone={data.phone}
-          />
-          <ClassicServices services={services} colors={colors} />
-          {galleryImages.length > 0 && <ClassicGallery images={galleryImages} colors={colors} />}
+          <SiteNav items={navItems} colors={colors} />
+          <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          <div id="services"><ClassicServices services={services} colors={colors} /></div>
+          {galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
-          <ClassicAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} />
+          <div id="about"><ClassicAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} /></div>
           {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
