@@ -69,36 +69,26 @@ function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors
   const rawSecondary = brandColors[1] || lighten(rawPrimary, 0.7);
   const rawAccent = brandColors[2] || darken(rawPrimary, 0.2);
 
+  // IMPORTANT: Keep the brand primary color FIXED. It's the brand identity.
+  // Only adjust foreground/background to ensure contrast around it.
+  // Template components use runtime contrast utilities for edge cases.
+
   // --- Variant A: Light background ---
   const bgA = lighten(rawPrimary, 0.93);
   const mutedA = lighten(rawPrimary, 0.82);
   let fgA = darken(rawPrimary, 0.65);
-  let primaryA = rawPrimary;
 
-  // 1. foreground on background (body text): 4.5:1
+  // Ensure body text is readable on light bg
   fgA = ensureContrast(fgA, bgA, 4.5);
-  // 2. primary on background (prices, labels): 3:1 minimum
-  primaryA = ensureContrast(primaryA, bgA, 3);
-  // 3. background on primary (button text): 3:1 minimum
-  if (contrastRatio(bgA, primaryA) < 3) {
-    primaryA = ensureContrast(primaryA, bgA, 4);
-  }
-  // 4. foreground on muted (contact form text): 4.5:1
   fgA = ensureContrast(fgA, mutedA, 4.5);
-  // 5. background on foreground (text on inverted sections: heroes, booking, footer): 4.5:1
+  // Ensure inverted text (bg color on fg) is readable
   if (contrastRatio(bgA, fgA) < 4.5) {
+    fgA = darken(fgA, 0.15);
     fgA = ensureContrast(fgA, bgA, 4.5);
-  }
-  // 6. primary on foreground (quotes, links on inverted sections): 3:1
-  if (contrastRatio(primaryA, fgA) < 3) {
-    primaryA = isLight(primaryA) ? lighten(primaryA, 0.3) : lighten(primaryA, 0.5);
-    primaryA = ensureContrast(primaryA, fgA, 3);
-    // Re-check primary on background after adjustment
-    primaryA = ensureContrast(primaryA, bgA, 3);
   }
 
   const paletteA: CustomColors = {
-    primary: primaryA,
+    primary: rawPrimary,
     secondary: rawSecondary,
     accent: rawAccent,
     background: bgA,
@@ -110,35 +100,12 @@ function buildCustomPalettes(brandColors: string[]): [CustomColors, CustomColors
   const bgB = darken(rawPrimary, 0.75);
   const mutedB = darken(rawPrimary, 0.55);
   let fgB = lighten(rawPrimary, 0.93);
-  let primaryB = rawPrimary;
 
-  // 1. foreground on background (body text on dark): 4.5:1
+  // Ensure body text is readable on dark bg
   fgB = ensureContrast(fgB, bgB, 4.5);
-  // 2. primary on background (links, prices on dark bg): 3:1
-  primaryB = ensureContrast(primaryB, bgB, 3);
-  // 3. If primary is too close to foreground, separate them
-  if (contrastRatio(primaryB, fgB) < 1.5) {
-    primaryB = isLight(primaryB) ? darken(primaryB, 0.2) : lighten(primaryB, 0.2);
-    primaryB = ensureContrast(primaryB, bgB, 3);
-  }
-  // 4. foreground on primary (button text): 3:1
-  if (contrastRatio(fgB, primaryB) < 3) {
-    fgB = ensureContrast(fgB, primaryB, 3);
-    fgB = ensureContrast(fgB, bgB, 4.5);
-  }
-  // 5. background on foreground (inverted sections text): 4.5:1
-  if (contrastRatio(bgB, fgB) < 4.5) {
-    fgB = ensureContrast(fgB, bgB, 4.5);
-  }
-  // 6. primary on foreground (quotes, links on inverted dark sections): 3:1
-  if (contrastRatio(primaryB, fgB) < 3) {
-    primaryB = isLight(fgB) ? darken(primaryB, 0.3) : lighten(primaryB, 0.3);
-    primaryB = ensureContrast(primaryB, fgB, 3);
-    primaryB = ensureContrast(primaryB, bgB, 3);
-  }
 
   const paletteB: CustomColors = {
-    primary: primaryB,
+    primary: rawPrimary,
     secondary: lighten(rawPrimary, 0.3),
     accent: rawAccent,
     background: bgB,
