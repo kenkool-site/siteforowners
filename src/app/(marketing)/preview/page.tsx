@@ -155,6 +155,7 @@ function PreviewWizard() {
         if (d.google_reviews?.length > 0) setMapsReviews(d.google_reviews);
         if (d.hours) setMapsHours(d.hours);
         if (d.template_variant) setSelectedTemplates([d.template_variant]);
+        if (d.brand_colors?.length > 0) setBrandColors(d.brand_colors);
         setMapsEnriched(true); // skip re-fetching maps
       } catch (e) {
         console.error("Failed to load edit data:", e);

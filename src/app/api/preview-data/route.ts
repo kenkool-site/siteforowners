@@ -38,7 +38,7 @@ export async function GET(request: Request) {
     rating: preview.rating || null,
     review_count: preview.review_count || null,
     logo: copy?.logo || "",
-    brand_colors: [],
+    brand_colors: (copy?.brand_colors as string[]) || [],
     booking_categories: copy?.booking_categories || null,
     google_reviews: copy?.google_reviews || [],
     template_variant: preview.template_variant || "",

@@ -321,6 +321,7 @@ export async function POST(request: Request) {
           en: variant.en,
           es: variant.es,
           ...(customPalettes ? { custom_colors: customPalettes[i % customPalettes.length] } : {}),
+          ...(brand_colors && brand_colors.length > 0 ? { brand_colors } : {}),
           ...(logo ? { logo } : {}),
           ...(booking_categories ? { booking_categories } : {}),
           ...(google_reviews && google_reviews.length > 0 ? { google_reviews } : {}),
