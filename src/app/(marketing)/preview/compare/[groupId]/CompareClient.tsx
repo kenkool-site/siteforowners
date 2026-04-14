@@ -59,7 +59,7 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
       <div className="mx-auto max-w-3xl px-6 py-10">
         <div className="mb-10 text-center">
           <h1 className="text-3xl font-bold text-gray-900">
-            Your 2 website designs are ready
+            Your {previews.length} website design{previews.length > 1 ? "s are" : " is"} ready
           </h1>
           <p className="mt-3 text-gray-600">
             Preview each one, then pick your favorite for{" "}
@@ -172,6 +172,12 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
           <p className="mt-3 text-xs text-gray-400">
             Preview each design in a new tab, then come back and select your favorite.
           </p>
+          <button
+            onClick={() => router.push(`/preview?edit=${groupId}`)}
+            className="mt-3 text-xs font-medium text-amber-600 underline underline-offset-2 hover:text-amber-700"
+          >
+            Edit inputs & regenerate
+          </button>
         </div>
       </div>
     </main>

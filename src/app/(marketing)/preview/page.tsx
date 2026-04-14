@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_SERVICES } from "@/lib/templates/default-services";
 import type { BusinessType, ServiceItem, ProductItem } from "@/lib/ai/types";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = [
   { value: "salon", label: "Hair Salon", emoji: "💇‍♀️" },
@@ -46,10 +46,25 @@ const TAGLINES: Record<BusinessType, string[]> = {
 type Step = 1 | 2 | 3 | 4 | 5;
 const TOTAL_STEPS = 5;
 
-export default function PreviewWizard() {
+export default function PreviewWizardPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
+      </main>
+    }>
+      <PreviewWizard />
+    </Suspense>
+  );
+}
+
+function PreviewWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const editGroupId = searchParams.get("edit");
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
+  const [editLoading, setEditLoading] = useState(!!editGroupId);
   const [error, setError] = useState("");
 
   // Step 1: Business basics
@@ -111,6 +126,43 @@ export default function PreviewWizard() {
       return [...prev, id];
     });
   };
+
+  // Load existing preview data for editing
+  useEffect(() => {
+    if (!editGroupId) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/preview-data?group_id=${editGroupId}`);
+        if (!res.ok) throw new Error("Failed to load");
+        const d = await res.json();
+        if (d.business_name) setBusinessName(d.business_name);
+        if (d.business_type) setBusinessType(d.business_type);
+        if (d.phone) setPhone(d.phone);
+        if (d.address) setAddress(d.address);
+        if (d.services?.length > 0) {
+          setServices(d.services);
+          setImported(true);
+        }
+        if (d.products?.length > 0) {
+          setProducts(d.products);
+          setHasProducts(true);
+        }
+        if (d.booking_url) setBookingUrl(d.booking_url);
+        if (d.images?.length > 0) setUploadedImages(d.images);
+        if (d.logo) setLogo(d.logo);
+        if (d.rating) setMapsRating(d.rating);
+        if (d.review_count) setMapsReviewCount(d.review_count);
+        if (d.google_reviews?.length > 0) setMapsReviews(d.google_reviews);
+        if (d.hours) setMapsHours(d.hours);
+        if (d.template_variant) setSelectedTemplates([d.template_variant]);
+        setMapsEnriched(true); // skip re-fetching maps
+      } catch (e) {
+        console.error("Failed to load edit data:", e);
+      } finally {
+        setEditLoading(false);
+      }
+    })();
+  }, [editGroupId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -407,13 +459,24 @@ export default function PreviewWizard() {
     );
   };
 
+  if (editLoading) {
+    return (
+      <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6">
+        <div className="text-center">
+          <div className="mx-auto mb-6 h-12 w-12 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
+          <p className="text-gray-600">Loading your previous inputs...</p>
+        </div>
+      </main>
+    );
+  }
+
   if (loading) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-6">
         <div className="text-center">
           <div className="mx-auto mb-8 h-16 w-16 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
           <h1 className="mb-3 text-2xl font-bold text-gray-900">
-            Building 3 website designs for you...
+            Building {selectedTemplates.length} website design{selectedTemplates.length > 1 ? "s" : ""} for you...
           </h1>
           <p className="text-gray-600">
             Our AI is writing your content in English and Spanish
@@ -437,6 +500,13 @@ export default function PreviewWizard() {
           <span className="text-sm text-gray-500">Step {step} of {TOTAL_STEPS}</span>
         </div>
       </div>
+      {editGroupId && (
+        <div className="border-b bg-amber-50 px-6 py-2.5">
+          <p className="mx-auto max-w-2xl text-center text-sm text-amber-800">
+            Edit mode — update any fields and regenerate
+          </p>
+        </div>
+      )}
 
       {/* Progress bar */}
       <div className="h-1 bg-gray-200">
@@ -746,6 +816,14 @@ export default function PreviewWizard() {
                           </svg>
                         </button>
                       </div>
+                      {/* Description */}
+                      <input
+                        type="text"
+                        value={product.description || ""}
+                        onChange={(e) => updateProduct(i, "description", e.target.value)}
+                        placeholder="Short description (optional)"
+                        className="mt-2 w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-600 focus:border-amber-500 focus:outline-none"
+                      />
                       {/* Product image */}
                       <div className="mt-2 flex items-center gap-2">
                         {product.image ? (
