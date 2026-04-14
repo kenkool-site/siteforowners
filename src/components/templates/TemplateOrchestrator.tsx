@@ -166,9 +166,9 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           />
           {galleryImages.length > 0 && <BoldGallery images={galleryImages} colors={colors} />}
           <BoldServices services={services} colors={colors} />
+          {productsSection}
           <BoldAbout paragraphs={aboutParagraphs} colors={colors} />
           {testimonialsSection || ratingSection}
-          {productsSection}
           {bookingSection}
           {contactSection}
           {mapSection}
@@ -190,9 +190,9 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           />
           <ElegantAbout paragraphs={aboutParagraphs} colors={colors} />
           <ElegantServices services={services} colors={colors} />
+          {productsSection}
           {galleryImages.length > 0 && <ElegantGallery images={galleryImages} colors={colors} />}
           {testimonialsSection || ratingSection}
-          {productsSection}
           {bookingSection}
           {contactSection}
           {mapSection}
@@ -215,9 +215,9 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           <VibrantServices services={services} colors={colors} />
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
           {galleryImages.length > 0 && <VibrantGallery images={galleryImages} colors={colors} />}
+          {productsSection}
           <VibrantAbout paragraphs={aboutParagraphs} colors={colors} />
           {testimonialsSection}
-          {productsSection}
           {bookingSection}
           {contactSection}
           {mapSection}
@@ -241,8 +241,8 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           <WarmAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} />
           {galleryImages.length > 0 && <WarmGallery images={galleryImages} colors={colors} />}
           <WarmServices services={services} colors={colors} />
-          {testimonialsSection || ratingSection}
           {productsSection}
+          {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
           {mapSection}
@@ -266,9 +266,9 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
           />
           <ClassicServices services={services} colors={colors} />
           {galleryImages.length > 0 && <ClassicGallery images={galleryImages} colors={colors} />}
+          {productsSection}
           <ClassicAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} />
           {testimonialsSection || ratingSection}
-          {productsSection}
           {bookingSection}
           {contactSection}
           {mapSection}
