@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendFounderNotification, sendLeadConfirmation } from "@/lib/email";
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +28,27 @@ export async function POST(request: Request) {
       console.error("Lead insert error:", error);
       throw new Error("Failed to save");
     }
+
+    // Send emails in background — don't block the response
+    const leadData = {
+      ownerName: owner_name,
+      phone,
+      email: email || undefined,
+      message: message || undefined,
+      businessName: business_name,
+      previewSlug: preview_slug,
+    };
+
+    Promise.allSettled([
+      sendFounderNotification(leadData),
+      sendLeadConfirmation(leadData),
+    ]).then((results) => {
+      for (const r of results) {
+        if (r.status === "rejected") {
+          console.error("Email send failed:", r.reason);
+        }
+      }
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {
