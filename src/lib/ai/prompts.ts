@@ -38,6 +38,7 @@ export function buildUserPrompt(params: {
   services: { name: string; price: string }[];
   products?: { name: string; price: string }[];
   address?: string;
+  instructions?: string;
 }): string {
   const serviceList = params.services
     .map((s) => `- ${s.name} (${s.price})`)
@@ -75,7 +76,7 @@ ${productList ? '5. product_descriptions — A short description for EACH produc
 VARIANT GUIDELINES:
 - Variant A: Bold, confident, energetic — makes the reader excited
 - Variant B: Warm, personal, storytelling — makes the reader feel at home
-
+${params.instructions ? `\nSPECIAL INSTRUCTIONS FROM THE SITE OWNER (follow these closely):\n${params.instructions}\n` : ""}
 IMPORTANT: Return ONLY valid JSON matching this exact structure:
 {
   "variants": [

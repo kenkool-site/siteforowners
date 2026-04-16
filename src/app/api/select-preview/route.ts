@@ -35,6 +35,30 @@ export async function POST(request: Request) {
       );
     }
 
+    // If a tenant is linked to any preview in this group, update to new slug
+    // This makes the live subdomain site point to the newly selected variant
+    const { data: groupPreviews } = await supabase
+      .from("previews")
+      .select("slug")
+      .eq("group_id", group_id);
+
+    if (groupPreviews) {
+      const allSlugs = groupPreviews.map((p) => p.slug);
+      const { data: tenant } = await supabase
+        .from("tenants")
+        .select("id")
+        .in("preview_slug", allSlugs)
+        .limit(1)
+        .single();
+
+      if (tenant) {
+        await supabase
+          .from("tenants")
+          .update({ preview_slug: slug, updated_at: new Date().toISOString() })
+          .eq("id", tenant.id);
+      }
+    }
+
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("Select preview error:", error);

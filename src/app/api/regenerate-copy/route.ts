@@ -3,11 +3,27 @@ export const maxDuration = 60;
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateWebsiteCopyVariants } from "@/lib/ai/generate-copy";
+import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import type { BusinessType } from "@/lib/ai/types";
+
+function generateSlug(businessName: string): string {
+  const base = businessName
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  const rand = Math.random().toString(36).slice(2, 8);
+  return `${base}-${rand}`;
+}
+
+function generateGroupId(): string {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm"] as const;
 
 export async function POST(request: Request) {
   try {
-    const { slug } = await request.json();
+    const { slug, templates, instructions } = await request.json();
 
     if (!slug) {
       return NextResponse.json({ error: "slug required" }, { status: 400 });
@@ -26,8 +42,9 @@ export async function POST(request: Request) {
 
     const services = (preview.services || []) as { name: string; price: string }[];
     const products = (preview.products || []) as { name: string; price: string }[];
+    const currentCopy = (preview.generated_copy || {}) as Record<string, unknown>;
 
-    // Generate fresh copy using existing business data
+    // Generate 2 fresh copy variants
     const variants = await generateWebsiteCopyVariants({
       businessName: preview.business_name,
       businessType: preview.business_type as BusinessType,
@@ -35,38 +52,76 @@ export async function POST(request: Request) {
       services: services.filter((s) => s.name.trim()),
       products: products.filter((p) => p.name.trim()),
       address: preview.address || undefined,
+      instructions: instructions || undefined,
     });
 
-    // Take the first variant
-    const variant = variants[0];
-    const currentCopy = (preview.generated_copy || {}) as Record<string, unknown>;
+    // Pick templates — use requested or pick 2 different ones
+    const selectedTemplates = templates && templates.length > 0
+      ? templates.filter((t: string) => ALL_TEMPLATES.includes(t as typeof ALL_TEMPLATES[number]))
+      : [
+          preview.template_variant || "classic",
+          ALL_TEMPLATES.filter((t) => t !== (preview.template_variant || "classic"))[
+            Math.floor(Math.random() * 4)
+          ],
+        ];
 
-    // Merge: keep existing non-copy fields (logo, custom_colors, brand_colors, etc)
-    const updatedCopy = {
-      ...currentCopy,
-      en: variant.en,
-      es: variant.es,
-    };
+    // Pick themes
+    const allThemes = [...(THEMES_BY_VERTICAL[preview.business_type as BusinessType] || [])].sort(
+      () => Math.random() - 0.5
+    );
 
-    const { error: updateError } = await supabase
-      .from("previews")
-      .update({ generated_copy: updatedCopy })
-      .eq("slug", slug);
+    const groupId = generateGroupId();
+    const variantLabels = ["A", "B", "C"];
 
-    if (updateError) {
-      console.error("Regenerate update error:", updateError);
-      return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+    // Create new preview rows — keep everything except copy and template
+    const previewRows = selectedTemplates.map((tmpl: string, i: number) => {
+      const variant = variants[i % variants.length];
+      const theme = allThemes[i % allThemes.length];
+      return {
+        slug: generateSlug(preview.business_name),
+        business_name: preview.business_name,
+        business_type: preview.business_type,
+        phone: preview.phone,
+        color_theme: theme.id,
+        services: preview.services,
+        products: preview.products,
+        booking_url: preview.booking_url,
+        address: preview.address,
+        images: preview.images,
+        hours: preview.hours,
+        rating: preview.rating,
+        review_count: preview.review_count,
+        generated_copy: {
+          en: variant.en,
+          es: variant.es,
+          // Preserve existing non-copy fields
+          ...(currentCopy.custom_colors ? { custom_colors: currentCopy.custom_colors } : {}),
+          ...(currentCopy.brand_colors ? { brand_colors: currentCopy.brand_colors } : {}),
+          ...(currentCopy.logo ? { logo: currentCopy.logo } : {}),
+          ...(currentCopy.booking_categories ? { booking_categories: currentCopy.booking_categories } : {}),
+          ...(currentCopy.google_reviews ? { google_reviews: currentCopy.google_reviews } : {}),
+        },
+        template_variant: tmpl,
+        group_id: groupId,
+        variant_label: variantLabels[i] || String.fromCharCode(65 + i),
+      };
+    });
+
+    const { error: insertError } = await supabase.from("previews").insert(previewRows);
+
+    if (insertError) {
+      console.error("Insert error:", insertError);
+      return NextResponse.json({ error: "Failed to create variants" }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      en: variant.en,
-      es: variant.es,
+      group_id: groupId,
     });
   } catch (error) {
     console.error("Regenerate copy error:", error);
     return NextResponse.json(
-      { error: "Failed to regenerate copy" },
+      { error: "Failed to regenerate" },
       { status: 500 }
     );
   }

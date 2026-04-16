@@ -55,6 +55,10 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   // Images
   const [images, setImages] = useState<string[]>((preview.images as string[]) || []);
 
+  // AI instructions
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+
   // UI state
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -104,31 +108,22 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   };
 
   const handleRegenerate = async () => {
-    if (!confirm("This will rewrite all text (headline, about, descriptions) using AI. Services, photos, and products stay the same. Continue?")) {
-      return;
-    }
     setRegenerating(true);
     setError("");
     try {
       const res = await fetch("/api/regenerate-copy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ slug }),
+        body: JSON.stringify({
+          slug,
+          instructions: aiPrompt.trim() || undefined,
+        }),
       });
       if (!res.ok) throw new Error("Regeneration failed");
       const data = await res.json();
-      // Update local state with new copy
-      if (data.en) {
-        setHeadline(data.en.hero_headline || headline);
-        setSubheadline(data.en.hero_subheadline || subheadline);
-        setAboutParagraphs(data.en.about_paragraphs || aboutParagraphs);
-        setFooterTagline(data.en.footer_tagline || footerTagline);
-      }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
+      window.location.href = `/preview/compare/${data.group_id}`;
     } catch {
       setError("Failed to regenerate. Try again.");
-    } finally {
       setRegenerating(false);
     }
   };
@@ -197,12 +192,12 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             <span className="text-sm font-medium text-red-600">{error}</span>
           )}
           <Button
-            onClick={handleRegenerate}
+            onClick={() => setShowAiPrompt(!showAiPrompt)}
             disabled={regenerating || saving}
             variant="outline"
             className="text-amber-600 border-amber-300 hover:bg-amber-50"
           >
-            {regenerating ? "Regenerating..." : "Regenerate Copy"}
+            {regenerating ? "Regenerating..." : "AI Regenerate"}
           </Button>
           <Button
             onClick={handleSave}
@@ -213,6 +208,63 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
           </Button>
         </div>
       </div>
+
+      {/* AI Instructions Panel */}
+      {showAiPrompt && (
+        <div className="mb-6 rounded-xl border-2 border-amber-200 bg-amber-50/50 p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <h3 className="text-sm font-semibold text-amber-900">AI Instructions</h3>
+          </div>
+          <p className="mb-3 text-xs text-amber-800">
+            Tell the AI what you want changed. It&apos;ll generate new variants to compare — your current site stays live until you pick one.
+          </p>
+          <textarea
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            placeholder="e.g. Make the tone more luxurious and upscale, use darker colors, emphasize the VIP experience..."
+            rows={3}
+            className="mb-3 w-full resize-none rounded-lg border border-amber-300 bg-white px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+          />
+          <div className="flex items-center justify-between">
+            <div className="flex flex-wrap gap-2">
+              {[
+                "Make it more luxurious",
+                "More casual and friendly",
+                "Emphasize speed and convenience",
+                "Focus on family and community",
+                "Make colors darker",
+                "Use a softer, feminine tone",
+              ].map((suggestion) => (
+                <button
+                  key={suggestion}
+                  onClick={() => setAiPrompt(suggestion)}
+                  className="rounded-full border border-amber-200 bg-white px-3 py-1 text-xs text-amber-700 hover:bg-amber-100"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <Button
+              onClick={handleRegenerate}
+              disabled={regenerating}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              {regenerating ? "Generating..." : "Generate New Variants"}
+            </Button>
+            <button
+              onClick={() => { setShowAiPrompt(false); setAiPrompt(""); }}
+              className="text-sm text-gray-400 hover:text-gray-600"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Tab toggle */}
       <div className="mb-6 flex rounded-lg border bg-gray-50 p-1">

@@ -12,6 +12,7 @@ interface GenerateCopyParams {
   services: ServiceItem[];
   products?: ProductItem[];
   address?: string;
+  instructions?: string;
 }
 
 export interface CopyVariant {
@@ -40,6 +41,7 @@ export async function generateWebsiteCopyVariants(
               services: params.services,
               products: params.products,
               address: params.address,
+              instructions: params.instructions,
             }),
           },
         ],
