@@ -58,6 +58,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   // UI state
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
   const [activeTab, setActiveTab] = useState<"edit" | "preview">("edit");
   const [error, setError] = useState("");
 
@@ -99,6 +100,36 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
       setError("Failed to save changes.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    if (!confirm("This will rewrite all text (headline, about, descriptions) using AI. Services, photos, and products stay the same. Continue?")) {
+      return;
+    }
+    setRegenerating(true);
+    setError("");
+    try {
+      const res = await fetch("/api/regenerate-copy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug }),
+      });
+      if (!res.ok) throw new Error("Regeneration failed");
+      const data = await res.json();
+      // Update local state with new copy
+      if (data.en) {
+        setHeadline(data.en.hero_headline || headline);
+        setSubheadline(data.en.hero_subheadline || subheadline);
+        setAboutParagraphs(data.en.about_paragraphs || aboutParagraphs);
+        setFooterTagline(data.en.footer_tagline || footerTagline);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Failed to regenerate. Try again.");
+    } finally {
+      setRegenerating(false);
     }
   };
 
@@ -166,8 +197,16 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             <span className="text-sm font-medium text-red-600">{error}</span>
           )}
           <Button
+            onClick={handleRegenerate}
+            disabled={regenerating || saving}
+            variant="outline"
+            className="text-amber-600 border-amber-300 hover:bg-amber-50"
+          >
+            {regenerating ? "Regenerating..." : "Regenerate Copy"}
+          </Button>
+          <Button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || regenerating}
             className="bg-green-600 text-white hover:bg-green-700"
           >
             {saving ? "Saving..." : "Save Changes"}
