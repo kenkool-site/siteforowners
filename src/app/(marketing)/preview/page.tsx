@@ -884,27 +884,49 @@ function PreviewWizard() {
             </p>
 
             {uploadedImages.length > 0 && (
-              <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                {uploadedImages.map((url, i) => (
-                  <div key={i} className="group relative aspect-square overflow-hidden rounded-lg">
-                    <Image
-                      src={url}
-                      alt={`Upload ${i + 1}`}
-                      fill
-                      sizes="(max-width: 640px) 50vw, 33vw"
-                      className="object-cover"
-                    />
-                    <button
-                      onClick={() => removeImage(i)}
-                      className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+              <>
+                <p className="mb-2 text-xs text-gray-400">Tap any image to set it as the hero background.</p>
+                <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  {uploadedImages.map((url, i) => (
+                    <div
+                      key={i}
+                      className={`group relative aspect-square cursor-pointer overflow-hidden rounded-lg border-2 transition-all ${
+                        i === 0 ? "border-amber-500 ring-2 ring-amber-500/30" : "border-transparent hover:border-gray-300"
+                      }`}
+                      onClick={() => {
+                        if (i === 0) return;
+                        setUploadedImages((prev) => {
+                          const updated = [...prev];
+                          const [selected] = updated.splice(i, 1);
+                          updated.unshift(selected);
+                          return updated;
+                        });
+                      }}
                     >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
+                      <Image
+                        src={url}
+                        alt={`Upload ${i + 1}`}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 33vw"
+                        className="object-cover"
+                      />
+                      {i === 0 && (
+                        <span className="absolute left-1.5 top-1.5 rounded bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                          Hero
+                        </span>
+                      )}
+                      <button
+                        onClick={(e) => { e.stopPropagation(); removeImage(i); }}
+                        className="absolute right-1 top-1 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
 
             <label className="block cursor-pointer rounded-xl border-2 border-dashed border-gray-300 p-8 text-center transition-colors hover:border-amber-400 hover:bg-amber-50/30">

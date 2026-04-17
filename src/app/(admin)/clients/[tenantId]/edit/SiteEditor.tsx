@@ -508,29 +508,39 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 />
               </label>
             </div>
+            <p className="mb-2 text-xs text-gray-400">Click any image to set it as the hero background.</p>
             <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
               {images.map((img, i) => (
-                <div key={i} className="group relative aspect-square overflow-hidden rounded-lg border">
+                <div
+                  key={i}
+                  className={`group relative aspect-square cursor-pointer overflow-hidden rounded-lg border-2 transition-all ${
+                    i === 0 ? "border-amber-500 ring-2 ring-amber-500/30" : "border-transparent hover:border-gray-300"
+                  }`}
+                  onClick={() => {
+                    if (i === 0) return;
+                    setImages((prev) => {
+                      const updated = [...prev];
+                      const [selected] = updated.splice(i, 1);
+                      updated.unshift(selected);
+                      return updated;
+                    });
+                  }}
+                >
                   <Image src={img} alt="" fill className="object-cover" unoptimized />
+                  {i === 0 && (
+                    <span className="absolute left-1.5 top-1.5 rounded bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
+                      Hero
+                    </span>
+                  )}
                   <button
-                    onClick={() => setImages((prev) => prev.filter((_, j) => j !== i))}
+                    onClick={(e) => { e.stopPropagation(); setImages((prev) => prev.filter((_, j) => j !== i)); }}
                     className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow group-hover:flex"
                   >
                     ×
                   </button>
-                  {i === 0 && (
-                    <span className="absolute bottom-1 left-1 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-                      Hero
-                    </span>
-                  )}
                 </div>
               ))}
             </div>
-            {images.length > 1 && (
-              <p className="mt-2 text-xs text-gray-400">
-                First image is used as hero. Drag to reorder (coming soon).
-              </p>
-            )}
           </section>
         </div>
       ) : (
