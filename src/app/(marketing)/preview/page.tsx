@@ -87,6 +87,7 @@ function PreviewWizard() {
   const [importUrl, setImportUrl] = useState("");
   const [importing, setImporting] = useState(false);
   const [imported, setImported] = useState(false);
+  const importedRef = useRef(false);
   const [brandColors, setBrandColors] = useState<string[]>([]);
   const [bookingCategories, setBookingCategories] = useState<unknown[] | null>(null);
 
@@ -142,6 +143,7 @@ function PreviewWizard() {
         if (d.services?.length > 0) {
           setServices(d.services);
           setImported(true);
+          importedRef.current = true;
         }
         if (d.products?.length > 0) {
           setProducts(d.products);
@@ -235,6 +237,7 @@ function PreviewWizard() {
         setHasHeroImage(data.has_hero_image !== false);
       }
       setImported(true);
+      importedRef.current = true;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Import failed. You can still fill in manually.");
     } finally {
@@ -279,16 +282,17 @@ function PreviewWizard() {
       if (data.reviewCount) setMapsReviewCount(data.reviewCount);
       if (data.reviews && data.reviews.length > 0) setMapsReviews(data.reviews);
       if (data.phone && !phone) setPhone(data.phone);
-      // Use Maps-generated services if booking app didn't provide any
-      console.log(`Maps enrichment: services=${data.services?.length || 0}, imported=${imported}`);
-      if (data.services && data.services.length > 0 && !imported) {
-        console.log("Maps: applying generated services", data.services);
+      // Use Maps-generated services — prioritize over defaults, but not over booking imports
+      if (data.services && data.services.length > 0 && !importedRef.current) {
+        console.log(`Maps: applying ${data.services.length} generated services`);
         setServices(
           data.services.map((s: { name: string; price: string }) => ({
             name: s.name,
             price: s.price || "",
           }))
         );
+      } else if (importedRef.current) {
+        console.log("Maps: skipping services — booking import takes priority");
       }
       // Parse hours string: "Monday: 10:00 AM – 7:00 PM; Tuesday: ..."
       if (data.hours) {
