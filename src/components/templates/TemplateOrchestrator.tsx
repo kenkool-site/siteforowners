@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { PreviewData, GeneratedCopy } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
@@ -90,7 +91,8 @@ function getCopy(data: PreviewData, locale: "en" | "es"): GeneratedCopy["en"] | 
   return data.generated_copy[locale];
 }
 
-export function TemplateOrchestrator({ data, locale = "en", isLive = false }: TemplateOrchestratorProps) {
+export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLive = false }: TemplateOrchestratorProps) {
+  const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const template = getTemplateName(data);
   const colors = getColors(data);
   const logo = getLogo(data);
@@ -173,7 +175,7 @@ export function TemplateOrchestrator({ data, locale = "en", isLive = false }: Te
     case "bold":
       return (
         <div>
-          <SiteNav items={navItems} colors={colors} />
+          <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
           <div id="services"><BoldServices services={services} colors={colors} /></div>
@@ -190,7 +192,7 @@ export function TemplateOrchestrator({ data, locale = "en", isLive = false }: Te
     case "elegant":
       return (
         <div>
-          <SiteNav items={navItems} colors={colors} />
+          <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>
           <div id="services"><ElegantServices services={services} colors={colors} /></div>
@@ -207,7 +209,7 @@ export function TemplateOrchestrator({ data, locale = "en", isLive = false }: Te
     case "vibrant":
       return (
         <div>
-          <SiteNav items={navItems} colors={colors} />
+          <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           <div id="services"><VibrantServices services={services} colors={colors} /></div>
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
@@ -225,7 +227,7 @@ export function TemplateOrchestrator({ data, locale = "en", isLive = false }: Te
     case "warm":
       return (
         <div>
-          <SiteNav items={navItems} colors={colors} />
+          <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} /></div>
           {galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
@@ -243,7 +245,7 @@ export function TemplateOrchestrator({ data, locale = "en", isLive = false }: Te
     default:
       return (
         <div>
-          <SiteNav items={navItems} colors={colors} />
+          <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           <div id="services"><ClassicServices services={services} colors={colors} /></div>
           {galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
