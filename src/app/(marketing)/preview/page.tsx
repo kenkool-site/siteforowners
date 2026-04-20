@@ -1057,25 +1057,86 @@ function PreviewWizard() {
               </p>
             </div>
 
-            {/* Keep colors toggle — only shown in edit mode */}
-            {editGroupId && (
-              <div className="mb-8 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">Keep current colors</p>
-                  <p className="text-xs text-gray-500">Preserve the existing color theme and palette</p>
-                </div>
-                <button
-                  onClick={() => setKeepColors(!keepColors)}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    keepColors ? "bg-amber-600" : "bg-gray-300"
-                  }`}
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                    keepColors ? "translate-x-6" : "translate-x-1"
-                  }`} />
-                </button>
+            {/* Color Theme Section */}
+            <div className="mb-8 rounded-xl border border-gray-200 bg-white p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-gray-900">Color Theme</h3>
+                {editGroupId && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500">Keep colors</span>
+                    <button
+                      onClick={() => setKeepColors(!keepColors)}
+                      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                        keepColors ? "bg-amber-600" : "bg-gray-300"
+                      }`}
+                    >
+                      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                        keepColors ? "translate-x-[18px]" : "translate-x-0.5"
+                      }`} />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Color preview + edit */}
+              {brandColors.length > 0 ? (
+                <div>
+                  <p className="mb-3 text-xs text-gray-500">
+                    {editGroupId && keepColors ? "These colors will be preserved:" : "Imported from your booking app — edit to customize:"}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {brandColors.map((color, i) => (
+                      <div key={i} className="flex items-center gap-2">
+                        <label className="relative cursor-pointer">
+                          <div
+                            className="h-10 w-10 rounded-lg border-2 border-gray-200 shadow-sm transition-transform hover:scale-110"
+                            style={{ backgroundColor: color }}
+                          />
+                          <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => {
+                              const updated = [...brandColors];
+                              updated[i] = e.target.value;
+                              setBrandColors(updated);
+                              if (keepColors) setKeepColors(false);
+                            }}
+                            className="absolute inset-0 cursor-pointer opacity-0"
+                          />
+                        </label>
+                        <span className="text-xs text-gray-400">{i === 0 ? "Primary" : i === 1 ? "Secondary" : "Accent"}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Mini preview of how colors look */}
+                  <div className="mt-4 flex items-stretch overflow-hidden rounded-lg border" style={{ height: 48 }}>
+                    <div className="flex-1" style={{ backgroundColor: brandColors[0] || "#E91E8B" }} />
+                    <div className="flex-1" style={{ backgroundColor: brandColors[1] || brandColors[0] || "#E91E8B", opacity: 0.7 }} />
+                    <div className="flex-1" style={{ backgroundColor: brandColors[2] || brandColors[0] || "#E91E8B", opacity: 0.4 }} />
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="mb-3 text-xs text-gray-500">No brand colors imported. Add a custom color or let us pick automatically.</p>
+                  <div className="flex items-center gap-3">
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-gray-300 px-4 py-2.5 text-xs text-gray-500 hover:border-amber-400 hover:text-amber-600">
+                      <div className="h-6 w-6 rounded border bg-gradient-to-br from-pink-400 to-purple-500" />
+                      Pick a brand color
+                      <input
+                        type="color"
+                        defaultValue="#E91E8B"
+                        onChange={(e) => setBrandColors([e.target.value])}
+                        className="absolute opacity-0"
+                        style={{ width: 0, height: 0 }}
+                      />
+                    </label>
+                    {brandColors.length === 0 && (
+                      <span className="text-xs text-gray-400">or we&apos;ll use a theme that fits your business type</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Summary */}
             <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">

@@ -77,11 +77,44 @@ export default function MarketingPage() {
         <span className="text-xl font-bold text-gray-900">
           Site<span className="text-amber-600">ForOwners</span>
         </span>
-        <Link href="/preview">
-          <Button size="sm" className="rounded-full bg-gray-900 text-white hover:bg-gray-800">
-            Build My Preview
-          </Button>
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Quick access links */}
+          <div className="hidden items-center gap-1 sm:flex">
+            <Link href="/preview" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+              Create Preview
+            </Link>
+            <Link href="/previews" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+              Previews
+            </Link>
+            <Link href="/prospects" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+              Prospects
+            </Link>
+            <Link href="/clients" className="rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900">
+              Clients
+            </Link>
+          </div>
+          {/* Mobile dropdown */}
+          <details className="relative sm:hidden">
+            <summary className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border text-gray-600 hover:bg-gray-100">
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </summary>
+            <div className="absolute right-0 top-full z-50 mt-2 w-48 rounded-xl border bg-white py-2 shadow-lg">
+              <Link href="/preview" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Create Preview</Link>
+              <Link href="/previews" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">View Previews</Link>
+              <Link href="/prospects" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Prospects</Link>
+              <Link href="/clients" className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">Clients</Link>
+              <div className="my-1 border-t" />
+              <Link href="/preview" className="block px-4 py-2.5 text-sm font-medium text-amber-600 hover:bg-amber-50">+ New Preview</Link>
+            </div>
+          </details>
+          <Link href="/preview">
+            <Button size="sm" className="rounded-full bg-amber-600 text-white hover:bg-amber-700">
+              + New Preview
+            </Button>
+          </Link>
+        </div>
       </nav>
 
       {/* Hero */}
