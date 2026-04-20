@@ -116,6 +116,7 @@ function PreviewWizard() {
     { id: "warm", name: "Warm", description: "Split layout, friendly and inviting" },
   ];
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>(["classic", "bold"]);
+  const [keepColors, setKeepColors] = useState(false); // default OFF for new, ON for edit
 
   const toggleTemplate = (id: string) => {
     setSelectedTemplates((prev) => {
@@ -158,6 +159,7 @@ function PreviewWizard() {
         if (d.hours) setMapsHours(d.hours);
         if (d.template_variant) setSelectedTemplates([d.template_variant]);
         if (d.brand_colors?.length > 0) setBrandColors(d.brand_colors);
+        setKeepColors(true); // preserve colors by default when editing
         setMapsEnriched(true); // skip re-fetching maps
       } catch (e) {
         console.error("Failed to load edit data:", e);
@@ -395,6 +397,7 @@ function PreviewWizard() {
       google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,
       hours: mapsHours || undefined,
       templates: selectedTemplates,
+      keep_colors: keepColors || undefined,
     };
 
     // Auto-retry up to 2 times on timeout/failure
@@ -1053,6 +1056,26 @@ function PreviewWizard() {
                 {selectedTemplates.length}/3 selected
               </p>
             </div>
+
+            {/* Keep colors toggle — only shown in edit mode */}
+            {editGroupId && (
+              <div className="mb-8 flex items-center justify-between rounded-xl border border-gray-200 bg-white px-5 py-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Keep current colors</p>
+                  <p className="text-xs text-gray-500">Preserve the existing color theme and palette</p>
+                </div>
+                <button
+                  onClick={() => setKeepColors(!keepColors)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    keepColors ? "bg-amber-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    keepColors ? "translate-x-6" : "translate-x-1"
+                  }`} />
+                </button>
+              </div>
+            )}
 
             {/* Summary */}
             <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">

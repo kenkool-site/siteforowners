@@ -195,6 +195,7 @@ export async function POST(request: Request) {
       google_reviews,
       hours,
       templates: requestedTemplates,
+      keep_colors: keepColors,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -215,6 +216,7 @@ export async function POST(request: Request) {
       google_reviews?: { authorName: string; rating: number; text: string; relativeTime: string }[];
       hours?: Record<string, { open: string; close: string; closed?: boolean }>;
       templates?: string[];
+      keep_colors?: boolean;
     };
 
     if (!business_name || !business_type) {
@@ -261,15 +263,15 @@ export async function POST(request: Request) {
       ? requestedTemplates.filter((t): t is TemplateName => ALL_TEMPLATES.includes(t as TemplateName))
       : [...pickTwoTemplates()];
 
-    // Pick themes — one per template (shuffle and cycle)
+    // Pick themes — if keepColors and we have custom palettes, reuse the same palette for all
     const allThemes = [...(THEMES_BY_VERTICAL[business_type] || [])].sort(() => Math.random() - 0.5);
     const variantLabels = ["A", "B", "C"];
 
     const supabase = createAdminClient();
     const previewRows = templates.map((tmpl, i) => {
-      // Cycle through AI copy variants (we generate 2, reuse for 3rd)
       const variant = variants[i % variants.length];
-      const theme = allThemes[i % allThemes.length];
+      // When keepColors: use the first theme for all variants (same look)
+      const theme = keepColors ? allThemes[0] : allThemes[i % allThemes.length];
       return {
         slug: generateSlug(business_name),
         business_name,
