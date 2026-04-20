@@ -1,4 +1,4 @@
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -23,7 +23,7 @@ const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm"] as const
 
 export async function POST(request: Request) {
   try {
-    const { slug, templates, instructions } = await request.json();
+    const { slug, templates, instructions, keep_colors } = await request.json();
 
     if (!slug) {
       return NextResponse.json({ error: "slug required" }, { status: 400 });
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
           ],
         ];
 
-    // Pick themes
+    // Pick themes — if keep_colors, reuse the original theme for all variants
     const allThemes = [...(THEMES_BY_VERTICAL[preview.business_type as BusinessType] || [])].sort(
       () => Math.random() - 0.5
     );
@@ -76,7 +76,10 @@ export async function POST(request: Request) {
     // Create new preview rows — keep everything except copy and template
     const previewRows = selectedTemplates.map((tmpl: string, i: number) => {
       const variant = variants[i % variants.length];
-      const theme = allThemes[i % allThemes.length];
+      // If keep_colors, use original theme; otherwise pick random
+      const theme = keep_colors
+        ? allThemes.find((t) => t.id === preview.color_theme) || allThemes[0]
+        : allThemes[i % allThemes.length];
       return {
         slug: generateSlug(preview.business_name),
         business_name: preview.business_name,
@@ -94,14 +97,14 @@ export async function POST(request: Request) {
         generated_copy: {
           en: variant.en,
           es: variant.es,
-          // Preserve existing non-copy fields
-          ...(currentCopy.custom_colors ? { custom_colors: currentCopy.custom_colors } : {}),
-          ...(currentCopy.brand_colors ? { brand_colors: currentCopy.brand_colors } : {}),
+          // Preserve existing non-copy fields (always keep colors if keep_colors)
+          ...(keep_colors || currentCopy.custom_colors ? { custom_colors: currentCopy.custom_colors } : {}),
+          ...(keep_colors || currentCopy.brand_colors ? { brand_colors: currentCopy.brand_colors } : {}),
           ...(currentCopy.logo ? { logo: currentCopy.logo } : {}),
           ...(currentCopy.booking_categories ? { booking_categories: currentCopy.booking_categories } : {}),
           ...(currentCopy.google_reviews ? { google_reviews: currentCopy.google_reviews } : {}),
         },
-        template_variant: tmpl,
+        template_variant: keep_colors ? (preview.template_variant || tmpl) : tmpl,
         group_id: groupId,
         variant_label: variantLabels[i] || String.fromCharCode(65 + i),
       };

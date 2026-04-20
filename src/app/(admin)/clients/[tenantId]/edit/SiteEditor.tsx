@@ -125,6 +125,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   // AI instructions
   const [aiPrompt, setAiPrompt] = useState("");
   const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [keepColors, setKeepColors] = useState(true);
 
   // UI state
   const [saving, setSaving] = useState(false);
@@ -184,6 +185,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
         body: JSON.stringify({
           slug,
           instructions: aiPrompt.trim() || undefined,
+          keep_colors: keepColors,
         }),
       });
       if (!res.ok) throw new Error("Regeneration failed");
@@ -315,6 +317,24 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               ))}
             </div>
           </div>
+          {/* Keep colors toggle */}
+          <div className="mt-4 flex items-center justify-between rounded-lg border border-amber-200 bg-white px-4 py-3">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Keep current colors</p>
+              <p className="text-xs text-gray-500">Preserve the existing color theme during regeneration</p>
+            </div>
+            <button
+              onClick={() => setKeepColors(!keepColors)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                keepColors ? "bg-amber-600" : "bg-gray-300"
+              }`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                keepColors ? "translate-x-6" : "translate-x-1"
+              }`} />
+            </button>
+          </div>
+
           <div className="mt-4 flex items-center gap-2">
             <Button
               onClick={handleRegenerate}

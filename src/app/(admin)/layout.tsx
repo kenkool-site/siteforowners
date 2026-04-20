@@ -26,9 +26,15 @@ export default function AdminLayout({
               </Link>
               <Link
                 href="/clients"
-                className="text-sm font-medium text-gray-400 hover:text-gray-600"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900"
               >
                 Clients
+              </Link>
+              <Link
+                href="/previews"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                Previews
               </Link>
             </nav>
           </div>

@@ -374,40 +374,49 @@ function PreviewWizard() {
     setError("");
     // Wait for Maps data if it's still loading
     await waitForMaps();
-    try {
-      const res = await fetch("/api/generate-copy", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          business_name: businessName,
-          business_type: businessType,
-          phone,
-          tagline,
-          description,
-          services,
-          products: hasProducts ? products.filter((p) => p.name.trim()) : [],
-          booking_url: bookingUrl || undefined,
-          address,
-          logo: logo || undefined,
-          uploaded_images: uploadedImages,
-          has_hero_image: hasHeroImage,
-          brand_colors: brandColors.length > 0 ? brandColors : undefined,
-          booking_categories: bookingCategories || undefined,
-          rating: mapsRating || undefined,
-          review_count: mapsReviewCount || undefined,
-          google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,
-          hours: mapsHours || undefined,
-          templates: selectedTemplates,
-        }),
-      });
-      if (!res.ok) {
-        throw new Error("Failed to generate. Please try again.");
+
+    const payload = {
+      business_name: businessName,
+      business_type: businessType,
+      phone,
+      tagline,
+      description,
+      services,
+      products: hasProducts ? products.filter((p) => p.name.trim()) : [],
+      booking_url: bookingUrl || undefined,
+      address,
+      logo: logo || undefined,
+      uploaded_images: uploadedImages,
+      has_hero_image: hasHeroImage,
+      brand_colors: brandColors.length > 0 ? brandColors : undefined,
+      booking_categories: bookingCategories || undefined,
+      rating: mapsRating || undefined,
+      review_count: mapsReviewCount || undefined,
+      google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,
+      hours: mapsHours || undefined,
+      templates: selectedTemplates,
+    };
+
+    // Auto-retry up to 2 times on timeout/failure
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const res = await fetch("/api/generate-copy", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+          if (attempt < 2) { await new Promise((r) => setTimeout(r, 1000)); continue; }
+          throw new Error("Failed to generate. Please try again.");
+        }
+        const data = await res.json();
+        router.push(`/preview/compare/${data.group_id}`);
+        return;
+      } catch (e) {
+        if (attempt < 2) { await new Promise((r) => setTimeout(r, 1000)); continue; }
+        setError(e instanceof Error ? e.message : "Something went wrong.");
+        setLoading(false);
       }
-      const data = await res.json();
-      router.push(`/preview/compare/${data.group_id}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
-      setLoading(false);
     }
   };
 
