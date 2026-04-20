@@ -141,12 +141,14 @@ export default async function PreviewsPage() {
                       >
                         View
                       </a>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(`https://www.siteforowners.com/preview/${p.slug}`)}
+                      <a
+                        href={`/preview/compare/${p.group_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
                         className="rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
                       >
-                        Copy Link
-                      </button>
+                        Compare
+                      </a>
                     </div>
                   </td>
                 </tr>
