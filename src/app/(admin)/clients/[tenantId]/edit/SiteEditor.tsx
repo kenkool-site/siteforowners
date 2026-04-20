@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { TemplateOrchestrator } from "@/components/templates";
@@ -54,6 +54,73 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
 
   // Images
   const [images, setImages] = useState<string[]>((preview.images as string[]) || []);
+
+  // Booking settings
+  const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+  const tenantId = tenant.id as string;
+  const previewSlugStr = preview.slug as string;
+  const previewHours = (preview.hours || {}) as Record<string, { open: string; close: string; closed?: boolean }>;
+
+  const defaultWorkingHours: Record<string, { open: string; close: string } | null> = {};
+  for (const day of DAYS_OF_WEEK) {
+    const h = previewHours[day];
+    if (h && !h.closed) {
+      defaultWorkingHours[day] = { open: h.open || "10:00 AM", close: h.close || "7:00 PM" };
+    } else if (day === "Sunday") {
+      defaultWorkingHours[day] = null;
+    } else {
+      defaultWorkingHours[day] = { open: "10:00 AM", close: day === "Saturday" ? "5:00 PM" : "7:00 PM" };
+    }
+  }
+
+  const [workingHours, setWorkingHours] = useState<Record<string, { open: string; close: string } | null>>(defaultWorkingHours);
+  const [slotDuration, setSlotDuration] = useState(60);
+  const [bufferMinutes, setBufferMinutes] = useState(0);
+  const [maxPerSlot, setMaxPerSlot] = useState(1);
+  const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [bookingSettingsLoaded, setBookingSettingsLoaded] = useState(false);
+  const [savingBooking, setSavingBooking] = useState(false);
+
+  // Load booking settings
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch(`/api/booking-settings?tenant_id=${tenantId}`);
+        const data = await res.json();
+        if (data.working_hours) setWorkingHours(data.working_hours);
+        if (data.slot_duration) setSlotDuration(data.slot_duration);
+        if (data.buffer_minutes !== undefined) setBufferMinutes(data.buffer_minutes);
+        if (data.max_per_slot) setMaxPerSlot(data.max_per_slot);
+        if (data.blocked_dates) setBlockedDates(data.blocked_dates);
+      } catch { /* use defaults */ }
+      setBookingSettingsLoaded(true);
+    })();
+  }, [tenantId]);
+
+  const saveBookingSettings = async () => {
+    setSavingBooking(true);
+    try {
+      await fetch("/api/booking-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          preview_slug: previewSlugStr,
+          slot_duration: slotDuration,
+          buffer_minutes: bufferMinutes,
+          max_per_slot: maxPerSlot,
+          working_hours: workingHours,
+          blocked_dates: blockedDates,
+        }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Failed to save booking settings");
+    } finally {
+      setSavingBooking(false);
+    }
+  };
 
   // AI instructions
   const [aiPrompt, setAiPrompt] = useState("");
@@ -542,6 +609,113 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               ))}
             </div>
           </section>
+
+          {/* Booking Settings */}
+          {bookingSettingsLoaded && (
+            <section className="rounded-xl border bg-white p-6">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-gray-900">Booking Settings</h2>
+                <button
+                  onClick={saveBookingSettings}
+                  disabled={savingBooking}
+                  className="rounded-lg bg-green-600 px-4 py-1.5 text-xs font-medium text-white hover:bg-green-700 disabled:opacity-50"
+                >
+                  {savingBooking ? "Saving..." : "Save Booking Settings"}
+                </button>
+              </div>
+
+              {/* Slot config */}
+              <div className="mb-6 grid gap-4 sm:grid-cols-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Slot Duration</label>
+                  <select value={slotDuration} onChange={(e) => setSlotDuration(Number(e.target.value))}
+                    className="w-full rounded-lg border px-3 py-2 text-sm">
+                    <option value={30}>30 min</option>
+                    <option value={45}>45 min</option>
+                    <option value={60}>1 hour</option>
+                    <option value={90}>1.5 hours</option>
+                    <option value={120}>2 hours</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Buffer Between</label>
+                  <select value={bufferMinutes} onChange={(e) => setBufferMinutes(Number(e.target.value))}
+                    className="w-full rounded-lg border px-3 py-2 text-sm">
+                    <option value={0}>No buffer</option>
+                    <option value={15}>15 min</option>
+                    <option value={30}>30 min</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-500">Max Per Slot</label>
+                  <select value={maxPerSlot} onChange={(e) => setMaxPerSlot(Number(e.target.value))}
+                    className="w-full rounded-lg border px-3 py-2 text-sm">
+                    <option value={1}>1 (solo)</option>
+                    <option value={2}>2</option>
+                    <option value={3}>3</option>
+                    <option value={5}>5</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Working hours */}
+              <h3 className="mb-3 text-sm font-medium text-gray-700">Working Hours</h3>
+              <div className="mb-6 space-y-2">
+                {DAYS_OF_WEEK.map((day) => {
+                  const isOpen = workingHours[day] !== null;
+                  return (
+                    <div key={day} className="flex items-center gap-3">
+                      <button
+                        onClick={() => setWorkingHours((prev) => ({ ...prev, [day]: isOpen ? null : { open: "10:00 AM", close: "7:00 PM" } }))}
+                        className={`w-20 shrink-0 text-left text-sm font-medium ${isOpen ? "text-gray-900" : "text-gray-400 line-through"}`}
+                      >
+                        {day.slice(0, 3)}
+                      </button>
+                      {isOpen ? (
+                        <div className="flex items-center gap-2">
+                          <input type="text" value={workingHours[day]?.open || ""}
+                            onChange={(e) => setWorkingHours((prev) => ({ ...prev, [day]: { ...prev[day]!, open: e.target.value } }))}
+                            className="w-24 rounded border px-2 py-1 text-xs" placeholder="10:00 AM" />
+                          <span className="text-xs text-gray-400">to</span>
+                          <input type="text" value={workingHours[day]?.close || ""}
+                            onChange={(e) => setWorkingHours((prev) => ({ ...prev, [day]: { ...prev[day]!, close: e.target.value } }))}
+                            className="w-24 rounded border px-2 py-1 text-xs" placeholder="7:00 PM" />
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">Closed</span>
+                      )}
+                      <button onClick={() => setWorkingHours((prev) => ({ ...prev, [day]: isOpen ? null : { open: "10:00 AM", close: "7:00 PM" } }))}
+                        className={`ml-auto rounded px-2 py-0.5 text-xs ${isOpen ? "text-red-500 hover:bg-red-50" : "text-green-600 hover:bg-green-50"}`}>
+                        {isOpen ? "Close" : "Open"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Blocked dates */}
+              <h3 className="mb-2 text-sm font-medium text-gray-700">Blocked Dates</h3>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {blockedDates.map((d) => (
+                  <span key={d} className="inline-flex items-center gap-1 rounded-full bg-red-50 px-3 py-1 text-xs text-red-700">
+                    {d}
+                    <button onClick={() => setBlockedDates((prev) => prev.filter((x) => x !== d))} className="hover:text-red-900">×</button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="date"
+                className="rounded-lg border px-3 py-2 text-sm"
+                onChange={(e) => {
+                  if (e.target.value && !blockedDates.includes(e.target.value)) {
+                    setBlockedDates((prev) => [...prev, e.target.value]);
+                  }
+                  e.target.value = "";
+                }}
+              />
+              <p className="mt-1 text-xs text-gray-400">Pick dates to block (vacation, holidays)</p>
+            </section>
+          )}
         </div>
       ) : (
         /* Live Preview */

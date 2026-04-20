@@ -53,6 +53,7 @@ type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm";
 interface TemplateOrchestratorProps {
   data: PreviewData;
   locale?: "en" | "es";
+  isLive?: boolean;
 }
 
 function getTemplateName(data: PreviewData): TemplateName {
@@ -89,7 +90,7 @@ function getCopy(data: PreviewData, locale: "en" | "es"): GeneratedCopy["en"] | 
   return data.generated_copy[locale];
 }
 
-export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestratorProps) {
+export function TemplateOrchestrator({ data, locale = "en", isLive = false }: TemplateOrchestratorProps) {
   const template = getTemplateName(data);
   const colors = getColors(data);
   const logo = getLogo(data);
@@ -139,6 +140,8 @@ export function TemplateOrchestrator({ data, locale = "en" }: TemplateOrchestrat
       bookingCategories={bookingCategories}
       services={data.services}
       businessName={data.business_name}
+      previewSlug={data.slug}
+      isLive={isLive}
     />
   );
 

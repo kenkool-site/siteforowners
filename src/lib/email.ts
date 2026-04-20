@@ -124,3 +124,94 @@ export async function sendLeadConfirmation(lead: LeadData) {
     `,
   });
 }
+
+interface BookingEmailData {
+  businessName: string;
+  businessPhone?: string;
+  businessAddress?: string;
+  serviceName: string;
+  servicePrice?: string;
+  date: string;
+  time: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerNotes?: string;
+}
+
+/**
+ * Notify business owner of a new booking (with .ics attachment)
+ */
+export async function sendBookingNotification(
+  ownerEmail: string,
+  booking: BookingEmailData,
+  icsContent: string
+) {
+  if (!resend) return;
+  const toEmail = ownerEmail || ADMIN_EMAIL;
+  if (!toEmail) return;
+
+  await resend.emails.send({
+    from: FROM,
+    to: toEmail,
+    subject: `New Booking: ${booking.customerName} — ${booking.serviceName} on ${booking.date}`,
+    attachments: [
+      { filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") },
+    ],
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #059669; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; color: #fff; font-size: 18px;">New Booking — ${booking.businessName}</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px; width: 90px;">Service</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.serviceName}${booking.servicePrice ? ` (${booking.servicePrice})` : ""}</td></tr>
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Date</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.date}</td></tr>
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Time</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.time}</td></tr>
+            <tr><td colspan="2" style="border-top: 1px solid #eee; padding-top: 8px;"></td></tr>
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Customer</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.customerName}</td></tr>
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Phone</td><td style="padding: 8px 0; font-size: 14px;"><a href="tel:${booking.customerPhone}" style="color: #2563EB;">${booking.customerPhone}</a></td></tr>
+            ${booking.customerEmail ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Email</td><td style="padding: 8px 0; font-size: 14px;">${booking.customerEmail}</td></tr>` : ""}
+            ${booking.customerNotes ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Notes</td><td style="padding: 8px 0; font-size: 14px;">${booking.customerNotes}</td></tr>` : ""}
+          </table>
+          <p style="margin-top: 16px; font-size: 13px; color: #9CA3AF;">Calendar invite attached — open to add to your calendar.</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+/**
+ * Send booking confirmation to the customer (with .ics attachment)
+ */
+export async function sendBookingConfirmation(booking: BookingEmailData, icsContent: string) {
+  if (!resend || !booking.customerEmail) return;
+  const firstName = booking.customerName.split(" ")[0];
+
+  await resend.emails.send({
+    from: FROM,
+    to: booking.customerEmail,
+    subject: `Booking Confirmed — ${booking.serviceName} at ${booking.businessName}`,
+    attachments: [
+      { filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") },
+    ],
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #059669; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h2 style="margin: 0; color: #fff; font-size: 20px;">Booking Confirmed!</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <p style="color: #4B5563; font-size: 15px; margin: 0 0 16px;">Hey ${firstName}! Your appointment at <strong>${booking.businessName}</strong> is confirmed.</p>
+          <div style="background: #F0FDF4; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <p style="margin: 0 0 8px; font-size: 14px;"><strong>Service:</strong> ${booking.serviceName}${booking.servicePrice ? ` — ${booking.servicePrice}` : ""}</p>
+            <p style="margin: 0 0 8px; font-size: 14px;"><strong>Date:</strong> ${booking.date}</p>
+            <p style="margin: 0 0 8px; font-size: 14px;"><strong>Time:</strong> ${booking.time}</p>
+            ${booking.businessAddress ? `<p style="margin: 0; font-size: 14px;"><strong>Location:</strong> ${booking.businessAddress}</p>` : ""}
+          </div>
+          <p style="color: #6B7280; font-size: 13px; margin: 0 0 8px;">Calendar invite attached — open to add a reminder.</p>
+          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Need to reschedule? Call <a href="tel:${booking.businessPhone}" style="color: #2563EB;">${booking.businessPhone}</a></p>` : ""}
+        </div>
+      </div>
+    `,
+  });
+}

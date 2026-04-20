@@ -11,7 +11,7 @@ export function SiteClient({ data }: SiteClientProps) {
   // Published site — no preview chrome, just the raw template
   return (
     <div className="min-h-screen">
-      <TemplateOrchestrator data={data} locale="en" />
+      <TemplateOrchestrator data={data} locale="en" isLive />
     </div>
   );
 }
