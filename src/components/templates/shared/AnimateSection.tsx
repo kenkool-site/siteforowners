@@ -1,7 +1,13 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, createContext, useContext } from "react";
 import { motion, useInView } from "framer-motion";
+
+// Context to globally disable animations
+const AnimationContext = createContext(true);
+export function AnimationProvider({ enabled, children }: { enabled: boolean; children: React.ReactNode }) {
+  return <AnimationContext.Provider value={enabled}>{children}</AnimationContext.Provider>;
+}
 
 type Animation = "fade-up" | "fade-in" | "slide-left" | "slide-right" | "scale-in";
 
@@ -43,8 +49,14 @@ export function AnimateSection({
   duration = 0.6,
   className,
 }: AnimateSectionProps) {
+  const animationsEnabled = useContext(AnimationContext);
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: "-80px" });
+
+  // If animations disabled, render children directly
+  if (!animationsEnabled) {
+    return <div className={className}>{children}</div>;
+  }
 
   const variant = VARIANTS[animation];
 

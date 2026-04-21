@@ -68,6 +68,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     show_map: existingSettings.show_map !== false,
     show_testimonials: existingSettings.show_testimonials !== false,
     show_rating: existingSettings.show_rating !== false,
+    disable_animations: existingSettings.disable_animations === true,
     about_image_url: (existingSettings.about_image_url as string) || "",
     template_override: (existingSettings.template_override as string) || "",
   });
@@ -446,6 +447,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 { key: "show_rating", label: "Rating Badge" },
                 { key: "show_contact", label: "Contact Form" },
                 { key: "show_map", label: "Map" },
+                { key: "disable_animations", label: "Disable Scroll Animations", inverted: true },
               ].map(({ key, label }) => (
                 <div key={key} className="flex items-center justify-between rounded-lg border px-4 py-2.5">
                   <span className="text-sm text-gray-700">{label}</span>

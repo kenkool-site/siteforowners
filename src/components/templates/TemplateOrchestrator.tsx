@@ -38,6 +38,7 @@ import { VibrantStats } from "./stats/VibrantStats";
 
 // Navigation
 import { SiteNav } from "./SiteNav";
+import { AnimationProvider } from "./shared/AnimateSection";
 
 // Shared
 import { TemplateProducts } from "./TemplateProducts";
@@ -96,13 +97,13 @@ export interface SectionSettings {
   show_about?: boolean;
   show_about_image?: boolean;
   show_services?: boolean;
-  show_services_animation?: boolean;
   show_products?: boolean;
   show_booking?: boolean;
   show_contact?: boolean;
   show_map?: boolean;
   show_testimonials?: boolean;
   show_rating?: boolean;
+  disable_animations?: boolean;
   about_image_url?: string | null;
   template_override?: string | null;
 }
@@ -147,6 +148,7 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
   const showTestimonials = ss.show_testimonials !== false;
   const showRating = ss.show_rating !== false;
   const aboutImageOverride = ss.about_image_url || null;
+  const animationsEnabled = !ss.disable_animations;
 
   // Build nav items dynamically based on what sections are visible
   const hasProducts = showProducts && data.products && data.products.length > 0;
@@ -206,6 +208,7 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
   );
 
   // Template-specific section rendering
+  const renderTemplate = () => {
   switch (template) {
     case "bold":
       return (
@@ -294,4 +297,11 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
         </div>
       );
   }
+  };
+
+  return (
+    <AnimationProvider enabled={animationsEnabled}>
+      {renderTemplate()}
+    </AnimationProvider>
+  );
 }
