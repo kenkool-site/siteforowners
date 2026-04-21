@@ -227,6 +227,71 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   };
 
   const [applying, setApplying] = useState(false);
+  const [reimporting, setReimporting] = useState(false);
+  const [mapsLoading, setMapsLoading] = useState(false);
+
+  const handleReimport = async () => {
+    if (!bookingUrl.trim()) { setError("Enter a booking URL first"); return; }
+    setReimporting(true);
+    setError("");
+    try {
+      const res = await fetch("/api/import-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: bookingUrl.trim() }),
+      });
+      if (!res.ok) throw new Error("Import failed");
+      const d = await res.json();
+      if (d.services?.length > 0) setServices(d.services);
+      if (d.images?.length > 0) {
+        setImages((prev) => {
+          const existing = new Set(prev);
+          const newImgs = (d.images as string[]).filter((img: string) => !existing.has(img));
+          return [...prev, ...newImgs];
+        });
+      }
+      if (d.phone && !phone) setPhone(d.phone);
+      if (d.address && !address) setAddress(d.address);
+      if (d.business_name && businessName === "Unknown") setBusinessName(d.business_name);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Failed to import from booking URL");
+    } finally {
+      setReimporting(false);
+    }
+  };
+
+  const handleMapsEnrich = async () => {
+    if (!businessName.trim() || !address.trim()) { setError("Business name and address required"); return; }
+    setMapsLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/import-maps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_name: businessName.trim(), address: address.trim() }),
+      });
+      if (!res.ok) throw new Error("Maps lookup failed");
+      const d = await res.json();
+      // Merge new images
+      if (d.images?.length > 0) {
+        setImages((prev) => {
+          const existing = new Set(prev);
+          const newImgs = (d.images as string[]).filter((img: string) => !existing.has(img));
+          return [...prev, ...newImgs];
+        });
+      }
+      if (d.phone && !phone) setPhone(d.phone);
+      if (d.services?.length > 0 && services.length === 0) setServices(d.services);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch {
+      setError("Failed to fetch Google Maps data");
+    } finally {
+      setMapsLoading(false);
+    }
+  };
 
   const handleAiApply = async () => {
     if (!aiPrompt.trim()) return;
@@ -602,6 +667,31 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 />
               </div>
             </div>
+          </section>
+
+          {/* Re-import Data */}
+          <section className="rounded-xl border border-dashed border-amber-300 bg-amber-50/30 p-6">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">Import Data</h2>
+            <p className="mb-4 text-xs text-gray-500">Pull in images, services, and info from booking app or Google Maps.</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={handleReimport}
+                disabled={reimporting || !bookingUrl.trim()}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              >
+                {reimporting ? "Importing..." : "Re-import from Booking URL"}
+              </button>
+              <button
+                onClick={handleMapsEnrich}
+                disabled={mapsLoading || !businessName.trim() || !address.trim()}
+                className="rounded-lg border border-amber-300 bg-white px-4 py-2 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+              >
+                {mapsLoading ? "Fetching..." : "Fetch from Google Maps"}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-gray-400">
+              New images will be added to your gallery. Existing images won&apos;t be duplicated.
+            </p>
           </section>
 
           {/* About */}

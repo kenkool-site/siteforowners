@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// Admin routes that require authentication
+const ADMIN_ROUTES = ["/prospects", "/clients", "/previews", "/onboard"];
+
 // Domains that should NOT be treated as subdomains
 const ROOT_DOMAINS = [
   "siteforowners.com",
@@ -24,8 +27,19 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Check if this is an admin route that needs auth
+  const isAdminRoute = ADMIN_ROUTES.some((r) => pathname.startsWith(r));
+  if (isAdminRoute && pathname !== "/login") {
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    const sessionCookie = request.cookies.get("admin_session")?.value;
+
+    if (adminPassword && sessionCookie !== adminPassword) {
+      // Not authenticated — redirect to login
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
   // Check if this is a subdomain request
-  // e.g., letstrylocs.siteforowners.com → subdomain = "letstrylocs"
   const isRootDomain = ROOT_DOMAINS.some(
     (d) => hostname === d || hostname.endsWith(`:${d.split(":")[1] || ""}`)
   );
@@ -35,7 +49,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // Extract subdomain
-  // hostname could be "letstrylocs.siteforowners.com" or "letstrylocs.localhost:3000"
   const subdomain = hostname.split(".")[0];
 
   if (!subdomain) {
@@ -59,18 +72,15 @@ export async function middleware(request: NextRequest) {
     .single();
 
   if (!tenant || !tenant.site_published || !tenant.preview_slug) {
-    // Subdomain not found or not published — show 404
     return NextResponse.rewrite(new URL("/not-found", request.url));
   }
 
-  // Rewrite to the site route with the preview slug
   const url = new URL(`/site/${tenant.preview_slug}${pathname === "/" ? "" : pathname}`, request.url);
   return NextResponse.rewrite(url);
 }
 
 export const config = {
   matcher: [
-    // Match all paths except static files and API
     "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };
