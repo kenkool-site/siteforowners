@@ -134,7 +134,9 @@ function PreviewWizard() {
     if (!editGroupId) return;
     (async () => {
       try {
-        const res = await fetch(`/api/preview-data?group_id=${editGroupId}`);
+        // Support both ?edit=GROUP_ID and ?edit=SLUG
+        const param = editGroupId.includes("-") ? `slug=${editGroupId}` : `group_id=${editGroupId}`;
+        const res = await fetch(`/api/preview-data?${param}`);
         if (!res.ok) throw new Error("Failed to load");
         const d = await res.json();
         if (d.business_name) setBusinessName(d.business_name);

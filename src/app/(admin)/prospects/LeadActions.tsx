@@ -71,14 +71,20 @@ export function LeadActions({
   }
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-1.5">
       <a
         href={`/preview/${previewSlug}`}
         target="_blank"
         rel="noopener noreferrer"
-        className="rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+        className="rounded-lg border px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
       >
         Preview
+      </a>
+      <a
+        href={`/preview?edit=${previewSlug}`}
+        className="rounded-lg border px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
+      >
+        Edit
       </a>
 
       {!paymentUrl ? (

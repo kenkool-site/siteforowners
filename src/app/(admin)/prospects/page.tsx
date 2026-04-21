@@ -121,7 +121,8 @@ export default async function ProspectsPage() {
               <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                 <th className="px-5 py-3">Business</th>
                 <th className="px-5 py-3">Contact</th>
-                <th className="hidden px-5 py-3 md:table-cell">Message</th>
+                <th className="hidden px-5 py-3 md:table-cell">Preview</th>
+                <th className="hidden px-5 py-3 lg:table-cell">Message</th>
                 <th className="px-5 py-3">When</th>
                 <th className="px-5 py-3"></th>
               </tr>
@@ -151,7 +152,17 @@ export default async function ProspectsPage() {
                       </a>
                     )}
                   </td>
-                  <td className="hidden max-w-xs truncate px-5 py-4 text-sm text-gray-500 md:table-cell">
+                  <td className="hidden px-5 py-4 md:table-cell">
+                    <a
+                      href={`/preview/${lead.preview_slug}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs font-medium text-amber-600 hover:underline"
+                    >
+                      {lead.preview_slug}
+                    </a>
+                  </td>
+                  <td className="hidden max-w-xs truncate px-5 py-4 text-sm text-gray-500 lg:table-cell">
                     {lead.message || "—"}
                   </td>
                   <td className="whitespace-nowrap px-5 py-4 text-xs text-gray-400">

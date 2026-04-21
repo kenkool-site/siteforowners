@@ -4,24 +4,40 @@ import { createAdminClient } from "@/lib/supabase/admin";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const groupId = searchParams.get("group_id");
+  const slug = searchParams.get("slug");
 
-  if (!groupId) {
-    return NextResponse.json({ error: "group_id required" }, { status: 400 });
+  if (!groupId && !slug) {
+    return NextResponse.json({ error: "group_id or slug required" }, { status: 400 });
   }
 
   const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("previews")
-    .select("*")
-    .eq("group_id", groupId)
-    .order("variant_label", { ascending: true })
-    .limit(1);
 
-  if (error || !data || data.length === 0) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  let preview;
+  if (slug) {
+    // Direct slug lookup
+    const { data, error } = await supabase
+      .from("previews")
+      .select("*")
+      .eq("slug", slug)
+      .single();
+    if (error || !data) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    preview = data;
+  } else {
+    // Group lookup — get first variant
+    const { data, error } = await supabase
+      .from("previews")
+      .select("*")
+      .eq("group_id", groupId!)
+      .order("variant_label", { ascending: true })
+      .limit(1);
+    if (error || !data || data.length === 0) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    preview = data[0];
   }
 
-  const preview = data[0];
   const copy = preview.generated_copy as Record<string, unknown> | null;
 
   return NextResponse.json({
