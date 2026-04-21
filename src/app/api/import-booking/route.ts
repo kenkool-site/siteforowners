@@ -143,8 +143,8 @@ async function classifyImages(
 ): Promise<{ photos: string[]; logo: string | null; hasHeroImage: boolean }> {
   if (imageUrls.length === 0) return { photos: [], logo: null, hasHeroImage: false };
 
-  // Fetch up to 8 images in parallel
-  const candidates = imageUrls.slice(0, 8);
+  // Fetch up to 20 images in parallel
+  const candidates = imageUrls.slice(0, 20);
   const fetched = await Promise.all(
     candidates.map(async (url) => ({
       url,
@@ -155,7 +155,11 @@ async function classifyImages(
   const validImages = fetched.filter((f) => f.data !== null);
   if (validImages.length === 0) return { photos: [], logo: null, hasHeroImage: false };
 
-  // Build a single vision request with all images
+  // Classify first 8 with Vision, include rest as unclassified photos
+  const toClassify = validImages.slice(0, 8);
+  const extraImages = validImages.slice(8);
+
+  // Build a single vision request with first 8 images
   const content: Anthropic.MessageCreateParams["messages"][0]["content"] = [];
 
   content.push({
@@ -183,7 +187,7 @@ Be strict: if an image has ANY significant text overlaid on it (prices, dates, p
 The BEST photo (highest quality) will be used as the hero/banner image on the website, so rate carefully — prefer well-composed, professional-looking shots.`,
   });
 
-  validImages.forEach((img, i) => {
+  toClassify.forEach((img, i) => {
     content.push({
       type: "text",
       text: `Image ${i} (${img.url.split("/").pop()}):`,
@@ -215,15 +219,21 @@ The BEST photo (highest quality) will be used as the hero/banner image on the we
     let logo: string | null = null;
 
     for (const c of classifications) {
-      const img = validImages[c.index];
+      const img = toClassify[c.index];
       if (!img) continue;
       if (c.type === "photo") {
         const sizeKB = img.data!.sizeKB;
-        // Images under 50KB are likely <600px — too small for full-width hero
         const heroWorthy = sizeKB >= 50;
         photoEntries.push({ url: img.url, quality: c.quality ?? 5, heroWorthy });
       }
       if (c.type === "logo" && !logo) logo = img.url;
+    }
+
+    // Add extra images (beyond the 8 classified) — include any that are >10KB
+    for (const img of extraImages) {
+      if (img.data && img.data.sizeKB > 10) {
+        photoEntries.push({ url: img.url, quality: 5, heroWorthy: img.data.sizeKB >= 50 });
+      }
     }
 
     // Sort: hero-worthy images first, then by quality descending
@@ -283,7 +293,7 @@ function extractVagaroData(html: string, url: string): {
   const ogImageRegex = /property="og:image"\s+content="([^"]*)"/gi;
   const images: string[] = [];
   let match: RegExpExecArray | null;
-  while ((match = ogImageRegex.exec(html)) !== null && images.length < 10) {
+  while ((match = ogImageRegex.exec(html)) !== null && images.length < 20) {
     let imgUrl = match[1];
     // Upgrade from 340x340 thumbnails — 800x800 is the max Vagaro CDN supports
     imgUrl = imgUrl.replace(/\/340x340\//g, "/800x800/");
@@ -489,7 +499,7 @@ ${htmlColors.length > 0 ? `\nHINT: Pre-extracted brand colors from HTML: ${htmlC
 - For description: look for meta description, og:description, or any about/bio text
 
 HTML content (first 25000 chars):
-${html.slice(0, 25000)}`,
+${html.slice(0, 40000)}`,
             },
           ],
         });
