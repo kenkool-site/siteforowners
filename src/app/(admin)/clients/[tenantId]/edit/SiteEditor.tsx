@@ -55,6 +55,27 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   // Images
   const [images, setImages] = useState<string[]>((preview.images as string[]) || []);
 
+  // Section settings
+  const existingSettings = (copy.section_settings || {}) as Record<string, unknown>;
+  const [sectionSettings, setSectionSettings] = useState({
+    show_gallery: existingSettings.show_gallery !== false,
+    show_about: existingSettings.show_about !== false,
+    show_about_image: existingSettings.show_about_image !== false,
+    show_services: existingSettings.show_services !== false,
+    show_products: existingSettings.show_products !== false,
+    show_booking: existingSettings.show_booking !== false,
+    show_contact: existingSettings.show_contact !== false,
+    show_map: existingSettings.show_map !== false,
+    show_testimonials: existingSettings.show_testimonials !== false,
+    show_rating: existingSettings.show_rating !== false,
+    about_image_url: (existingSettings.about_image_url as string) || "",
+    template_override: (existingSettings.template_override as string) || "",
+  });
+
+  const toggleSection = (key: string) => {
+    setSectionSettings((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+  };
+
   // Booking settings
   const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const tenantId = tenant.id as string;
@@ -160,6 +181,11 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 about_paragraphs: aboutParagraphs,
                 footer_tagline: footerTagline,
               },
+              section_settings: {
+                ...sectionSettings,
+                about_image_url: sectionSettings.about_image_url || null,
+                template_override: sectionSettings.template_override || null,
+              },
             },
           },
         }),
@@ -230,6 +256,11 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
         hero_subheadline: subheadline,
         about_paragraphs: aboutParagraphs,
         footer_tagline: footerTagline,
+      },
+      section_settings: {
+        ...sectionSettings,
+        about_image_url: sectionSettings.about_image_url || null,
+        template_override: sectionSettings.template_override || null,
       },
     },
   };
@@ -395,6 +426,89 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 />
               </div>
             </div>
+          </section>
+
+          {/* Section Visibility & Layout */}
+          <section className="rounded-xl border bg-white p-6">
+            <h2 className="mb-2 text-lg font-semibold text-gray-900">Section Visibility</h2>
+            <p className="mb-4 text-xs text-gray-500">Toggle sections on/off. Changes show in Live Preview.</p>
+            <div className="space-y-2">
+              {[
+                { key: "show_services", label: "Services" },
+                { key: "show_gallery", label: "Gallery" },
+                { key: "show_about", label: "About Us" },
+                { key: "show_about_image", label: "About Image" },
+                { key: "show_products", label: "Products" },
+                { key: "show_booking", label: "Booking" },
+                { key: "show_testimonials", label: "Testimonials" },
+                { key: "show_rating", label: "Rating Badge" },
+                { key: "show_contact", label: "Contact Form" },
+                { key: "show_map", label: "Map" },
+              ].map(({ key, label }) => (
+                <div key={key} className="flex items-center justify-between rounded-lg border px-4 py-2.5">
+                  <span className="text-sm text-gray-700">{label}</span>
+                  <button
+                    onClick={() => toggleSection(key)}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                      sectionSettings[key as keyof typeof sectionSettings] ? "bg-green-500" : "bg-gray-300"
+                    }`}
+                  >
+                    <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      sectionSettings[key as keyof typeof sectionSettings] ? "translate-x-[18px]" : "translate-x-0.5"
+                    }`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            {/* Template override */}
+            <div className="mt-5">
+              <label className="mb-1 block text-sm font-medium text-gray-700">Template Style</label>
+              <select
+                value={sectionSettings.template_override}
+                onChange={(e) => setSectionSettings((prev) => ({ ...prev, template_override: e.target.value }))}
+                className="w-full rounded-lg border px-3 py-2 text-sm"
+              >
+                <option value="">Default ({preview.template_variant as string || "classic"})</option>
+                <option value="classic">Classic</option>
+                <option value="bold">Bold</option>
+                <option value="elegant">Elegant</option>
+                <option value="vibrant">Vibrant</option>
+                <option value="warm">Warm</option>
+              </select>
+            </div>
+
+            {/* Custom about image */}
+            {sectionSettings.show_about && sectionSettings.show_about_image && (
+              <div className="mt-5">
+                <label className="mb-1 block text-sm font-medium text-gray-700">Custom About Image</label>
+                <div className="flex items-center gap-3">
+                  {sectionSettings.about_image_url ? (
+                    <div className="relative h-14 w-14 overflow-hidden rounded-lg border">
+                      <Image src={sectionSettings.about_image_url} alt="" fill className="object-cover" unoptimized />
+                      <button onClick={() => setSectionSettings((prev) => ({ ...prev, about_image_url: "" }))}
+                        className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">×</button>
+                    </div>
+                  ) : (
+                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs text-gray-500 hover:border-amber-400 hover:text-amber-600">
+                      Upload image
+                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+                        const fd = new FormData();
+                        fd.append("images", file);
+                        const res = await fetch("/api/upload-images", { method: "POST", body: fd });
+                        if (res.ok) {
+                          const d = await res.json();
+                          if (d.urls?.[0]) setSectionSettings((prev) => ({ ...prev, about_image_url: d.urls[0] }));
+                        }
+                      }} />
+                    </label>
+                  )}
+                  <span className="text-xs text-gray-400">Replaces default about photo</span>
+                </div>
+              </div>
+            )}
           </section>
 
           {/* Business Info */}

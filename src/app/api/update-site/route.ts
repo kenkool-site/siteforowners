@@ -51,8 +51,9 @@ export async function POST(request: Request) {
         mergedCopy.es = { ...currentEs, ...updates.generated_copy.es };
       }
 
-      // Merge top-level copy fields (logo, custom_colors, etc)
+      // Merge top-level copy fields (logo, custom_colors, section_settings, etc)
       if (updates.generated_copy.logo !== undefined) mergedCopy.logo = updates.generated_copy.logo;
+      if (updates.generated_copy.section_settings !== undefined) mergedCopy.section_settings = updates.generated_copy.section_settings;
 
       allowed.generated_copy = mergedCopy;
     }

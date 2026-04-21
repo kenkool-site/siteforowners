@@ -91,9 +91,31 @@ function getCopy(data: PreviewData, locale: "en" | "es"): GeneratedCopy["en"] | 
   return data.generated_copy[locale];
 }
 
+export interface SectionSettings {
+  show_gallery?: boolean;
+  show_about?: boolean;
+  show_about_image?: boolean;
+  show_services?: boolean;
+  show_services_animation?: boolean;
+  show_products?: boolean;
+  show_booking?: boolean;
+  show_contact?: boolean;
+  show_map?: boolean;
+  show_testimonials?: boolean;
+  show_rating?: boolean;
+  about_image_url?: string | null;
+  template_override?: string | null;
+}
+
+function getSectionSettings(data: PreviewData): SectionSettings {
+  const copy = data.generated_copy as unknown as Record<string, unknown> | null;
+  return (copy?.section_settings as SectionSettings) || {};
+}
+
 export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLive = false }: TemplateOrchestratorProps) {
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
-  const template = getTemplateName(data);
+  const ss = getSectionSettings(data);
+  const template = (ss.template_override as TemplateName) || getTemplateName(data);
   const colors = getColors(data);
   const logo = getLogo(data);
   const copy = getCopy(data, locale);
@@ -113,19 +135,32 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
     "Visit us today and experience the difference.",
   ];
 
-  // Build nav items dynamically based on what sections exist
-  const hasProducts = data.products && data.products.length > 0;
+  // Section visibility (default all visible)
+  const showGallery = ss.show_gallery !== false;
+  const showAbout = ss.show_about !== false;
+  const showAboutImage = ss.show_about_image !== false;
+  const showServices = ss.show_services !== false;
+  const showProducts = ss.show_products !== false;
+  const showBooking = ss.show_booking !== false;
+  const showContact = ss.show_contact !== false;
+  const showMap = ss.show_map !== false;
+  const showTestimonials = ss.show_testimonials !== false;
+  const showRating = ss.show_rating !== false;
+  const aboutImageOverride = ss.about_image_url || null;
+
+  // Build nav items dynamically based on what sections are visible
+  const hasProducts = showProducts && data.products && data.products.length > 0;
   const navItems = [
     { id: "hero", label: "Home" },
-    { id: "services", label: "Services" },
+    ...(showServices ? [{ id: "services", label: "Services" }] : []),
     ...(hasProducts ? [{ id: "products", label: "Products" }] : []),
-    { id: "gallery", label: "Gallery" },
-    { id: "about", label: "About" },
-    { id: "booking", label: "Book Now" },
-    { id: "contact", label: "Contact" },
+    ...(showGallery && galleryImages.length > 0 ? [{ id: "gallery", label: "Gallery" }] : []),
+    ...(showAbout ? [{ id: "about", label: "About" }] : []),
+    ...(showBooking ? [{ id: "booking", label: "Book Now" }] : []),
+    ...(showContact ? [{ id: "contact", label: "Contact" }] : []),
   ];
 
-  // Shared sections rendered in all templates
+  // Shared sections — respect visibility settings
   const productsSection = hasProducts ? (
     <div id="products"><TemplateProducts products={data.products!} colors={colors} /></div>
   ) : null;
@@ -134,7 +169,7 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
     | { name: string; services: { name: string; price: string; duration: string; id: number }[]; directUrl: string }[]
     | undefined;
 
-  const bookingSection = (
+  const bookingSection = showBooking ? (
     <TemplateBooking
       phone={data.phone}
       bookingUrl={data.booking_url}
@@ -145,20 +180,20 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
       previewSlug={data.slug}
       isLive={isLive}
     />
-  );
+  ) : null;
 
   const googleReviews = (data.generated_copy as unknown as Record<string, unknown>)?.google_reviews as GoogleReview[] | undefined;
 
-  const testimonialsSection = googleReviews && googleReviews.length > 0 ? (
+  const testimonialsSection = showTestimonials && googleReviews && googleReviews.length > 0 ? (
     <TemplateTestimonials reviews={googleReviews} colors={colors} rating={data.rating} reviewCount={data.review_count} />
   ) : null;
 
-  const ratingSection = !testimonialsSection && data.rating ? (
+  const ratingSection = showRating && !testimonialsSection && data.rating ? (
     <TemplateRating rating={data.rating} reviewCount={data.review_count} colors={colors} />
   ) : null;
 
-  const contactSection = <div id="contact"><TemplateContact colors={colors} previewMode /></div>;
-  const mapSection = <TemplateMap address={data.address} colors={colors} />;
+  const contactSection = showContact ? <div id="contact"><TemplateContact colors={colors} previewMode /></div> : null;
+  const mapSection = showMap ? <TemplateMap address={data.address} colors={colors} /> : null;
   const footerSection = (
     <TemplateFooter
       businessName={data.business_name}
@@ -177,10 +212,10 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
-          <div id="services"><BoldServices services={services} colors={colors} /></div>
+          {showGallery && galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
+          {showServices && <div id="services"><BoldServices services={services} colors={colors} /></div>}
           {productsSection}
-          <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>
+          {showAbout && <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
@@ -194,10 +229,10 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>
-          <div id="services"><ElegantServices services={services} colors={colors} /></div>
+          {showAbout && <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
+          {showServices && <div id="services"><ElegantServices services={services} colors={colors} /></div>}
           {productsSection}
-          {galleryImages.length > 0 && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
+          {showGallery && galleryImages.length > 0 && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
@@ -211,11 +246,11 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          <div id="services"><VibrantServices services={services} colors={colors} /></div>
+          {showServices && <div id="services"><VibrantServices services={services} colors={colors} /></div>}
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
-          {galleryImages.length > 0 && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
+          {showGallery && galleryImages.length > 0 && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
-          <div id="about"><VibrantAbout paragraphs={aboutParagraphs} colors={colors} /></div>
+          {showAbout && <div id="about"><VibrantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {testimonialsSection}
           {bookingSection}
           {contactSection}
@@ -229,9 +264,9 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} /></div>
-          {galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
-          <div id="services"><WarmServices services={services} colors={colors} /></div>
+          {showAbout && <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
+          {showGallery && galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
+          {showServices && <div id="services"><WarmServices services={services} colors={colors} /></div>}
           {productsSection}
           {testimonialsSection || ratingSection}
           {bookingSection}
@@ -247,10 +282,10 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          <div id="services"><ClassicServices services={services} colors={colors} /></div>
-          {galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
+          {showServices && <div id="services"><ClassicServices services={services} colors={colors} /></div>}
+          {showGallery && galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
-          <div id="about"><ClassicAbout paragraphs={aboutParagraphs} image={data.images?.[1]} colors={colors} /></div>
+          {showAbout && <div id="about"><ClassicAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
