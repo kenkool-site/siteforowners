@@ -51,7 +51,7 @@ export function AnimateSection({
 }: AnimateSectionProps) {
   const animationsEnabled = useContext(AnimationContext);
   const ref = useRef<HTMLDivElement>(null);
-  const inView = useInView(ref, { once: true, margin: "-80px" });
+  const inView = useInView(ref, { once: true, amount: 0.05 });
 
   // If animations disabled, render children directly
   if (!animationsEnabled) {
