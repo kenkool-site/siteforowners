@@ -79,6 +79,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   // Booking settings
   const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const tenantId = tenant.id as string;
+  const isRealTenant = !tenantId.startsWith("preview-");
   const previewSlugStr = preview.slug as string;
   const previewHours = (preview.hours || {}) as Record<string, { open: string; close: string; closed?: boolean }>;
 
@@ -102,8 +103,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const [bookingSettingsLoaded, setBookingSettingsLoaded] = useState(false);
   const [savingBooking, setSavingBooking] = useState(false);
 
-  // Load booking settings
+  // Load booking settings (only for real tenants)
   useEffect(() => {
+    if (!isRealTenant) { setBookingSettingsLoaded(true); return; }
     (async () => {
       try {
         const res = await fetch(`/api/booking-settings?tenant_id=${tenantId}`);
@@ -116,7 +118,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
       } catch { /* use defaults */ }
       setBookingSettingsLoaded(true);
     })();
-  }, [tenantId]);
+  }, [tenantId, isRealTenant]);
 
   const saveBookingSettings = async () => {
     setSavingBooking(true);
@@ -744,8 +746,8 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             </div>
           </section>
 
-          {/* Booking Settings */}
-          {bookingSettingsLoaded && (
+          {/* Booking Settings — only for real tenants */}
+          {isRealTenant && bookingSettingsLoaded && (
             <section className="rounded-xl border bg-white p-6">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-semibold text-gray-900">Booking Settings</h2>

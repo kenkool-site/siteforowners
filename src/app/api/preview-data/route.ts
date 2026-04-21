@@ -58,5 +58,7 @@ export async function GET(request: Request) {
     booking_categories: copy?.booking_categories || null,
     google_reviews: copy?.google_reviews || [],
     template_variant: preview.template_variant || "",
+    color_theme: preview.color_theme || "",
+    custom_colors: copy?.custom_colors || null,
   });
 }

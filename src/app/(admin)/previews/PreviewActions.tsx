@@ -44,6 +44,12 @@ export function PreviewActions({ slug, groupId }: PreviewActionsProps) {
       >
         View
       </a>
+      <a
+        href={`/previews/${slug}/edit`}
+        className="rounded-lg border px-2.5 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+      >
+        Edit
+      </a>
       {groupId && (
         <a
           href={`/preview/compare/${groupId}`}

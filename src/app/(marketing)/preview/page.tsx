@@ -160,7 +160,14 @@ function PreviewWizard() {
         if (d.google_reviews?.length > 0) setMapsReviews(d.google_reviews);
         if (d.hours) setMapsHours(d.hours);
         if (d.template_variant) setSelectedTemplates([d.template_variant]);
-        if (d.brand_colors?.length > 0) setBrandColors(d.brand_colors);
+        if (d.brand_colors?.length > 0) {
+          setBrandColors(d.brand_colors);
+        } else if (d.custom_colors) {
+          // Load custom palette colors as brand colors for the picker
+          const cc = d.custom_colors as { primary?: string; secondary?: string; accent?: string };
+          const extracted = [cc.primary, cc.secondary, cc.accent].filter(Boolean) as string[];
+          if (extracted.length > 0) setBrandColors(extracted);
+        }
         setKeepColors(true); // preserve colors by default when editing
         setMapsEnriched(true); // skip re-fetching maps
       } catch (e) {

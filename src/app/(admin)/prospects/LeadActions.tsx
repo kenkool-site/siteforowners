@@ -81,7 +81,7 @@ export function LeadActions({
         Preview
       </a>
       <a
-        href={`/preview?edit=${previewSlug}`}
+        href={`/previews/${previewSlug}/edit`}
         className="rounded-lg border px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
       >
         Edit
