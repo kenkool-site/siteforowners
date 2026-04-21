@@ -25,21 +25,20 @@ export function ClassicGallery({ images, colors }: GalleryProps) {
         </AnimateSection>
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
           {images.map((src, i) => (
-            <AnimateSection key={i} animation="fade-in" delay={i * 0.05}>
-              <button
-                className="group relative aspect-square overflow-hidden rounded-xl"
-                onClick={() => setSelected(src)}
-              >
-                <Image
-                  src={src}
-                  alt={`Gallery image ${i + 1}`}
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 768px) 50vw, 33vw"
-                  unoptimized
-                />
-              </button>
-            </AnimateSection>
+            <button
+              key={i}
+              className="group relative aspect-square overflow-hidden rounded-xl"
+              onClick={() => setSelected(src)}
+            >
+              <Image
+                src={src}
+                alt={`Gallery image ${i + 1}`}
+                fill
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
+                sizes="(max-width: 768px) 50vw, 33vw"
+                unoptimized
+              />
+            </button>
           ))}
         </div>
       </div>

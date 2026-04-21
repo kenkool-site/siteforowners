@@ -22,8 +22,7 @@ export function VibrantGallery({ images, colors }: GalleryProps) {
         </AnimateSection>
         <div className="grid grid-cols-3 gap-2">
           {images.map((src, i) => (
-            <AnimateSection key={i} animation="scale-in" delay={i * 0.06}>
-              <div className="group relative aspect-square overflow-hidden rounded-xl">
+              <div key={i} className="group relative aspect-square overflow-hidden rounded-xl">
                 <Image
                   src={src}
                   alt={`Gallery image ${i + 1}`}
@@ -33,7 +32,6 @@ export function VibrantGallery({ images, colors }: GalleryProps) {
                   unoptimized
                 />
               </div>
-            </AnimateSection>
           ))}
         </div>
       </div>

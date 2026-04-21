@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
-import { AnimateSection } from "../shared/AnimateSection";
 
 interface GalleryProps {
   images: string[];
@@ -17,8 +16,8 @@ export function ElegantGallery({ images, colors }: GalleryProps) {
       <div className="mx-auto max-w-4xl">
         <div className="grid grid-cols-2 gap-6">
           {images.map((src, i) => (
-            <AnimateSection key={i} animation="scale-in" delay={i * 0.1}>
               <div
+                key={i}
                 className={`relative overflow-hidden rounded-2xl ${
                   i % 2 === 1 ? "md:mt-8" : ""
                 }`}
@@ -33,7 +32,6 @@ export function ElegantGallery({ images, colors }: GalleryProps) {
                   unoptimized
                 />
               </div>
-            </AnimateSection>
           ))}
         </div>
       </div>

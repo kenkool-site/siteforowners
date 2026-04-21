@@ -2,7 +2,6 @@
 
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
-import { AnimateSection } from "../shared/AnimateSection";
 
 interface GalleryProps {
   images: string[];
@@ -33,7 +32,7 @@ export function BoldGallery({ images, colors }: GalleryProps) {
     <section className="py-20" style={{ backgroundColor: colors.foreground }}>
       <div className="mx-auto max-w-5xl space-y-4 px-6">
         {rows.map((row, ri) => (
-          <AnimateSection key={ri} delay={ri * 0.1}>
+          <div key={ri}>
             {row.length === 1 ? (
               <div className="relative aspect-[16/9] overflow-hidden rounded-xl">
                 <Image
@@ -54,7 +53,7 @@ export function BoldGallery({ images, colors }: GalleryProps) {
                 ))}
               </div>
             )}
-          </AnimateSection>
+          </div>
         ))}
       </div>
     </section>
