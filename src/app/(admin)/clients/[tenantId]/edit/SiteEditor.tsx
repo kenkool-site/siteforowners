@@ -226,6 +226,43 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     }
   };
 
+  const [applying, setApplying] = useState(false);
+
+  const handleAiApply = async () => {
+    if (!aiPrompt.trim()) return;
+    setApplying(true);
+    setError("");
+    try {
+      const currentCopy = {
+        hero_headline: headline,
+        hero_subheadline: subheadline,
+        about_paragraphs: aboutParagraphs,
+        footer_tagline: footerTagline,
+      };
+      const res = await fetch("/api/ai-edit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instructions: aiPrompt.trim(),
+          current_copy: currentCopy,
+        }),
+      });
+      if (!res.ok) throw new Error("AI edit failed");
+      const data = await res.json();
+      const updated = data.copy;
+      if (updated.hero_headline) setHeadline(updated.hero_headline);
+      if (updated.hero_subheadline) setSubheadline(updated.hero_subheadline);
+      if (updated.about_paragraphs) setAboutParagraphs(updated.about_paragraphs);
+      if (updated.footer_tagline) setFooterTagline(updated.footer_tagline);
+      setShowAiPrompt(false);
+      setAiPrompt("");
+    } catch {
+      setError("AI edit failed. Try again.");
+    } finally {
+      setApplying(false);
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -369,11 +406,19 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             </button>
           </div>
 
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <Button
+              onClick={handleAiApply}
+              disabled={applying || !aiPrompt.trim()}
+              className="bg-green-600 text-white hover:bg-green-700"
+            >
+              {applying ? "Applying..." : "Apply & Preview"}
+            </Button>
             <Button
               onClick={handleRegenerate}
-              disabled={regenerating}
-              className="bg-amber-600 text-white hover:bg-amber-700"
+              disabled={regenerating || applying}
+              variant="outline"
+              className="text-amber-600 border-amber-300 hover:bg-amber-50"
             >
               {regenerating ? "Generating..." : "Generate New Variants"}
             </Button>
