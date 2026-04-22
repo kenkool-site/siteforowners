@@ -12,6 +12,7 @@ interface ClassicHeroProps {
   headline: string;
   subheadline: string;
   heroImage?: string;
+  heroVideo?: string;
   logo?: string;
   colors: ThemeColors;
   bookingUrl?: string;
@@ -23,6 +24,7 @@ export function ClassicHero({
   headline,
   subheadline,
   heroImage,
+  heroVideo,
   logo,
   colors,
   bookingUrl,
@@ -33,9 +35,10 @@ export function ClassicHero({
     ? (isEmbeddableBookingUrl(bookingUrl) ? "#booking" : bookingUrl)
     : "#booking";
 
-  // With hero image, text is on dark overlay → force white
-  const textColor = heroImage ? "#FFFFFF" : ensureReadable(colors.background, colors.foreground);
-  const accentColor = heroImage ? ensureReadable(colors.primary, "#333333", 3) : ensureReadable(colors.primary, colors.foreground, 3);
+  const hasMedia = Boolean(heroImage || heroVideo);
+  // With hero media, text is on dark overlay → force white
+  const textColor = hasMedia ? "#FFFFFF" : ensureReadable(colors.background, colors.foreground);
+  const accentColor = hasMedia ? ensureReadable(colors.primary, "#333333", 3) : ensureReadable(colors.primary, colors.foreground, 3);
   const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
 
   return (
@@ -43,17 +46,31 @@ export function ClassicHero({
       className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
       style={{ backgroundColor: colors.foreground, color: textColor }}
     >
-      {heroImage && (
+      {hasMedia && (
         <>
-          <Image
-            src={heroImage}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="100vw"
-            priority
-            unoptimized
-          />
+          {heroVideo ? (
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              poster={heroImage}
+              className="absolute inset-0 h-full w-full object-cover"
+            >
+              <source src={heroVideo} type="video/mp4" />
+            </video>
+          ) : (
+            <Image
+              src={heroImage!}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="100vw"
+              priority
+              unoptimized
+            />
+          )}
           <div className="absolute inset-0 bg-black/60" />
         </>
       )}

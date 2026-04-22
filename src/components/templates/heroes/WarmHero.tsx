@@ -12,6 +12,7 @@ interface WarmHeroProps {
   headline: string;
   subheadline: string;
   heroImage?: string;
+  heroVideo?: string;
   logo?: string;
   colors: ThemeColors;
   bookingUrl?: string;
@@ -23,6 +24,7 @@ export function WarmHero({
   headline,
   subheadline,
   heroImage,
+  heroVideo,
   logo,
   colors,
   bookingUrl,
@@ -46,17 +48,31 @@ export function WarmHero({
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.7, ease: "easeOut" }}
       >
-        {heroImage ? (
+        {(heroImage || heroVideo) ? (
           <>
-            <Image
-              src={heroImage}
-              alt=""
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 50vw"
-              priority
-              unoptimized
-            />
+            {heroVideo ? (
+              <video
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster={heroImage}
+                className="absolute inset-0 h-full w-full object-cover"
+              >
+                <source src={heroVideo} type="video/mp4" />
+              </video>
+            ) : (
+              <Image
+                src={heroImage!}
+                alt=""
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, 50vw"
+                priority
+                unoptimized
+              />
+            )}
             {/* Dark base ensures text readability regardless of theme */}
             <div className="absolute inset-0 bg-black/40" />
             <div

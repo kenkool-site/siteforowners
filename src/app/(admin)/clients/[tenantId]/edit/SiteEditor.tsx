@@ -74,6 +74,13 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   // Images
   const [images, setImages] = useState<string[]>((preview.images as string[]) || []);
 
+  // Hero background video (optional, replaces first image as hero bg when set)
+  const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(
+    (preview.hero_video_url as string | null) ?? null
+  );
+  const [uploadingVideo, setUploadingVideo] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
+
   // Section settings
   const existingSettings = (copy.section_settings || {}) as Record<string, unknown>;
   const [sectionSettings, setSectionSettings] = useState({
@@ -208,6 +215,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             services: services.filter((s) => s.name.trim()),
             products: products.filter((p) => p.name.trim()),
             images,
+            hero_video_url: heroVideoUrl,
             hours: displayHours,
             imported_hours: importedHours,
             generated_copy: {
@@ -384,6 +392,48 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     }
   };
 
+  const MAX_VIDEO_SIZE = 10 * 1024 * 1024;
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setVideoError(null);
+
+    if (!["video/mp4", "video/webm"].includes(file.type)) {
+      setVideoError("Use MP4 or WebM.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_VIDEO_SIZE) {
+      setVideoError(`File is ${(file.size / 1024 / 1024).toFixed(1)}MB. Max 10MB — compress first.`);
+      e.target.value = "";
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("video", file);
+    setUploadingVideo(true);
+    try {
+      const res = await fetch("/api/upload-hero-video", { method: "POST", body: formData });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body?.error || "Upload failed");
+      }
+      const data = await res.json();
+      setHeroVideoUrl(data.url);
+    } catch (err) {
+      setVideoError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingVideo(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemoveVideo = () => {
+    setHeroVideoUrl(null);
+    setVideoError(null);
+  };
+
   // Build preview data for live preview
   const previewData = {
     ...preview,
@@ -394,6 +444,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     services: services.filter((s) => s.name.trim()),
     products: products.filter((p) => p.name.trim()),
     images,
+    hero_video_url: heroVideoUrl,
     hours: displayHours,
     imported_hours: importedHours,
     generated_copy: {
@@ -581,6 +632,41 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                   onChange={(e) => setSubheadline(e.target.value)}
                   className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-600">Hero background video (optional)</label>
+                <p className="mb-2 text-xs text-gray-500">
+                  MP4 or WebM, under 10MB, ~10-20 seconds. Muted auto-loop. Only applies to Classic, Bold, and Warm templates. Leave empty to use the first hero image instead.
+                </p>
+                {heroVideoUrl ? (
+                  <div className="space-y-2">
+                    <video
+                      src={heroVideoUrl}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      className="w-full max-w-md rounded-lg border"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveVideo}
+                      className="text-sm text-red-600 hover:underline"
+                    >
+                      Remove video
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept="video/mp4,video/webm"
+                    onChange={handleVideoUpload}
+                    disabled={uploadingVideo}
+                    className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-amber-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-amber-700 hover:file:bg-amber-100 disabled:opacity-50"
+                  />
+                )}
+                {uploadingVideo && <p className="mt-2 text-xs text-gray-500">Uploading…</p>}
+                {videoError && <p className="mt-2 text-xs text-red-600">{videoError}</p>}
               </div>
             </div>
           </section>

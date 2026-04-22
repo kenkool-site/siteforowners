@@ -73,6 +73,7 @@ export interface PreviewData {
   imported_hours?: BusinessHours;
   address?: string;
   images?: string[];
+  hero_video_url?: string | null;
   rating?: number;
   review_count?: number;
   generated_copy?: GeneratedCopy;

@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     if (updates.services !== undefined) allowed.services = updates.services;
     if (updates.products !== undefined) allowed.products = updates.products;
     if (updates.images !== undefined) allowed.images = updates.images;
+    if (updates.hero_video_url !== undefined) allowed.hero_video_url = updates.hero_video_url;
     if (updates.hours !== undefined) allowed.hours = updates.hours;
     if (updates.imported_hours !== undefined) allowed.imported_hours = updates.imported_hours;
 

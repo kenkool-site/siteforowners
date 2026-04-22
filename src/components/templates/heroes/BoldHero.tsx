@@ -12,6 +12,7 @@ interface BoldHeroProps {
   headline: string;
   subheadline: string;
   heroImage?: string;
+  heroVideo?: string;
   colors: ThemeColors;
   bookingUrl?: string;
   phone?: string;
@@ -21,6 +22,7 @@ export function BoldHero({
   businessName,
   headline,
   heroImage,
+  heroVideo,
   colors,
   bookingUrl,
 }: BoldHeroProps) {
@@ -31,9 +33,10 @@ export function BoldHero({
 
   // Dynamic contrast: pick readable colors based on actual background
   const rc = readableColors(colors);
-  // With hero image, text is always on dark overlay → force white
-  const textColor = heroImage ? "#FFFFFF" : rc.textOnFg;
-  const accentColor = heroImage ? ensureReadable(colors.primary, "#333333", 3) : rc.primaryOnFg;
+  const hasMedia = Boolean(heroImage || heroVideo);
+  // With hero media, text is always on dark overlay → force white
+  const textColor = hasMedia ? "#FFFFFF" : rc.textOnFg;
+  const accentColor = hasMedia ? ensureReadable(colors.primary, "#333333", 3) : rc.primaryOnFg;
   const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
 
   return (
@@ -41,17 +44,31 @@ export function BoldHero({
       className="relative flex min-h-[100vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
       style={{ backgroundColor: colors.foreground, color: textColor }}
     >
-      {heroImage && (
+      {hasMedia && (
         <>
-          <Image
-            src={heroImage}
-            alt=""
-            fill
-            className="object-cover"
-            sizes="100vw"
-            priority
-            unoptimized
-          />
+          {heroVideo ? (
+            <video
+              autoPlay
+              muted
+              loop
+              playsInline
+              preload="metadata"
+              poster={heroImage}
+              className="absolute inset-0 h-full w-full object-cover"
+            >
+              <source src={heroVideo} type="video/mp4" />
+            </video>
+          ) : (
+            <Image
+              src={heroImage!}
+              alt=""
+              fill
+              className="object-cover"
+              sizes="100vw"
+              priority
+              unoptimized
+            />
+          )}
           <div className="absolute inset-0 bg-black/60" />
         </>
       )}
