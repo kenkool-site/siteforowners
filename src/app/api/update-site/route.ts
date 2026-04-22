@@ -33,6 +33,7 @@ export async function POST(request: Request) {
     if (updates.products !== undefined) allowed.products = updates.products;
     if (updates.images !== undefined) allowed.images = updates.images;
     if (updates.hours !== undefined) allowed.hours = updates.hours;
+    if (updates.imported_hours !== undefined) allowed.imported_hours = updates.imported_hours;
 
     // Handle generated_copy updates (merge, don't replace)
     if (updates.generated_copy) {
