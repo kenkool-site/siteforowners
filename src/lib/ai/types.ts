@@ -70,6 +70,7 @@ export interface PreviewData {
   products?: ProductItem[];
   booking_url?: string;
   hours?: BusinessHours;
+  imported_hours?: BusinessHours;
   address?: string;
   images?: string[];
   rating?: number;
