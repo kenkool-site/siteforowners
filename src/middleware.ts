@@ -67,11 +67,17 @@ export async function middleware(request: NextRequest) {
 
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("preview_slug, site_published")
+    .select("preview_slug, site_published, subscription_status")
     .eq("subdomain", subdomain)
     .single();
 
-  if (!tenant || !tenant.site_published || !tenant.preview_slug) {
+  const activeStatuses = ["active", "trialing"];
+  if (
+    !tenant ||
+    !tenant.site_published ||
+    !tenant.preview_slug ||
+    !activeStatuses.includes(tenant.subscription_status)
+  ) {
     return NextResponse.rewrite(new URL("/not-found", request.url));
   }
 

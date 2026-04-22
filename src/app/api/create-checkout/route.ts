@@ -24,16 +24,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create or find Stripe customer
-    const customerParams: Record<string, string> = {
-      name: owner_name,
-      metadata_lead_id: lead_id,
-      metadata_preview_slug: preview_slug,
-      metadata_business_name: business_name,
-    };
-    if (email) customerParams.email = email;
-    if (phone) customerParams.phone = phone;
-
     const customer = await stripe.customers.create({
       name: owner_name,
       email: email || undefined,
@@ -49,6 +39,7 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       customer: customer.id,
       mode: "subscription",
+      allow_promotion_codes: true,
       line_items: [
         {
           price_data: {
