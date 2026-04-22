@@ -56,6 +56,7 @@ interface TemplateOrchestratorProps {
   data: PreviewData;
   locale?: "en" | "es";
   isLive?: boolean;
+  bookingHours?: Record<string, { open: string; close: string } | null> | null;
 }
 
 function getTemplateName(data: PreviewData): TemplateName {
@@ -103,6 +104,7 @@ export interface SectionSettings {
   show_map?: boolean;
   show_testimonials?: boolean;
   show_rating?: boolean;
+  show_hours?: boolean;
   disable_animations?: boolean;
   about_image_url?: string | null;
   template_override?: string | null;
@@ -113,7 +115,12 @@ function getSectionSettings(data: PreviewData): SectionSettings {
   return (copy?.section_settings as SectionSettings) || {};
 }
 
-export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLive = false }: TemplateOrchestratorProps) {
+export function TemplateOrchestrator({
+  data,
+  locale: initialLocale = "en",
+  isLive = false,
+  bookingHours = null,
+}: TemplateOrchestratorProps) {
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const ss = getSectionSettings(data);
   const template = (ss.template_override as TemplateName) || getTemplateName(data);
@@ -147,6 +154,7 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
   const showMap = ss.show_map !== false;
   const showTestimonials = ss.show_testimonials !== false;
   const showRating = ss.show_rating !== false;
+  const showHours = ss.show_hours !== false;
   const aboutImageOverride = ss.about_image_url || null;
   const animationsEnabled = !ss.disable_animations;
 
@@ -203,6 +211,8 @@ export function TemplateOrchestrator({ data, locale: initialLocale = "en", isLiv
       address={data.address}
       phone={data.phone}
       hours={data.hours}
+      bookingHours={bookingHours}
+      showHours={showHours}
       colors={colors}
     />
   );
