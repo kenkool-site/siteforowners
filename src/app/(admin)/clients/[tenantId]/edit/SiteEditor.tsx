@@ -4,6 +4,11 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { TemplateOrchestrator } from "@/components/templates";
+import {
+  DEFAULT_HOURS,
+  getHoursSource,
+} from "@/lib/defaults/businessHours";
+import type { BusinessHours } from "@/lib/ai/types";
 
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
@@ -21,6 +26,19 @@ interface ProductItem {
   price: string;
   description?: string;
   image?: string;
+}
+
+function labelForSource(source: "booking" | "google" | "custom" | "default"): string {
+  switch (source) {
+    case "booking":
+      return "Booking schedule (overrides display hours)";
+    case "google":
+      return "From Google Maps";
+    case "custom":
+      return "Custom";
+    case "default":
+      return "Default";
+  }
 }
 
 export function SiteEditor({ tenant, preview }: SiteEditorProps) {
@@ -76,6 +94,18 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const toggleSection = (key: string) => {
     setSectionSettings((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
   };
+
+  // Display hours (footer). Separate from booking_settings.working_hours.
+  const initialDisplayHours: BusinessHours =
+    (preview.hours as BusinessHours) ||
+    DEFAULT_HOURS;
+  const [displayHours, setDisplayHours] = useState<BusinessHours>(initialDisplayHours);
+  const [importedHours, setImportedHours] = useState<BusinessHours | null>(
+    (preview.imported_hours as BusinessHours) || null
+  );
+  const [showHoursOnSite, setShowHoursOnSite] = useState<boolean>(
+    existingSettings.show_hours !== false
+  );
 
   // Booking settings
   const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -177,6 +207,8 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             services: services.filter((s) => s.name.trim()),
             products: products.filter((p) => p.name.trim()),
             images,
+            hours: displayHours,
+            imported_hours: importedHours,
             generated_copy: {
               en: {
                 hero_headline: headline,
@@ -186,6 +218,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               },
               section_settings: {
                 ...sectionSettings,
+                show_hours: showHoursOnSite,
                 about_image_url: sectionSettings.about_image_url || null,
                 template_override: sectionSettings.template_override || null,
               },
@@ -353,6 +386,8 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     services: services.filter((s) => s.name.trim()),
     products: products.filter((p) => p.name.trim()),
     images,
+    hours: displayHours,
+    imported_hours: importedHours,
     generated_copy: {
       ...copy,
       en: {
@@ -364,6 +399,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
       },
       section_settings: {
         ...sectionSettings,
+        show_hours: showHoursOnSite,
         about_image_url: sectionSettings.about_image_url || null,
         template_override: sectionSettings.template_override || null,
       },
@@ -880,6 +916,116 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                   </button>
                 </div>
               ))}
+            </div>
+          </section>
+
+          {/* Display Hours (footer) */}
+          <section className="rounded-xl border bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Business Hours</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  Source: {labelForSource(getHoursSource(workingHours, displayHours, importedHours))}
+                </p>
+              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={showHoursOnSite}
+                  onChange={(e) => setShowHoursOnSite(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                Show on website
+              </label>
+            </div>
+
+            {bookingSettingsLoaded && Object.keys(workingHours).some((d) => workingHours[d] !== null) && (
+              <div className="mb-4 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-700">
+                Your booking schedule is currently displayed on the site. Edits here will only show if you
+                disable the booking hours below.
+              </div>
+            )}
+
+            <div className="mb-4 space-y-2">
+              {DAYS_OF_WEEK.map((day) => {
+                const h = displayHours[day];
+                const isClosed = !!h?.closed;
+                return (
+                  <div key={`disp-${day}`} className="flex items-center gap-3">
+                    <span className="w-20 shrink-0 text-sm font-medium text-gray-900">
+                      {day.slice(0, 3)}
+                    </span>
+                    {!isClosed ? (
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          value={h?.open || ""}
+                          onChange={(e) =>
+                            setDisplayHours((prev) => ({
+                              ...prev,
+                              [day]: { open: e.target.value, close: prev[day]?.close || "" },
+                            }))
+                          }
+                          className="w-24 rounded border px-2 py-1 text-xs"
+                          placeholder="10:00 AM"
+                        />
+                        <span className="text-xs text-gray-400">to</span>
+                        <input
+                          type="text"
+                          value={h?.close || ""}
+                          onChange={(e) =>
+                            setDisplayHours((prev) => ({
+                              ...prev,
+                              [day]: { open: prev[day]?.open || "", close: e.target.value },
+                            }))
+                          }
+                          className="w-24 rounded border px-2 py-1 text-xs"
+                          placeholder="7:00 PM"
+                        />
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400">Closed</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDisplayHours((prev) => ({
+                          ...prev,
+                          [day]: isClosed
+                            ? { open: "10:00 AM", close: "7:00 PM" }
+                            : { open: "", close: "", closed: true },
+                        }))
+                      }
+                      className={`ml-auto rounded px-2 py-0.5 text-xs ${
+                        isClosed
+                          ? "text-green-600 hover:bg-green-50"
+                          : "text-red-500 hover:bg-red-50"
+                      }`}
+                    >
+                      {isClosed ? "Open" : "Close"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {importedHours && (
+                <button
+                  type="button"
+                  onClick={() => setDisplayHours(importedHours)}
+                  className="rounded-md border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  Reset to Google Maps
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setDisplayHours(DEFAULT_HOURS)}
+                className="rounded-md border px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+              >
+                Reset to defaults
+              </button>
             </div>
           </section>
 
