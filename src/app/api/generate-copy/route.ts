@@ -284,6 +284,7 @@ export async function POST(request: Request) {
         address,
         images,
         hours: hours || null,
+        imported_hours: hours || null,
         rating: rating || null,
         review_count: review_count || null,
         generated_copy: {
