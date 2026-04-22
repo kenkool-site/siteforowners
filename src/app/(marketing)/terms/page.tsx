@@ -16,8 +16,8 @@ export default function TermsPage() {
 
       <section className="mt-10 space-y-6 leading-relaxed">
         <p>
-          These Terms of Service ("Terms") govern your use of the website
-          subscription service provided by SiteForOwners ("we," "us," or "our").
+          These Terms of Service (&ldquo;Terms&rdquo;) govern your use of the website
+          subscription service provided by SiteForOwners (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;).
           By subscribing to or using our service, you agree to these Terms.
         </p>
 
@@ -88,7 +88,7 @@ export default function TermsPage() {
 
         <h2 className="text-2xl font-semibold">8. Disclaimer of Warranties</h2>
         <p>
-          The service is provided "as is" and "as available" without warranties
+          The service is provided &ldquo;as is&rdquo; and &ldquo;as available&rdquo; without warranties
           of any kind, express or implied, including merchantability, fitness
           for a particular purpose, and non-infringement.
         </p>

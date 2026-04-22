@@ -16,8 +16,8 @@ export default function PrivacyPage() {
 
       <section className="mt-10 space-y-6 leading-relaxed">
         <p>
-          This Privacy Policy describes how SiteForOwners ("we," "us," or
-          "our") collects, uses, and shares information when you use our
+          This Privacy Policy describes how SiteForOwners (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or
+          &ldquo;our&rdquo;) collects, uses, and shares information when you use our
           service.
         </p>
 
@@ -76,7 +76,7 @@ export default function PrivacyPage() {
           <li>
             <strong>Anthropic</strong> — AI-generated website copy (business
             info is sent to Claude to generate your site content; conversations
-            are not used for training per Anthropic's API terms)
+            are not used for training per Anthropic&rsquo;s API terms)
           </li>
           <li>
             <strong>Resend</strong> — transactional email delivery
@@ -91,8 +91,8 @@ export default function PrivacyPage() {
 
         <h2 className="text-2xl font-semibold">4. AI-Generated Content</h2>
         <p>
-          Your business information is sent to Anthropic's Claude API to
-          generate website copy. Per Anthropic's API terms, inputs and outputs
+          Your business information is sent to Anthropic&rsquo;s Claude API to
+          generate website copy. Per Anthropic&rsquo;s API terms, inputs and outputs
           are not used to train models. You can request regeneration or manual
           editing of any AI-generated content at any time.
         </p>
