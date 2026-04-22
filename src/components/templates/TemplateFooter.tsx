@@ -1,6 +1,7 @@
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { BusinessHours } from "@/lib/ai/types";
 import { readableColors } from "@/lib/templates/contrast";
+import { resolveDisplayHours } from "@/lib/defaults/businessHours";
 
 interface TemplateFooterProps {
   businessName: string;
@@ -8,6 +9,8 @@ interface TemplateFooterProps {
   address?: string;
   phone?: string;
   hours?: BusinessHours;
+  bookingHours?: Record<string, { open: string; close: string } | null> | null;
+  showHours?: boolean;
   colors: ThemeColors;
 }
 
@@ -27,9 +30,12 @@ export function TemplateFooter({
   address,
   phone,
   hours,
+  bookingHours = null,
+  showHours = true,
   colors,
 }: TemplateFooterProps) {
   const rc = readableColors(colors);
+  const displayHours = showHours ? resolveDisplayHours(bookingHours, hours) : null;
   return (
     <footer
       className="px-6 py-16"
@@ -76,7 +82,7 @@ export function TemplateFooter({
         </div>
 
         {/* Hours */}
-        {hours && (
+        {displayHours && (
           <div>
             <h4
               className="mb-3 text-sm font-semibold uppercase tracking-wider"
@@ -86,7 +92,7 @@ export function TemplateFooter({
             </h4>
             <div className="space-y-1">
               {DAY_ORDER.map((day) => {
-                const h = hours[day];
+                const h = displayHours[day];
                 if (!h) return null;
                 return (
                   <div
