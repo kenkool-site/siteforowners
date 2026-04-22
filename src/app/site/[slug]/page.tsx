@@ -4,16 +4,38 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import { SiteClient } from "./SiteClient";
 
-async function getSiteData(slug: string): Promise<PreviewData | null> {
+type BookingHoursMap = Record<string, { open: string; close: string } | null> | null;
+
+async function getSiteData(
+  slug: string
+): Promise<{ preview: PreviewData; bookingHours: BookingHoursMap } | null> {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  const { data: preview, error } = await supabase
     .from("previews")
     .select("*")
     .eq("slug", slug)
     .single();
 
-  if (error || !data) return null;
-  return data as PreviewData;
+  if (error || !preview) return null;
+
+  // Find the tenant that owns this preview, if any, then load booking hours.
+  let bookingHours: BookingHoursMap = null;
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("preview_slug", slug)
+    .maybeSingle();
+
+  if (tenant?.id) {
+    const { data: bs } = await supabase
+      .from("booking_settings")
+      .select("working_hours")
+      .eq("tenant_id", tenant.id)
+      .maybeSingle();
+    bookingHours = (bs?.working_hours as BookingHoursMap) ?? null;
+  }
+
+  return { preview: preview as PreviewData, bookingHours };
 }
 
 export async function generateMetadata({
@@ -54,11 +76,7 @@ export default async function SitePage({
 }: {
   params: { slug: string };
 }) {
-  const data = await getSiteData(params.slug);
-
-  if (!data) {
-    notFound();
-  }
-
-  return <SiteClient data={data} />;
+  const result = await getSiteData(params.slug);
+  if (!result) notFound();
+  return <SiteClient data={result.preview} bookingHours={result.bookingHours} />;
 }
