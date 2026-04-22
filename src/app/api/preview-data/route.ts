@@ -51,6 +51,7 @@ export async function GET(request: Request) {
     booking_url: preview.booking_url || "",
     images: preview.images || [],
     hours: preview.hours || null,
+    imported_hours: preview.imported_hours || null,
     rating: preview.rating || null,
     review_count: preview.review_count || null,
     logo: copy?.logo || "",
