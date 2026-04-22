@@ -7,6 +7,7 @@ import { TemplateOrchestrator } from "@/components/templates";
 import {
   DEFAULT_HOURS,
   getHoursSource,
+  parseGoogleHoursString,
 } from "@/lib/defaults/businessHours";
 import type { BusinessHours } from "@/lib/ai/types";
 
@@ -317,6 +318,13 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
       }
       if (d.phone && !phone) setPhone(d.phone);
       if (d.services?.length > 0 && services.length === 0) setServices(d.services);
+      if (d.hours) {
+        const parsed = parseGoogleHoursString(d.hours);
+        if (Object.keys(parsed).length > 0) {
+          setDisplayHours(parsed);
+          setImportedHours(parsed);
+        }
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
