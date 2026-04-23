@@ -15,13 +15,15 @@ export async function POST(request: Request) {
 
   const response = NextResponse.json({ success: true });
 
-  // Set a secure httpOnly cookie
+  // Set a secure httpOnly cookie. In production, scope to the apex so the
+  // cookie is valid for both siteforowners.com and www.siteforowners.com.
   response.cookies.set("admin_session", ADMIN_PASSWORD, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 7, // 7 days
+    ...(process.env.NODE_ENV === "production" ? { domain: ".siteforowners.com" } : {}),
   });
 
   return response;
