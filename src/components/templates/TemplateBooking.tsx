@@ -10,6 +10,7 @@ interface BookingService {
   price: string;
   duration: string;
   id: number;
+  image?: string;
 }
 
 interface BookingCategory {
@@ -772,21 +773,31 @@ export function TemplateBooking({
                         {category.services.map((service) => (
                           <div
                             key={service.id}
-                            className="flex items-center justify-between border-b border-white/5 py-4 last:border-0"
+                            className="flex items-center justify-between gap-4 border-b border-white/5 py-4 last:border-0"
                           >
-                            <div>
-                              <p
-                                className="font-medium"
-                                style={{ color: colors.background }}
-                              >
-                                {service.name}
-                              </p>
-                              <p
-                                className="mt-1 text-sm opacity-50"
-                                style={{ color: colors.background }}
-                              >
-                                {service.duration} &middot; {service.price}
-                              </p>
+                            <div className="flex min-w-0 flex-1 items-center gap-3">
+                              {service.image && (
+                                <img
+                                  src={service.image}
+                                  alt=""
+                                  loading="lazy"
+                                  className="h-14 w-14 flex-shrink-0 rounded-lg object-cover sm:h-16 sm:w-16"
+                                />
+                              )}
+                              <div className="min-w-0">
+                                <p
+                                  className="truncate font-medium"
+                                  style={{ color: colors.background }}
+                                >
+                                  {service.name}
+                                </p>
+                                <p
+                                  className="mt-1 text-sm opacity-50"
+                                  style={{ color: colors.background }}
+                                >
+                                  {service.duration} &middot; {service.price}
+                                </p>
+                              </div>
                             </div>
                             <Button
                               size="sm"

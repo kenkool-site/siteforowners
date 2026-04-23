@@ -134,7 +134,7 @@ export function TemplateOrchestrator({
   const copy = getCopy(data, locale);
 
   const bookingCategories = (data.generated_copy as unknown as Record<string, unknown>)?.booking_categories as
-    | { name: string; services: { name: string; price: string; duration: string; id: number }[]; directUrl: string }[]
+    | { name: string; services: { name: string; price: string; duration: string; id: number; image?: string }[]; directUrl: string }[]
     | undefined;
 
   // Build a per-service appointmentType-id map so Services cards can open

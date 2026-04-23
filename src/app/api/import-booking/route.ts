@@ -352,8 +352,20 @@ Rules:
 // Extract structured booking data from Acuity's embedded BUSINESS JSON
 interface BookingCategory {
   name: string;
-  services: { name: string; price: string; duration: string; id: number }[];
+  services: { name: string; price: string; duration: string; id: number; image?: string }[];
   directUrl: string;
+}
+
+// Acuity stores service images as protocol-relative URLs (//abs.acuitysite.net/...)
+// or scheduler-relative paths (/acuity-uploads/...). Normalize to absolute https.
+function resolveAcuityImageUrl(raw: string): string | undefined {
+  if (!raw || typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.startsWith("//")) return `https:${trimmed}`;
+  if (trimmed.startsWith("/")) return `https://app.acuityscheduling.com${trimmed}`;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  return undefined;
 }
 
 function extractAcuityData(html: string): {
@@ -374,15 +386,20 @@ function extractAcuityData(html: string): {
     for (const [categoryName, services] of Object.entries(appointmentTypes)) {
       const svcList = services as Array<{
         id: number; name: string; price: string; duration: number;
+        image?: string; imageUrl?: string; picture?: string;
       }>;
       categories.push({
         name: categoryName.replace(/^\d+\./, "").trim(),
-        services: svcList.map((s) => ({
-          name: s.name,
-          price: `$${parseFloat(s.price).toFixed(0)}`,
-          duration: `${s.duration} min`,
-          id: s.id,
-        })),
+        services: svcList.map((s) => {
+          const image = resolveAcuityImageUrl(s.image || s.imageUrl || s.picture || "");
+          return {
+            name: s.name,
+            price: `$${parseFloat(s.price).toFixed(0)}`,
+            duration: `${s.duration} min`,
+            id: s.id,
+            ...(image ? { image } : {}),
+          };
+        }),
         directUrl: `https://app.acuityscheduling.com/schedule.php?owner=${ownerId}&appointmentType=category:${encodeURIComponent(categoryName)}`,
       });
     }
