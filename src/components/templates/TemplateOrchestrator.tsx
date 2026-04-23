@@ -49,6 +49,7 @@ import { TemplateFooter } from "./TemplateFooter";
 import { TemplateRating } from "./TemplateRating";
 import { TemplateTestimonials } from "./TemplateTestimonials";
 import type { GoogleReview } from "./TemplateTestimonials";
+import { ServiceBookingModal } from "./ServiceBookingModal";
 
 type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm";
 
@@ -136,22 +137,16 @@ export function TemplateOrchestrator({
     | { name: string; services: { name: string; price: string; duration: string; id: number }[]; directUrl: string }[]
     | undefined;
 
-  // Build a per-service deep-link map by rewriting each category's directUrl
-  // with the specific service's appointmentType id. Only handles Acuity —
-  // other providers (Vagaro, Booksy, Square) will need their own URL rewrite
-  // logic when we onboard a client using them.
-  const serviceBookingUrls = new Map<string, string>();
+  // Build a per-service appointmentType-id map so Services cards can open
+  // an in-site modal pre-selected to that service. Only handles Acuity —
+  // other providers (Vagaro, Booksy, Square) will need their own logic
+  // when we onboard a client using them.
+  const serviceAppointmentIds = new Map<string, number>();
   if (bookingCategories) {
     for (const cat of bookingCategories) {
       if (!cat.directUrl.includes("acuityscheduling.com")) continue;
       for (const svc of cat.services) {
-        try {
-          const url = new URL(cat.directUrl);
-          url.searchParams.set("appointmentType", String(svc.id));
-          serviceBookingUrls.set(svc.name, url.toString());
-        } catch {
-          // Skip malformed directUrl — service card stays non-clickable.
-        }
+        serviceAppointmentIds.set(svc.name, svc.id);
       }
     }
   }
@@ -159,8 +154,17 @@ export function TemplateOrchestrator({
   const services = data.services.map((s) => ({
     ...s,
     description: copy?.service_descriptions?.[s.name] ?? s.description,
-    bookingUrl: serviceBookingUrls.get(s.name),
+    appointmentTypeId: serviceAppointmentIds.get(s.name),
   }));
+
+  // Modal state for in-site service booking. Modal is offered when we have
+  // a booking_url AND at least one service has a matched appointmentTypeId.
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<number | null>(null);
+  const canOpenBookingModal =
+    !!data.booking_url && serviceAppointmentIds.size > 0;
+  const onSelectService = canOpenBookingModal
+    ? (id: number) => setSelectedAppointmentId(id)
+    : undefined;
 
   const headline = copy?.hero_headline ?? `Welcome to ${data.business_name}`;
   const subheadline = copy?.hero_subheadline ?? "Your neighborhood destination for quality service.";
@@ -261,7 +265,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showGallery && galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><BoldServices services={services} colors={colors} /></div>}
+          {showServices && <div id="services"><BoldServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
           {productsSection}
           {showAbout && <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -278,7 +282,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
-          {showServices && <div id="services"><ElegantServices services={services} colors={colors} /></div>}
+          {showServices && <div id="services"><ElegantServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
           {productsSection}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -294,7 +298,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><VibrantServices services={services} colors={colors} /></div>}
+          {showServices && <div id="services"><VibrantServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
           {showGallery && galleryImages.length > 0 && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
@@ -314,7 +318,7 @@ export function TemplateOrchestrator({
           <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><WarmServices services={services} colors={colors} /></div>}
+          {showServices && <div id="services"><WarmServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
           {productsSection}
           {testimonialsSection || ratingSection}
           {bookingSection}
@@ -330,7 +334,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><ClassicServices services={services} colors={colors} /></div>}
+          {showServices && <div id="services"><ClassicServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
           {showAbout && <div id="about"><ClassicAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
@@ -347,6 +351,16 @@ export function TemplateOrchestrator({
   return (
     <AnimationProvider enabled={animationsEnabled}>
       {renderTemplate()}
+      {canOpenBookingModal && (
+        <ServiceBookingModal
+          open={selectedAppointmentId !== null}
+          onClose={() => setSelectedAppointmentId(null)}
+          bookingUrl={data.booking_url!}
+          appointmentTypeId={selectedAppointmentId}
+          businessName={data.business_name}
+          colors={colors}
+        />
+      )}
     </AnimationProvider>
   );
 }
