@@ -5,11 +5,12 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; bookingUrl?: string }[];
+  services: { name: string; price: string; description?: string; appointmentTypeId?: number }[];
   colors: ThemeColors;
+  onSelectService?: (appointmentTypeId: number) => void;
 }
 
-export function VibrantServices({ services, colors }: ServicesProps) {
+export function VibrantServices({ services, colors, onSelectService }: ServicesProps) {
   const rc = readableColors(colors);
   return (
     <section className="px-6 py-20" style={{ backgroundColor: colors.background }}>
@@ -49,10 +50,14 @@ export function VibrantServices({ services, colors }: ServicesProps) {
             );
             return (
               <AnimateSection key={service.name} animation="scale-in" delay={i * 0.08}>
-                {service.bookingUrl ? (
-                  <a href={service.bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                {onSelectService && service.appointmentTypeId != null ? (
+                  <button
+                    type="button"
+                    onClick={() => onSelectService(service.appointmentTypeId!)}
+                    className="block w-full text-left"
+                  >
                     {card}
-                  </a>
+                  </button>
                 ) : card}
               </AnimateSection>
             );
