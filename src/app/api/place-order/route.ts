@@ -83,8 +83,9 @@ export async function POST(request: NextRequest) {
     subtotalCents += cents * qty;
   }
 
-  // Customer fields
-  const customerName = trimStr(body.customer_name);
+  // Customer fields — strip newlines before storage to prevent header-injection
+  // if customerName is ever interpolated into an email subject line.
+  const customerName = trimStr(body.customer_name).replace(/[\r\n\t]/g, " ");
   if (!customerName || customerName.length > MAX_CUSTOMER_NAME) {
     return NextResponse.json({ error: "Invalid customer_name" }, { status: 400 });
   }

@@ -218,55 +218,59 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     }
 
     try {
-      const [previewRes, tenantRes] = await Promise.all([
-        fetch("/api/update-site", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            slug,
-            updates: {
-              business_name: businessName,
-              phone,
-              address,
-              booking_url: bookingUrl || null,
-              services: services.filter((s) => s.name.trim()),
-              products: products.filter((p) => p.name.trim()),
-              images,
-              hero_video_url: heroVideoUrl,
-              hours: displayHours,
-              imported_hours: importedHours,
-              generated_copy: {
-                en: {
-                  hero_headline: headline,
-                  hero_subheadline: subheadline,
-                  about_paragraphs: aboutParagraphs,
-                  footer_tagline: footerTagline,
-                },
-                section_settings: {
-                  ...sectionSettings,
-                  show_hours: showHoursOnSite,
-                  about_image_url: sectionSettings.about_image_url || null,
-                  template_override: sectionSettings.template_override || null,
-                },
+      // Tenant-level settings only apply to real tenants. Preview-only slugs
+      // (no paying tenant yet) skip the /api/update-tenant call — their
+      // synthetic tenant id isn't a valid UUID.
+      const previewPromise = fetch("/api/update-site", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          updates: {
+            business_name: businessName,
+            phone,
+            address,
+            booking_url: bookingUrl || null,
+            services: services.filter((s) => s.name.trim()),
+            products: products.filter((p) => p.name.trim()),
+            images,
+            hero_video_url: heroVideoUrl,
+            hours: displayHours,
+            imported_hours: importedHours,
+            generated_copy: {
+              en: {
+                hero_headline: headline,
+                hero_subheadline: subheadline,
+                about_paragraphs: aboutParagraphs,
+                footer_tagline: footerTagline,
+              },
+              section_settings: {
+                ...sectionSettings,
+                show_hours: showHoursOnSite,
+                about_image_url: sectionSettings.about_image_url || null,
+                template_override: sectionSettings.template_override || null,
               },
             },
-          }),
+          },
         }),
-        fetch("/api/update-tenant", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            tenant_id: tenant.id as string,
-            updates: {
-              checkout_mode: checkoutMode,
-              email: notificationEmail.trim() || null,
-            },
-          }),
-        }),
-      ]);
+      });
+      const tenantPromise: Promise<Response | null> = isRealTenant
+        ? fetch("/api/update-tenant", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tenant_id: tenant.id as string,
+              updates: {
+                checkout_mode: checkoutMode,
+                email: notificationEmail.trim() || null,
+              },
+            }),
+          })
+        : Promise.resolve(null);
+      const [previewRes, tenantRes] = await Promise.all([previewPromise, tenantPromise]);
 
       if (!previewRes.ok) throw new Error("Preview save failed");
-      if (!tenantRes.ok) {
+      if (tenantRes && !tenantRes.ok) {
         const detail = await tenantRes.json().catch(() => ({}));
         throw new Error(detail?.error || "Tenant save failed");
       }
@@ -1010,6 +1014,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
           </section>
 
         {/* ── Checkout ─────────────────────────────────────── */}
+        {isRealTenant && (
         <section className="rounded-xl border bg-white p-5">
           <h3 className="mb-3 text-sm font-semibold text-gray-900">Checkout</h3>
           <p className="mb-4 text-xs text-gray-500">
@@ -1068,6 +1073,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             </p>
           </div>
         </section>
+        )}
 
           {/* Images */}
           <section className="rounded-xl border bg-white p-6">
@@ -1342,6 +1348,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
           <TemplateOrchestrator
             data={previewData as never}
             locale="en"
+            checkoutMode={checkoutMode}
           />
         </div>
       )}

@@ -82,7 +82,14 @@ function MockCartDrawer({
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || "Failed to place order");
+        const raw = data?.error || "Failed to place order";
+        // Shop flipped mode between render and submit. Swap implementation
+        // message for user-facing copy.
+        throw new Error(
+          raw === "Orders are not enabled for this site"
+            ? "Orders temporarily unavailable — please contact the shop directly."
+            : raw
+        );
       }
       setCheckoutStep("confirmed");
     } catch (err) {
