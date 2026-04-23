@@ -10,6 +10,7 @@ import {
   parseGoogleHoursString,
 } from "@/lib/defaults/businessHours";
 import type { BusinessHours } from "@/lib/ai/types";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
@@ -392,7 +393,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     }
   };
 
-  const MAX_VIDEO_SIZE = 10 * 1024 * 1024;
+  const MAX_VIDEO_SIZE = 20 * 1024 * 1024;
 
   const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -405,22 +406,35 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
       return;
     }
     if (file.size > MAX_VIDEO_SIZE) {
-      setVideoError(`File is ${(file.size / 1024 / 1024).toFixed(1)}MB. Max 10MB — compress first.`);
+      setVideoError(`File is ${(file.size / 1024 / 1024).toFixed(1)}MB. Max 20MB — compress first.`);
       e.target.value = "";
       return;
     }
 
-    const formData = new FormData();
-    formData.append("video", file);
     setUploadingVideo(true);
     try {
-      const res = await fetch("/api/upload-hero-video", { method: "POST", body: formData });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.error || "Upload failed");
+      // 1. Get a signed upload URL from our admin-gated API (tiny payload).
+      const signRes = await fetch("/api/upload-hero-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: file.type, size: file.size }),
+      });
+      if (!signRes.ok) {
+        const body = await signRes.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to prepare upload");
       }
-      const data = await res.json();
-      setHeroVideoUrl(data.url);
+      const { path, token, publicUrl } = await signRes.json();
+
+      // 2. Upload the file directly to Supabase Storage.
+      // This bypasses Vercel's 4.5MB serverless payload limit.
+      const client = createBrowserSupabase();
+      const { error: uploadError } = await client.storage
+        .from("preview-images")
+        .uploadToSignedUrl(path, token, file, { contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      setHeroVideoUrl(publicUrl);
     } catch (err) {
       setVideoError(err instanceof Error ? err.message : "Upload failed");
     } finally {
@@ -636,7 +650,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-600">Hero background video (optional)</label>
                 <p className="mb-2 text-xs text-gray-500">
-                  MP4 or WebM, under 10MB, ~10-20 seconds. Muted auto-loop. Only applies to Classic, Bold, and Warm templates. Leave empty to use the first hero image instead.
+                  MP4 or WebM, under 20MB, ~10-20 seconds. Muted auto-loop. Only applies to Classic, Bold, and Warm templates. Leave empty to use the first hero image instead.
                 </p>
                 {heroVideoUrl ? (
                   <div className="space-y-2">

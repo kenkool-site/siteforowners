@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+// Generous cap — upload goes direct to Supabase, not through Vercel.
+// Supabase bucket-level fileSizeLimit is the real hard stop.
+const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_TYPES = ["video/mp4", "video/webm"];
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
@@ -13,58 +15,48 @@ export async function POST(request: Request) {
   }
 
   try {
-    const formData = await request.formData();
-    const file = formData.get("video") as File | null;
+    const { type, size } = await request.json();
 
-    if (!file) {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    if (!ALLOWED_TYPES.includes(type)) {
+      return NextResponse.json({ error: "Use MP4 or WebM." }, { status: 400 });
     }
-
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    if (typeof size !== "number" || size <= 0 || size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: `Invalid file type: ${file.type}. Use MP4 or WebM.` },
-        { status: 400 }
-      );
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-      return NextResponse.json(
-        { error: `File exceeds 10MB limit. Compress before uploading.` },
+        { error: `File exceeds 20MB. Compress before uploading.` },
         { status: 400 }
       );
     }
 
     const supabase = createAdminClient();
-    const ext = file.type === "video/webm" ? "webm" : "mp4";
-    const id = crypto.randomUUID();
-    const filePath = `hero-videos/${id}.${ext}`;
+    const ext = type === "video/webm" ? "webm" : "mp4";
+    const path = `hero-videos/${crypto.randomUUID()}.${ext}`;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
-
-    const { error: uploadError } = await supabase.storage
+    const { data: signed, error: signedError } = await supabase.storage
       .from("preview-images")
-      .upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: false,
-      });
+      .createSignedUploadUrl(path);
 
-    if (uploadError) {
-      console.error("Storage upload error:", uploadError);
+    if (signedError || !signed) {
+      console.error("Signed upload URL error:", signedError);
       return NextResponse.json(
-        { error: "Failed to upload video" },
+        { error: "Failed to prepare upload" },
         { status: 500 }
       );
     }
 
-    const { data: urlData } = supabase.storage
+    const { data: publicData } = supabase.storage
       .from("preview-images")
-      .getPublicUrl(filePath);
+      .getPublicUrl(path);
 
-    return NextResponse.json({ url: urlData.publicUrl });
+    return NextResponse.json({
+      path,
+      token: signed.token,
+      signedUrl: signed.signedUrl,
+      publicUrl: publicData.publicUrl,
+    });
   } catch (error) {
-    console.error("Upload error:", error);
+    console.error("Prepare upload error:", error);
     return NextResponse.json(
-      { error: "Failed to upload video" },
+      { error: "Failed to prepare upload" },
       { status: 500 }
     );
   }
