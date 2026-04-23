@@ -39,10 +39,15 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Check if this is a subdomain request
-  const isRootDomain = ROOT_DOMAINS.some(
-    (d) => hostname === d || hostname.endsWith(`:${d.split(":")[1] || ""}`)
-  );
+  // Check if this is a subdomain request. Treat Vercel preview deployments
+  // (*.vercel.app) as root so feature-branch URLs aren't interpreted as
+  // tenant subdomain lookups and rewritten to /not-found.
+  const isVercelPreview = hostname.endsWith(".vercel.app");
+  const isRootDomain =
+    isVercelPreview ||
+    ROOT_DOMAINS.some(
+      (d) => hostname === d || hostname.endsWith(`:${d.split(":")[1] || ""}`)
+    );
 
   if (isRootDomain) {
     return NextResponse.next();
