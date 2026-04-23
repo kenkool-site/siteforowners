@@ -5,7 +5,7 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string }[];
+  services: { name: string; price: string; description?: string; bookingUrl?: string }[];
   colors: ThemeColors;
 }
 
@@ -21,8 +21,8 @@ export function VibrantServices({ services, colors }: ServicesProps) {
         </AnimateSection>
 
         <div className="grid gap-4 grid-cols-2 md:grid-cols-3">
-          {services.map((service, i) => (
-            <AnimateSection key={service.name} animation="scale-in" delay={i * 0.08}>
+          {services.map((service, i) => {
+            const card = (
               <div
                 className="rounded-2xl p-6 transition-shadow hover:shadow-lg"
                 style={{ background: `linear-gradient(135deg, ${colors.muted}, ${colors.background})` }}
@@ -46,8 +46,17 @@ export function VibrantServices({ services, colors }: ServicesProps) {
                   {service.price}
                 </span>
               </div>
-            </AnimateSection>
-          ))}
+            );
+            return (
+              <AnimateSection key={service.name} animation="scale-in" delay={i * 0.08}>
+                {service.bookingUrl ? (
+                  <a href={service.bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    {card}
+                  </a>
+                ) : card}
+              </AnimateSection>
+            );
+          })}
         </div>
       </div>
     </section>

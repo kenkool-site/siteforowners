@@ -5,7 +5,7 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string }[];
+  services: { name: string; price: string; description?: string; bookingUrl?: string }[];
   colors: ThemeColors;
 }
 
@@ -22,8 +22,8 @@ export function BoldServices({ services, colors }: ServicesProps) {
 
         {/* Horizontal scroll on mobile, grid on desktop */}
         <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
-          {services.map((service, i) => (
-            <AnimateSection key={service.name} animation="slide-right" delay={i * 0.1}>
+          {services.map((service, i) => {
+            const card = (
               <div
                 className="min-w-[260px] snap-start rounded-xl border-l-4 p-6 md:min-w-0"
                 style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
@@ -42,8 +42,17 @@ export function BoldServices({ services, colors }: ServicesProps) {
                   </p>
                 )}
               </div>
-            </AnimateSection>
-          ))}
+            );
+            return (
+              <AnimateSection key={service.name} animation="slide-right" delay={i * 0.1}>
+                {service.bookingUrl ? (
+                  <a href={service.bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    {card}
+                  </a>
+                ) : card}
+              </AnimateSection>
+            );
+          })}
         </div>
       </div>
     </section>

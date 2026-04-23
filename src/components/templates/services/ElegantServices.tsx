@@ -5,7 +5,7 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string }[];
+  services: { name: string; price: string; description?: string; bookingUrl?: string }[];
   colors: ThemeColors;
 }
 
@@ -21,8 +21,8 @@ export function ElegantServices({ services, colors }: ServicesProps) {
         </AnimateSection>
 
         <div className="space-y-6">
-          {services.map((service, i) => (
-            <AnimateSection key={service.name} animation="fade-in" delay={i * 0.15}>
+          {services.map((service, i) => {
+            const card = (
               <div className="group">
                 <div className="flex items-baseline justify-between">
                   <h3 className="text-lg font-medium" style={{ color: rc.textOnBg }}>
@@ -39,8 +39,17 @@ export function ElegantServices({ services, colors }: ServicesProps) {
                   </p>
                 )}
               </div>
-            </AnimateSection>
-          ))}
+            );
+            return (
+              <AnimateSection key={service.name} animation="fade-in" delay={i * 0.15}>
+                {service.bookingUrl ? (
+                  <a href={service.bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    {card}
+                  </a>
+                ) : card}
+              </AnimateSection>
+            );
+          })}
         </div>
       </div>
     </section>

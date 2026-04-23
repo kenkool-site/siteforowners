@@ -5,7 +5,7 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string }[];
+  services: { name: string; price: string; description?: string; bookingUrl?: string }[];
   colors: ThemeColors;
 }
 
@@ -21,8 +21,8 @@ export function WarmServices({ services, colors }: ServicesProps) {
         </AnimateSection>
 
         <div className="space-y-4">
-          {services.map((service, i) => (
-            <AnimateSection key={service.name} delay={i * 0.1}>
+          {services.map((service, i) => {
+            const card = (
               <div
                 className="rounded-xl border-l-4 p-6"
                 style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
@@ -43,8 +43,17 @@ export function WarmServices({ services, colors }: ServicesProps) {
                   </span>
                 </div>
               </div>
-            </AnimateSection>
-          ))}
+            );
+            return (
+              <AnimateSection key={service.name} delay={i * 0.1}>
+                {service.bookingUrl ? (
+                  <a href={service.bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
+                    {card}
+                  </a>
+                ) : card}
+              </AnimateSection>
+            );
+          })}
         </div>
       </div>
     </section>
