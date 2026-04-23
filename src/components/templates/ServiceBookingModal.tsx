@@ -11,6 +11,8 @@ interface ServiceBookingModalProps {
   appointmentTypeId: number | null;
   businessName: string;
   colors: ThemeColors;
+  /** Optional branded text shown above the iframe (e.g. deposit policy). */
+  introText?: string;
 }
 
 function buildIframeSrc(bookingUrl: string, appointmentTypeId: number | null): string {
@@ -31,6 +33,7 @@ export function ServiceBookingModal({
   appointmentTypeId,
   businessName,
   colors,
+  introText,
 }: ServiceBookingModalProps) {
   // Close on Escape. Lock page scroll while open so the page underneath
   // doesn't drift when customer scrolls inside the iframe.
@@ -88,6 +91,22 @@ export function ServiceBookingModal({
                 </svg>
               </button>
             </div>
+
+            {/* Optional branded intro above the iframe — themed with the site's
+                primary/background colors so it reads as part of the site, not
+                Acuity. */}
+            {introText && (
+              <div
+                className="px-5 py-3 text-sm leading-relaxed"
+                style={{
+                  backgroundColor: `${colors.primary}15`,
+                  color: colors.foreground,
+                  borderBottom: `1px solid ${colors.primary}25`,
+                }}
+              >
+                {introText}
+              </div>
+            )}
 
             {/* Iframe */}
             <iframe

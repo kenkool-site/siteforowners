@@ -359,6 +359,7 @@ export function TemplateOrchestrator({
           appointmentTypeId={selectedAppointmentId}
           businessName={data.business_name}
           colors={colors}
+          introText={copy?.booking_intro || data.generated_copy?.en?.booking_intro}
         />
       )}
     </AnimationProvider>
