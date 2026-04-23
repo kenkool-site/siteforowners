@@ -5,7 +5,7 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; appointmentTypeId?: number }[];
+  services: { name: string; price: string; description?: string; bookingUrl?: string }[];
   colors: ThemeColors;
 }
 
@@ -43,8 +43,8 @@ export function ClassicServices({ services, colors }: ServicesProps) {
             );
             return (
               <AnimateSection key={service.name} delay={i * 0.1}>
-                {service.appointmentTypeId != null ? (
-                  <a href={`#book-${service.appointmentTypeId}`} className="block">
+                {service.bookingUrl ? (
+                  <a href={service.bookingUrl} target="_blank" rel="noopener noreferrer" className="block">
                     {card}
                   </a>
                 ) : card}
