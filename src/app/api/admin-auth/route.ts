@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
@@ -30,11 +30,10 @@ export async function POST(request: Request) {
 }
 
 // GET: check if authenticated
-export async function GET(request: Request) {
-  const cookie = request.headers.get("cookie") || "";
-  const match = cookie.match(/admin_session=([^;]+)/);
+export async function GET(request: NextRequest) {
+  const sessionCookie = request.cookies.get("admin_session")?.value;
 
-  if (!match || match[1] !== ADMIN_PASSWORD) {
+  if (!sessionCookie || sessionCookie !== ADMIN_PASSWORD) {
     return NextResponse.json({ authenticated: false }, { status: 401 });
   }
 

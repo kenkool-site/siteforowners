@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 // Generous cap — upload goes direct to Supabase, not through Vercel.
@@ -7,10 +7,9 @@ const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 const ALLOWED_TYPES = ["video/mp4", "video/webm"];
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 
-export async function POST(request: Request) {
-  const cookie = request.headers.get("cookie") || "";
-  const match = cookie.match(/admin_session=([^;]+)/);
-  if (!ADMIN_PASSWORD || !match || match[1] !== ADMIN_PASSWORD) {
+export async function POST(request: NextRequest) {
+  const sessionCookie = request.cookies.get("admin_session")?.value;
+  if (!ADMIN_PASSWORD || sessionCookie !== ADMIN_PASSWORD) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
