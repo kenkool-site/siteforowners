@@ -332,6 +332,23 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
       if (d.phone && !phone) setPhone(d.phone);
       if (d.address && !address) setAddress(d.address);
       if (d.business_name && businessName === "Unknown") setBusinessName(d.business_name);
+
+      // Persist booking_categories immediately — it's derived from Acuity, not
+      // user-editable, so no need to wait for the next Save click.
+      if (d.booking_categories) {
+        const persistRes = await fetch("/api/update-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug,
+            updates: { generated_copy: { booking_categories: d.booking_categories } },
+          }),
+        });
+        if (!persistRes.ok) {
+          console.error("Failed to persist booking_categories after re-import");
+        }
+      }
+
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {
