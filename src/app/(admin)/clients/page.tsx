@@ -139,6 +139,7 @@ export default async function ClientsPage() {
                       tenantId={tenant.id}
                       businessName={tenant.business_name}
                       subdomain={tenant.subdomain}
+                      customDomain={tenant.custom_domain}
                       sitePublished={tenant.site_published}
                     />
                   </td>

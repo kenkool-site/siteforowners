@@ -6,6 +6,7 @@ interface ClientActionsProps {
   tenantId: string;
   businessName: string;
   subdomain: string | null;
+  customDomain: string | null;
   sitePublished: boolean;
 }
 
@@ -13,6 +14,7 @@ export function ClientActions({
   tenantId,
   businessName,
   subdomain,
+  customDomain,
   sitePublished,
 }: ClientActionsProps) {
   const [publishing, setPublishing] = useState(false);
@@ -48,12 +50,13 @@ export function ClientActions({
     }
   };
 
-  const siteUrl = siteSubdomain
+  const subdomainUrl = siteSubdomain
     ? `https://${siteSubdomain}.siteforowners.com`
     : null;
+  const customDomainUrl = customDomain ? `https://${customDomain}` : null;
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-2">
       <a
         href={`/clients/${tenantId}/edit`}
         className="rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-100"
@@ -61,15 +64,33 @@ export function ClientActions({
         Edit Site
       </a>
 
-      {published && siteUrl ? (
-        <a
-          href={siteUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200"
-        >
-          {siteSubdomain}.siteforowners.com
-        </a>
+      {published && (customDomainUrl || subdomainUrl) ? (
+        <>
+          {customDomainUrl && (
+            <a
+              href={customDomainUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg bg-green-100 px-3 py-1.5 text-xs font-medium text-green-700 hover:bg-green-200"
+            >
+              {customDomain}
+            </a>
+          )}
+          {subdomainUrl && (
+            <a
+              href={subdomainUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium ${
+                customDomainUrl
+                  ? "border text-gray-500 hover:bg-gray-100"
+                  : "bg-green-100 text-green-700 hover:bg-green-200"
+              }`}
+            >
+              {siteSubdomain}.siteforowners.com
+            </a>
+          )}
+        </>
       ) : (
         <>
           {editingSubdomain ? (
