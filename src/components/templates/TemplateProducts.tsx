@@ -104,7 +104,9 @@ function MockCartDrawer({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 sm:items-center sm:p-4"
-      onClick={onClose}
+      onClick={() => {
+        if (!submitting) onClose();
+      }}
     >
       <motion.div
         initial={{ y: 60, opacity: 0 }}
@@ -119,7 +121,11 @@ function MockCartDrawer({
           <h3 className="text-lg font-bold text-gray-900">
             {checkoutStep === "confirmed" ? "Order Confirmed!" : checkoutStep === "info" ? "Checkout" : "Your Cart"}
           </h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="text-gray-400 hover:text-gray-600 disabled:opacity-40"
+          >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -253,14 +259,15 @@ function MockCartDrawer({
                     }
                   }}
                   disabled={submitting}
-                  className="w-full rounded-full py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
+                  className="w-full rounded-full py-3 text-sm font-semibold transition-all enabled:hover:-translate-y-0.5 enabled:hover:shadow-lg disabled:cursor-not-allowed disabled:opacity-60"
                   style={{ backgroundColor: colors.primary, color: btnText }}
                 >
                   {submitting ? "Placing order…" : `Place Order — ${formatPrice(total)}`}
                 </button>
                 <button
                   onClick={() => setCheckoutStep("cart")}
-                  className="w-full text-center text-xs text-gray-400 hover:text-gray-600"
+                  disabled={submitting}
+                  className="w-full text-center text-xs text-gray-400 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   ← Back to cart
                 </button>
