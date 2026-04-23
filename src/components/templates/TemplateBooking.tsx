@@ -36,13 +36,25 @@ interface TemplateBookingProps {
   isLive?: boolean; // true when rendered on published site (not preview)
 }
 
-// For Vagaro URLs, ensure the embed loads the /services page directly
-function getEmbedUrl(url: string): string {
+// For Vagaro URLs, ensure the embed loads the /services page directly.
+// For Acuity, optionally append ?appointmentType={id} so the iframe lands
+// directly on a specific service's calendar.
+function getEmbedUrl(url: string, appointmentTypeId?: number | null): string {
+  let target = url;
   if (url.toLowerCase().includes("vagaro.com")) {
     const base = url.replace(/\/+$/, "").replace(/\/(services|about|staff)$/i, "");
-    return `${base}/services`;
+    target = `${base}/services`;
   }
-  return url;
+  if (appointmentTypeId != null) {
+    try {
+      const u = new URL(target);
+      u.searchParams.set("appointmentType", String(appointmentTypeId));
+      return u.toString();
+    } catch {
+      // Fall through — malformed URL, return unmodified.
+    }
+  }
+  return target;
 }
 
 export function isEmbeddableBookingUrl(url: string): boolean {
@@ -665,14 +677,31 @@ export function TemplateBooking({
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
   const [showBookingCalendar, setShowBookingCalendar] = useState(false);
+  const [selectedAppointmentId, setSelectedAppointmentId] = useState<number | null>(null);
   const hasCategories = bookingCategories && bookingCategories.length > 0;
   const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
   const showInternalBooking = !bookingUrl && !hasCategories && services && services.length > 0;
 
-  // Auto-open when navigated to via #booking anchor
+  // Auto-open when navigated to via #booking anchor, or when a service card
+  // deep-links via #book-{appointmentTypeId} (pre-selects that service in
+  // the embedded iframe and scrolls this section into view).
   useEffect(() => {
     const handleHash = () => {
-      if (window.location.hash === "#booking") {
+      const hash = window.location.hash;
+      const serviceMatch = hash.match(/^#book-(\d+)$/);
+      if (serviceMatch) {
+        const id = parseInt(serviceMatch[1], 10);
+        setSelectedAppointmentId(id);
+        if (canEmbed) setShowFallbackEmbed(true);
+        // Defer scroll so the iframe has a chance to appear in the DOM first.
+        requestAnimationFrame(() => {
+          document
+            .getElementById("booking")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+        return;
+      }
+      if (hash === "#booking") {
         if (hasCategories) {
           setExpandedCategory(bookingCategories![0].name);
         } else if (canEmbed) {
@@ -906,7 +935,7 @@ export function TemplateBooking({
             {canEmbed && showFallbackEmbed && (
               <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl" style={{ height: 800 }}>
                 <iframe
-                  src={getEmbedUrl(bookingUrl)}
+                  src={getEmbedUrl(bookingUrl, selectedAppointmentId)}
                   title="Book an appointment"
                   className="w-full border-0"
                   style={{ height: 1600, marginTop: -200 }}

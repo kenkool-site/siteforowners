@@ -136,22 +136,17 @@ export function TemplateOrchestrator({
     | { name: string; services: { name: string; price: string; duration: string; id: number }[]; directUrl: string }[]
     | undefined;
 
-  // Build a per-service deep-link map by rewriting each category's directUrl
-  // with the specific service's appointmentType id. Only handles Acuity —
-  // other providers (Vagaro, Booksy, Square) will need their own URL rewrite
-  // logic when we onboard a client using them.
-  const serviceBookingUrls = new Map<string, string>();
+  // Build a per-service appointmentType-id map so Services cards can link to
+  // the in-site booking iframe pre-selected to that service (via a
+  // #book-{id} fragment). Only handles Acuity — other providers (Vagaro,
+  // Booksy, Square) will need their own logic when we onboard a client
+  // using them.
+  const serviceAppointmentIds = new Map<string, number>();
   if (bookingCategories) {
     for (const cat of bookingCategories) {
       if (!cat.directUrl.includes("acuityscheduling.com")) continue;
       for (const svc of cat.services) {
-        try {
-          const url = new URL(cat.directUrl);
-          url.searchParams.set("appointmentType", String(svc.id));
-          serviceBookingUrls.set(svc.name, url.toString());
-        } catch {
-          // Skip malformed directUrl — service card stays non-clickable.
-        }
+        serviceAppointmentIds.set(svc.name, svc.id);
       }
     }
   }
@@ -159,7 +154,7 @@ export function TemplateOrchestrator({
   const services = data.services.map((s) => ({
     ...s,
     description: copy?.service_descriptions?.[s.name] ?? s.description,
-    bookingUrl: serviceBookingUrls.get(s.name),
+    appointmentTypeId: serviceAppointmentIds.get(s.name),
   }));
 
   const headline = copy?.hero_headline ?? `Welcome to ${data.business_name}`;
