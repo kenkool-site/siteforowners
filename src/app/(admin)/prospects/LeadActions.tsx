@@ -23,10 +23,14 @@ export function LeadActions({
 }: LeadActionsProps) {
   const [loading, setLoading] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  const [shortUrl, setShortUrl] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleOnboard = async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
@@ -38,28 +42,33 @@ export function LeadActions({
           owner_name: ownerName,
           email: email || undefined,
           phone,
+          promo_code: promoCode.trim() || undefined,
         }),
       });
-      if (!res.ok) throw new Error("Failed");
       const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Failed");
       setPaymentUrl(data.checkout_url);
-    } catch {
-      alert("Failed to create payment link. Is Stripe configured?");
+      setShortUrl(data.short_url || null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create link");
     } finally {
       setLoading(false);
     }
   };
 
+  // Short URL is always preferred for sharing — it's branded and fits in SMS.
+  const shareUrl = shortUrl || paymentUrl;
+
   const copyLink = async () => {
-    if (!paymentUrl) return;
-    await navigator.clipboard.writeText(paymentUrl);
+    if (!shareUrl) return;
+    await navigator.clipboard.writeText(shareUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const firstName = ownerName.split(" ")[0];
-  const smsBody = paymentUrl
-    ? `Hi ${firstName}, your website for ${businessName} is ready! Complete signup here: ${paymentUrl}`
+  const smsBody = shareUrl
+    ? `Hi ${firstName}, your website for ${businessName} is ready! Complete signup here: ${shareUrl}`
     : `Hi ${firstName}, this is SiteForOwners — I saw you're interested in a website for ${businessName}. Let me know when you'd like to chat!`;
 
   if (converted) {
@@ -95,6 +104,14 @@ export function LeadActions({
           >
             Text
           </a>
+          <input
+            type="text"
+            value={promoCode}
+            onChange={(e) => setPromoCode(e.target.value.toUpperCase())}
+            placeholder="Promo (opt)"
+            className="w-24 rounded-lg border px-2 py-1.5 text-xs uppercase placeholder:normal-case placeholder:text-gray-400 focus:border-green-500 focus:outline-none"
+            title="Optional Stripe promo code, e.g. STYLIST40. Leave empty for full $50/mo."
+          />
           <button
             onClick={handleOnboard}
             disabled={loading}
@@ -102,6 +119,11 @@ export function LeadActions({
           >
             {loading ? "..." : "Onboard"}
           </button>
+          {error && (
+            <span className="text-xs text-red-600" title={error}>
+              ⚠ {error.length > 40 ? error.slice(0, 40) + "..." : error}
+            </span>
+          )}
         </>
       ) : (
         <>
