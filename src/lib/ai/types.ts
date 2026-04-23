@@ -46,6 +46,7 @@ export interface GeneratedCopy {
     seo_description: string;
     footer_tagline: string;
     google_business_description: string;
+    booking_intro?: string;
   };
   es: {
     hero_headline: string;
@@ -56,6 +57,7 @@ export interface GeneratedCopy {
     seo_description: string;
     footer_tagline: string;
     google_business_description: string;
+    booking_intro?: string;
   };
 }
 
