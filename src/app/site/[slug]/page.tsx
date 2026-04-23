@@ -6,9 +6,14 @@ import { SiteClient } from "./SiteClient";
 
 type BookingHoursMap = Record<string, { open: string; close: string } | null> | null;
 
-async function getSiteData(
-  slug: string
-): Promise<{ preview: PreviewData; bookingHours: BookingHoursMap } | null> {
+interface SiteData {
+  preview: PreviewData;
+  bookingHours: BookingHoursMap;
+  tenantId: string | null;
+  checkoutMode: "mockup" | "pickup";
+}
+
+async function getSiteData(slug: string): Promise<SiteData | null> {
   const supabase = createAdminClient();
   const { data: preview, error } = await supabase
     .from("previews")
@@ -18,15 +23,21 @@ async function getSiteData(
 
   if (error || !preview) return null;
 
-  // Find the tenant that owns this preview, if any, then load booking hours.
+  // Find the tenant that owns this preview, if any, then load booking hours + checkout mode.
   let bookingHours: BookingHoursMap = null;
+  let tenantId: string | null = null;
+  let checkoutMode: "mockup" | "pickup" = "mockup";
+
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("id")
+    .select("id, checkout_mode")
     .eq("preview_slug", slug)
     .maybeSingle();
 
   if (tenant?.id) {
+    tenantId = tenant.id as string;
+    const mode = tenant.checkout_mode as "mockup" | "pickup" | null;
+    checkoutMode = mode === "pickup" ? "pickup" : "mockup";
     const { data: bs } = await supabase
       .from("booking_settings")
       .select("working_hours")
@@ -35,7 +46,7 @@ async function getSiteData(
     bookingHours = (bs?.working_hours as BookingHoursMap) ?? null;
   }
 
-  return { preview: preview as PreviewData, bookingHours };
+  return { preview: preview as PreviewData, bookingHours, tenantId, checkoutMode };
 }
 
 export async function generateMetadata({
@@ -78,5 +89,12 @@ export default async function SitePage({
 }) {
   const result = await getSiteData(params.slug);
   if (!result) notFound();
-  return <SiteClient data={result.preview} bookingHours={result.bookingHours} />;
+  return (
+    <SiteClient
+      data={result.preview}
+      bookingHours={result.bookingHours}
+      tenantId={result.tenantId}
+      checkoutMode={result.checkoutMode}
+    />
+  );
 }

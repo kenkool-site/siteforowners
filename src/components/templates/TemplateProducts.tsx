@@ -27,15 +27,76 @@ function MockCartDrawer({
   colors,
   onUpdateQty,
   onClose,
+  checkoutMode,
+  tenantId,
+  businessName,
+  businessPhone,
+  businessAddress,
 }: {
   cart: CartItem[];
   colors: ThemeColors;
   onUpdateQty: (name: string, delta: number) => void;
   onClose: () => void;
+  checkoutMode: "mockup" | "pickup";
+  tenantId: string | null;
+  businessName: string;
+  businessPhone?: string;
+  businessAddress?: string;
 }) {
   const [checkoutStep, setCheckoutStep] = useState<"cart" | "info" | "confirmed">("cart");
   const total = cart.reduce((sum, item) => sum + parsePrice(item.product.price) * item.qty, 0);
   const btnText = ensureReadable(colors.background, colors.primary, 3);
+
+  const [custName, setCustName] = useState("");
+  const [custPhone, setCustPhone] = useState("");
+  const [custEmail, setCustEmail] = useState("");
+  const [custNotes, setCustNotes] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const isPickup = checkoutMode === "pickup" && !!tenantId;
+
+  const handleSubmitPickup = async () => {
+    setSubmitError(null);
+    if (!custName.trim() || !custPhone.trim()) {
+      setSubmitError("Name and phone are required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch("/api/place-order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          items: cart.map((c) => ({
+            name: c.product.name,
+            price: c.product.price,
+            qty: c.qty,
+          })),
+          customer_name: custName.trim(),
+          customer_phone: custPhone.trim(),
+          customer_email: custEmail.trim() || undefined,
+          customer_notes: custNotes.trim() || undefined,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Failed to place order");
+      }
+      setCheckoutStep("confirmed");
+    } catch (err) {
+      setSubmitError(err instanceof Error ? err.message : "Failed to place order");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const maskedPhone = (() => {
+    const digits = custPhone.replace(/\D/g, "");
+    if (digits.length < 4) return digits;
+    return `(***) ***-${digits.slice(-4)}`;
+  })();
 
   return (
     <motion.div
@@ -138,18 +199,33 @@ function MockCartDrawer({
                 <input
                   type="text"
                   placeholder="Full Name"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
-                />
-                <input
-                  type="email"
-                  placeholder="Email"
+                  value={custName}
+                  onChange={(e) => setCustName(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
                 <input
                   type="tel"
                   placeholder="Phone"
+                  value={custPhone}
+                  onChange={(e) => setCustPhone(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
+                <input
+                  type="email"
+                  placeholder={isPickup ? "Email (optional)" : "Email"}
+                  value={custEmail}
+                  onChange={(e) => setCustEmail(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                />
+                {isPickup && (
+                  <textarea
+                    placeholder="Any requests? (optional)"
+                    value={custNotes}
+                    onChange={(e) => setCustNotes(e.target.value)}
+                    rows={3}
+                    className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                )}
                 <div className="rounded-lg bg-gray-50 p-3">
                   <p className="text-xs font-medium text-gray-500">Order Summary</p>
                   {cart.map((item) => (
@@ -163,12 +239,24 @@ function MockCartDrawer({
                     <span>{formatPrice(total)}</span>
                   </div>
                 </div>
+                {submitError && (
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+                    {submitError}
+                  </p>
+                )}
                 <button
-                  onClick={() => setCheckoutStep("confirmed")}
-                  className="w-full rounded-full py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-lg"
+                  onClick={() => {
+                    if (isPickup) {
+                      handleSubmitPickup();
+                    } else {
+                      setCheckoutStep("confirmed");
+                    }
+                  }}
+                  disabled={submitting}
+                  className="w-full rounded-full py-3 text-sm font-semibold transition-all hover:-translate-y-0.5 hover:shadow-lg disabled:opacity-60"
                   style={{ backgroundColor: colors.primary, color: btnText }}
                 >
-                  Place Order — {formatPrice(total)}
+                  {submitting ? "Placing order…" : `Place Order — ${formatPrice(total)}`}
                 </button>
                 <button
                   onClick={() => setCheckoutStep("cart")}
@@ -199,11 +287,33 @@ function MockCartDrawer({
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </motion.div>
-              <h4 className="text-lg font-bold text-gray-900">Thank You!</h4>
-              <p className="mt-2 text-sm text-gray-500">
-                Your order has been placed. You&apos;ll receive a confirmation shortly.
-              </p>
-              <p className="mt-1 text-xs text-gray-400">(This is a preview — no real order was placed)</p>
+              {isPickup ? (
+                <>
+                  <h4 className="text-lg font-bold text-gray-900">Order placed!</h4>
+                  <p className="mt-2 text-sm text-gray-500">
+                    We&apos;ll call you at <strong>{maskedPhone}</strong> when your order is ready for pickup.
+                  </p>
+                  {businessAddress && (
+                    <div className="mt-4 rounded-lg bg-gray-50 p-3 text-left text-sm">
+                      <p className="text-xs font-medium text-gray-500">Pickup at</p>
+                      <p className="mt-1 text-gray-900">{businessAddress}</p>
+                    </div>
+                  )}
+                  {businessPhone && (
+                    <p className="mt-3 text-xs text-gray-500">
+                      Questions? Call <a href={`tel:${businessPhone}`} className="text-blue-600 hover:underline">{businessPhone}</a>
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <h4 className="text-lg font-bold text-gray-900">Thank You!</h4>
+                  <p className="mt-2 text-sm text-gray-500">
+                    Your order has been placed. You&apos;ll receive a confirmation shortly.
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400">(This is a preview — no real order was placed)</p>
+                </>
+              )}
               <button
                 onClick={onClose}
                 className="mt-6 rounded-full px-8 py-2.5 text-sm font-semibold transition-all hover:-translate-y-0.5"
@@ -284,17 +394,25 @@ function ProductCard({
 }
 
 /* ── Main Products Section ─────────────────────────────────── */
-interface TemplateProductsProps {
-  title?: string;
-  products: ProductItem[];
-  colors: ThemeColors;
-}
-
 export function TemplateProducts({
   title = "Our Products",
   products,
   colors,
-}: TemplateProductsProps) {
+  checkoutMode = "mockup",
+  tenantId = null,
+  businessName,
+  businessPhone,
+  businessAddress,
+}: {
+  title?: string;
+  products: ProductItem[];
+  colors: ThemeColors;
+  checkoutMode?: "mockup" | "pickup";
+  tenantId?: string | null;
+  businessName: string;
+  businessPhone?: string;
+  businessAddress?: string;
+}) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [showCart, setShowCart] = useState(false);
 
@@ -376,6 +494,11 @@ export function TemplateProducts({
               colors={colors}
               onUpdateQty={updateQty}
               onClose={() => setShowCart(false)}
+              checkoutMode={checkoutMode}
+              tenantId={tenantId}
+              businessName={businessName}
+              businessPhone={businessPhone}
+              businessAddress={businessAddress}
             />
           )}
         </AnimatePresence>
