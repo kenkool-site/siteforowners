@@ -215,3 +215,149 @@ export async function sendBookingConfirmation(booking: BookingEmailData, icsCont
     `,
   });
 }
+
+interface OrderEmailData {
+  businessName: string;
+  businessPhone?: string;
+  businessAddress?: string;
+  items: Array<{ name: string; price: string; qty: number }>;
+  subtotalCents: number;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  customerNotes?: string;
+}
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function formatCents(cents: number): string {
+  return `$${(cents / 100).toFixed(2)}`;
+}
+
+function parsePriceCents(price: string): number {
+  const n = parseFloat(price.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? Math.round(n * 100) : 0;
+}
+
+function renderItemsHtml(items: OrderEmailData["items"]): string {
+  return items
+    .map((item) => {
+      const lineCents = parsePriceCents(item.price) * item.qty;
+      return `<tr>
+        <td style="padding: 4px 0; font-size: 14px;">${escapeHtml(item.name)} × ${item.qty}</td>
+        <td style="padding: 4px 0; font-size: 14px; text-align: right;">${formatCents(lineCents)}</td>
+      </tr>`;
+    })
+    .join("");
+}
+
+/**
+ * Notify the shop owner of a new pickup order.
+ */
+export async function sendOrderShopNotification(
+  shopEmail: string,
+  order: OrderEmailData
+) {
+  if (!resend) {
+    console.log("Skipping order shop notification — RESEND_API_KEY not set");
+    return;
+  }
+  if (!shopEmail) {
+    console.error("sendOrderShopNotification called without shopEmail");
+    return;
+  }
+
+  const customerEmailRow = order.customerEmail
+    ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Email</td><td style="padding: 8px 0; font-size: 14px;">${escapeHtml(order.customerEmail)}</td></tr>`
+    : "";
+  const notesRow = order.customerNotes
+    ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px; vertical-align: top;">Notes</td><td style="padding: 8px 0; font-size: 14px;">${escapeHtml(order.customerNotes)}</td></tr>`
+    : "";
+
+  await resend.emails.send({
+    from: FROM,
+    to: shopEmail,
+    ...(order.customerEmail ? { replyTo: order.customerEmail } : {}),
+    subject: `New pickup order — ${order.customerName} — ${formatCents(order.subtotalCents)}`,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 540px; margin: 0 auto;">
+        <div style="background: #059669; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; color: #fff; font-size: 18px;">New Pickup Order — ${escapeHtml(order.businessName)}</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px; width: 90px;">Customer</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${escapeHtml(order.customerName)}</td></tr>
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Phone</td><td style="padding: 8px 0; font-size: 14px;"><a href="tel:${encodeURIComponent(order.customerPhone)}" style="color: #2563EB;">${escapeHtml(order.customerPhone)}</a></td></tr>
+            ${customerEmailRow}
+            ${notesRow}
+          </table>
+          <div style="margin-top: 16px; border-top: 1px solid #E5E7EB; padding-top: 12px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              ${renderItemsHtml(order.items)}
+              <tr><td colspan="2" style="border-top: 1px solid #E5E7EB; padding-top: 8px; margin-top: 4px;"></td></tr>
+              <tr>
+                <td style="padding: 6px 0; font-size: 14px; font-weight: 700;">Subtotal</td>
+                <td style="padding: 6px 0; font-size: 14px; font-weight: 700; text-align: right;">${formatCents(order.subtotalCents)}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="margin-top: 16px; font-size: 13px; color: #6B7280;">When the order is ready, call or text the customer to let them know.</p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+/**
+ * Send confirmation to the customer who placed a pickup order.
+ */
+export async function sendOrderCustomerConfirmation(
+  shopEmail: string,
+  order: OrderEmailData
+) {
+  if (!resend || !order.customerEmail) return;
+  const firstName = order.customerName.split(" ")[0];
+  const addressBlock = order.businessAddress
+    ? `<p style="margin: 0 0 6px; font-size: 14px;"><strong>Pickup at:</strong><br/>${escapeHtml(order.businessAddress)}</p>`
+    : "";
+  const phoneBlock = order.businessPhone
+    ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Questions? Call <a href="tel:${encodeURIComponent(order.businessPhone)}" style="color: #2563EB;">${escapeHtml(order.businessPhone)}</a></p>`
+    : "";
+
+  await resend.emails.send({
+    from: FROM,
+    to: order.customerEmail,
+    ...(shopEmail ? { replyTo: shopEmail } : {}),
+    subject: `Your order at ${order.businessName} — we'll call you when it's ready`,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 540px; margin: 0 auto;">
+        <div style="background: #059669; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h2 style="margin: 0; color: #fff; font-size: 20px;">Order Received!</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <p style="color: #4B5563; font-size: 15px; margin: 0 0 12px;">Hi ${escapeHtml(firstName)} — thanks for your order at <strong>${escapeHtml(order.businessName)}</strong>.</p>
+          <div style="background: #F0FDF4; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <table style="width: 100%; border-collapse: collapse;">
+              ${renderItemsHtml(order.items)}
+              <tr><td colspan="2" style="border-top: 1px solid #D1FAE5; padding-top: 6px;"></td></tr>
+              <tr>
+                <td style="padding: 6px 0; font-size: 14px; font-weight: 700;">Subtotal</td>
+                <td style="padding: 6px 0; font-size: 14px; font-weight: 700; text-align: right;">${formatCents(order.subtotalCents)}</td>
+              </tr>
+            </table>
+          </div>
+          <p style="color: #4B5563; font-size: 14px; margin: 0 0 12px;">We'll call or text you at <strong>${escapeHtml(order.customerPhone)}</strong> when your order is ready for pickup.</p>
+          ${addressBlock}
+          ${phoneBlock}
+        </div>
+      </div>
+    `,
+  });
+}
