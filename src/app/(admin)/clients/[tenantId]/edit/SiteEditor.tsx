@@ -61,6 +61,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     (enCopy.about_paragraphs as string[]) || []
   );
   const [footerTagline, setFooterTagline] = useState((enCopy.footer_tagline as string) || "");
+  const [bookingIntro, setBookingIntro] = useState((enCopy.booking_intro as string) || "");
 
   // Services
   const [services, setServices] = useState<ServiceItem[]>(
@@ -243,6 +244,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 hero_subheadline: subheadline,
                 about_paragraphs: aboutParagraphs,
                 footer_tagline: footerTagline,
+                booking_intro: bookingIntro.trim() || null,
               },
               section_settings: {
                 ...sectionSettings,
@@ -862,6 +864,21 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                   placeholder="https://..."
                   className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-600">
+                  Booking notes <span className="text-gray-400">(optional)</span>
+                </label>
+                <textarea
+                  value={bookingIntro}
+                  onChange={(e) => setBookingIntro(e.target.value)}
+                  placeholder="e.g. A $40 deposit is required to confirm your appointment. You'll complete booking securely below."
+                  rows={3}
+                  className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Shown above the booking iframe when a customer clicks a service card. Deposit policy, reschedule rules, etc.
+                </p>
               </div>
             </div>
           </section>
