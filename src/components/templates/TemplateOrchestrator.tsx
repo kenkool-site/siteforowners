@@ -57,6 +57,8 @@ interface TemplateOrchestratorProps {
   locale?: "en" | "es";
   isLive?: boolean;
   bookingHours?: Record<string, { open: string; close: string } | null> | null;
+  checkoutMode?: "mockup" | "pickup";
+  tenantId?: string | null;
 }
 
 function getTemplateName(data: PreviewData): TemplateName {
@@ -120,6 +122,8 @@ export function TemplateOrchestrator({
   locale: initialLocale = "en",
   isLive = false,
   bookingHours = null,
+  checkoutMode = "mockup",
+  tenantId = null,
 }: TemplateOrchestratorProps) {
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const ss = getSectionSettings(data);
@@ -173,7 +177,16 @@ export function TemplateOrchestrator({
 
   // Shared sections — respect visibility settings
   const productsSection = hasProducts ? (
-    <div id="products"><TemplateProducts products={data.products!} colors={colors} /></div>
+    <div id="products">
+      <TemplateProducts
+        products={data.products!}
+        colors={colors}
+        checkoutMode={checkoutMode}
+        tenantId={tenantId}
+        businessPhone={data.phone || undefined}
+        businessAddress={data.address || undefined}
+      />
+    </div>
   ) : null;
 
   const bookingCategories = (data.generated_copy as unknown as Record<string, unknown>)?.booking_categories as
