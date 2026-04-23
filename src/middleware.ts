@@ -48,14 +48,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Extract subdomain
-  const subdomain = hostname.split(".")[0];
+  // Normalize hostname: drop :port and any leading www. so apex and www.
+  // variants of a custom domain route to the same tenant.
+  const normalizedHost = hostname.split(":")[0].replace(/^www\./, "");
+  const subdomain = normalizedHost.split(".")[0];
 
   if (!subdomain) {
     return NextResponse.next();
   }
 
-  // Look up the tenant by subdomain
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -65,11 +66,22 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  const { data: tenant } = await supabase
+  // Prefer custom_domain — the full hostname is authoritative for mapped
+  // domains. Fall back to subdomain for *.siteforowners.com tenants.
+  let { data: tenant } = await supabase
     .from("tenants")
     .select("preview_slug, site_published, subscription_status")
-    .eq("subdomain", subdomain)
+    .eq("custom_domain", normalizedHost)
     .single();
+
+  if (!tenant) {
+    const result = await supabase
+      .from("tenants")
+      .select("preview_slug, site_published, subscription_status")
+      .eq("subdomain", subdomain)
+      .single();
+    tenant = result.data;
+  }
 
   const activeStatuses = ["active", "trialing"];
   if (
