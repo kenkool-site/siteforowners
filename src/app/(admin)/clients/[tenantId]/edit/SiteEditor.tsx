@@ -72,6 +72,14 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     (preview.products as ProductItem[]) || []
   );
 
+  // Tenant-level settings (separate save path via /api/update-tenant)
+  const [checkoutMode, setCheckoutMode] = useState<"mockup" | "pickup">(
+    (tenant.checkout_mode as "mockup" | "pickup" | null) || "mockup"
+  );
+  const [notificationEmail, setNotificationEmail] = useState<string>(
+    (tenant.email as string | null) || ""
+  );
+
   // Images
   const [images, setImages] = useState<string[]>((preview.images as string[]) || []);
 
@@ -202,46 +210,70 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     setError("");
     setSaved(false);
 
+    const pickupNeedsEmail = checkoutMode === "pickup" && !notificationEmail.trim();
+    if (pickupNeedsEmail) {
+      setError("Notification email required for pickup mode.");
+      setSaving(false);
+      return;
+    }
+
     try {
-      const res = await fetch("/api/update-site", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          slug,
-          updates: {
-            business_name: businessName,
-            phone,
-            address,
-            booking_url: bookingUrl || null,
-            services: services.filter((s) => s.name.trim()),
-            products: products.filter((p) => p.name.trim()),
-            images,
-            hero_video_url: heroVideoUrl,
-            hours: displayHours,
-            imported_hours: importedHours,
-            generated_copy: {
-              en: {
-                hero_headline: headline,
-                hero_subheadline: subheadline,
-                about_paragraphs: aboutParagraphs,
-                footer_tagline: footerTagline,
-              },
-              section_settings: {
-                ...sectionSettings,
-                show_hours: showHoursOnSite,
-                about_image_url: sectionSettings.about_image_url || null,
-                template_override: sectionSettings.template_override || null,
+      const [previewRes, tenantRes] = await Promise.all([
+        fetch("/api/update-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            slug,
+            updates: {
+              business_name: businessName,
+              phone,
+              address,
+              booking_url: bookingUrl || null,
+              services: services.filter((s) => s.name.trim()),
+              products: products.filter((p) => p.name.trim()),
+              images,
+              hero_video_url: heroVideoUrl,
+              hours: displayHours,
+              imported_hours: importedHours,
+              generated_copy: {
+                en: {
+                  hero_headline: headline,
+                  hero_subheadline: subheadline,
+                  about_paragraphs: aboutParagraphs,
+                  footer_tagline: footerTagline,
+                },
+                section_settings: {
+                  ...sectionSettings,
+                  show_hours: showHoursOnSite,
+                  about_image_url: sectionSettings.about_image_url || null,
+                  template_override: sectionSettings.template_override || null,
+                },
               },
             },
-          },
+          }),
         }),
-      });
+        fetch("/api/update-tenant", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            tenant_id: tenant.id as string,
+            updates: {
+              checkout_mode: checkoutMode,
+              email: notificationEmail.trim() || null,
+            },
+          }),
+        }),
+      ]);
 
-      if (!res.ok) throw new Error("Save failed");
+      if (!previewRes.ok) throw new Error("Preview save failed");
+      if (!tenantRes.ok) {
+        const detail = await tenantRes.json().catch(() => ({}));
+        throw new Error(detail?.error || "Tenant save failed");
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch {
-      setError("Failed to save changes.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save changes.");
     } finally {
       setSaving(false);
     }
@@ -976,6 +1008,66 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               )}
             </div>
           </section>
+
+        {/* ── Checkout ─────────────────────────────────────── */}
+        <section className="rounded-xl border bg-white p-5">
+          <h3 className="mb-3 text-sm font-semibold text-gray-900">Checkout</h3>
+          <p className="mb-4 text-xs text-gray-500">
+            How customers check out from this site.
+          </p>
+
+          <div className="space-y-2">
+            <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-gray-50">
+              <input
+                type="radio"
+                name="checkout_mode"
+                value="mockup"
+                checked={checkoutMode === "mockup"}
+                onChange={() => setCheckoutMode("mockup")}
+                className="mt-0.5"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Mockup</p>
+                <p className="text-xs text-gray-500">
+                  Shows the cart UI but orders aren&apos;t collected.
+                </p>
+              </div>
+            </label>
+
+            <label className="flex items-start gap-2 rounded-lg border p-3 cursor-pointer hover:bg-gray-50">
+              <input
+                type="radio"
+                name="checkout_mode"
+                value="pickup"
+                checked={checkoutMode === "pickup"}
+                onChange={() => setCheckoutMode("pickup")}
+                className="mt-0.5"
+              />
+              <div>
+                <p className="text-sm font-medium text-gray-900">Pickup — pay in store</p>
+                <p className="text-xs text-gray-500">
+                  Customer orders online, comes to the shop to pick up and pay.
+                </p>
+              </div>
+            </label>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-xs font-medium text-gray-600">
+              Notification email{checkoutMode === "pickup" ? " *" : ""}
+            </label>
+            <input
+              type="email"
+              value={notificationEmail}
+              onChange={(e) => setNotificationEmail(e.target.value)}
+              placeholder="owner@example.com"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Where pickup orders are sent. Required when mode is Pickup.
+            </p>
+          </div>
+        </section>
 
           {/* Images */}
           <section className="rounded-xl border bg-white p-6">
