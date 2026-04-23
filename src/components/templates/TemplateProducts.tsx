@@ -29,7 +29,6 @@ function MockCartDrawer({
   onClose,
   checkoutMode,
   tenantId,
-  businessName,
   businessPhone,
   businessAddress,
 }: {
@@ -39,7 +38,6 @@ function MockCartDrawer({
   onClose: () => void;
   checkoutMode: "mockup" | "pickup";
   tenantId: string | null;
-  businessName: string;
   businessPhone?: string;
   businessAddress?: string;
 }) {
@@ -414,7 +412,6 @@ export function TemplateProducts({
   colors,
   checkoutMode = "mockup",
   tenantId = null,
-  businessName,
   businessPhone,
   businessAddress,
 }: {
@@ -423,7 +420,6 @@ export function TemplateProducts({
   colors: ThemeColors;
   checkoutMode?: "mockup" | "pickup";
   tenantId?: string | null;
-  businessName: string;
   businessPhone?: string;
   businessAddress?: string;
 }) {
@@ -510,7 +506,6 @@ export function TemplateProducts({
               onClose={() => setShowCart(false)}
               checkoutMode={checkoutMode}
               tenantId={tenantId}
-              businessName={businessName}
               businessPhone={businessPhone}
               businessAddress={businessAddress}
             />

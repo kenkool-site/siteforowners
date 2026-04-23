@@ -183,7 +183,6 @@ export function TemplateOrchestrator({
         colors={colors}
         checkoutMode={checkoutMode}
         tenantId={tenantId}
-        businessName={data.business_name}
         businessPhone={data.phone || undefined}
         businessAddress={data.address || undefined}
       />
