@@ -5,7 +5,10 @@
 ALTER TABLE tenants
   ADD COLUMN IF NOT EXISTS admin_pin_hash text,
   ADD COLUMN IF NOT EXISTS admin_pin_updated_at timestamptz,
-  ADD COLUMN IF NOT EXISTS admin_email text;
+  ADD COLUMN IF NOT EXISTS admin_email text,
+  -- booking_tool determines whether to show the Schedule tab in owner admin.
+  -- Values: 'none' | 'internal' (show Schedule) | 'acuity' | 'booksy' | 'vagaro' | 'square' | 'cal' (hide).
+  ADD COLUMN IF NOT EXISTS booking_tool text NOT NULL DEFAULT 'none';
 
 CREATE TABLE IF NOT EXISTS admin_login_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
