@@ -18,11 +18,17 @@ interface ServiceBookingModalProps {
   /** Optional branded text shown above the iframe (e.g. deposit policy). */
   introText?: string;
   /**
-   * px to clip off the top of the iframe content. Use for Acuity pages
-   * where the business has a tall custom intro/landing section above the
-   * scheduler that we want to hide. 0 (default) = no clipping.
+   * px to clip off the top of the iframe content on desktop (>=640px).
+   * Use for Acuity pages where the business has a tall custom intro section
+   * above the scheduler. 0 (default) = no clipping.
    */
   topClipPx?: number;
+  /**
+   * px to clip off the top of the iframe content on mobile (<640px).
+   * Usually smaller than `topClipPx` because Acuity's mobile layout has a
+   * shorter intro. 0 (default) = no clipping.
+   */
+  topClipPxMobile?: number;
 }
 
 export function ServiceBookingModal({
@@ -33,6 +39,7 @@ export function ServiceBookingModal({
   colors,
   introText,
   topClipPx = 0,
+  topClipPxMobile = 0,
 }: ServiceBookingModalProps) {
   // Close on Escape. Lock page scroll while open so the page underneath
   // doesn't drift when customer scrolls inside the iframe.
@@ -50,22 +57,18 @@ export function ServiceBookingModal({
     };
   }, [open, onClose]);
 
-  // topClipPx is tuned against desktop intro heights; on mobile Acuity's
-  // layout compresses and the same clip would eat into the actual scheduler.
-  // Apply the clip only at >=640px; mobile users get the full iframe and
-  // scroll past the intro naturally.
-  const [applyClip, setApplyClip] = useState(false);
+  // Desktop and mobile clips are separate values — Acuity's intro compresses
+  // heavily on narrow screens, so the desktop px value would eat into the
+  // scheduler if reused as-is. Pick the right one based on viewport.
+  const [isDesktop, setIsDesktop] = useState(false);
   useEffect(() => {
-    if (!topClipPx) {
-      setApplyClip(false);
-      return;
-    }
     const mq = window.matchMedia("(min-width: 640px)");
-    setApplyClip(mq.matches);
-    const onChange = (e: MediaQueryListEvent) => setApplyClip(e.matches);
+    setIsDesktop(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
     mq.addEventListener("change", onChange);
     return () => mq.removeEventListener("change", onChange);
-  }, [topClipPx]);
+  }, []);
+  const effectiveClip = isDesktop ? topClipPx : topClipPxMobile;
 
   return (
     <AnimatePresence>
@@ -136,8 +139,8 @@ export function ServiceBookingModal({
                 title="Book an appointment"
                 className="block w-full border-0"
                 style={
-                  applyClip
-                    ? { marginTop: `-${topClipPx}px`, height: `calc(100% + ${topClipPx}px)` }
+                  effectiveClip
+                    ? { marginTop: `-${effectiveClip}px`, height: `calc(100% + ${effectiveClip}px)` }
                     : { height: "100%" }
                 }
                 allow="payment"
