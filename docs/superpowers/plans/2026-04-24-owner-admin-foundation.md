@@ -4,7 +4,7 @@
 
 **Goal:** Build the authentication, routing, and shell foundation for the owner admin dashboard at `{tenant-domain}/admin`. After this plan, an owner can enter a founder-issued PIN, land on a signed-in shell with nav, and sign out. Home page exists as an empty placeholder with the greeting — feature pages come in later plans.
 
-**Architecture:** PIN auth (bcrypt-style hashing via Node's `scrypt`), session state in an HMAC-signed HTTP-only cookie (30-day sliding expiry), tenant identity derived from request hostname. Middleware extends the existing tenant-domain rewrite so `letstrylocs.com/admin` → `/site/letstrylocs/admin` while relaxing the published/subscription gate. Admin pages live under `src/app/site/[slug]/admin/` with their own layout that performs the auth check.
+**Architecture:** PIN auth (bcrypt-style hashing via Node's `scrypt`), session state in an HMAC-signed HTTP-only cookie (30-day hard expiry), tenant identity derived from request hostname. Middleware extends the existing tenant-domain rewrite so `letstrylocs.com/admin` → `/site/letstrylocs/admin` while relaxing the published/subscription gate. Admin pages live under `src/app/site/[slug]/admin/` with their own layout that performs the auth check.
 
 **Tech Stack:** Next.js 14 App Router, TypeScript strict, Supabase (service-role client only), Tailwind CSS. Tests use Node's built-in `node:test` runner via `tsx` (no new dev dependency required). Password hashing and session signing use `node:crypto` — no `bcryptjs` dependency needed.
 
@@ -237,10 +237,11 @@ import { signSession, verifySession } from "./admin-auth";
 process.env.SESSION_COOKIE_SECRET = "a".repeat(64);
 
 test("signSession: round-trips tenant_id and exp", () => {
-  const signed = signSession({ tenant_id: "abc-123", exp: 1234567890 });
+  const future = Math.floor(Date.now() / 1000) + 3600;
+  const signed = signSession({ tenant_id: "abc-123", exp: future });
   const result = verifySession(signed);
   assert.equal(result?.tenant_id, "abc-123");
-  assert.equal(result?.exp, 1234567890);
+  assert.equal(result?.exp, future);
 });
 
 test("verifySession: returns null for tampered payload", () => {

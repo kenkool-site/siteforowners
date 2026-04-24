@@ -34,9 +34,11 @@ Initial PIN is set by the founder at onboarding. Stored as bcrypt hash in `tenan
 
 - On successful PIN entry, server sets `owner_session` cookie:
   - HTTP-only, Secure, SameSite=Lax
-  - Signed payload: `{ tenant_id, iat, exp }`
-  - 30-day sliding expiry — every authenticated request bumps `exp`
+  - Signed payload: `{ tenant_id, exp }`
+  - 30-day hard expiry — owner re-enters PIN after 30 days
 - Explicit **Sign out** button in the top bar (mobile) and sidebar footer (desktop) clears the cookie.
+
+Sliding expiry was considered but dropped — re-signing on every request complicates the `requireOwnerSession` contract (it would need to mutate the response) and 30 days is already generous for a daily-use tool.
 
 ### Rate limiting
 
