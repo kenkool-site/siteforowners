@@ -109,6 +109,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     about_image_url: (existingSettings.about_image_url as string) || "",
     template_override: (existingSettings.template_override as string) || "",
     booking_iframe_top_clip_px: Number(existingSettings.booking_iframe_top_clip_px) || 0,
+    booking_iframe_top_clip_px_mobile: Number(existingSettings.booking_iframe_top_clip_px_mobile) || 0,
   });
 
   const toggleSection = (key: string) => {
@@ -826,29 +827,54 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             </div>
 
             {/* Booking iframe top clip — hides a tall intro/landing section
-                above the Acuity scheduler in the in-site booking modal. */}
-            <div className="mt-5">
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Clip booking iframe top (px)
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={20}
-                value={sectionSettings.booking_iframe_top_clip_px}
-                onChange={(e) =>
-                  setSectionSettings((prev) => ({
-                    ...prev,
-                    booking_iframe_top_clip_px: Math.max(0, Number(e.target.value) || 0),
-                  }))
-                }
-                className="w-full rounded-lg border px-3 py-2 text-sm"
-                placeholder="0"
-              />
-              <p className="mt-1 text-xs text-gray-500">
-                Leave at 0 unless the booking modal shows a long intro/welcome section above the scheduler.
-                Start around 820 and adjust until the scheduler sits at the top.
-              </p>
+                above the Acuity scheduler in the in-site booking modal.
+                Desktop and mobile are separate because Acuity's mobile layout
+                has a shorter intro. */}
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Clip booking iframe top — desktop (px)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={20}
+                  value={sectionSettings.booking_iframe_top_clip_px}
+                  onChange={(e) =>
+                    setSectionSettings((prev) => ({
+                      ...prev,
+                      booking_iframe_top_clip_px: Math.max(0, Number(e.target.value) || 0),
+                    }))
+                  }
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  placeholder="0"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  ≥640px viewports. Start around 820 and adjust.
+                </p>
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Clip booking iframe top — mobile (px)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={20}
+                  value={sectionSettings.booking_iframe_top_clip_px_mobile}
+                  onChange={(e) =>
+                    setSectionSettings((prev) => ({
+                      ...prev,
+                      booking_iframe_top_clip_px_mobile: Math.max(0, Number(e.target.value) || 0),
+                    }))
+                  }
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                  placeholder="0"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  &lt;640px viewports. Usually smaller than desktop — try 300 first.
+                </p>
+              </div>
             </div>
 
             {/* Custom about image */}

@@ -111,9 +111,14 @@ export interface SectionSettings {
   disable_animations?: boolean;
   about_image_url?: string | null;
   template_override?: string | null;
-  /** px to clip off the top of the booking modal iframe. Use for Acuity
-   * tenants with a tall custom intro above the scheduler. 0 = no clip. */
+  /** px to clip off the top of the booking modal iframe on desktop (>=640px).
+   * Use for Acuity tenants with a tall custom intro above the scheduler.
+   * 0 = no clip. */
   booking_iframe_top_clip_px?: number;
+  /** px to clip off the top of the booking modal iframe on mobile (<640px).
+   * Acuity's mobile layout usually has a shorter intro, so this is typically
+   * smaller than the desktop value. 0 = no clip. */
+  booking_iframe_top_clip_px_mobile?: number;
 }
 
 function getSectionSettings(data: PreviewData): SectionSettings {
@@ -432,6 +437,7 @@ export function TemplateOrchestrator({
           colors={colors}
           introText={copy?.booking_intro || data.generated_copy?.en?.booking_intro}
           topClipPx={ss.booking_iframe_top_clip_px ?? 0}
+          topClipPxMobile={ss.booking_iframe_top_clip_px_mobile ?? 0}
         />
       )}
     </AnimationProvider>
