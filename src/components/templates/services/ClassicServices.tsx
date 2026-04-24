@@ -5,9 +5,9 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; appointmentTypeId?: number }[];
+  services: { name: string; price: string; description?: string; appointmentTypeParam?: string }[];
   colors: ThemeColors;
-  onSelectService?: (appointmentTypeId: number) => void;
+  onSelectService?: (appointmentTypeParam: string) => void;
 }
 
 export function ClassicServices({ services, colors, onSelectService }: ServicesProps) {
@@ -44,10 +44,10 @@ export function ClassicServices({ services, colors, onSelectService }: ServicesP
             );
             return (
               <AnimateSection key={service.name} delay={i * 0.1}>
-                {onSelectService && service.appointmentTypeId != null ? (
+                {onSelectService && service.appointmentTypeParam ? (
                   <button
                     type="button"
-                    onClick={() => onSelectService(service.appointmentTypeId!)}
+                    onClick={() => onSelectService(service.appointmentTypeParam!)}
                     className="block w-full text-left"
                   >
                     {card}
