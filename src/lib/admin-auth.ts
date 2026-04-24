@@ -1,5 +1,7 @@
 import { scrypt, randomBytes, timingSafeEqual, createHmac } from "node:crypto";
 import { promisify } from "node:util";
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const scryptAsync = promisify(scrypt);
 
@@ -73,4 +75,110 @@ export function verifySession(signed: string): SessionPayload | null {
   } catch {
     return null;
   }
+}
+
+export type AdminTenant = {
+  id: string;
+  business_name: string;
+  owner_name: string;
+  preview_slug: string | null;
+  email: string | null;
+  admin_email: string | null;
+  admin_pin_hash: string | null;
+  subscription_status: string;
+  site_published: boolean;
+};
+
+/**
+ * Resolve the tenant from a request hostname.
+ * Looks up custom_domain first (authoritative for mapped domains),
+ * then falls back to subdomain for *.siteforowners.com tenants.
+ */
+export async function resolveTenantByHost(hostname: string): Promise<AdminTenant | null> {
+  const normalized = hostname.split(":")[0].replace(/^www\./, "");
+  const supabase = createAdminClient();
+
+  let { data } = await supabase
+    .from("tenants")
+    .select(
+      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published"
+    )
+    .eq("custom_domain", normalized)
+    .maybeSingle();
+
+  if (!data) {
+    const subdomain = normalized.split(".")[0];
+    if (!subdomain) return null;
+    const res = await supabase
+      .from("tenants")
+      .select(
+        "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published"
+      )
+      .eq("subdomain", subdomain)
+      .maybeSingle();
+    data = res.data;
+  }
+
+  return (data as AdminTenant) ?? null;
+}
+
+const SESSION_COOKIE = "owner_session";
+const SESSION_MAX_AGE_SECONDS = 30 * 24 * 60 * 60; // 30 days
+
+export function setSessionCookie(res: NextResponse, tenant_id: string): void {
+  const exp = Math.floor(Date.now() / 1000) + SESSION_MAX_AGE_SECONDS;
+  const signed = signSession({ tenant_id, exp });
+  res.cookies.set(SESSION_COOKIE, signed, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+    path: "/",
+  });
+}
+
+export function clearSessionCookie(res: NextResponse): void {
+  res.cookies.set(SESSION_COOKIE, "", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    path: "/",
+  });
+}
+
+/**
+ * Validates the session cookie on a request and returns tenant_id + the tenant row.
+ * Returns null if missing or invalid. The tenant check ensures the cookie's
+ * tenant_id still matches the request hostname — mitigates stolen-cookie replay
+ * against a different tenant domain.
+ */
+export async function requireOwnerSession(
+  request: NextRequest | Request
+): Promise<{ tenant: AdminTenant } | null> {
+  const cookieHeader =
+    typeof (request as NextRequest).cookies?.get === "function"
+      ? (request as NextRequest).cookies.get(SESSION_COOKIE)?.value
+      : parseCookieHeader(request.headers.get("cookie") || "")[SESSION_COOKIE];
+
+  if (!cookieHeader) return null;
+  const payload = verifySession(cookieHeader);
+  if (!payload) return null;
+
+  const hostname = request.headers.get("host") || "";
+  const tenant = await resolveTenantByHost(hostname);
+  if (!tenant) return null;
+  if (tenant.id !== payload.tenant_id) return null;
+
+  return { tenant };
+}
+
+function parseCookieHeader(header: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of header.split(";")) {
+    const [k, ...rest] = part.trim().split("=");
+    if (!k) continue;
+    out[k] = decodeURIComponent(rest.join("="));
+  }
+  return out;
 }
