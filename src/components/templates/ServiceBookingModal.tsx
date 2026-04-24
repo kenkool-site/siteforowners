@@ -8,18 +8,22 @@ interface ServiceBookingModalProps {
   open: boolean;
   onClose: () => void;
   bookingUrl: string;
-  appointmentTypeId: number | null;
+  /**
+   * Acuity's `appointmentType` query value — either a numeric ID as a string
+   * (specific service) or `category:<RawCategoryName>` (category picker).
+   */
+  appointmentTypeParam: string | null;
   businessName: string;
   colors: ThemeColors;
   /** Optional branded text shown above the iframe (e.g. deposit policy). */
   introText?: string;
 }
 
-function buildIframeSrc(bookingUrl: string, appointmentTypeId: number | null): string {
-  if (appointmentTypeId == null) return bookingUrl;
+function buildIframeSrc(bookingUrl: string, appointmentTypeParam: string | null): string {
+  if (!appointmentTypeParam) return bookingUrl;
   try {
     const u = new URL(bookingUrl);
-    u.searchParams.set("appointmentType", String(appointmentTypeId));
+    u.searchParams.set("appointmentType", appointmentTypeParam);
     return u.toString();
   } catch {
     return bookingUrl;
@@ -30,7 +34,7 @@ export function ServiceBookingModal({
   open,
   onClose,
   bookingUrl,
-  appointmentTypeId,
+  appointmentTypeParam,
   businessName,
   colors,
   introText,
@@ -110,8 +114,8 @@ export function ServiceBookingModal({
 
             {/* Iframe */}
             <iframe
-              key={`${bookingUrl}-${appointmentTypeId ?? "default"}`}
-              src={buildIframeSrc(bookingUrl, appointmentTypeId)}
+              key={`${bookingUrl}-${appointmentTypeParam ?? "default"}`}
+              src={buildIframeSrc(bookingUrl, appointmentTypeParam)}
               title="Book an appointment"
               className="h-full w-full flex-1 border-0"
               allow="payment"

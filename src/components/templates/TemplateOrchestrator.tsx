@@ -137,16 +137,39 @@ export function TemplateOrchestrator({
     | { name: string; services: { name: string; price: string; duration: string; id: number; image?: string }[]; directUrl: string }[]
     | undefined;
 
-  // Build a per-service appointmentType-id map so Services cards can open
-  // an in-site modal pre-selected to that service. Only handles Acuity —
-  // other providers (Vagaro, Booksy, Square) will need their own logic
-  // when we onboard a client using them.
-  const serviceAppointmentIds = new Map<string, number>();
+  // Build a per-service deep-link-param map so Services cards can open the
+  // in-site booking modal pre-selected to that service. Only handles Acuity —
+  // other providers will need their own logic when we onboard a client.
+  //
+  // Acuity's `appointmentType` query param accepts either a numeric ID
+  // (specific service) or `category:<RawCategoryName>` (category picker).
+  // For clients whose Acuity has nested categories, the Claude-extracted
+  // `data.services` often contains *category* names (not individual services),
+  // because the services are hidden behind a category-click in the HTML.
+  // We register both service-level and category-level entries so whichever
+  // layer the user sees on the site will deep-link correctly.
+  const normalizeServiceName = (n: string) =>
+    n
+      .toLowerCase()
+      .replace(/^\d+\.\s*/, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  const serviceDeepLinkParams = new Map<string, string>();
   if (bookingCategories) {
     for (const cat of bookingCategories) {
       if (!cat.directUrl.includes("acuityscheduling.com")) continue;
+      // Category-level fallback — parse the authoritative `appointmentType`
+      // value that extractAcuityData already encoded into directUrl. Lets
+      // clients whose Claude-extracted services are actually category names
+      // (nested Acuity) still deep-link to the right category.
+      try {
+        const catParam = new URL(cat.directUrl).searchParams.get("appointmentType");
+        if (catParam) serviceDeepLinkParams.set(normalizeServiceName(cat.name), catParam);
+      } catch {}
       for (const svc of cat.services) {
-        serviceAppointmentIds.set(svc.name, svc.id);
+        // Service-level takes precedence over any category entry with the
+        // same normalized name (unlikely, but stable regardless of iteration).
+        serviceDeepLinkParams.set(normalizeServiceName(svc.name), String(svc.id));
       }
     }
   }
@@ -154,16 +177,16 @@ export function TemplateOrchestrator({
   const services = data.services.map((s) => ({
     ...s,
     description: copy?.service_descriptions?.[s.name] ?? s.description,
-    appointmentTypeId: serviceAppointmentIds.get(s.name),
+    appointmentTypeParam: serviceDeepLinkParams.get(normalizeServiceName(s.name)),
   }));
 
   // Modal state for in-site service booking. Modal is offered when we have
-  // a booking_url AND at least one service has a matched appointmentTypeId.
-  const [selectedAppointmentId, setSelectedAppointmentId] = useState<number | null>(null);
+  // a booking_url AND at least one service/category can deep-link.
+  const [selectedAppointmentParam, setSelectedAppointmentParam] = useState<string | null>(null);
   const canOpenBookingModal =
-    !!data.booking_url && serviceAppointmentIds.size > 0;
+    !!data.booking_url && serviceDeepLinkParams.size > 0;
   const onSelectService = canOpenBookingModal
-    ? (id: number) => setSelectedAppointmentId(id)
+    ? (param: string) => setSelectedAppointmentParam(param)
     : undefined;
 
   const headline = copy?.hero_headline ?? `Welcome to ${data.business_name}`;
@@ -353,10 +376,10 @@ export function TemplateOrchestrator({
       {renderTemplate()}
       {canOpenBookingModal && (
         <ServiceBookingModal
-          open={selectedAppointmentId !== null}
-          onClose={() => setSelectedAppointmentId(null)}
+          open={selectedAppointmentParam !== null}
+          onClose={() => setSelectedAppointmentParam(null)}
           bookingUrl={data.booking_url!}
-          appointmentTypeId={selectedAppointmentId}
+          appointmentTypeParam={selectedAppointmentParam}
           businessName={data.business_name}
           colors={colors}
           introText={copy?.booking_intro || data.generated_copy?.en?.booking_intro}
