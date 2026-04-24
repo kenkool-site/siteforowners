@@ -98,13 +98,17 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
   const normalized = hostname.split(":")[0].replace(/^www\./, "");
   const supabase = createAdminClient();
 
-  let { data } = await supabase
+  let { data, error } = await supabase
     .from("tenants")
     .select(
       "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published"
     )
     .eq("custom_domain", normalized)
     .maybeSingle();
+
+  if (error) {
+    console.error("[resolveTenantByHost] custom_domain lookup failed", { hostname: normalized, error });
+  }
 
   if (!data) {
     const subdomain = normalized.split(".")[0];
@@ -116,6 +120,9 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
       )
       .eq("subdomain", subdomain)
       .maybeSingle();
+    if (res.error) {
+      console.error("[resolveTenantByHost] subdomain lookup failed", { hostname: normalized, subdomain, error: res.error });
+    }
     data = res.data;
   }
 
