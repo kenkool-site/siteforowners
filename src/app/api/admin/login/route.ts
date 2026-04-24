@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveTenantByHost, verifyPin, setSessionCookie } from "@/lib/admin-auth";
 import {
-  checkAndRecordAttempt,
   hashIp,
   getRateLimitState,
   decide,
+  recordAttempt,
 } from "@/lib/admin-rate-limit";
 
 export async function POST(request: NextRequest) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
   }
 
   const ok = await verifyPin(pin, tenant.admin_pin_hash);
-  await checkAndRecordAttempt(tenant.id, ipHash, ok);
+  await recordAttempt(tenant.id, ipHash, ok);
   if (!ok) return NextResponse.json({ error: "Incorrect PIN" }, { status: 401 });
 
   const res = NextResponse.json({ ok: true });
