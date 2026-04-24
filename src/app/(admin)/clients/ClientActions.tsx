@@ -50,6 +50,21 @@ export function ClientActions({
     }
   };
 
+  const handleSetPin = async () => {
+    if (!confirm("Generate new PIN? The current one will stop working.")) return;
+    const res = await fetch("/api/admin/pin/set", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tenantId }),
+    });
+    if (!res.ok) {
+      alert("Failed to set PIN");
+      return;
+    }
+    const { pin } = await res.json();
+    alert(`New PIN: ${pin}\n\nShare with owner. You won't see it again.`);
+  };
+
   const subdomainUrl = siteSubdomain
     ? `https://${siteSubdomain}.siteforowners.com`
     : null;
@@ -63,6 +78,13 @@ export function ClientActions({
       >
         Edit Site
       </a>
+      <button
+        type="button"
+        onClick={handleSetPin}
+        className="rounded-lg border px-3 py-1.5 text-xs font-medium text-pink-700 hover:bg-pink-50"
+      >
+        Set/Reset PIN
+      </button>
 
       {published && (customDomainUrl || subdomainUrl) ? (
         <>
