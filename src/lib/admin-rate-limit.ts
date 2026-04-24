@@ -29,12 +29,16 @@ export async function getRateLimitState(tenantId: string, ipHash: string): Promi
   const supabase = createAdminClient();
   const now = Date.now();
   const hourAgo = new Date(now - 60 * 60 * 1000).toISOString();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("admin_login_attempts")
     .select("succeeded, attempted_at")
     .eq("tenant_id", tenantId)
     .eq("ip_hash", ipHash)
     .gte("attempted_at", hourAgo);
+
+  if (error) {
+    console.error("[admin-rate-limit] getRateLimitState query failed", { tenantId, error });
+  }
 
   const nowSec = Math.floor(now / 1000);
   let failsLast15Min = 0;
@@ -54,11 +58,14 @@ export async function recordAttempt(
   succeeded: boolean
 ): Promise<void> {
   const supabase = createAdminClient();
-  await supabase.from("admin_login_attempts").insert({
+  const { error } = await supabase.from("admin_login_attempts").insert({
     tenant_id: tenantId,
     ip_hash: ipHash,
     succeeded,
   });
+  if (error) {
+    console.error("[admin-rate-limit] recordAttempt insert failed", { tenantId, succeeded, error });
+  }
 }
 
 export async function checkAndRecordAttempt(
