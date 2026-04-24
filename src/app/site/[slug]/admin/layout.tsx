@@ -11,13 +11,16 @@ type TenantRow = AdminTenant & { booking_tool: string | null; checkout_mode: str
 
 async function loadTenantBySlug(slug: string): Promise<TenantRow | null> {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("tenants")
     .select(
       "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode"
     )
     .eq("preview_slug", slug)
     .maybeSingle();
+  if (error) {
+    console.error("[admin/layout] loadTenantBySlug failed", { slug, error });
+  }
   return (data as TenantRow) ?? null;
 }
 
