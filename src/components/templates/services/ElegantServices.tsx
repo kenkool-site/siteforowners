@@ -5,9 +5,9 @@ import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; appointmentTypeParam?: string }[];
+  services: { name: string; price: string; description?: string; bookingDeepLink?: string }[];
   colors: ThemeColors;
-  onSelectService?: (appointmentTypeParam: string) => void;
+  onSelectService?: (bookingDeepLink: string) => void;
 }
 
 export function ElegantServices({ services, colors, onSelectService }: ServicesProps) {
@@ -43,10 +43,10 @@ export function ElegantServices({ services, colors, onSelectService }: ServicesP
             );
             return (
               <AnimateSection key={service.name} animation="fade-in" delay={i * 0.15}>
-                {onSelectService && service.appointmentTypeParam ? (
+                {onSelectService && service.bookingDeepLink ? (
                   <button
                     type="button"
-                    onClick={() => onSelectService(service.appointmentTypeParam!)}
+                    onClick={() => onSelectService(service.bookingDeepLink!)}
                     className="block w-full text-left"
                   >
                     {card}

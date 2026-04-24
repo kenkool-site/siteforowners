@@ -118,6 +118,46 @@ function getSectionSettings(data: PreviewData): SectionSettings {
   return (copy?.section_settings as SectionSettings) || {};
 }
 
+// Build a fully-resolved Acuity deep-link URL for a given category/service.
+// Acuity schedulers come in two URL shapes and only respect deep linking in
+// their own shape:
+//
+//   Path-based (newer):  https://app.acuityscheduling.com/schedule/<slug>
+//     → deep link: .../schedule/<slug>/category/<name>[/appointment/<id>]
+//     `<name>` is double-URL-encoded because Acuity's router decodes the path
+//     once and its handler decodes again before matching the category.
+//
+//   Query-based (short forms like <name>.as.me):
+//     → deep link: <bookingUrl>?appointmentType=<id | category:RawName>
+//
+// Falls back to `savedBookingUrl` unchanged when neither shape applies or when
+// there's no target (category+service both missing).
+function buildAcuityDeepLink(
+  savedBookingUrl: string,
+  rawCategoryName: string | null,
+  serviceId: number | null,
+): string {
+  if (!rawCategoryName && serviceId == null) return savedBookingUrl;
+  try {
+    const u = new URL(savedBookingUrl);
+    const pathMatch = u.pathname.match(/^\/schedule\/([^/]+)\/?$/i);
+    if (pathMatch) {
+      const slug = pathMatch[1];
+      let path = `/schedule/${slug}`;
+      if (rawCategoryName) {
+        path += `/category/${encodeURIComponent(encodeURIComponent(rawCategoryName))}`;
+      }
+      if (serviceId != null) path += `/appointment/${serviceId}`;
+      return `${u.protocol}//${u.host}${path}`;
+    }
+    const param = serviceId != null ? String(serviceId) : `category:${rawCategoryName}`;
+    u.searchParams.set("appointmentType", param);
+    return u.toString();
+  } catch {
+    return savedBookingUrl;
+  }
+}
+
 export function TemplateOrchestrator({
   data,
   locale: initialLocale = "en",
@@ -137,39 +177,40 @@ export function TemplateOrchestrator({
     | { name: string; services: { name: string; price: string; duration: string; id: number; image?: string }[]; directUrl: string }[]
     | undefined;
 
-  // Build a per-service deep-link-param map so Services cards can open the
-  // in-site booking modal pre-selected to that service. Only handles Acuity —
-  // other providers will need their own logic when we onboard a client.
-  //
-  // Acuity's `appointmentType` query param accepts either a numeric ID
-  // (specific service) or `category:<RawCategoryName>` (category picker).
-  // For clients whose Acuity has nested categories, the Claude-extracted
-  // `data.services` often contains *category* names (not individual services),
-  // because the services are hidden behind a category-click in the HTML.
-  // We register both service-level and category-level entries so whichever
-  // layer the user sees on the site will deep-link correctly.
+  // Map a normalized service-or-category name → a fully-resolved Acuity
+  // deep-link URL (shape depends on the saved booking_url; see
+  // buildAcuityDeepLink). We register both service-level and category-level
+  // entries because for clients with nested Acuity categories, Claude
+  // extracts category names as "services" (the individual services are
+  // hidden behind a click in the static HTML).
   const normalizeServiceName = (n: string) =>
     n
       .toLowerCase()
       .replace(/^\d+\.\s*/, "")
       .replace(/[^a-z0-9]+/g, " ")
       .trim();
-  const serviceDeepLinkParams = new Map<string, string>();
-  if (bookingCategories) {
+  const serviceDeepLinkUrls = new Map<string, string>();
+  if (bookingCategories && data.booking_url) {
     for (const cat of bookingCategories) {
       if (!cat.directUrl.includes("acuityscheduling.com")) continue;
-      // Category-level fallback — parse the authoritative `appointmentType`
-      // value that extractAcuityData already encoded into directUrl. Lets
-      // clients whose Claude-extracted services are actually category names
-      // (nested Acuity) still deep-link to the right category.
+      // cat.name has the "1." prefix stripped; Acuity needs the raw name
+      // (including the prefix) in the URL. Recover it from the directUrl's
+      // encoded appointmentType=category:<RawName> param.
+      let rawCatName: string | null = null;
       try {
-        const catParam = new URL(cat.directUrl).searchParams.get("appointmentType");
-        if (catParam) serviceDeepLinkParams.set(normalizeServiceName(cat.name), catParam);
+        const p = new URL(cat.directUrl).searchParams.get("appointmentType");
+        if (p && p.startsWith("category:")) rawCatName = p.slice("category:".length);
       } catch {}
+      if (!rawCatName) continue;
+      serviceDeepLinkUrls.set(
+        normalizeServiceName(cat.name),
+        buildAcuityDeepLink(data.booking_url, rawCatName, null),
+      );
       for (const svc of cat.services) {
-        // Service-level takes precedence over any category entry with the
-        // same normalized name (unlikely, but stable regardless of iteration).
-        serviceDeepLinkParams.set(normalizeServiceName(svc.name), String(svc.id));
+        serviceDeepLinkUrls.set(
+          normalizeServiceName(svc.name),
+          buildAcuityDeepLink(data.booking_url, rawCatName, svc.id),
+        );
       }
     }
   }
@@ -177,16 +218,15 @@ export function TemplateOrchestrator({
   const services = data.services.map((s) => ({
     ...s,
     description: copy?.service_descriptions?.[s.name] ?? s.description,
-    appointmentTypeParam: serviceDeepLinkParams.get(normalizeServiceName(s.name)),
+    bookingDeepLink: serviceDeepLinkUrls.get(normalizeServiceName(s.name)),
   }));
 
-  // Modal state for in-site service booking. Modal is offered when we have
-  // a booking_url AND at least one service/category can deep-link.
-  const [selectedAppointmentParam, setSelectedAppointmentParam] = useState<string | null>(null);
+  // Modal state — holds the fully-resolved deep-link URL to load in the iframe.
+  const [selectedBookingDeepLink, setSelectedBookingDeepLink] = useState<string | null>(null);
   const canOpenBookingModal =
-    !!data.booking_url && serviceDeepLinkParams.size > 0;
+    !!data.booking_url && serviceDeepLinkUrls.size > 0;
   const onSelectService = canOpenBookingModal
-    ? (param: string) => setSelectedAppointmentParam(param)
+    ? (url: string) => setSelectedBookingDeepLink(url)
     : undefined;
 
   const headline = copy?.hero_headline ?? `Welcome to ${data.business_name}`;
@@ -376,10 +416,9 @@ export function TemplateOrchestrator({
       {renderTemplate()}
       {canOpenBookingModal && (
         <ServiceBookingModal
-          open={selectedAppointmentParam !== null}
-          onClose={() => setSelectedAppointmentParam(null)}
-          bookingUrl={data.booking_url!}
-          appointmentTypeParam={selectedAppointmentParam}
+          open={selectedBookingDeepLink !== null}
+          onClose={() => setSelectedBookingDeepLink(null)}
+          bookingUrl={selectedBookingDeepLink ?? data.booking_url!}
           businessName={data.business_name}
           colors={colors}
           introText={copy?.booking_intro || data.generated_copy?.en?.booking_intro}
