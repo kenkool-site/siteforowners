@@ -88,18 +88,36 @@ export async function middleware(request: NextRequest) {
     tenant = result.data;
   }
 
+  const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
   const activeStatuses = ["active", "trialing"];
-  if (
+
+  // Owner admin needs to work even when the site is unpublished or the
+  // subscription has lapsed — so owners can reach Billing and fix it.
+  // Public site still requires both gates.
+  const publicGated =
     !tenant ||
     !tenant.site_published ||
     !tenant.preview_slug ||
-    !activeStatuses.includes(tenant.subscription_status)
-  ) {
+    !activeStatuses.includes(tenant.subscription_status);
+
+  if (isAdminPath) {
+    if (!tenant || !tenant.preview_slug) {
+      return NextResponse.rewrite(new URL("/not-found", request.url));
+    }
+  } else if (publicGated) {
     return NextResponse.rewrite(new URL("/not-found", request.url));
   }
 
-  const url = new URL(`/site/${tenant.preview_slug}${pathname === "/" ? "" : pathname}`, request.url);
-  return NextResponse.rewrite(url);
+  const url = new URL(
+    `/site/${tenant!.preview_slug}${pathname === "/" ? "" : pathname}`,
+    request.url
+  );
+  // Expose original pathname via request headers so server components (e.g. the
+  // admin layout) can highlight the current nav tab. Setting it on the response
+  // does NOT propagate — it has to be on the forwarded request.
+  const forwardedHeaders = new Headers(request.headers);
+  forwardedHeaders.set("x-pathname", pathname);
+  return NextResponse.rewrite(url, { request: { headers: forwardedHeaders } });
 }
 
 export const config = {
