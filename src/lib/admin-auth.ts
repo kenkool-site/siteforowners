@@ -98,7 +98,7 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
   const normalized = hostname.split(":")[0].replace(/^www\./, "");
   const supabase = createAdminClient();
 
-  let { data, error } = await supabase
+  const byCustom = await supabase
     .from("tenants")
     .select(
       "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published"
@@ -106,27 +106,30 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
     .eq("custom_domain", normalized)
     .maybeSingle();
 
-  if (error) {
-    console.error("[resolveTenantByHost] custom_domain lookup failed", { hostname: normalized, error });
+  if (byCustom.error) {
+    console.error("[resolveTenantByHost] custom_domain lookup failed", { hostname: normalized, error: byCustom.error });
   }
 
-  if (!data) {
-    const subdomain = normalized.split(".")[0];
-    if (!subdomain) return null;
-    const res = await supabase
-      .from("tenants")
-      .select(
-        "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published"
-      )
-      .eq("subdomain", subdomain)
-      .maybeSingle();
-    if (res.error) {
-      console.error("[resolveTenantByHost] subdomain lookup failed", { hostname: normalized, subdomain, error: res.error });
-    }
-    data = res.data;
+  if (byCustom.data) {
+    return byCustom.data as AdminTenant;
   }
 
-  return (data as AdminTenant) ?? null;
+  const subdomain = normalized.split(".")[0];
+  if (!subdomain) return null;
+
+  const bySub = await supabase
+    .from("tenants")
+    .select(
+      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published"
+    )
+    .eq("subdomain", subdomain)
+    .maybeSingle();
+
+  if (bySub.error) {
+    console.error("[resolveTenantByHost] subdomain lookup failed", { hostname: normalized, subdomain, error: bySub.error });
+  }
+
+  return (bySub.data as AdminTenant) ?? null;
 }
 
 const SESSION_COOKIE = "owner_session";

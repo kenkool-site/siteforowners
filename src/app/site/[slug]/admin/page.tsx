@@ -26,7 +26,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
       <div className="text-lg font-semibold">
         {greeting()}, {ownerName.split(" ")[0]}
       </div>
-      <div className="text-sm text-gray-500 mt-1">Here's what's happening today</div>
+      <div className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening today</div>
       <div className="mt-6 text-sm text-gray-400">
         Your dashboard is getting set up. Stats and activity will appear here soon.
       </div>
