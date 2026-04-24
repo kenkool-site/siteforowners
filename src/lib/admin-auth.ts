@@ -56,17 +56,16 @@ export function signSession(payload: SessionPayload): string {
 }
 
 export function verifySession(signed: string): SessionPayload | null {
+  const secret = getSecret();  // throws if missing — that's correct
   try {
     if (!signed || !signed.includes(".")) return null;
     const parts = signed.split(".");
     if (parts.length !== 2) return null;
     const [body, sig] = parts;
-    const expected = createHmac("sha256", getSecret()).update(body).digest("hex");
-    if (sig.length !== expected.length) return null;
-    // Constant-time compare
-    let diff = 0;
-    for (let i = 0; i < sig.length; i++) diff |= sig.charCodeAt(i) ^ expected.charCodeAt(i);
-    if (diff !== 0) return null;
+    const expected = createHmac("sha256", secret).update(body).digest();
+    const sigBuf = Buffer.from(sig, "hex");
+    if (sigBuf.length !== expected.length) return null;
+    if (!timingSafeEqual(sigBuf, expected)) return null;
     const payload = JSON.parse(b64urlDecode(body).toString("utf8")) as SessionPayload;
     if (!payload.tenant_id || typeof payload.exp !== "number") return null;
     if (payload.exp < Math.floor(Date.now() / 1000)) return null;
