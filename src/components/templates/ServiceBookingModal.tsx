@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import type { ThemeColors } from "@/lib/templates/themes";
 
@@ -49,6 +49,23 @@ export function ServiceBookingModal({
       window.removeEventListener("keydown", onKey);
     };
   }, [open, onClose]);
+
+  // topClipPx is tuned against desktop intro heights; on mobile Acuity's
+  // layout compresses and the same clip would eat into the actual scheduler.
+  // Apply the clip only at >=640px; mobile users get the full iframe and
+  // scroll past the intro naturally.
+  const [applyClip, setApplyClip] = useState(false);
+  useEffect(() => {
+    if (!topClipPx) {
+      setApplyClip(false);
+      return;
+    }
+    const mq = window.matchMedia("(min-width: 640px)");
+    setApplyClip(mq.matches);
+    const onChange = (e: MediaQueryListEvent) => setApplyClip(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [topClipPx]);
 
   return (
     <AnimatePresence>
@@ -107,11 +124,11 @@ export function ServiceBookingModal({
               </div>
             )}
 
-            {/* Iframe — optionally clipped at the top to hide a business's
-                tall Acuity landing/intro section. The wrapper uses
-                overflow-hidden and the iframe is pushed up by `topClipPx`
-                with a matching extra height so the bottom edge still
-                reaches the container. */}
+            {/* Iframe — optionally clipped at the top (desktop only) to hide
+                a business's tall Acuity landing/intro section. The wrapper
+                uses overflow-hidden and the iframe is pushed up by
+                `topClipPx` with a matching extra height so the bottom edge
+                still reaches the container. */}
             <div className="relative w-full flex-1 overflow-hidden">
               <iframe
                 key={bookingUrl}
@@ -119,7 +136,7 @@ export function ServiceBookingModal({
                 title="Book an appointment"
                 className="block w-full border-0"
                 style={
-                  topClipPx
+                  applyClip
                     ? { marginTop: `-${topClipPx}px`, height: `calc(100% + ${topClipPx}px)` }
                     : { height: "100%" }
                 }
