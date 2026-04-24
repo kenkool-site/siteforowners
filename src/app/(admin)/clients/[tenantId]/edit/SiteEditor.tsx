@@ -9,7 +9,8 @@ import {
   getHoursSource,
   parseGoogleHoursString,
 } from "@/lib/defaults/businessHours";
-import type { BusinessHours } from "@/lib/ai/types";
+import type { BusinessHours, BusinessType, ColorTheme } from "@/lib/ai/types";
+import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 
 interface SiteEditorProps {
@@ -112,6 +113,37 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
 
   const toggleSection = (key: string) => {
     setSectionSettings((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }));
+  };
+
+  // Brand colors — initialize from saved custom_colors, else from the vertical's
+  // theme palette. Editing these writes to generated_copy.custom_colors which
+  // takes precedence over color_theme in TemplateOrchestrator.getColors.
+  const resolveThemeColors = (): ThemeColors => {
+    const themes = THEMES_BY_VERTICAL[preview.business_type as BusinessType];
+    const theme = themes?.find((t) => t.id === (preview.color_theme as ColorTheme));
+    return (
+      theme?.colors ??
+      themes?.[0]?.colors ?? {
+        primary: "#B8860B",
+        secondary: "#FFFDD0",
+        accent: "#DAA520",
+        background: "#FFF8F0",
+        foreground: "#2D2017",
+        muted: "#F5E6D3",
+      }
+    );
+  };
+  const savedCustomColors = copy.custom_colors as Partial<ThemeColors> | undefined;
+  const hasCustomColors = !!savedCustomColors?.primary;
+  const themeColors = resolveThemeColors();
+  const [customColors, setCustomColors] = useState<ThemeColors>({
+    ...themeColors,
+    ...(savedCustomColors ?? {}),
+  });
+  const [customColorsEnabled, setCustomColorsEnabled] = useState(hasCustomColors);
+  const resetCustomColors = () => {
+    setCustomColors(resolveThemeColors());
+    setCustomColorsEnabled(false);
   };
 
   // Display hours (footer). Separate from booking_settings.working_hours.
@@ -253,6 +285,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 about_image_url: sectionSettings.about_image_url || null,
                 template_override: sectionSettings.template_override || null,
               },
+              custom_colors: customColorsEnabled ? customColors : null,
             },
           },
         }),
@@ -849,6 +882,74 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 </div>
               </div>
             )}
+          </section>
+
+          {/* Brand Colors */}
+          <section className="rounded-xl border bg-white p-6">
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Brand Colors</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  {customColorsEnabled
+                    ? "Custom colors override the generated theme."
+                    : "Using the generated theme. Edit any color to override."}
+                </p>
+              </div>
+              {customColorsEnabled && (
+                <button
+                  type="button"
+                  onClick={resetCustomColors}
+                  className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                >
+                  Reset to theme
+                </button>
+              )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              {([
+                { key: "primary", label: "Primary", hint: "Buttons, accents" },
+                { key: "secondary", label: "Secondary", hint: "Secondary surfaces" },
+                { key: "accent", label: "Accent", hint: "Highlights" },
+                { key: "background", label: "Background", hint: "Page background" },
+                { key: "foreground", label: "Foreground", hint: "Primary text" },
+                { key: "muted", label: "Muted", hint: "Card backgrounds" },
+              ] as const).map(({ key, label, hint }) => {
+                const value = customColors[key];
+                const onChange = (next: string) => {
+                  setCustomColors((prev) => ({ ...prev, [key]: next }));
+                  setCustomColorsEnabled(true);
+                };
+                return (
+                  <div key={key} className="rounded-lg border p-3">
+                    <div className="mb-1 flex items-baseline justify-between">
+                      <span className="text-sm font-medium text-gray-800">{label}</span>
+                      <span className="text-[11px] text-gray-400">{hint}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={value}
+                        onChange={(e) => onChange(e.target.value)}
+                        className="h-9 w-10 shrink-0 cursor-pointer rounded border"
+                        aria-label={`${label} color picker`}
+                      />
+                      <input
+                        type="text"
+                        value={value}
+                        onChange={(e) => {
+                          const v = e.target.value.trim();
+                          if (/^#[0-9a-fA-F]{6}$/.test(v) || v === "") onChange(v || value);
+                          else onChange(v);
+                        }}
+                        className="w-full rounded border px-2 py-1.5 font-mono text-xs"
+                        placeholder="#000000"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </section>
 
           {/* Business Info */}
