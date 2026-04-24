@@ -17,6 +17,12 @@ interface ServiceBookingModalProps {
   colors: ThemeColors;
   /** Optional branded text shown above the iframe (e.g. deposit policy). */
   introText?: string;
+  /**
+   * px to clip off the top of the iframe content. Use for Acuity pages
+   * where the business has a tall custom intro/landing section above the
+   * scheduler that we want to hide. 0 (default) = no clipping.
+   */
+  topClipPx?: number;
 }
 
 export function ServiceBookingModal({
@@ -26,6 +32,7 @@ export function ServiceBookingModal({
   businessName,
   colors,
   introText,
+  topClipPx = 0,
 }: ServiceBookingModalProps) {
   // Close on Escape. Lock page scroll while open so the page underneath
   // doesn't drift when customer scrolls inside the iframe.
@@ -100,14 +107,25 @@ export function ServiceBookingModal({
               </div>
             )}
 
-            {/* Iframe */}
-            <iframe
-              key={bookingUrl}
-              src={bookingUrl}
-              title="Book an appointment"
-              className="h-full w-full flex-1 border-0"
-              allow="payment"
-            />
+            {/* Iframe — optionally clipped at the top to hide a business's
+                tall Acuity landing/intro section. The wrapper uses
+                overflow-hidden and the iframe is pushed up by `topClipPx`
+                with a matching extra height so the bottom edge still
+                reaches the container. */}
+            <div className="relative w-full flex-1 overflow-hidden">
+              <iframe
+                key={bookingUrl}
+                src={bookingUrl}
+                title="Book an appointment"
+                className="block w-full border-0"
+                style={
+                  topClipPx
+                    ? { marginTop: `-${topClipPx}px`, height: `calc(100% + ${topClipPx}px)` }
+                    : { height: "100%" }
+                }
+                allow="payment"
+              />
+            </div>
           </motion.div>
         </motion.div>
       )}
