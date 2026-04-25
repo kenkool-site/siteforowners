@@ -1,4 +1,42 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
+
+export type BookingMode =
+  | { external: true; url: string; providerName: string }
+  | { external: false; url: null; providerName: null };
+
+function detectProvider(url: string): string {
+  const lower = url.toLowerCase();
+  if (lower.includes("acuityscheduling.com")) return "Acuity";
+  if (lower.includes("booksy")) return "Booksy";
+  if (lower.includes("vagaro")) return "Vagaro";
+  if (lower.includes("squareup.com") || lower.includes("square.site")) return "Square";
+  if (lower.includes("calendly")) return "Calendly";
+  return "your booking provider";
+}
+
+/**
+ * Determine whether the tenant uses an external booking tool. Reads the
+ * preview's generated_copy.booking_url — same source the public site uses.
+ */
+export async function getBookingMode(previewSlug: string | null): Promise<BookingMode> {
+  if (!previewSlug) return { external: false, url: null, providerName: null };
+  noStore();
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("previews")
+    .select("generated_copy")
+    .eq("slug", previewSlug)
+    .maybeSingle();
+
+  const gc = data?.generated_copy as Record<string, unknown> | null;
+  const bookingUrl = typeof gc?.booking_url === "string" && gc.booking_url.trim().length > 0
+    ? (gc.booking_url as string)
+    : null;
+  if (!bookingUrl) return { external: false, url: null, providerName: null };
+
+  return { external: true, url: bookingUrl, providerName: detectProvider(bookingUrl) };
+}
 
 export type BookingRow = {
   id: string;
