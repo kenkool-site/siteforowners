@@ -78,3 +78,30 @@ export function computeAvailableStarts(input: AvailabilityInput): number[] {
   }
   return result;
 }
+
+/** Parse a "10:00 AM" / "1:30 PM" string into minutes since midnight. */
+export function parseBookingTime(s: string): number {
+  const m = s.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) throw new Error(`invalid booking_time: "${s}"`);
+  let hour = Number(m[1]);
+  const minute = Number(m[2]);
+  const period = m[3].toUpperCase();
+  if (hour === 12) hour = 0;
+  if (period === "PM") hour += 12;
+  return hour * 60 + minute;
+}
+
+/** Format minutes-since-midnight back into "1:30 PM". */
+function formatMinutes(totalMinutes: number): string {
+  const h24 = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  const period = h24 >= 12 ? "PM" : "AM";
+  let h12 = h24 % 12;
+  if (h12 === 0) h12 = 12;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+export function formatTimeRange(startStr: string, durationMinutes: number): string {
+  const start = parseBookingTime(startStr);
+  return `${formatMinutes(start)} – ${formatMinutes(start + durationMinutes)}`;
+}

@@ -171,3 +171,29 @@ test("computeAvailableStarts: Saturday short hours", () => {
   });
   assert.deepEqual(starts, [10, 11, 12, 13]);
 });
+
+import { parseBookingTime, formatTimeRange } from "./availability";
+
+test("parseBookingTime: '10:00 AM' → 600 (10 * 60)", () => {
+  assert.equal(parseBookingTime("10:00 AM"), 600);
+});
+
+test("parseBookingTime: '12:00 PM' (noon) → 720", () => {
+  assert.equal(parseBookingTime("12:00 PM"), 720);
+});
+
+test("parseBookingTime: '12:00 AM' (midnight) → 0", () => {
+  assert.equal(parseBookingTime("12:00 AM"), 0);
+});
+
+test("parseBookingTime: '1:30 PM' → 13*60 + 30 = 810", () => {
+  assert.equal(parseBookingTime("1:30 PM"), 810);
+});
+
+test("formatTimeRange: 10:00 AM, 60min → '10:00 AM – 11:00 AM'", () => {
+  assert.equal(formatTimeRange("10:00 AM", 60), "10:00 AM – 11:00 AM");
+});
+
+test("formatTimeRange: 10:00 AM, 180min → '10:00 AM – 1:00 PM'", () => {
+  assert.equal(formatTimeRange("10:00 AM", 180), "10:00 AM – 1:00 PM");
+});
