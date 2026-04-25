@@ -8,7 +8,7 @@ const STATUS_PILL: Record<string, string> = {
   completed: "bg-green-100 text-green-700",
   canceled: "bg-gray-200 text-gray-600",
   no_show: "bg-red-100 text-red-700",
-  pending: "bg-pink-100 text-pink-700",
+  pending: "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)]",
 };
 
 export function BookingRow({ row: initialRow }: { row: BookingRowType }) {
@@ -80,7 +80,7 @@ export function BookingRow({ row: initialRow }: { row: BookingRowType }) {
               <button
                 type="button"
                 onClick={() => setStatus("completed")}
-                className="w-full bg-pink-600 text-white font-medium py-3 rounded-lg"
+                className="w-full bg-[var(--admin-primary)] text-white font-medium py-3 rounded-lg"
               >
                 Mark completed
               </button>
@@ -100,7 +100,7 @@ export function BookingRow({ row: initialRow }: { row: BookingRowType }) {
               </button>
               <a
                 href={"tel:" + row.customer_phone}
-                className="block w-full text-center bg-white border border-pink-600 text-pink-700 font-medium py-3 rounded-lg"
+                className="block w-full text-center bg-white border border-[color:var(--admin-primary)] text-[color:var(--admin-primary)] font-medium py-3 rounded-lg"
               >
                 📞 Call customer
               </a>

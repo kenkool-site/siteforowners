@@ -42,12 +42,12 @@ export function AdminShell({
       {/* Desktop sidebar */}
       <aside className="hidden md:block w-48 bg-white border-r border-gray-200 p-4">
         <div className="mb-4">
-          <div className="font-semibold text-sm">{tenant.business_name}</div>
+          <div className="font-semibold text-sm mb-2">{tenant.business_name}</div>
           <a
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="text-[11px] text-gray-500 hover:text-pink-700"
+            className="block w-full text-center bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)] hover:bg-[var(--admin-primary-hover)] border border-[color:var(--admin-primary-border)] rounded-lg py-2 text-sm font-medium"
           >
             View site ↗
           </a>
@@ -60,7 +60,7 @@ export function AdminShell({
               className={
                 "text-sm px-3 py-2 rounded " +
                 (currentPath === t.href
-                  ? "bg-pink-50 text-pink-700 font-medium"
+                  ? "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)] font-medium"
                   : "text-gray-700 hover:bg-gray-100")
               }
             >
@@ -77,19 +77,19 @@ export function AdminShell({
       {/* Main column */}
       <div className="flex-1 flex flex-col md:min-h-screen">
         {/* Mobile top bar */}
-        <header className="md:hidden bg-pink-600 text-white px-4 py-3 flex justify-between items-center">
-          <div>
-            <div className="font-semibold text-sm leading-tight">{tenant.business_name}</div>
+        <header className="md:hidden bg-[var(--admin-primary)] text-white px-4 py-3 flex justify-between items-center gap-3">
+          <div className="font-semibold text-sm truncate">{tenant.business_name}</div>
+          <div className="flex items-center gap-2 shrink-0">
             <a
               href="/"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[10px] opacity-80 hover:opacity-100"
+              className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-full text-xs font-medium"
             >
               View site ↗
             </a>
+            <SignOutButton className="text-xs opacity-90" />
           </div>
-          <SignOutButton className="text-xs opacity-90" />
         </header>
 
         <main className="flex-1 pb-20 md:pb-0">{children}</main>
@@ -102,7 +102,7 @@ export function AdminShell({
               href={t.href}
               className={
                 "flex flex-col items-center " +
-                (currentPath === t.href ? "text-pink-600" : "text-gray-500")
+                (currentPath === t.href ? "text-[color:var(--admin-primary)]" : "text-gray-500")
               }
             >
               <span className="text-base">{t.icon}</span>
@@ -122,7 +122,7 @@ export function AdminShell({
                     href={t.href}
                     className={
                       "block px-4 py-2 text-sm " +
-                      (currentPath === t.href ? "text-pink-600 bg-pink-50" : "text-gray-700")
+                      (currentPath === t.href ? "text-[color:var(--admin-primary)] bg-[var(--admin-primary-light)]" : "text-gray-700")
                     }
                   >
                     <span className="mr-2">{t.icon}</span>

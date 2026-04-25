@@ -124,7 +124,7 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
               style={{ backgroundColor: colors.foreground }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-6 pt-20">
+              <div className="flex h-full flex-col px-6 pt-20 pb-6">
                 <ul className="space-y-1">
                   {items.map((item, i) => (
                     <motion.li
@@ -145,6 +145,16 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
                     </motion.li>
                   ))}
                 </ul>
+
+                <div className="mt-auto border-t pt-4" style={{ borderColor: textColor + "20" }}>
+                  <a
+                    href="/admin"
+                    className="block rounded-lg px-4 py-3 text-left text-xs opacity-60 transition-opacity hover:opacity-100"
+                    style={{ color: textColor }}
+                  >
+                    Owner login →
+                  </a>
+                </div>
               </div>
             </motion.nav>
           </motion.div>

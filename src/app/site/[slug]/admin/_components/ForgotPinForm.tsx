@@ -28,14 +28,14 @@ export function ForgotPinForm() {
   return (
     <div className="w-full max-w-xs">
       <div className="text-center mb-5">
-        <div className="text-pink-600 font-semibold text-lg">Reset your PIN</div>
+        <div className="text-[color:var(--admin-primary)] font-semibold text-lg">Reset your PIN</div>
       </div>
 
       {submitted ? (
         <div className="bg-white border border-gray-200 rounded-lg p-5 text-sm text-gray-700">
           If an account exists for that email, a reset link is on its way. The link expires in 15 minutes.
           <div className="mt-3">
-            <a href="/admin" className="text-pink-600 hover:underline text-sm">Back to sign in</a>
+            <a href="/admin" className="text-[color:var(--admin-primary)] hover:underline text-sm">Back to sign in</a>
           </div>
         </div>
       ) : (
@@ -51,7 +51,7 @@ export function ForgotPinForm() {
           <button
             type="submit"
             disabled={pending || !email}
-            className="w-full bg-pink-600 text-white font-medium py-3 rounded-lg disabled:opacity-50"
+            className="w-full bg-[var(--admin-primary)] text-white font-medium py-3 rounded-lg disabled:opacity-50"
           >
             {pending ? "Sending..." : "Email me a reset link"}
           </button>

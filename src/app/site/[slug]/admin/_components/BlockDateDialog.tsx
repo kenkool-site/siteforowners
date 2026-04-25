@@ -39,7 +39,7 @@ export function BlockDateDialog({ initial }: { initial: string[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="text-xs text-pink-700 underline"
+        className="text-xs text-[color:var(--admin-primary)] underline"
       >
         + Block date
       </button>
@@ -67,7 +67,7 @@ export function BlockDateDialog({ initial }: { initial: string[] }) {
                 type="button"
                 disabled={pending || !newDate}
                 onClick={() => mutate("add", [newDate])}
-                className="bg-pink-600 text-white font-medium px-3 py-2 rounded text-sm disabled:opacity-50"
+                className="bg-[var(--admin-primary)] text-white font-medium px-3 py-2 rounded text-sm disabled:opacity-50"
               >
                 Add
               </button>

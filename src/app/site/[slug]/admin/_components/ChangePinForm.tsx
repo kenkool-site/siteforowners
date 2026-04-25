@@ -85,7 +85,7 @@ export function ChangePinForm() {
       <button
         type="submit"
         disabled={pending}
-        className="bg-pink-600 text-white font-medium px-4 py-2 rounded-lg disabled:opacity-50 text-sm"
+        className="bg-[var(--admin-primary)] text-white font-medium px-4 py-2 rounded-lg disabled:opacity-50 text-sm"
       >
         {pending ? "Updating..." : "Update PIN"}
       </button>

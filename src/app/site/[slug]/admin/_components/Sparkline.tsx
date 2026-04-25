@@ -10,11 +10,11 @@ export function Sparkline({ bars }: { bars: SparklineBar[] }) {
           return (
             <div key={b.day} className="flex-1 flex flex-col items-center gap-1">
               <div
-                className="w-full bg-pink-600 rounded-t"
+                className="w-full bg-[var(--admin-primary)] rounded-t"
                 style={{ height: Math.max(4, h) + "%" }}
                 aria-label={b.day + ": " + b.count}
               />
-              <div className="text-[9px] text-pink-900/70 uppercase">{b.day}</div>
+              <div className="text-[9px] text-[color:var(--admin-primary)] opacity-70 uppercase">{b.day}</div>
             </div>
           );
         })}

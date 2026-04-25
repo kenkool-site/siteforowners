@@ -33,7 +33,7 @@ export function BillingPortalButton() {
       type="button"
       onClick={open}
       disabled={pending}
-      className="w-full bg-pink-600 text-white font-medium py-3 rounded-lg disabled:opacity-50"
+      className="w-full bg-[var(--admin-primary)] text-white font-medium py-3 rounded-lg disabled:opacity-50"
     >
       {pending ? "Opening..." : "Manage billing"}
     </button>
