@@ -1,4 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import {
@@ -60,10 +61,17 @@ export default async function SchedulePage({
     );
   }
 
+  // Read the tab from the x-search header set by middleware. Next.js's
+  // `searchParams` prop has been observed dropping the query on rewritten
+  // admin paths in prod; the header channel is reliable. Fall back to
+  // searchParams for local dev (where middleware may not always run).
+  const searchHeader = headers().get("x-search") ?? "";
+  const tabFromHeader = new URLSearchParams(searchHeader).get("tab");
+  const tabSource = tabFromHeader ?? searchParams.tab;
   const tab: Tab =
-    searchParams.tab === "upcoming"
+    tabSource === "upcoming"
       ? "upcoming"
-      : searchParams.tab === "hours"
+      : tabSource === "hours"
       ? "hours"
       : "today";
 

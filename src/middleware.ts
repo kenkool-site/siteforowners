@@ -115,6 +115,11 @@ export async function middleware(request: NextRequest) {
   // does NOT propagate — it has to be on the forwarded request.
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.set("x-pathname", pathname);
+  // Mirror the search string into a header. Next.js's searchParams prop has
+  // been observed dropping `?tab=...` on rewritten admin paths in production
+  // even when `url.search` is preserved on the rewrite target. The pathname
+  // header pattern works reliably, so use the same channel for the query.
+  forwardedHeaders.set("x-search", request.nextUrl.search);
   const response = NextResponse.rewrite(url, { request: { headers: forwardedHeaders } });
 
   // Force fresh render on every /admin request. Vercel's edge will cache

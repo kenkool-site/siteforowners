@@ -1,4 +1,5 @@
 import { unstable_noStore as noStore } from "next/cache";
+import { headers } from "next/headers";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { notFound } from "next/navigation";
@@ -54,7 +55,12 @@ export default async function OrdersPage({
   noStore();
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
-  const tab = searchParams.tab === "history" ? "history" : "active";
+  // Read tab from x-search header (set by middleware) — searchParams is
+  // unreliable on rewritten admin paths in prod. See schedule/page.tsx.
+  const searchHeader = headers().get("x-search") ?? "";
+  const tabFromHeader = new URLSearchParams(searchHeader).get("tab");
+  const tabSource = tabFromHeader ?? searchParams.tab;
+  const tab = tabSource === "history" ? "history" : "active";
   const orders = await getOrders(tenant.id, tab);
 
   return (
