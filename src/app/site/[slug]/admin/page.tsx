@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { getRollups } from "@/lib/admin-rollups";
 import { getRecentVisits, shapeVisits, getMonthlyVisitCount } from "@/lib/admin-visits";
@@ -10,8 +11,10 @@ import { Greeting } from "./_components/Greeting";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function AdminHome({ params }: { params: { slug: string } }) {
+  noStore();
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
 

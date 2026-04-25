@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import {
@@ -13,6 +14,7 @@ import { BlockDateDialog } from "../_components/BlockDateDialog";
 import { TabBar } from "../_components/TabBar";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Tab = "today" | "upcoming" | "hours";
 
@@ -23,6 +25,7 @@ export default async function SchedulePage({
   params: { slug: string };
   searchParams: { tab?: string };
 }) {
+  noStore();
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
 
