@@ -1,20 +1,14 @@
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { getRollups } from "@/lib/admin-rollups";
-import { getRecentVisits, shapeVisits } from "@/lib/admin-visits";
+import { getRecentVisits, shapeVisits, getMonthlyVisitCount } from "@/lib/admin-visits";
 import { getRecentActivity } from "@/lib/admin-activity";
 import { StatCard } from "./_components/StatCard";
 import { VisitorsStrip } from "./_components/VisitorsStrip";
 import { RecentActivity } from "./_components/RecentActivity";
+import { Greeting } from "./_components/Greeting";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-function greeting(now = new Date()): string {
-  const h = now.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
 
 export default async function AdminHome({ params }: { params: { slug: string } }) {
   const tenant = await loadTenantBySlug(params.slug);
@@ -24,10 +18,11 @@ export default async function AdminHome({ params }: { params: { slug: string } }
     !tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal";
   const showOrders = tenant.checkout_mode === "pickup";
 
-  const [rollups, visitRows, activity] = await Promise.all([
+  const [rollups, visitRows, activity, monthlyVisits] = await Promise.all([
     getRollups(tenant.id),
     getRecentVisits(tenant.id),
     getRecentActivity(tenant.id),
+    getMonthlyVisitCount(tenant.id),
   ]);
   const visitStats = shapeVisits(visitRows, new Date());
 
@@ -45,7 +40,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
     <div className="py-4 md:py-6">
       <div className="px-4 md:px-8">
         <div className="text-lg font-semibold">
-          {greeting()}, {tenant.business_name}
+          <Greeting name={tenant.business_name} />
         </div>
         <div className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening today</div>
       </div>
@@ -57,7 +52,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
       </div>
 
       <div className="md:px-8">
-        <VisitorsStrip stats={visitStats} />
+        <VisitorsStrip stats={visitStats} thisMonth={monthlyVisits} />
       </div>
 
       <div className="px-3 md:px-8 mt-4">
