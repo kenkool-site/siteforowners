@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveTenantByHost } from "@/lib/admin-auth";
 import { recordVisit } from "@/lib/admin-visits";
+import {
+  checkRateLimit,
+  hashIp,
+  getClientIp,
+  trackBucket,
+} from "@/lib/api-rate-limit";
 
 // Minimal substring-based bot filter. Undercounting is acceptable —
 // the visitor stat is feel-good, not fraud-grade.
@@ -15,6 +21,9 @@ function isBot(userAgent: string | null): boolean {
   return BOT_UA_SUBSTRINGS.some((s) => ua.includes(s));
 }
 
+const TRACK_WINDOW_SECONDS = 60;
+const TRACK_MAX_REQUESTS = 60;
+
 export async function POST(request: NextRequest) {
   if (isBot(request.headers.get("user-agent"))) {
     return NextResponse.json({ ok: true });
@@ -24,6 +33,16 @@ export async function POST(request: NextRequest) {
   const tenant = await resolveTenantByHost(host);
   if (!tenant) {
     return NextResponse.json({ ok: false }, { status: 404 });
+  }
+
+  const ipHash = hashIp(getClientIp(request.headers));
+  const allowed = await checkRateLimit(
+    trackBucket(tenant.id, ipHash),
+    TRACK_WINDOW_SECONDS,
+    TRACK_MAX_REQUESTS
+  );
+  if (!allowed) {
+    return NextResponse.json({ ok: false }, { status: 429 });
   }
 
   await recordVisit(tenant.id);
