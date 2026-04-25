@@ -81,7 +81,7 @@ export function HoursEditor({ initial }: { initial: WorkingHours | null }) {
             <button
               type="button"
               onClick={() => setDay(day, isClosed ? { open: "10:00 AM", close: "5:00 PM" } : null)}
-              className="text-xs text-pink-700 underline"
+              className="text-xs text-[color:var(--admin-primary)] underline"
             >
               {isClosed ? "Open" : "Closed"}
             </button>
@@ -96,7 +96,7 @@ export function HoursEditor({ initial }: { initial: WorkingHours | null }) {
           type="button"
           disabled={saving}
           onClick={save}
-          className="bg-pink-600 text-white font-medium px-4 py-2 rounded-lg disabled:opacity-50"
+          className="bg-[var(--admin-primary)] text-white font-medium px-4 py-2 rounded-lg disabled:opacity-50"
         >
           Save hours
         </button>

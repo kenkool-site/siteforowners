@@ -10,7 +10,7 @@ export function StatCard({ value, label, fullWidth = false }: {
         (fullWidth ? "col-span-2 md:col-span-4" : "")
       }
     >
-      <div className="text-2xl md:text-3xl font-bold text-pink-600">{value}</div>
+      <div className="text-2xl md:text-3xl font-bold text-[color:var(--admin-primary)]">{value}</div>
       <div className="text-xs text-gray-600 mt-0.5">{label}</div>
     </div>
   );

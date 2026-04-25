@@ -47,7 +47,7 @@ export function AdminShell({
             href="/"
             target="_blank"
             rel="noopener noreferrer"
-            className="block w-full text-center bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 rounded-lg py-2 text-sm font-medium"
+            className="block w-full text-center bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)] hover:bg-[var(--admin-primary-hover)] border border-[color:var(--admin-primary-border)] rounded-lg py-2 text-sm font-medium"
           >
             View site ↗
           </a>
@@ -60,7 +60,7 @@ export function AdminShell({
               className={
                 "text-sm px-3 py-2 rounded " +
                 (currentPath === t.href
-                  ? "bg-pink-50 text-pink-700 font-medium"
+                  ? "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)] font-medium"
                   : "text-gray-700 hover:bg-gray-100")
               }
             >
@@ -77,7 +77,7 @@ export function AdminShell({
       {/* Main column */}
       <div className="flex-1 flex flex-col md:min-h-screen">
         {/* Mobile top bar */}
-        <header className="md:hidden bg-pink-600 text-white px-4 py-3 flex justify-between items-center gap-3">
+        <header className="md:hidden bg-[var(--admin-primary)] text-white px-4 py-3 flex justify-between items-center gap-3">
           <div className="font-semibold text-sm truncate">{tenant.business_name}</div>
           <div className="flex items-center gap-2 shrink-0">
             <a
@@ -102,7 +102,7 @@ export function AdminShell({
               href={t.href}
               className={
                 "flex flex-col items-center " +
-                (currentPath === t.href ? "text-pink-600" : "text-gray-500")
+                (currentPath === t.href ? "text-[color:var(--admin-primary)]" : "text-gray-500")
               }
             >
               <span className="text-base">{t.icon}</span>
@@ -122,7 +122,7 @@ export function AdminShell({
                     href={t.href}
                     className={
                       "block px-4 py-2 text-sm " +
-                      (currentPath === t.href ? "text-pink-600 bg-pink-50" : "text-gray-700")
+                      (currentPath === t.href ? "text-[color:var(--admin-primary)] bg-[var(--admin-primary-light)]" : "text-gray-700")
                     }
                   >
                     <span className="mr-2">{t.icon}</span>

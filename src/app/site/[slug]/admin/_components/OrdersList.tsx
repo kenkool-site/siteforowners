@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Order, OrderDetailDrawer } from "./OrderDetailDrawer";
 
 const STATUS_PILL: Record<Order["status"], string> = {
-  new: "bg-pink-100 text-pink-700",
+  new: "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)]",
   ready: "bg-amber-100 text-amber-700",
   picked_up: "bg-green-100 text-green-700",
   canceled: "bg-gray-200 text-gray-600",

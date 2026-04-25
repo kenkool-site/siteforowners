@@ -50,7 +50,7 @@ export function PinEntry({ businessName }: { businessName: string }) {
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-xs">
         <div className="text-center mb-6">
-          <div className="text-pink-600 font-semibold text-lg">{businessName}</div>
+          <div className="text-[color:var(--admin-primary)] font-semibold text-lg">{businessName}</div>
           <div className="text-gray-500 text-sm mt-1">Enter your 6-digit PIN</div>
         </div>
 
@@ -60,7 +60,7 @@ export function PinEntry({ businessName }: { businessName: string }) {
               key={i}
               className={
                 "w-3 h-3 rounded-full " +
-                (i < pin.length ? "bg-pink-600" : "border-2 border-gray-300")
+                (i < pin.length ? "bg-[var(--admin-primary)]" : "border-2 border-gray-300")
               }
             />
           ))}
@@ -105,7 +105,7 @@ export function PinEntry({ businessName }: { businessName: string }) {
         </div>
 
         <div className="text-center mt-6">
-          <a href="/admin/forgot-pin" className="text-sm text-pink-600 hover:underline">
+          <a href="/admin/forgot-pin" className="text-sm text-[color:var(--admin-primary)] hover:underline">
             Forgot PIN?
           </a>
         </div>

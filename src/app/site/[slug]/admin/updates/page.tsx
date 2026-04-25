@@ -16,7 +16,7 @@ type UpdateRequest = {
 };
 
 const STATUS_PILL: Record<string, string> = {
-  pending: "bg-pink-100 text-pink-700",
+  pending: "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)]",
   in_progress: "bg-amber-100 text-amber-700",
   done: "bg-green-100 text-green-700",
 };
@@ -65,7 +65,7 @@ export default async function UpdatesPage({ params }: { params: { slug: string }
     <div className="py-4 md:py-6">
       <div className="px-4 md:px-8 flex items-baseline justify-between">
         <div className="text-lg font-semibold">Update requests</div>
-        <Link href="/admin/updates/new" className="text-xs text-pink-700 underline">+ New</Link>
+        <Link href="/admin/updates/new" className="text-xs text-[color:var(--admin-primary)] underline">+ New</Link>
       </div>
       <div className="px-4 md:px-8 mt-1 text-xs text-gray-500">
         Ask us to change something on your website.

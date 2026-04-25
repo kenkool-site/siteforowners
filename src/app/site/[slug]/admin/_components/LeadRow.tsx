@@ -56,7 +56,7 @@ export function LeadRow({ lead }: { lead: Lead }) {
           <div className="text-sm font-medium flex items-center gap-2">
             <span>{lead.name}</span>
             {!isRead && (
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-600 text-white">
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--admin-primary)] text-white">
                 NEW
               </span>
             )}
@@ -66,7 +66,7 @@ export function LeadRow({ lead }: { lead: Lead }) {
               <a
                 href={"tel:" + lead.phone}
                 onClick={(e) => e.stopPropagation()}
-                className="text-pink-700 underline"
+                className="text-[color:var(--admin-primary)] underline"
               >
                 {lead.phone}
               </a>
@@ -75,7 +75,7 @@ export function LeadRow({ lead }: { lead: Lead }) {
               <a
                 href={"mailto:" + lead.email}
                 onClick={(e) => e.stopPropagation()}
-                className="text-pink-700 underline"
+                className="text-[color:var(--admin-primary)] underline"
               >
                 {lead.email}
               </a>

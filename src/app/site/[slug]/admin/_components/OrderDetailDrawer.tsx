@@ -93,7 +93,7 @@ export function OrderDetailDrawer({
           <div>
             <div className="text-base font-semibold">{order.customer_name}</div>
             <div className="text-xs text-gray-500 mt-0.5">
-              <a href={"tel:" + order.customer_phone} className="text-pink-700 underline">
+              <a href={"tel:" + order.customer_phone} className="text-[color:var(--admin-primary)] underline">
                 {order.customer_phone}
               </a>
               {" · "}
@@ -101,7 +101,7 @@ export function OrderDetailDrawer({
             </div>
           </div>
           <span className={"text-[10px] font-bold px-2 py-0.5 rounded-full " +
-            (order.status === "new" ? "bg-pink-100 text-pink-700"
+            (order.status === "new" ? "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)]"
               : order.status === "ready" ? "bg-amber-100 text-amber-700"
               : order.status === "picked_up" ? "bg-green-100 text-green-700"
               : "bg-gray-200 text-gray-600")}
@@ -137,14 +137,14 @@ export function OrderDetailDrawer({
             type="button"
             disabled={pending || primaryNext === null}
             onClick={() => primaryNext && transition(primaryNext)}
-            className="w-full bg-pink-600 text-white font-medium py-3 rounded-lg disabled:opacity-50"
+            className="w-full bg-[var(--admin-primary)] text-white font-medium py-3 rounded-lg disabled:opacity-50"
           >
             {NEXT_LABEL[order.status]}
           </button>
           <div className="flex gap-2">
             <a
               href={"tel:" + order.customer_phone}
-              className="flex-1 text-center text-sm font-medium text-pink-700 border border-pink-600 rounded-lg py-2"
+              className="flex-1 text-center text-sm font-medium text-[color:var(--admin-primary)] border border-[color:var(--admin-primary)] rounded-lg py-2"
             >
               📞 Call
             </a>

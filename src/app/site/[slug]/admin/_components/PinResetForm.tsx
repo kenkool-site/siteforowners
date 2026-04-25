@@ -15,7 +15,7 @@ export function PinResetForm({ token }: { token: string }) {
         <div className="bg-white border border-gray-200 rounded-lg p-5 text-sm text-gray-700">
           Missing reset token. Please request a new reset link.
           <div className="mt-3">
-            <a href="/admin/forgot-pin" className="text-pink-600 hover:underline">Request new link</a>
+            <a href="/admin/forgot-pin" className="text-[color:var(--admin-primary)] hover:underline">Request new link</a>
           </div>
         </div>
       </div>
@@ -57,9 +57,9 @@ export function PinResetForm({ token }: { token: string }) {
     return (
       <div className="w-full max-w-xs text-center">
         <div className="bg-white border border-gray-200 rounded-lg p-5">
-          <div className="text-pink-600 font-semibold mb-2">PIN updated ✓</div>
+          <div className="text-[color:var(--admin-primary)] font-semibold mb-2">PIN updated ✓</div>
           <div className="text-sm text-gray-700 mb-3">You can now sign in with your new PIN.</div>
-          <a href="/admin" className="inline-block bg-pink-600 text-white font-medium px-4 py-2 rounded-lg">
+          <a href="/admin" className="inline-block bg-[var(--admin-primary)] text-white font-medium px-4 py-2 rounded-lg">
             Sign in
           </a>
         </div>
@@ -70,7 +70,7 @@ export function PinResetForm({ token }: { token: string }) {
   return (
     <div className="w-full max-w-xs">
       <div className="text-center mb-5">
-        <div className="text-pink-600 font-semibold text-lg">Set a new PIN</div>
+        <div className="text-[color:var(--admin-primary)] font-semibold text-lg">Set a new PIN</div>
         <div className="text-gray-500 text-sm mt-1">6 digits</div>
       </div>
       <form onSubmit={onSubmit} className="space-y-3">
@@ -100,7 +100,7 @@ export function PinResetForm({ token }: { token: string }) {
         <button
           type="submit"
           disabled={pending}
-          className="w-full bg-pink-600 text-white font-medium py-3 rounded-lg disabled:opacity-50"
+          className="w-full bg-[var(--admin-primary)] text-white font-medium py-3 rounded-lg disabled:opacity-50"
         >
           {pending ? "Updating..." : "Set PIN"}
         </button>

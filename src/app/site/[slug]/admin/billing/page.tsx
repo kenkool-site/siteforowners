@@ -9,7 +9,7 @@ const STATUS_PILL: Record<string, { class: string; label: string }> = {
   trialing: { class: "bg-blue-100 text-blue-700", label: "Trial" },
   past_due: { class: "bg-red-100 text-red-700", label: "Past due" },
   canceled: { class: "bg-gray-200 text-gray-600", label: "Canceled" },
-  pending: { class: "bg-pink-100 text-pink-700", label: "Pending" },
+  pending: { class: "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)]", label: "Pending" },
 };
 
 export default async function BillingPage({ params }: { params: { slug: string } }) {

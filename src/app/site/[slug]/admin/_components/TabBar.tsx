@@ -32,7 +32,7 @@ export function TabBar({
             href={"?tab=" + t.value}
             className={
               "px-4 py-2 text-sm border-b-2 " +
-              (active ? "border-pink-600 text-pink-700 font-medium" : "border-transparent text-gray-500")
+              (active ? "border-[color:var(--admin-primary)] text-[color:var(--admin-primary)] font-medium" : "border-transparent text-gray-500")
             }
           >
             {t.label}
