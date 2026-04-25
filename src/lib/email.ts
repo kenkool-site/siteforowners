@@ -373,17 +373,21 @@ export async function sendPinResetEmail(
   businessName: string
 ): Promise<void> {
   if (!resend) {
-    console.log("Skipping PIN reset email — RESEND_API_KEY not set", { toEmail });
+    console.log("Skipping PIN reset email — RESEND_API_KEY not set");
     return;
   }
+  const safeBusiness = escapeHtml(businessName);
+  // resetUrl is constructed server-side from request.host + a server-generated
+  // token; not owner-controlled, but escape attribute context anyway.
+  const safeUrl = escapeHtml(resetUrl);
   await resend.emails.send({
     from: FROM,
     to: toEmail,
     subject: `Reset your ${businessName} dashboard PIN`,
     html: `
       <p>Hi,</p>
-      <p>Someone (hopefully you) requested a PIN reset for your <b>${businessName}</b> dashboard.</p>
-      <p><a href="${resetUrl}" style="display:inline-block;padding:10px 20px;background:#D8006B;color:white;text-decoration:none;border-radius:6px">Set a new PIN</a></p>
+      <p>Someone (hopefully you) requested a PIN reset for your <b>${safeBusiness}</b> dashboard.</p>
+      <p><a href="${safeUrl}" style="display:inline-block;padding:10px 20px;background:#D8006B;color:white;text-decoration:none;border-radius:6px">Set a new PIN</a></p>
       <p>This link expires in 15 minutes. If you didn't request this, you can ignore this email — your PIN won't change.</p>
     `,
   });
@@ -391,6 +395,8 @@ export async function sendPinResetEmail(
 
 /**
  * Notify the founder when a new update request is filed.
+ * The description and attachment URL are owner-controlled — escape every
+ * interpolated field to prevent HTML injection in the founder's inbox.
  */
 export async function sendUpdateRequestNotification(req: {
   tenantId: string;
@@ -404,15 +410,21 @@ export async function sendUpdateRequestNotification(req: {
     return;
   }
   const editLink = `${APP_URL}/clients/${req.tenantId}/edit`;
+  const safeBusiness = escapeHtml(req.businessName);
+  const safeCategory = escapeHtml(req.category);
+  // Escape first, then convert newlines to <br/>. The order matters — escaping
+  // happens in raw text space before we introduce HTML tags.
+  const safeDescription = escapeHtml(req.description).replace(/\n/g, "<br/>");
+  const safeUrl = req.attachmentUrl ? escapeHtml(req.attachmentUrl) : null;
   await resend.emails.send({
     from: FROM,
     to: ADMIN_EMAIL,
     subject: `New update request — ${req.businessName}`,
     html: `
-      <p><b>${req.businessName}</b> filed an update request.</p>
-      <p><b>Category:</b> ${req.category}</p>
-      <p><b>Description:</b><br/>${req.description.replace(/\n/g, "<br/>")}</p>
-      ${req.attachmentUrl ? `<p><b>Attachment:</b> <a href="${req.attachmentUrl}">${req.attachmentUrl}</a></p>` : ""}
+      <p><b>${safeBusiness}</b> filed an update request.</p>
+      <p><b>Category:</b> ${safeCategory}</p>
+      <p><b>Description:</b><br/>${safeDescription}</p>
+      ${safeUrl ? `<p><b>Attachment:</b> <a href="${safeUrl}">${safeUrl}</a></p>` : ""}
       <p><a href="${editLink}">Open client edit page →</a></p>
     `,
   });

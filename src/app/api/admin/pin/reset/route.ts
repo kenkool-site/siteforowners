@@ -36,13 +36,21 @@ export async function POST(request: NextRequest) {
   }
 
   const newHash = await hashPin(newPin);
-  const { error: updateTokenErr } = await supabase
+  // Atomic claim: the WHERE clause includes `used_at IS NULL`, so concurrent
+  // requests racing the same token will only succeed for one — the other
+  // gets zero affected rows and aborts before the PIN update.
+  const { data: claimed, error: updateTokenErr } = await supabase
     .from("admin_pin_resets")
     .update({ used_at: new Date().toISOString() })
-    .eq("token_hash", tokenHash);
+    .eq("token_hash", tokenHash)
+    .is("used_at", null)
+    .select("token_hash");
   if (updateTokenErr) {
     console.error("[admin/pin/reset] mark used failed", { error: updateTokenErr });
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
+  }
+  if (!claimed || claimed.length !== 1) {
+    return NextResponse.json({ error: "Invalid or expired link" }, { status: 400 });
   }
 
   const { error: updatePinErr } = await supabase
