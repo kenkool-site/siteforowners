@@ -110,7 +110,17 @@ export async function middleware(request: NextRequest) {
   // does NOT propagate — it has to be on the forwarded request.
   const forwardedHeaders = new Headers(request.headers);
   forwardedHeaders.set("x-pathname", pathname);
-  return NextResponse.rewrite(url, { request: { headers: forwardedHeaders } });
+  const response = NextResponse.rewrite(url, { request: { headers: forwardedHeaders } });
+
+  // Force fresh render on every /admin request. Vercel's edge will cache
+  // rewritten paths even with `force-dynamic` set on the route — admin
+  // counters drift stale within minutes. Public site pages keep default
+  // caching (they change rarely; cache helps perf).
+  if (isAdminPath) {
+    response.headers.set("Cache-Control", "private, no-store, no-cache, must-revalidate, max-age=0");
+  }
+
+  return response;
 }
 
 export const config = {
