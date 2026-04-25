@@ -78,3 +78,25 @@ export async function checkAndRecordAttempt(
   await recordAttempt(tenantId, ipHash, succeeded);
   return decision;
 }
+
+/**
+ * Count failed attempts for a tenant across ALL ips in the last
+ * `withinSeconds` window. Closes the IP-rotation bypass: a botnet
+ * attacker hitting from many IPs each gets fresh per-IP buckets, but
+ * the per-tenant failure total still trips a global lockout.
+ */
+export async function getTenantFailCount(tenantId: string, withinSeconds: number): Promise<number> {
+  const supabase = createAdminClient();
+  const sinceISO = new Date(Date.now() - withinSeconds * 1000).toISOString();
+  const { count, error } = await supabase
+    .from("admin_login_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("tenant_id", tenantId)
+    .eq("succeeded", false)
+    .gte("attempted_at", sinceISO);
+  if (error) {
+    console.error("[admin-rate-limit] getTenantFailCount failed", { tenantId, error });
+    return 0;
+  }
+  return count ?? 0;
+}
