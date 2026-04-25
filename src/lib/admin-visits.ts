@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { currentIsoWeekRange, previousIsoWeekRange } from "./admin-rollups";
 
@@ -48,6 +49,7 @@ export function shapeVisits(rows: VisitRow[], now: Date): VisitStats {
 
 /** Fetch visit rows from the start of last week through today. */
 export async function getRecentVisits(tenantId: string, now: Date = new Date()): Promise<VisitRow[]> {
+  noStore();
   const prev = previousIsoWeekRange(now);
   const supabase = createAdminClient();
   const { data, error } = await supabase
@@ -77,6 +79,7 @@ export async function recordVisit(tenantId: string): Promise<void> {
 
 /** Sum of site_visits for the current calendar month (UTC). */
 export async function getMonthlyVisitCount(tenantId: string, now: Date = new Date()): Promise<number> {
+  noStore();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const startIso = start.toISOString().slice(0, 10);
   const supabase = createAdminClient();
