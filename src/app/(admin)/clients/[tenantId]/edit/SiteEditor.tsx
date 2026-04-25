@@ -12,6 +12,7 @@ import {
 import type { BusinessHours, BusinessType, ColorTheme } from "@/lib/ai/types";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
+import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
 
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
@@ -612,6 +613,8 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
           </Button>
         </div>
       </div>
+
+      {typeof tenant.id === "string" && <FounderUpdatesPanel tenantId={tenant.id} />}
 
       {/* AI Instructions Panel */}
       {showAiPrompt && (
