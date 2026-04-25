@@ -18,15 +18,44 @@ export function TemplateContact({
   previewMode = false,
 }: TemplateContactProps) {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (previewMode) {
       setSubmitted(true);
       return;
     }
-    // TODO: Wire to /api/leads in Week 2
-    setSubmitted(true);
+    const form = e.currentTarget;
+    const fd = new FormData(form);
+    const payload = {
+      name: fd.get("name"),
+      phone: fd.get("phone"),
+      email: fd.get("email"),
+      message: fd.get("message"),
+      source_page: typeof window !== "undefined" ? window.location.pathname : null,
+    };
+
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError((data && data.error) || "Something went wrong. Please try again.");
+        return;
+      }
+      setSubmitted(true);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -61,9 +90,20 @@ export function TemplateContact({
             </p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <>
+            {error && (
+              <div
+                className="mb-4 rounded-lg border px-4 py-2 text-sm"
+                style={{ borderColor: "#dc2626", color: "#dc2626", backgroundColor: "#fee2e2" }}
+                role="alert"
+              >
+                {error}
+              </div>
+            )}
+            <form onSubmit={handleSubmit} className="space-y-4">
             <input
               type="text"
+              name="name"
               placeholder="Your Name"
               required
               className="w-full rounded-lg border px-4 py-3 text-base outline-none focus:ring-2"
@@ -75,6 +115,7 @@ export function TemplateContact({
             />
             <input
               type="tel"
+              name="phone"
               placeholder="Phone Number"
               className="w-full rounded-lg border px-4 py-3 text-base outline-none focus:ring-2"
               style={{
@@ -85,6 +126,7 @@ export function TemplateContact({
             />
             <input
               type="email"
+              name="email"
               placeholder="Email (optional)"
               className="w-full rounded-lg border px-4 py-3 text-base outline-none focus:ring-2"
               style={{
@@ -94,6 +136,7 @@ export function TemplateContact({
               }}
             />
             <textarea
+              name="message"
               placeholder="Your Message"
               rows={4}
               required
@@ -106,6 +149,7 @@ export function TemplateContact({
             />
             <Button
               type="submit"
+              disabled={loading}
               size="lg"
               className="w-full rounded-lg py-6 text-base font-semibold"
               style={{
@@ -113,9 +157,10 @@ export function TemplateContact({
                 color: colors.background,
               }}
             >
-              Send Message
+              {loading ? "Sending..." : "Send Message"}
             </Button>
-          </form>
+            </form>
+          </>
         )}
       </div>
     </section>
