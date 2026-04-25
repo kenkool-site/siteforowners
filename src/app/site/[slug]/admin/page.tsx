@@ -1,6 +1,6 @@
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { getRollups } from "@/lib/admin-rollups";
-import { getRecentVisits, shapeVisits } from "@/lib/admin-visits";
+import { getRecentVisits, shapeVisits, getMonthlyVisitCount } from "@/lib/admin-visits";
 import { getRecentActivity } from "@/lib/admin-activity";
 import { StatCard } from "./_components/StatCard";
 import { VisitorsStrip } from "./_components/VisitorsStrip";
@@ -24,10 +24,11 @@ export default async function AdminHome({ params }: { params: { slug: string } }
     !tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal";
   const showOrders = tenant.checkout_mode === "pickup";
 
-  const [rollups, visitRows, activity] = await Promise.all([
+  const [rollups, visitRows, activity, monthlyVisits] = await Promise.all([
     getRollups(tenant.id),
     getRecentVisits(tenant.id),
     getRecentActivity(tenant.id),
+    getMonthlyVisitCount(tenant.id),
   ]);
   const visitStats = shapeVisits(visitRows, new Date());
 
@@ -57,7 +58,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
       </div>
 
       <div className="md:px-8">
-        <VisitorsStrip stats={visitStats} />
+        <VisitorsStrip stats={visitStats} thisMonth={monthlyVisits} />
       </div>
 
       <div className="px-3 md:px-8 mt-4">

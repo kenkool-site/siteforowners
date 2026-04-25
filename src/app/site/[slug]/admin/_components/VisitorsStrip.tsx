@@ -1,7 +1,13 @@
 import type { VisitStats } from "@/lib/admin-visits";
 import { Sparkline } from "./Sparkline";
 
-export function VisitorsStrip({ stats }: { stats: VisitStats }) {
+export function VisitorsStrip({
+  stats,
+  thisMonth,
+}: {
+  stats: VisitStats;
+  thisMonth: number;
+}) {
   const trendLabel =
     stats.trendPct === null
       ? null
@@ -30,6 +36,12 @@ export function VisitorsStrip({ stats }: { stats: VisitStats }) {
         {stats.thisWeek === 1 ? "Person checked out your site" : "People checked out your site"}
       </div>
       <Sparkline bars={stats.sparkline} />
+      <div className="mt-3 pt-3 border-t border-[color:var(--admin-primary-border)] flex justify-between text-xs">
+        <span className="text-[color:var(--admin-primary)] opacity-70">This month</span>
+        <span className="font-semibold text-[color:var(--admin-primary)]">
+          {thisMonth} {thisMonth === 1 ? "visitor" : "visitors"}
+        </span>
+      </div>
     </div>
   );
 }

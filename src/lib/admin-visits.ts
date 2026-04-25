@@ -74,3 +74,20 @@ export async function recordVisit(tenantId: string): Promise<void> {
     console.error("[admin-visits] recordVisit failed", { tenantId, error });
   }
 }
+
+/** Sum of site_visits for the current calendar month (UTC). */
+export async function getMonthlyVisitCount(tenantId: string, now: Date = new Date()): Promise<number> {
+  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const startIso = start.toISOString().slice(0, 10);
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("site_visits")
+    .select("count")
+    .eq("tenant_id", tenantId)
+    .gte("day", startIso);
+  if (error) {
+    console.error("[admin-visits] getMonthlyVisitCount failed", { tenantId, error });
+    return 0;
+  }
+  return (data ?? []).reduce((sum, row) => sum + (row.count ?? 0), 0);
+}
