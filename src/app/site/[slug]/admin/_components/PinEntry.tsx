@@ -105,10 +105,9 @@ export function PinEntry({ businessName }: { businessName: string }) {
         </div>
 
         <div className="text-center mt-6">
-          <button type="button" className="text-sm text-pink-600 opacity-50 cursor-not-allowed" disabled>
+          <a href="/admin/forgot-pin" className="text-sm text-pink-600 hover:underline">
             Forgot PIN?
-          </button>
-          <div className="text-[10px] text-gray-400 mt-1">(coming soon)</div>
+          </a>
         </div>
       </div>
     </div>
