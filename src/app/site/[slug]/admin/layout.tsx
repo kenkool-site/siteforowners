@@ -1,28 +1,11 @@
 import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
-import { createAdminClient } from "@/lib/supabase/admin";
-import { verifySession, AdminTenant } from "@/lib/admin-auth";
+import { verifySession } from "@/lib/admin-auth";
+import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { PinEntry } from "./_components/PinEntry";
 import { AdminShell, ShellTenant } from "./_components/AdminShell";
 
 export const dynamic = "force-dynamic";
-
-type TenantRow = AdminTenant & { booking_tool: string | null; checkout_mode: string | null };
-
-async function loadTenantBySlug(slug: string): Promise<TenantRow | null> {
-  const supabase = createAdminClient();
-  const { data, error } = await supabase
-    .from("tenants")
-    .select(
-      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode"
-    )
-    .eq("preview_slug", slug)
-    .maybeSingle();
-  if (error) {
-    console.error("[admin/layout] loadTenantBySlug failed", { slug, error });
-  }
-  return (data as TenantRow) ?? null;
-}
 
 export default async function AdminLayout({
   children,
@@ -42,8 +25,6 @@ export default async function AdminLayout({
     return <PinEntry businessName={tenant.business_name} />;
   }
 
-  // Middleware sets x-pathname with the original request path (e.g. "/admin/schedule").
-  // We use it to highlight the current nav tab.
   const pathname = headers().get("x-pathname") || "/admin";
 
   const shellTenant: ShellTenant = {
