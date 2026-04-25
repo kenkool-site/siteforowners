@@ -126,6 +126,10 @@ export function TemplateFooter({
         >
           SiteForOwners
         </a>
+        {" · "}
+        <a href="/admin" className="underline hover:opacity-80">
+          Owner login
+        </a>
       </div>
     </footer>
   );

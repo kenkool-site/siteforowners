@@ -41,7 +41,17 @@ export function AdminShell({
     <div className="min-h-screen bg-gray-50 md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden md:block w-48 bg-white border-r border-gray-200 p-4">
-        <div className="font-semibold text-sm mb-4">{tenant.business_name}</div>
+        <div className="mb-4">
+          <div className="font-semibold text-sm">{tenant.business_name}</div>
+          <a
+            href="/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[11px] text-gray-500 hover:text-pink-700"
+          >
+            View site ↗
+          </a>
+        </div>
         <nav className="flex flex-col gap-1">
           {tabs.map((t) => (
             <Link
@@ -68,7 +78,17 @@ export function AdminShell({
       <div className="flex-1 flex flex-col md:min-h-screen">
         {/* Mobile top bar */}
         <header className="md:hidden bg-pink-600 text-white px-4 py-3 flex justify-between items-center">
-          <div className="font-semibold text-sm">{tenant.business_name}</div>
+          <div>
+            <div className="font-semibold text-sm leading-tight">{tenant.business_name}</div>
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[10px] opacity-80 hover:opacity-100"
+            >
+              View site ↗
+            </a>
+          </div>
           <SignOutButton className="text-xs opacity-90" />
         </header>
 
