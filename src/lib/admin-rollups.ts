@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type DateRange = { start: string; end: string };
@@ -42,6 +43,7 @@ export type Rollups = {
 
 /** Query all 4 rollup counts in parallel. Errors → 0 for that counter. */
 export async function getRollups(tenantId: string): Promise<Rollups> {
+  noStore();
   const supabase = createAdminClient();
   const today = todayRange();
   const week = currentIsoWeekRange();

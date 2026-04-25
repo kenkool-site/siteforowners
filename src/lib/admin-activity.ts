@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type ActivityEntry = {
@@ -10,6 +11,7 @@ export type ActivityEntry = {
 
 /** Up to `limit` most recent events across bookings, orders, contact_leads. */
 export async function getRecentActivity(tenantId: string, limit = 5): Promise<ActivityEntry[]> {
+  noStore();
   const supabase = createAdminClient();
 
   const [bookings, orders, leads] = await Promise.all([
