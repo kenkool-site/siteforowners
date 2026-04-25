@@ -105,6 +105,11 @@ export async function middleware(request: NextRequest) {
     `/site/${tenant!.preview_slug}${pathname === "/" ? "" : pathname}`,
     request.url
   );
+  // Preserve the original search string. The URL constructor above only takes
+  // the path; without this, `?tab=upcoming` etc. silently drops on rewrite and
+  // server components receive an empty searchParams object.
+  url.search = request.nextUrl.search;
+
   // Expose original pathname via request headers so server components (e.g. the
   // admin layout) can highlight the current nav tab. Setting it on the response
   // does NOT propagate — it has to be on the forwarded request.
