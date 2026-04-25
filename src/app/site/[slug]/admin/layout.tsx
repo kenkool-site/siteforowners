@@ -1,4 +1,4 @@
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { verifySession } from "@/lib/admin-auth";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
@@ -25,17 +25,11 @@ export default async function AdminLayout({
     return <PinEntry businessName={tenant.business_name} />;
   }
 
-  const pathname = headers().get("x-pathname") || "/admin";
-
   const shellTenant: ShellTenant = {
     business_name: tenant.business_name,
     booking_tool: tenant.booking_tool,
     checkout_mode: tenant.checkout_mode,
   };
 
-  return (
-    <AdminShell tenant={shellTenant} currentPath={pathname}>
-      {children}
-    </AdminShell>
-  );
+  return <AdminShell tenant={shellTenant}>{children}</AdminShell>;
 }

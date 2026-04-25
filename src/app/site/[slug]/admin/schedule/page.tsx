@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import {
@@ -10,6 +9,7 @@ import {
 import { BookingRow } from "../_components/BookingRow";
 import { HoursEditor } from "../_components/HoursEditor";
 import { BlockDateDialog } from "../_components/BlockDateDialog";
+import { TabBar } from "../_components/TabBar";
 
 export const dynamic = "force-dynamic";
 
@@ -34,10 +34,6 @@ export default async function SchedulePage({
 
   const settings = await getBookingSettings(tenant.id);
 
-  const tabClass = (active: boolean) =>
-    "px-4 py-2 text-sm border-b-2 " +
-    (active ? "border-pink-600 text-pink-700 font-medium" : "border-transparent text-gray-500");
-
   return (
     <div className="py-4 md:py-6">
       <div className="px-4 md:px-8 flex items-baseline justify-between">
@@ -45,17 +41,14 @@ export default async function SchedulePage({
         <BlockDateDialog initial={settings?.blocked_dates ?? []} />
       </div>
 
-      <div className="px-4 md:px-8 mt-3 flex gap-2 border-b border-gray-200">
-        <Link href="?tab=today" className={tabClass(tab === "today")}>
-          Today
-        </Link>
-        <Link href="?tab=upcoming" className={tabClass(tab === "upcoming")}>
-          Upcoming
-        </Link>
-        <Link href="?tab=hours" className={tabClass(tab === "hours")}>
-          Hours
-        </Link>
-      </div>
+      <TabBar
+        tabs={[
+          { value: "today", label: "Today" },
+          { value: "upcoming", label: "Upcoming" },
+          { value: "hours", label: "Hours" },
+        ]}
+        defaultValue="today"
+      />
 
       <div className="px-3 md:px-8 mt-4">
         {tab === "hours" ? (

@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
 
 type Tab = { href: string; label: string; icon: string };
@@ -24,13 +27,12 @@ function buildTabs(tenant: ShellTenant): Tab[] {
 
 export function AdminShell({
   tenant,
-  currentPath,
   children,
 }: {
   tenant: ShellTenant;
-  currentPath: string;
   children: React.ReactNode;
 }) {
+  const currentPath = usePathname() || "/admin";
   const tabs = buildTabs(tenant);
   const primary = tabs.slice(0, 4);
   const overflow = tabs.slice(4);
