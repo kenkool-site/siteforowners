@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import { SiteClient } from "./SiteClient";
@@ -90,11 +91,14 @@ export default async function SitePage({
   const result = await getSiteData(params.slug);
   if (!result) notFound();
   return (
-    <SiteClient
-      data={result.preview}
-      bookingHours={result.bookingHours}
-      tenantId={result.tenantId}
-      checkoutMode={result.checkoutMode}
-    />
+    <>
+      <Script src="/track.js" strategy="afterInteractive" />
+      <SiteClient
+        data={result.preview}
+        bookingHours={result.bookingHours}
+        tenantId={result.tenantId}
+        checkoutMode={result.checkoutMode}
+      />
+    </>
   );
 }
