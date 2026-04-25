@@ -3,12 +3,13 @@
 
 -- 1. tenants.booking_mode (3-state: in_site_only | external_only | both)
 ALTER TABLE tenants
-  ADD COLUMN booking_mode text NOT NULL DEFAULT 'in_site_only'
+  ADD COLUMN IF NOT EXISTS booking_mode text NOT NULL DEFAULT 'in_site_only'
   CHECK (booking_mode IN ('in_site_only', 'external_only', 'both'));
 
 -- Backfill: tenants currently using an external provider keep today's
 -- behavior. booking_url lives at previews.generated_copy ->> 'booking_url',
 -- joined to tenants via preview_slug.
+-- Tenants with NULL preview_slug fall through and keep the in_site_only default.
 UPDATE tenants t
    SET booking_mode = 'external_only'
   FROM previews p
@@ -17,10 +18,12 @@ UPDATE tenants t
 
 -- 2. bookings.duration_minutes (immutable per-booking duration)
 ALTER TABLE bookings
-  ADD COLUMN duration_minutes integer NOT NULL DEFAULT 60;
+  ADD COLUMN IF NOT EXISTS duration_minutes integer NOT NULL DEFAULT 60;
 
 -- 3. previews.services[*].duration_minutes backfill — every service item
 -- without a duration_minutes field gets 60.
+-- Empty/NULL services arrays are filtered out: jsonb_agg over zero rows
+-- returns NULL, which would turn '[]'::jsonb rows into SQL NULL.
 UPDATE previews
    SET services = (
      SELECT jsonb_agg(
