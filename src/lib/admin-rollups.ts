@@ -38,7 +38,7 @@ export type Rollups = {
   newOrders: number;
   bookingsToday: number;
   unreadLeads: number;
-  bookingsThisWeek: number;
+  bookingsNext7Days: number;
 };
 
 /** Query all 4 rollup counts in parallel. Errors → 0 for that counter. */
@@ -46,7 +46,7 @@ export async function getRollups(tenantId: string): Promise<Rollups> {
   noStore();
   const supabase = createAdminClient();
   const today = todayRange();
-  const week = currentIsoWeekRange();
+  const sevenDayEnd = isoDate(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000));
 
   async function countOrders() {
     const { count, error } = await supabase
@@ -79,24 +79,24 @@ export async function getRollups(tenantId: string): Promise<Rollups> {
     return count ?? 0;
   }
 
-  async function countBookingsThisWeek() {
+  async function countBookingsNext7Days() {
     const { count, error } = await supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
       .eq("tenant_id", tenantId)
       .in("status", ["confirmed", "completed"])
-      .gte("booking_date", week.start)
-      .lte("booking_date", week.end);
-    if (error) console.error("[admin-rollups] countBookingsThisWeek failed", { tenantId, error });
+      .gte("booking_date", today.start)
+      .lte("booking_date", sevenDayEnd);
+    if (error) console.error("[admin-rollups] countBookingsNext7Days failed", { tenantId, error });
     return count ?? 0;
   }
 
-  const [newOrders, bookingsToday, unreadLeads, bookingsThisWeek] = await Promise.all([
+  const [newOrders, bookingsToday, unreadLeads, bookingsNext7Days] = await Promise.all([
     countOrders(),
     countBookingsToday(),
     countUnreadLeads(),
-    countBookingsThisWeek(),
+    countBookingsNext7Days(),
   ]);
 
-  return { newOrders, bookingsToday, unreadLeads, bookingsThisWeek };
+  return { newOrders, bookingsToday, unreadLeads, bookingsNext7Days };
 }

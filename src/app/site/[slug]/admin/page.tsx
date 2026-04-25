@@ -40,7 +40,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
   if (showOrders) cards.push({ value: rollups.newOrders, label: "New orders" });
   if (showSchedule) {
     cards.push({ value: rollups.bookingsToday, label: "Bookings today" });
-    cards.push({ value: rollups.bookingsThisWeek, label: "Bookings this week" });
+    cards.push({ value: rollups.bookingsNext7Days, label: "Bookings next 7 days" });
   }
   cards.push({ value: rollups.unreadLeads, label: "Unread leads" });
 
