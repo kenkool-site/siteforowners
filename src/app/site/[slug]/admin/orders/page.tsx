@@ -67,7 +67,7 @@ export default async function OrdersPage({
         </Link>
       </div>
       <div className="px-3 md:px-8 mt-4">
-        <OrdersList initialOrders={orders} />
+        <OrdersList key={tab} initialOrders={orders} />
       </div>
     </div>
   );
