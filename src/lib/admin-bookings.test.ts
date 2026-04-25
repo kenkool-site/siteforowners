@@ -7,6 +7,7 @@ function b(id: string, date: string, time = "10:00 AM"): BookingRow {
     id,
     booking_date: date,
     booking_time: time,
+    duration_minutes: 60,
     customer_name: "Cust",
     customer_phone: "555",
     service_name: "Svc",

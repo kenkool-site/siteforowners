@@ -42,6 +42,7 @@ export type BookingRow = {
   id: string;
   booking_date: string;
   booking_time: string;
+  duration_minutes: number;
   customer_name: string;
   customer_phone: string;
   service_name: string;
@@ -72,7 +73,7 @@ export async function getUpcomingBookings(tenantId: string): Promise<BookingRow[
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, booking_date, booking_time, customer_name, customer_phone, service_name, status")
+    .select("id, booking_date, booking_time, duration_minutes, customer_name, customer_phone, service_name, status")
     .eq("tenant_id", tenantId)
     .gte("booking_date", today)
     .order("booking_date", { ascending: true })
@@ -91,7 +92,7 @@ export async function getTodayBookings(tenantId: string): Promise<BookingRow[]> 
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("bookings")
-    .select("id, booking_date, booking_time, customer_name, customer_phone, service_name, status")
+    .select("id, booking_date, booking_time, duration_minutes, customer_name, customer_phone, service_name, status")
     .eq("tenant_id", tenantId)
     .eq("booking_date", today)
     .order("booking_time", { ascending: true });

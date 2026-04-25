@@ -77,6 +77,8 @@ export function verifySession(signed: string): SessionPayload | null {
   }
 }
 
+export type BookingMode = 'in_site_only' | 'external_only' | 'both';
+
 export type AdminTenant = {
   id: string;
   business_name: string;
@@ -89,6 +91,7 @@ export type AdminTenant = {
   site_published: boolean;
   booking_tool: string | null;
   checkout_mode: string | null;
+  booking_mode: BookingMode;
 };
 
 /**
@@ -103,7 +106,7 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
   const byCustom = await supabase
     .from("tenants")
     .select(
-      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode"
+      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode, booking_mode"
     )
     .eq("custom_domain", normalized)
     .maybeSingle();
@@ -122,7 +125,7 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
   const bySub = await supabase
     .from("tenants")
     .select(
-      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode"
+      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode, booking_mode"
     )
     .eq("subdomain", subdomain)
     .maybeSingle();

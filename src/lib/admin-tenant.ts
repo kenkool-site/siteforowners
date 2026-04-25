@@ -12,7 +12,7 @@ export const loadTenantBySlug = cache(async (slug: string): Promise<AdminTenant 
   const { data, error } = await supabase
     .from("tenants")
     .select(
-      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode"
+      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode, booking_mode"
     )
     .eq("preview_slug", slug)
     .maybeSingle();
