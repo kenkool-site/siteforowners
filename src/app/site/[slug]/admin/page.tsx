@@ -5,16 +5,10 @@ import { getRecentActivity } from "@/lib/admin-activity";
 import { StatCard } from "./_components/StatCard";
 import { VisitorsStrip } from "./_components/VisitorsStrip";
 import { RecentActivity } from "./_components/RecentActivity";
+import { Greeting } from "./_components/Greeting";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
-
-function greeting(now = new Date()): string {
-  const h = now.getHours();
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
-  return "Good evening";
-}
 
 export default async function AdminHome({ params }: { params: { slug: string } }) {
   const tenant = await loadTenantBySlug(params.slug);
@@ -46,7 +40,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
     <div className="py-4 md:py-6">
       <div className="px-4 md:px-8">
         <div className="text-lg font-semibold">
-          {greeting()}, {tenant.business_name}
+          <Greeting name={tenant.business_name} />
         </div>
         <div className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening today</div>
       </div>
