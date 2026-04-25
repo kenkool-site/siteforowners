@@ -1,3 +1,4 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { notFound } from "next/navigation";
@@ -6,11 +7,13 @@ import { TabBar } from "../_components/TabBar";
 import type { Order } from "../_components/OrderDetailDrawer";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const ORDER_COLUMNS =
   "id, customer_name, customer_phone, customer_email, customer_notes, items, subtotal_cents, status, created_at";
 
 async function getOrders(tenantId: string, tab: "active" | "history"): Promise<Order[]> {
+  noStore();
   const supabase = createAdminClient();
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -48,6 +51,7 @@ export default async function OrdersPage({
   params: { slug: string };
   searchParams: { tab?: string };
 }) {
+  noStore();
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
   const tab = searchParams.tab === "history" ? "history" : "active";

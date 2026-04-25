@@ -1,9 +1,11 @@
+import { unstable_noStore as noStore } from "next/cache";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type UpdateRequest = {
   id: string;
@@ -43,6 +45,7 @@ function formatRelative(iso: string, now = new Date()): string {
 }
 
 async function getRequests(tenantId: string): Promise<UpdateRequest[]> {
+  noStore();
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("update_requests")

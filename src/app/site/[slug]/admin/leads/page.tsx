@@ -1,11 +1,14 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { notFound } from "next/navigation";
 import { LeadRow, Lead } from "../_components/LeadRow";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 async function getLeads(tenantId: string): Promise<Lead[]> {
+  noStore();
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("contact_leads")
