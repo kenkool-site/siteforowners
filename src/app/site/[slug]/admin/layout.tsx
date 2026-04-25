@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { verifySession } from "@/lib/admin-auth";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
@@ -6,6 +6,8 @@ import { PinEntry } from "./_components/PinEntry";
 import { AdminShell, ShellTenant } from "./_components/AdminShell";
 
 export const dynamic = "force-dynamic";
+
+const AUTH_BYPASS_PATHS = ["/admin/forgot-pin", "/admin/pin-reset"];
 
 export default async function AdminLayout({
   children,
@@ -16,6 +18,12 @@ export default async function AdminLayout({
 }) {
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
+
+  const pathname = headers().get("x-pathname") || "";
+  if (AUTH_BYPASS_PATHS.some((p) => pathname === p || pathname.startsWith(p + "/"))) {
+    // Pre-auth pages render bare (no shell, no PinEntry interception).
+    return <div className="min-h-screen bg-gray-50">{children}</div>;
+  }
 
   const sessionCookie = cookies().get("owner_session")?.value;
   const session = sessionCookie ? verifySession(sessionCookie) : null;

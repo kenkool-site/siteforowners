@@ -361,3 +361,71 @@ export async function sendOrderCustomerConfirmation(
     `,
   });
 }
+
+/**
+ * Email an owner a PIN reset link (15-minute TTL on the token).
+ * The reset URL points back to their own tenant domain — we don't
+ * surface SiteForOwners branding to the owner's customers.
+ */
+export async function sendPinResetEmail(
+  toEmail: string,
+  resetUrl: string,
+  businessName: string
+): Promise<void> {
+  if (!resend) {
+    console.log("Skipping PIN reset email — RESEND_API_KEY not set");
+    return;
+  }
+  const safeBusiness = escapeHtml(businessName);
+  // resetUrl is constructed server-side from request.host + a server-generated
+  // token; not owner-controlled, but escape attribute context anyway.
+  const safeUrl = escapeHtml(resetUrl);
+  await resend.emails.send({
+    from: FROM,
+    to: toEmail,
+    subject: `Reset your ${businessName} dashboard PIN`,
+    html: `
+      <p>Hi,</p>
+      <p>Someone (hopefully you) requested a PIN reset for your <b>${safeBusiness}</b> dashboard.</p>
+      <p><a href="${safeUrl}" style="display:inline-block;padding:10px 20px;background:#D8006B;color:white;text-decoration:none;border-radius:6px">Set a new PIN</a></p>
+      <p>This link expires in 15 minutes. If you didn't request this, you can ignore this email — your PIN won't change.</p>
+    `,
+  });
+}
+
+/**
+ * Notify the founder when a new update request is filed.
+ * The description and attachment URL are owner-controlled — escape every
+ * interpolated field to prevent HTML injection in the founder's inbox.
+ */
+export async function sendUpdateRequestNotification(req: {
+  tenantId: string;
+  businessName: string;
+  category: string;
+  description: string;
+  attachmentUrl?: string | null;
+}): Promise<void> {
+  if (!resend || !ADMIN_EMAIL) {
+    console.log("Skipping update-request notification — RESEND_API_KEY or ADMIN_EMAIL not set");
+    return;
+  }
+  const editLink = `${APP_URL}/clients/${req.tenantId}/edit`;
+  const safeBusiness = escapeHtml(req.businessName);
+  const safeCategory = escapeHtml(req.category);
+  // Escape first, then convert newlines to <br/>. The order matters — escaping
+  // happens in raw text space before we introduce HTML tags.
+  const safeDescription = escapeHtml(req.description).replace(/\n/g, "<br/>");
+  const safeUrl = req.attachmentUrl ? escapeHtml(req.attachmentUrl) : null;
+  await resend.emails.send({
+    from: FROM,
+    to: ADMIN_EMAIL,
+    subject: `New update request — ${req.businessName}`,
+    html: `
+      <p><b>${safeBusiness}</b> filed an update request.</p>
+      <p><b>Category:</b> ${safeCategory}</p>
+      <p><b>Description:</b><br/>${safeDescription}</p>
+      ${safeUrl ? `<p><b>Attachment:</b> <a href="${safeUrl}">${safeUrl}</a></p>` : ""}
+      <p><a href="${editLink}">Open client edit page →</a></p>
+    `,
+  });
+}
