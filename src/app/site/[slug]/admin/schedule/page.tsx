@@ -5,6 +5,7 @@ import {
   getUpcomingBookings,
   getBookingSettings,
   groupBookingsByDate,
+  getBookingMode,
 } from "@/lib/admin-bookings";
 import { BookingRow } from "../_components/BookingRow";
 import { HoursEditor } from "../_components/HoursEditor";
@@ -24,6 +25,37 @@ export default async function SchedulePage({
 }) {
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
+
+  // External booking (Acuity / Booksy / etc.): we have nothing to show — bookings live there.
+  // Replace the whole page with a friendly redirect note instead of a misleading "no bookings".
+  const bookingMode = await getBookingMode(tenant.preview_slug);
+  if (bookingMode.external) {
+    return (
+      <div className="py-4 md:py-6">
+        <div className="px-4 md:px-8">
+          <div className="text-lg font-semibold">Schedule</div>
+        </div>
+        <div className="px-3 md:px-8 mt-4">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
+            <div className="text-sm text-gray-700">
+              You manage bookings in <span className="font-semibold">{bookingMode.providerName}</span>.
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              Appointments don&apos;t show up here — open {bookingMode.providerName} to view your calendar.
+            </div>
+            <a
+              href={bookingMode.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-block mt-4 bg-[var(--admin-primary)] text-white font-medium px-4 py-2 rounded-lg"
+            >
+              Open {bookingMode.providerName} ↗
+            </a>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const tab: Tab =
     searchParams.tab === "upcoming"

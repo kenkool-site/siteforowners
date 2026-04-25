@@ -2,6 +2,7 @@ import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { getRollups } from "@/lib/admin-rollups";
 import { getRecentVisits, shapeVisits, getMonthlyVisitCount } from "@/lib/admin-visits";
 import { getRecentActivity } from "@/lib/admin-activity";
+import { getBookingMode } from "@/lib/admin-bookings";
 import { StatCard } from "./_components/StatCard";
 import { VisitorsStrip } from "./_components/VisitorsStrip";
 import { RecentActivity } from "./_components/RecentActivity";
@@ -14,16 +15,22 @@ export default async function AdminHome({ params }: { params: { slug: string } }
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
 
-  const showSchedule =
-    !tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal";
   const showOrders = tenant.checkout_mode === "pickup";
 
-  const [rollups, visitRows, activity, monthlyVisits] = await Promise.all([
+  const [rollups, visitRows, activity, monthlyVisits, bookingMode] = await Promise.all([
     getRollups(tenant.id),
     getRecentVisits(tenant.id),
     getRecentActivity(tenant.id),
     getMonthlyVisitCount(tenant.id),
+    getBookingMode(tenant.preview_slug),
   ]);
+
+  // Internal booking tab visibility now driven by the actual booking URL
+  // (same source the public site uses). If the tenant has Acuity / Booksy /
+  // etc. configured, hide the booking rollups since they'd always be 0.
+  const showSchedule =
+    !bookingMode.external &&
+    (!tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal");
   const visitStats = shapeVisits(visitRows, new Date());
 
   const cards: { value: number | string; label: string }[] = [];
