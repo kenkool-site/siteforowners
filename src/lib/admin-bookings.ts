@@ -67,6 +67,7 @@ export function groupBookingsByDate(rows: BookingRow[]): BookingGroup[] {
 
 /** Today (UTC) or later. */
 export async function getUpcomingBookings(tenantId: string): Promise<BookingRow[]> {
+  noStore();
   const supabase = createAdminClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
@@ -85,6 +86,7 @@ export async function getUpcomingBookings(tenantId: string): Promise<BookingRow[
 
 /** Today only. */
 export async function getTodayBookings(tenantId: string): Promise<BookingRow[]> {
+  noStore();
   const supabase = createAdminClient();
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
@@ -105,6 +107,7 @@ export async function getBookingSettings(tenantId: string): Promise<{
   working_hours: Record<string, { open: string; close: string } | null> | null;
   blocked_dates: string[];
 } | null> {
+  noStore();
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("booking_settings")
