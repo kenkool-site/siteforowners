@@ -11,6 +11,13 @@ interface BookingService {
   duration: string;
   id: number;
   image?: string;
+  /**
+   * Fully-resolved deep-link URL for this specific service. When present
+   * and `onSelectService` is provided, the per-service Book button opens
+   * the in-site modal with this URL; otherwise it falls back to opening
+   * `directUrl` in a new tab.
+   */
+  deepLinkUrl?: string;
 }
 
 interface BookingCategory {
@@ -35,6 +42,11 @@ interface TemplateBookingProps {
   businessName?: string;
   previewSlug?: string;
   isLive?: boolean; // true when rendered on published site (not preview)
+  /**
+   * If provided, the per-service Book button opens the in-site booking
+   * modal (deep-linked to the service) instead of opening a new tab.
+   */
+  onSelectService?: (deepLinkUrl: string) => void;
 }
 
 // For Vagaro URLs, ensure the embed loads the /services page directly
@@ -662,6 +674,7 @@ export function TemplateBooking({
   businessName = "Our Business",
   previewSlug,
   isLive = false,
+  onSelectService,
 }: TemplateBookingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
@@ -799,23 +812,37 @@ export function TemplateBooking({
                                 </p>
                               </div>
                             </div>
-                            <Button
-                              size="sm"
-                              className="rounded-full px-6 text-sm font-semibold"
-                              style={{
-                                backgroundColor: colors.primary,
-                                color: colors.background,
-                              }}
-                              asChild
-                            >
-                              <a
-                                href={category.directUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            {onSelectService && service.deepLinkUrl ? (
+                              <Button
+                                size="sm"
+                                className="rounded-full px-6 text-sm font-semibold"
+                                style={{
+                                  backgroundColor: colors.primary,
+                                  color: colors.background,
+                                }}
+                                onClick={() => onSelectService(service.deepLinkUrl!)}
                               >
                                 Book
-                              </a>
-                            </Button>
+                              </Button>
+                            ) : (
+                              <Button
+                                size="sm"
+                                className="rounded-full px-6 text-sm font-semibold"
+                                style={{
+                                  backgroundColor: colors.primary,
+                                  color: colors.background,
+                                }}
+                                asChild
+                              >
+                                <a
+                                  href={service.deepLinkUrl ?? category.directUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  Book
+                                </a>
+                              </Button>
+                            )}
                           </div>
                         ))}
                       </div>

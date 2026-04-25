@@ -181,16 +181,16 @@ export function TemplateOrchestrator({
   const logo = getLogo(data);
   const copy = getCopy(data, locale);
 
-  const bookingCategories = (data.generated_copy as unknown as Record<string, unknown>)?.booking_categories as
+  const rawBookingCategories = (data.generated_copy as unknown as Record<string, unknown>)?.booking_categories as
     | { name: string; services: { name: string; price: string; duration: string; id: number; image?: string }[]; directUrl: string }[]
     | undefined;
 
-  // Map a normalized service-or-category name → a fully-resolved Acuity
-  // deep-link URL (shape depends on the saved booking_url; see
-  // buildAcuityDeepLink). We register both service-level and category-level
-  // entries because for clients with nested Acuity categories, Claude
-  // extracts category names as "services" (the individual services are
-  // hidden behind a click in the static HTML).
+  // Build, in one pass:
+  //   - serviceDeepLinkUrls: normalized name → fully-resolved deep-link URL
+  //     (used by the Services section's flat list)
+  //   - bookingCategories: same shape as raw, but each service is augmented
+  //     with its own deepLinkUrl (used by the Booking section's per-service
+  //     "Book" buttons to open the in-site modal instead of a new tab)
   const normalizeServiceName = (n: string) =>
     n
       .toLowerCase()
@@ -198,36 +198,31 @@ export function TemplateOrchestrator({
       .replace(/[^a-z0-9]+/g, " ")
       .trim();
   const serviceDeepLinkUrls = new Map<string, string>();
-  if (bookingCategories && data.booking_url) {
-    for (const cat of bookingCategories) {
-      if (!cat.directUrl.includes("acuityscheduling.com")) continue;
-      // cat.name has the "1." prefix stripped; Acuity needs the raw name
-      // (including the prefix) in the URL. Recover it from the directUrl's
-      // encoded appointmentType=category:<RawName> param. May be null if
-      // the stored directUrl doesn't follow that shape — we still register
-      // the services since for query-based URLs the service ID alone is
-      // enough.
-      let rawCatName: string | null = null;
-      try {
-        const p = new URL(cat.directUrl).searchParams.get("appointmentType");
-        if (p && p.startsWith("category:")) rawCatName = p.slice("category:".length);
-      } catch {}
-      // Category-level fallback entry — only when we actually have a name
-      // to deep-link to. Skipping this does NOT skip the services below.
-      if (rawCatName) {
-        serviceDeepLinkUrls.set(
-          normalizeServiceName(cat.name),
-          buildAcuityDeepLink(data.booking_url, rawCatName, null),
-        );
-      }
-      for (const svc of cat.services) {
-        serviceDeepLinkUrls.set(
-          normalizeServiceName(svc.name),
-          buildAcuityDeepLink(data.booking_url, rawCatName, svc.id),
-        );
-      }
+  const bookingCategories = rawBookingCategories?.map((cat) => {
+    if (!cat.directUrl.includes("acuityscheduling.com") || !data.booking_url) {
+      return cat;
     }
-  }
+    // cat.name has the "1." prefix stripped; Acuity needs the raw name
+    // (including the prefix) in the URL. Recover it from the directUrl's
+    // encoded appointmentType=category:<RawName> param.
+    let rawCatName: string | null = null;
+    try {
+      const p = new URL(cat.directUrl).searchParams.get("appointmentType");
+      if (p && p.startsWith("category:")) rawCatName = p.slice("category:".length);
+    } catch {}
+    if (rawCatName) {
+      serviceDeepLinkUrls.set(
+        normalizeServiceName(cat.name),
+        buildAcuityDeepLink(data.booking_url, rawCatName, null),
+      );
+    }
+    const augmentedServices = cat.services.map((svc) => {
+      const deepLinkUrl = buildAcuityDeepLink(data.booking_url!, rawCatName, svc.id);
+      serviceDeepLinkUrls.set(normalizeServiceName(svc.name), deepLinkUrl);
+      return { ...svc, deepLinkUrl };
+    });
+    return { ...cat, services: augmentedServices };
+  });
 
   const services = data.services.map((s) => ({
     ...s,
@@ -305,6 +300,7 @@ export function TemplateOrchestrator({
       businessName={data.business_name}
       previewSlug={data.slug}
       isLive={isLive}
+      onSelectService={onSelectService}
     />
   ) : null;
 
