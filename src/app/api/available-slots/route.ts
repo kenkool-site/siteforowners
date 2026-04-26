@@ -41,8 +41,11 @@ function toAvailabilityWorkingHours(
       out[day] = null;
     } else if (dbDay) {
       out[day] = {
-        openHour: Math.floor(parseClockTime(dbDay.open) / 60),
-        closeHour: Math.ceil(parseClockTime(dbDay.close) / 60),
+        // v1 hourly grid: round open UP and close DOWN so bookings never
+        // start before open or end after close, even if stored times have
+        // sub-hour minutes (e.g. "5:30 PM" close → close at 17, not 18).
+        openHour: Math.ceil(parseClockTime(dbDay.open) / 60),
+        closeHour: Math.floor(parseClockTime(dbDay.close) / 60),
       };
     } else {
       out[day] = defaults[day];
