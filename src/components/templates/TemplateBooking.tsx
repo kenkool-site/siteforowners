@@ -89,14 +89,18 @@ function MockBookingCalendar({
   colors,
   businessName,
   onClose,
+  initialService = null,
 }: {
   services: SimpleService[];
   colors: ThemeColors;
   businessName: string;
   onClose: () => void;
+  initialService?: SimpleService | null;
 }) {
-  const [step, setStep] = useState<"service" | "date" | "time" | "confirm">("service");
-  const [selectedService, setSelectedService] = useState<SimpleService | null>(null);
+  const [step, setStep] = useState<"service" | "date" | "time" | "confirm">(
+    initialService ? "date" : "service",
+  );
+  const [selectedService, setSelectedService] = useState<SimpleService | null>(initialService);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
@@ -388,15 +392,19 @@ function RealBookingCalendar({
   businessName,
   previewSlug,
   onClose,
+  initialService = null,
 }: {
   services: SimpleService[];
   colors: ThemeColors;
   businessName: string;
   previewSlug: string;
   onClose: () => void;
+  initialService?: SimpleService | null;
 }) {
-  const [step, setStep] = useState<"service" | "date" | "time" | "info" | "confirm">("service");
-  const [selectedService, setSelectedService] = useState<SimpleService | null>(null);
+  const [step, setStep] = useState<"service" | "date" | "time" | "info" | "confirm">(
+    initialService ? "date" : "service",
+  );
+  const [selectedService, setSelectedService] = useState<SimpleService | null>(initialService);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
@@ -734,14 +742,25 @@ export function TemplateBooking({
 
   // External trigger: per-service "Book Now" buttons in the Services section
   // dispatch this event to open the in-site booking calendar (in_site_only and
-  // both modes). Decoupled from prop drilling so the Services components can
-  // trigger the calendar without a parent-managed callback.
+  // both modes). The event detail may carry a `serviceName` so the calendar
+  // can preselect the service the customer just clicked, jumping straight to
+  // the date step instead of repeating the service-selection step.
+  const [pendingServiceName, setPendingServiceName] = useState<string | null>(null);
   useEffect(() => {
     if (effectiveMode !== "in_site_only" && effectiveMode !== "both") return;
-    const handleOpen = () => setShowBookingCalendar(true);
+    const handleOpen = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { serviceName?: string } | undefined;
+      setPendingServiceName(detail?.serviceName ?? null);
+      setShowBookingCalendar(true);
+    };
     window.addEventListener("siteforowners:open-booking-calendar", handleOpen);
     return () => window.removeEventListener("siteforowners:open-booking-calendar", handleOpen);
   }, [effectiveMode]);
+
+  // Resolve pending name to a service object so the calendar can preselect it.
+  const initialService = pendingServiceName && services
+    ? services.find((s) => s.name === pendingServiceName) ?? null
+    : null;
 
   return (
     <section
@@ -760,8 +779,12 @@ export function TemplateBooking({
           {subtitle}
         </p>
 
-        {/* Native category/service booking UI */}
-        {hasCategories ? (
+        {/* Native category/service booking UI — only the legacy
+            Acuity-driven entry path. In `both` and `in_site_only` modes the
+            new Layout A / primary-button rendering below takes precedence
+            so the dual booking options stay visible even when Acuity
+            categories were previously imported. */}
+        {hasCategories && effectiveMode === "external_only" ? (
           <div className="space-y-3 text-left">
             {bookingCategories.map((category) => (
               <div
@@ -1093,14 +1116,22 @@ export function TemplateBooking({
               colors={colors}
               businessName={businessName}
               previewSlug={previewSlug}
-              onClose={() => setShowBookingCalendar(false)}
+              onClose={() => {
+                setShowBookingCalendar(false);
+                setPendingServiceName(null);
+              }}
+              initialService={initialService}
             />
           ) : (
             <MockBookingCalendar
               services={services}
               colors={colors}
               businessName={businessName}
-              onClose={() => setShowBookingCalendar(false)}
+              onClose={() => {
+                setShowBookingCalendar(false);
+                setPendingServiceName(null);
+              }}
+              initialService={initialService}
             />
           )
         )}

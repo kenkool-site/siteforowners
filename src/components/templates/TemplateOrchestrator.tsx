@@ -245,25 +245,15 @@ export function TemplateOrchestrator({
   const canOpenBookingModal =
     !!data.booking_url && serviceDeepLinkUrls.size > 0;
 
-  // onSelectService dispatches the per-service Book click. Behavior depends on
-  // booking mode:
-  //   external_only: open the Acuity iframe modal at the deep link (legacy).
-  //   in_site_only / both: open the in-site booking calendar via custom event.
-  // The 5 service templates already gate themselves on `bookingMode === "external_only"`
-  // separately and use `window.open` for that branch, so this callback only
-  // has to handle the in-site case meaningfully — but we keep the deep-link
-  // path for callers (e.g. TemplateBooking's bookingCategories block) that
-  // still need it in external mode.
-  const onSelectService = (url: string) => {
-    if (bookingMode === "in_site_only" || bookingMode === "both") {
-      document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });
-      window.dispatchEvent(new CustomEvent("siteforowners:open-booking-calendar"));
-      return;
-    }
-    if (canOpenBookingModal) {
-      setSelectedBookingDeepLink(url);
-    }
-  };
+  // onSelectService is only consumed by TemplateBooking's bookingCategories
+  // block (the legacy Acuity-deep-linked services list under external_only
+  // mode). The 5 service templates handle their own click behavior — they
+  // open new tabs in external_only mode, and call openBookingCalendarForService
+  // (which dispatches a custom DOM event with the service name) in
+  // in_site_only / both modes so the in-site calendar opens preselected.
+  const onSelectService = canOpenBookingModal
+    ? (url: string) => setSelectedBookingDeepLink(url)
+    : undefined;
 
   const headline = copy?.hero_headline ?? `Welcome to ${data.business_name}`;
   const subheadline = copy?.hero_subheadline ?? "Your neighborhood destination for quality service.";
@@ -379,7 +369,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showGallery && galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><BoldServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><BoldServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
           {productsSection}
           {showAbout && <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -396,7 +386,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
-          {showServices && <div id="services"><ElegantServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><ElegantServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
           {productsSection}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -412,7 +402,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><VibrantServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><VibrantServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
           {showGallery && galleryImages.length > 0 && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
@@ -432,7 +422,7 @@ export function TemplateOrchestrator({
           <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><WarmServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><WarmServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
           {productsSection}
           {testimonialsSection || ratingSection}
           {bookingSection}
@@ -448,7 +438,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><ClassicServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><ClassicServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
           {showAbout && <div id="about"><ClassicAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
