@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
-import { computeAvailableStarts, formatTimeRange } from "@/lib/availability";
+import { computeAvailableStarts, formatTimeRange, formatDuration } from "@/lib/availability";
 
 interface BookingService {
   name: string;
@@ -223,7 +223,7 @@ function MockBookingCalendar({
                     >
                       <span className="font-medium">{svc.name}</span>
                       <span className="text-sm font-semibold" style={{ color: colors.primary }}>
-                        {((svc.durationMinutes ?? 60) / 60)}h · {svc.price}
+                        {formatDuration(svc.durationMinutes ?? 60)} · {svc.price}
                       </span>
                     </button>
                   ))}
@@ -555,7 +555,7 @@ function RealBookingCalendar({
                       style={{ backgroundColor: colors.muted, color: colors.foreground }}>
                       <span className="font-medium">{svc.name}</span>
                       <span className="text-sm font-semibold" style={{ color: colors.primary }}>
-                        {((svc.durationMinutes ?? 60) / 60)}h · {svc.price}
+                        {formatDuration(svc.durationMinutes ?? 60)} · {svc.price}
                       </span>
                     </button>
                   ))}

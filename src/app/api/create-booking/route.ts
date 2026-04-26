@@ -34,9 +34,9 @@ export async function POST(request: Request) {
     }
 
     const durationMinutes = Number.isInteger(duration_minutes) ? Number(duration_minutes) : 60;
-    if (durationMinutes < 60 || durationMinutes > 480 || durationMinutes % 60 !== 0) {
+    if (durationMinutes < 30 || durationMinutes > 480 || durationMinutes % 30 !== 0) {
       return NextResponse.json(
-        { error: "duration_minutes must be a whole number of hours between 1 and 8" },
+        { error: "duration_minutes must be a multiple of 30 between 30 and 480 minutes" },
         { status: 400 }
       );
     }

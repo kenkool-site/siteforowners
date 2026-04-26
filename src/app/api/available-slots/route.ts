@@ -71,8 +71,8 @@ export async function GET(request: Request) {
   }
 
   const durationMinutes = durationParam ? Number(durationParam) : 60;
-  if (!Number.isInteger(durationMinutes) || durationMinutes < 60 || durationMinutes > 480 || durationMinutes % 60 !== 0) {
-    return NextResponse.json({ error: "duration_minutes must be a whole number of hours between 1 and 8" }, { status: 400 });
+  if (!Number.isInteger(durationMinutes) || durationMinutes < 30 || durationMinutes > 480 || durationMinutes % 30 !== 0) {
+    return NextResponse.json({ error: "duration_minutes must be a multiple of 30 between 30 and 480 minutes" }, { status: 400 });
   }
 
   const supabase = createAdminClient();

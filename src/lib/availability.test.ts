@@ -193,25 +193,25 @@ test("computeAvailableStarts: throws on durationMinutes=0", () => {
       maxPerSlot: 1,
       blockedDates: [],
     }),
-    /durationMinutes must be a positive multiple of 60/,
+    /durationMinutes must be a positive multiple of 30/,
   );
 });
 
-test("computeAvailableStarts: throws on non-hour-aligned duration", () => {
+test("computeAvailableStarts: throws on non-30-multiple duration (legacy: 90 now valid)", () => {
   assert.throws(
     () => computeAvailableStarts({
       date: "2026-04-27",
-      durationMinutes: 90,
+      durationMinutes: 45,
       workingHours: FULL_WEEK,
       existingBookings: [],
       maxPerSlot: 1,
       blockedDates: [],
     }),
-    /durationMinutes must be a positive multiple of 60/,
+    /durationMinutes must be a positive multiple of 30/,
   );
 });
 
-import { parseBookingTime, formatTimeRange } from "./availability";
+import { parseBookingTime, formatTimeRange, formatDuration } from "./availability";
 
 test("parseBookingTime: throws on garbage input", () => {
   assert.throws(() => parseBookingTime("13:00"), /invalid booking_time/);
@@ -241,4 +241,77 @@ test("formatTimeRange: 10:00 AM, 60min → '10:00 AM – 11:00 AM'", () => {
 
 test("formatTimeRange: 10:00 AM, 180min → '10:00 AM – 1:00 PM'", () => {
   assert.equal(formatTimeRange("10:00 AM", 180), "10:00 AM – 1:00 PM");
+});
+
+test("formatDuration: 30 minutes → '30m'", () => {
+  assert.equal(formatDuration(30), "30m");
+});
+
+test("formatDuration: 60 minutes → '1h'", () => {
+  assert.equal(formatDuration(60), "1h");
+});
+
+test("formatDuration: 90 minutes → '1h 30m'", () => {
+  assert.equal(formatDuration(90), "1h 30m");
+});
+
+test("formatDuration: 150 minutes → '2h 30m'", () => {
+  assert.equal(formatDuration(150), "2h 30m");
+});
+
+test("formatDuration: 480 minutes → '8h'", () => {
+  assert.equal(formatDuration(480), "8h");
+});
+
+test("formatDuration: 0 minutes → '0m'", () => {
+  assert.equal(formatDuration(0), "0m");
+});
+
+test("computeAvailableStarts: accepts 30-minute durations", () => {
+  const starts = computeAvailableStarts({
+    date: "2026-04-27",
+    durationMinutes: 30,
+    workingHours: FULL_WEEK,
+    existingBookings: [],
+    maxPerSlot: 1,
+    blockedDates: [],
+  });
+  // 9-17 working hours, 30-min service can start at every whole hour 9..16
+  assert.equal(starts.length, 8);
+  assert.deepEqual(starts, [9, 10, 11, 12, 13, 14, 15, 16]);
+});
+
+test("computeAvailableStarts: rejects non-30-multiple duration", () => {
+  assert.throws(
+    () => computeAvailableStarts({
+      date: "2026-04-27",
+      durationMinutes: 45,
+      workingHours: FULL_WEEK,
+      existingBookings: [],
+      maxPerSlot: 1,
+      blockedDates: [],
+    }),
+    /durationMinutes must be a positive multiple of 30/,
+  );
+});
+
+test("wouldExceedCapacity: catches sub-hour overlap (30-min existing booking)", () => {
+  // Candidate 10:00-13:00 (3h). Existing 30-min booking at 10:30-11:00.
+  // Without 30-min walk this would miss the overlap; with 30-min walk it
+  // catches at m=630.
+  const candidate = bk(10, 3);
+  const existing = [{ startMinutes: 10 * 60 + 30, durationMinutes: 30 }];
+  assert.equal(wouldExceedCapacity(candidate, existing, 1), true);
+});
+
+test("wouldExceedCapacity: 90-min candidate fits in a 90-min gap", () => {
+  // Existing bookings at 09:00-10:30 and 12:00-13:00.
+  // Candidate 90-min at 10:30 (start=630) ends at 12:00 (end=720).
+  // No overlap. Should pass.
+  const candidate = { startMinutes: 10 * 60 + 30, durationMinutes: 90 };
+  const existing = [
+    { startMinutes: 9 * 60, durationMinutes: 90 },
+    { startMinutes: 12 * 60, durationMinutes: 60 },
+  ];
+  assert.equal(wouldExceedCapacity(candidate, existing, 1), false);
 });

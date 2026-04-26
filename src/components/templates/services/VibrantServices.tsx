@@ -4,6 +4,7 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
+import { formatDuration } from "@/lib/availability";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
@@ -53,6 +54,9 @@ export function VibrantServices({ services, colors, bookingMode }: ServicesProps
                 >
                   {service.price}
                 </span>
+                <div className="mt-1 text-xs opacity-70" style={{ color: rc.textOnMuted }}>
+                  {formatDuration(service.durationMinutes ?? 60)}
+                </div>
               </div>
             );
             return (

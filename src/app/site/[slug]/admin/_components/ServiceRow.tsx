@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
+import { formatDuration } from "@/lib/availability";
 
 interface ServiceRowProps {
   service: ServiceItem;
@@ -65,7 +66,7 @@ export function ServiceRow({ service, founderTenantId, onChange, onDelete }: Ser
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate">{service.name || "(untitled)"}</div>
           <div className="text-xs text-gray-500">
-            {duration / 60}h · {service.price || "—"}
+            {formatDuration(duration)} · {service.price || "—"}
           </div>
         </div>
         <span className="text-gray-400">›</span>
@@ -113,9 +114,9 @@ export function ServiceRow({ service, founderTenantId, onChange, onDelete }: Ser
               maxLength={30}
             />
             <div className="flex items-center gap-1 rounded border border-gray-200 px-2">
-              <button type="button" onClick={() => set("duration_minutes", Math.max(60, duration - 60))} aria-label="Decrease duration" className="px-1 text-gray-500">−</button>
-              <span className="text-sm font-medium w-10 text-center tabular-nums">{duration / 60}h</span>
-              <button type="button" onClick={() => set("duration_minutes", Math.min(480, duration + 60))} aria-label="Increase duration" className="px-1 text-gray-500">+</button>
+              <button type="button" onClick={() => set("duration_minutes", Math.max(30, duration - 30))} aria-label="Decrease duration" className="px-1 text-gray-500">−</button>
+              <span className="text-sm font-medium w-14 text-center tabular-nums">{formatDuration(duration)}</span>
+              <button type="button" onClick={() => set("duration_minutes", Math.min(480, duration + 30))} aria-label="Increase duration" className="px-1 text-gray-500">+</button>
             </div>
           </div>
         </div>

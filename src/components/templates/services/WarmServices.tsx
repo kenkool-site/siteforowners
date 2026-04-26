@@ -4,6 +4,7 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
+import { formatDuration } from "@/lib/availability";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
@@ -46,9 +47,14 @@ export function WarmServices({ services, colors, bookingMode }: ServicesProps) {
                       </p>
                     )}
                   </div>
-                  <span className="ml-4 text-base font-medium opacity-70" style={{ color: rc.textOnMuted }}>
-                    {service.price}
-                  </span>
+                  <div className="ml-4 text-right flex-shrink-0">
+                    <div className="text-base font-medium opacity-70" style={{ color: rc.textOnMuted }}>
+                      {service.price}
+                    </div>
+                    <div className="text-xs opacity-60" style={{ color: rc.textOnMuted }}>
+                      · {formatDuration(service.durationMinutes ?? 60)}
+                    </div>
+                  </div>
                 </div>
               </div>
             );
