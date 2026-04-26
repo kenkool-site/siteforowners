@@ -24,6 +24,7 @@ interface ServiceItem {
   name: string;
   price: string;
   description?: string;
+  duration_minutes?: number;
 }
 
 interface ProductItem {
@@ -1135,7 +1136,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Services</h2>
               <button
-                onClick={() => setServices((prev) => [...prev, { name: "", price: "" }])}
+                onClick={() => setServices((prev) => [...prev, { name: "", price: "", duration_minutes: 60 }])}
                 className="text-sm font-medium text-amber-600 hover:text-amber-700"
               >
                 + Add
@@ -1166,6 +1167,37 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                     placeholder="$0"
                     className="w-24 rounded-lg border px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
                   />
+                  <div className="flex items-center gap-1 rounded-lg border px-2 py-1 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...services];
+                        const cur = (updated[i].duration_minutes as number | undefined) ?? 60;
+                        updated[i] = { ...updated[i], duration_minutes: Math.max(60, cur - 60) };
+                        setServices(updated);
+                      }}
+                      className="px-1 text-gray-500 hover:text-gray-700"
+                      aria-label="Decrease duration"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center font-medium tabular-nums">
+                      {((s.duration_minutes as number | undefined) ?? 60) / 60}h
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...services];
+                        const cur = (updated[i].duration_minutes as number | undefined) ?? 60;
+                        updated[i] = { ...updated[i], duration_minutes: Math.min(480, cur + 60) };
+                        setServices(updated);
+                      }}
+                      className="px-1 text-gray-500 hover:text-gray-700"
+                      aria-label="Increase duration"
+                    >
+                      +
+                    </button>
+                  </div>
                   <button
                     onClick={() => setServices((prev) => prev.filter((_, j) => j !== i))}
                     className="text-gray-400 hover:text-red-500"
