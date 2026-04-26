@@ -1,3 +1,10 @@
+// Pure booking-availability primitives. Half-open intervals throughout.
+// v1: 60-minute granularity (durations whole hours, starts on the hour).
+
+/**
+ * A booking interval, half-open: `[startMinutes, startMinutes + durationMinutes)`.
+ * Touching intervals (one ends as another starts) do NOT overlap.
+ */
 export type BookingInterval = {
   startMinutes: number;
   durationMinutes: number;
@@ -11,15 +18,27 @@ export function bookingsOverlap(a: BookingInterval, b: BookingInterval): boolean
 
 /**
  * Returns true iff inserting `candidate` would push the count of
- * concurrent bookings for any minute it spans above `maxPerSlot`.
+ * concurrent bookings for any single hour it spans to or above
+ * `maxPerSlot`. Walks the candidate's range in 60-minute steps
+ * (v1 hourly granularity); per-hour rather than per-overlap so a
+ * 3h booking that touches two non-overlapping 1h bookings on a
+ * `maxPerSlot=2` calendar is still allowed where capacity exists.
  */
 export function wouldExceedCapacity(
   candidate: BookingInterval,
   existing: BookingInterval[],
   maxPerSlot: number,
 ): boolean {
-  const overlaps = existing.filter((b) => bookingsOverlap(candidate, b));
-  return overlaps.length >= maxPerSlot;
+  const candidateEnd = candidate.startMinutes + candidate.durationMinutes;
+  for (let m = candidate.startMinutes; m < candidateEnd; m += 60) {
+    let count = 0;
+    for (const b of existing) {
+      const bEnd = b.startMinutes + b.durationMinutes;
+      if (m >= b.startMinutes && m < bEnd) count++;
+    }
+    if (count >= maxPerSlot) return true;
+  }
+  return false;
 }
 
 export type DayHours = { openHour: number; closeHour: number };
@@ -56,6 +75,10 @@ export function computeAvailableStarts(input: AvailabilityInput): number[] {
     maxPerSlot,
     blockedDates,
   } = input;
+
+  if (durationMinutes <= 0 || durationMinutes % 60 !== 0) {
+    throw new Error(`durationMinutes must be a positive multiple of 60: got ${durationMinutes}`);
+  }
 
   if (blockedDates.includes(date)) return [];
 

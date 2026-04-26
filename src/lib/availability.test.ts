@@ -52,6 +52,17 @@ test("wouldExceedCapacity: 3h candidate blocked by single 1h existing in middle"
   assert.equal(wouldExceedCapacity(bk(10, 3), [bk(11, 1)], 1), true);
 });
 
+test("wouldExceedCapacity: 3h candidate with maxPerSlot=2 fits between two non-overlapping 1h bookings", () => {
+  // Existing [10,11) and [12,13). Candidate [10,13). Hour 10 has 1/2,
+  // hour 11 has 0/2, hour 12 has 1/2 — all under cap, so candidate fits.
+  assert.equal(wouldExceedCapacity(bk(10, 3), [bk(10, 1), bk(12, 1)], 2), false);
+});
+
+test("wouldExceedCapacity: 3h candidate with maxPerSlot=2 rejected when one hour is at cap", () => {
+  // Existing [11,12) and [11,12). Hour 11 has 2/2 — at cap, candidate rejected.
+  assert.equal(wouldExceedCapacity(bk(10, 3), [bk(11, 1), bk(11, 1)], 2), true);
+});
+
 import { computeAvailableStarts, type WorkingHours } from "./availability";
 
 const FULL_WEEK: WorkingHours = {
@@ -172,7 +183,41 @@ test("computeAvailableStarts: Saturday short hours", () => {
   assert.deepEqual(starts, [10, 11, 12, 13]);
 });
 
+test("computeAvailableStarts: throws on durationMinutes=0", () => {
+  assert.throws(
+    () => computeAvailableStarts({
+      date: "2026-04-27",
+      durationMinutes: 0,
+      workingHours: FULL_WEEK,
+      existingBookings: [],
+      maxPerSlot: 1,
+      blockedDates: [],
+    }),
+    /durationMinutes must be a positive multiple of 60/,
+  );
+});
+
+test("computeAvailableStarts: throws on non-hour-aligned duration", () => {
+  assert.throws(
+    () => computeAvailableStarts({
+      date: "2026-04-27",
+      durationMinutes: 90,
+      workingHours: FULL_WEEK,
+      existingBookings: [],
+      maxPerSlot: 1,
+      blockedDates: [],
+    }),
+    /durationMinutes must be a positive multiple of 60/,
+  );
+});
+
 import { parseBookingTime, formatTimeRange } from "./availability";
+
+test("parseBookingTime: throws on garbage input", () => {
+  assert.throws(() => parseBookingTime("13:00"), /invalid booking_time/);
+  assert.throws(() => parseBookingTime(""), /invalid booking_time/);
+  assert.throws(() => parseBookingTime("10:00"), /invalid booking_time/);
+});
 
 test("parseBookingTime: '10:00 AM' → 600 (10 * 60)", () => {
   assert.equal(parseBookingTime("10:00 AM"), 600);
