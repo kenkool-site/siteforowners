@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import type { BookingRow } from "@/lib/admin-bookings";
 import { formatTimeRange } from "@/lib/availability";
 
 const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+const INITIAL_ROW_LIMIT = 5;
 
 interface UpcomingListProps {
   /** All bookings in the visible window (parent already filtered to the next N days). */
@@ -40,6 +43,10 @@ function dayLabel(d: Date, todayIso: string, tomorrowIso: string): string {
  * A flat chronological list of confirmed bookings for the next `daysAhead`
  * days, grouped by date. Designed for the mobile schedule view where the
  * single-day DayAgenda hides the upcoming overview.
+ *
+ * Shows the first INITIAL_ROW_LIMIT bookings by default; the rest are
+ * gated behind a "Show all" button so the page doesn't become a long
+ * scroll for tenants with a busy week.
  */
 export function UpcomingList({
   bookings,
@@ -47,14 +54,11 @@ export function UpcomingList({
   daysAhead = 7,
   onBookingClick,
 }: UpcomingListProps) {
+  const [showAll, setShowAll] = useState(false);
   const todayIso = isoDate(today);
   const tomorrowIso = isoDate(addDays(today, 1));
 
-  // Group confirmed bookings by date, showing tomorrow through today + daysAhead.
   const start = addDays(today, 1);
-  const end = addDays(today, daysAhead);
-  const startIso = isoDate(start);
-  const endIso = isoDate(end);
 
   const groups: { date: Date; iso: string; rows: BookingRow[] }[] = [];
   for (let i = 0; i < daysAhead; i++) {
@@ -74,31 +78,46 @@ export function UpcomingList({
     );
   }
 
-  // Suppress an unused-var warning for the date-range variables (kept for
-  // future filtering). They make the intent clear when reading the code.
-  void startIso;
-  void endIso;
+  // Total booking count across all groups, for the "Show all (N)" label.
+  const totalRows = groups.reduce((sum, g) => sum + g.rows.length, 0);
+  const overLimit = totalRows > INITIAL_ROW_LIMIT;
+
+  // When collapsed, walk the groups in order and stop as soon as we've
+  // shown INITIAL_ROW_LIMIT bookings. Partial groups are kept as-is so a
+  // group's date header is never orphaned from its rows.
+  const visibleGroups: typeof groups = [];
+  if (showAll || !overLimit) {
+    visibleGroups.push(...groups);
+  } else {
+    let remaining = INITIAL_ROW_LIMIT;
+    for (const g of groups) {
+      if (remaining <= 0) break;
+      const slice = g.rows.slice(0, remaining);
+      visibleGroups.push({ ...g, rows: slice });
+      remaining -= slice.length;
+    }
+  }
 
   return (
     <div className="space-y-3">
-      {groups.map((g) => (
+      {visibleGroups.map((g) => (
         <div key={g.iso}>
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2 px-1">
+          <div className="text-[10px] uppercase tracking-wider font-semibold text-[color:var(--admin-primary)] opacity-80 mb-2 px-1">
             {dayLabel(g.date, todayIso, tomorrowIso)}
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100">
+          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 overflow-hidden">
             {g.rows.map((r) => (
               <button
                 key={r.id}
                 type="button"
                 onClick={() => onBookingClick(r)}
-                className="w-full px-4 py-3 text-left flex items-baseline gap-3"
+                className="w-full px-4 py-3 text-left flex items-baseline gap-3 hover:bg-[var(--admin-primary-light)]/40 transition-colors"
               >
-                <div className="text-xs text-gray-500 w-32 shrink-0">
+                <div className="text-xs font-medium text-[color:var(--admin-primary)] w-32 shrink-0">
                   {formatTimeRange(r.booking_time, r.duration_minutes)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{r.customer_name}</div>
+                  <div className="text-sm font-semibold truncate">{r.customer_name}</div>
                   <div className="text-xs text-gray-500 truncate">{r.service_name}</div>
                 </div>
               </button>
@@ -106,6 +125,16 @@ export function UpcomingList({
           </div>
         </div>
       ))}
+
+      {overLimit && (
+        <button
+          type="button"
+          onClick={() => setShowAll((v) => !v)}
+          className="w-full text-sm text-[color:var(--admin-primary)] font-medium py-2 hover:underline"
+        >
+          {showAll ? "Show less" : `Show all ${totalRows} upcoming →`}
+        </button>
+      )}
     </div>
   );
 }
