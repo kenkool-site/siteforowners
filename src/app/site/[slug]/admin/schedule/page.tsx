@@ -33,7 +33,7 @@ export default async function SchedulePage({
   // External booking (Acuity / Booksy / etc.): we have nothing to show — bookings live there.
   // Replace the whole page with a friendly redirect note instead of a misleading "no bookings".
   const bookingMode = await getBookingMode(tenant.preview_slug);
-  if (bookingMode.external) {
+  if (bookingMode.mode === "external_only") {
     return (
       <div className="py-4 md:py-6">
         <div className="px-4 md:px-8">

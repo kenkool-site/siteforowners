@@ -2,10 +2,11 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export type BookingMode =
-  | { external: true; url: string; providerName: string }
-  | { external: false; url: null; providerName: null };
+  | { mode: "in_site_only" }
+  | { mode: "external_only"; url: string; providerName: string }
+  | { mode: "both"; url: string; providerName: string };
 
-function detectProvider(url: string): string {
+export function detectProvider(url: string): string {
   const lower = url.toLowerCase();
   if (lower.includes("acuityscheduling.com")) return "Acuity";
   if (lower.includes("booksy")) return "Booksy";
@@ -16,26 +17,43 @@ function detectProvider(url: string): string {
 }
 
 /**
- * Determine whether the tenant uses an external booking tool. Reads the
- * preview's generated_copy.booking_url — same source the public site uses.
+ * Returns the tenant's booking entry mode, joining `tenants.booking_mode`
+ * (the policy) with `previews.generated_copy.booking_url` (the URL).
+ *
+ * If the policy says external/both but no URL is configured (transient
+ * inconsistency, should not happen post-migration), we degrade to
+ * in_site_only so the public site always shows a working booking entry.
  */
 export async function getBookingMode(previewSlug: string | null): Promise<BookingMode> {
-  if (!previewSlug) return { external: false, url: null, providerName: null };
+  if (!previewSlug) return { mode: "in_site_only" };
   noStore();
   const supabase = createAdminClient();
-  const { data } = await supabase
-    .from("previews")
-    .select("generated_copy")
-    .eq("slug", previewSlug)
-    .maybeSingle();
 
-  const gc = data?.generated_copy as Record<string, unknown> | null;
+  const [{ data: tenant }, { data: preview }] = await Promise.all([
+    supabase
+      .from("tenants")
+      .select("booking_mode")
+      .eq("preview_slug", previewSlug)
+      .maybeSingle(),
+    supabase
+      .from("previews")
+      .select("generated_copy")
+      .eq("slug", previewSlug)
+      .maybeSingle(),
+  ]);
+
+  const bookingMode = (tenant?.booking_mode as string | undefined) ?? "in_site_only";
+  const gc = preview?.generated_copy as Record<string, unknown> | null;
   const bookingUrl = typeof gc?.booking_url === "string" && gc.booking_url.trim().length > 0
     ? (gc.booking_url as string)
     : null;
-  if (!bookingUrl) return { external: false, url: null, providerName: null };
 
-  return { external: true, url: bookingUrl, providerName: detectProvider(bookingUrl) };
+  if (bookingMode === "in_site_only") return { mode: "in_site_only" };
+  if (!bookingUrl) return { mode: "in_site_only" };
+  if (bookingMode === "external_only") {
+    return { mode: "external_only", url: bookingUrl, providerName: detectProvider(bookingUrl) };
+  }
+  return { mode: "both", url: bookingUrl, providerName: detectProvider(bookingUrl) };
 }
 
 export type BookingRow = {
