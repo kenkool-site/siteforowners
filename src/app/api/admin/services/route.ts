@@ -51,8 +51,8 @@ function validateServices(raw: unknown): { ok: true; services: ServiceItem[] } |
       errors.push({ index, field: "description", reason: `max ${MAX_DESCRIPTION} chars` });
     }
     if (duration_minutes !== undefined) {
-      if (!Number.isInteger(duration_minutes) || duration_minutes < 60 || duration_minutes > 480 || duration_minutes % 60 !== 0) {
-        errors.push({ index, field: "duration_minutes", reason: "must be an integer multiple of 60 in [60, 480]" });
+      if (!Number.isInteger(duration_minutes) || duration_minutes < 30 || duration_minutes > 480 || duration_minutes % 30 !== 0) {
+        errors.push({ index, field: "duration_minutes", reason: "must be an integer multiple of 30 in [30, 480]" });
       }
     }
     if (image !== undefined && image !== "" && !imageOriginAllowed(image)) {

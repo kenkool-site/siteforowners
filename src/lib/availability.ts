@@ -1,5 +1,5 @@
 // Pure booking-availability primitives. Half-open intervals throughout.
-// v1: 60-minute granularity (durations whole hours, starts on the hour).
+// v2: 30-minute duration granularity (starts still on the hour).
 
 /**
  * A booking interval, half-open: `[startMinutes, startMinutes + durationMinutes)`.
@@ -18,11 +18,12 @@ export function bookingsOverlap(a: BookingInterval, b: BookingInterval): boolean
 
 /**
  * Returns true iff inserting `candidate` would push the count of
- * concurrent bookings for any single hour it spans to or above
- * `maxPerSlot`. Walks the candidate's range in 60-minute steps
- * (v1 hourly granularity); per-hour rather than per-overlap so a
- * 3h booking that touches two non-overlapping 1h bookings on a
- * `maxPerSlot=2` calendar is still allowed where capacity exists.
+ * concurrent bookings for any single 30-min slot it spans to or above
+ * `maxPerSlot`. Walks the candidate's range in 30-minute steps
+ * (v2 grid: hourly starts, sub-hour durations allowed); per-slot rather
+ * than per-overlap so a 3h booking that touches two non-overlapping 1h
+ * bookings on a `maxPerSlot=2` calendar is still allowed where capacity
+ * exists.
  */
 export function wouldExceedCapacity(
   candidate: BookingInterval,
@@ -30,7 +31,7 @@ export function wouldExceedCapacity(
   maxPerSlot: number,
 ): boolean {
   const candidateEnd = candidate.startMinutes + candidate.durationMinutes;
-  for (let m = candidate.startMinutes; m < candidateEnd; m += 60) {
+  for (let m = candidate.startMinutes; m < candidateEnd; m += 30) {
     let count = 0;
     for (const b of existing) {
       const bEnd = b.startMinutes + b.durationMinutes;
@@ -76,8 +77,8 @@ export function computeAvailableStarts(input: AvailabilityInput): number[] {
     blockedDates,
   } = input;
 
-  if (durationMinutes <= 0 || durationMinutes % 60 !== 0) {
-    throw new Error(`durationMinutes must be a positive multiple of 60: got ${durationMinutes}`);
+  if (durationMinutes <= 0 || durationMinutes % 30 !== 0) {
+    throw new Error(`durationMinutes must be a positive multiple of 30: got ${durationMinutes}`);
   }
 
   if (blockedDates.includes(date)) return [];
@@ -122,6 +123,19 @@ function formatMinutes(totalMinutes: number): string {
   let h12 = h24 % 12;
   if (h12 === 0) h12 = 12;
   return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
+
+/**
+ * Format a duration in minutes as "1h", "30m", "1h 30m", etc.
+ * Pure: no I/O. v2 grid: 30-minute granularity.
+ */
+export function formatDuration(minutes: number): string {
+  if (minutes <= 0) return "0m";
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 export function formatTimeRange(startStr: string, durationMinutes: number): string {
