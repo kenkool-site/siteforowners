@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
+import type { BookingModePolicy } from "@/lib/admin-auth";
 import { SiteClient } from "./SiteClient";
 
 type BookingHoursMap = Record<string, { open: string; close: string } | null> | null;
@@ -12,6 +13,7 @@ interface SiteData {
   bookingHours: BookingHoursMap;
   tenantId: string | null;
   checkoutMode: "mockup" | "pickup";
+  bookingMode: BookingModePolicy;
 }
 
 async function getSiteData(slug: string): Promise<SiteData | null> {
@@ -28,10 +30,11 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
   let bookingHours: BookingHoursMap = null;
   let tenantId: string | null = null;
   let checkoutMode: "mockup" | "pickup" = "mockup";
+  let bookingMode: BookingModePolicy = "in_site_only";
 
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("id, checkout_mode")
+    .select("id, checkout_mode, booking_mode")
     .eq("preview_slug", slug)
     .maybeSingle();
 
@@ -39,6 +42,10 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
     tenantId = tenant.id as string;
     const mode = tenant.checkout_mode as "mockup" | "pickup" | null;
     checkoutMode = mode === "pickup" ? "pickup" : "mockup";
+    const rawBookingMode = tenant.booking_mode as string | null;
+    if (rawBookingMode === "external_only" || rawBookingMode === "both") {
+      bookingMode = rawBookingMode;
+    }
     const { data: bs } = await supabase
       .from("booking_settings")
       .select("working_hours")
@@ -47,7 +54,7 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
     bookingHours = (bs?.working_hours as BookingHoursMap) ?? null;
   }
 
-  return { preview: preview as PreviewData, bookingHours, tenantId, checkoutMode };
+  return { preview: preview as PreviewData, bookingHours, tenantId, checkoutMode, bookingMode };
 }
 
 export async function generateMetadata({
@@ -98,6 +105,7 @@ export default async function SitePage({
         bookingHours={result.bookingHours}
         tenantId={result.tenantId}
         checkoutMode={result.checkoutMode}
+        bookingMode={result.bookingMode}
       />
     </>
   );

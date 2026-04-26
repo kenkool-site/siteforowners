@@ -1540,6 +1540,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             data={previewData as never}
             locale="en"
             checkoutMode={checkoutMode}
+            bookingMode="in_site_only"
           />
         </div>
       )}
