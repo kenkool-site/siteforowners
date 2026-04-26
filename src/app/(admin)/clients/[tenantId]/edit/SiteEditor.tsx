@@ -9,8 +9,9 @@ import {
   getHoursSource,
   parseGoogleHoursString,
 } from "@/lib/defaults/businessHours";
-import type { BusinessHours, BusinessType, ColorTheme } from "@/lib/ai/types";
+import type { BusinessHours, BusinessType, ColorTheme, ServiceItem } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
+import { ServiceRow } from "@/app/site/[slug]/admin/_components/ServiceRow";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
@@ -18,13 +19,6 @@ import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
   preview: Record<string, unknown>;
-}
-
-interface ServiceItem {
-  name: string;
-  price: string;
-  description?: string;
-  duration_minutes?: number;
 }
 
 interface ProductItem {
@@ -1144,69 +1138,17 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             </div>
             <div className="space-y-2">
               {services.map((s, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={s.name}
-                    onChange={(e) => {
-                      const updated = [...services];
-                      updated[i] = { ...updated[i], name: e.target.value };
-                      setServices(updated);
-                    }}
-                    placeholder="Service name"
-                    className="flex-1 rounded-lg border px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                  <input
-                    type="text"
-                    value={s.price}
-                    onChange={(e) => {
-                      const updated = [...services];
-                      updated[i] = { ...updated[i], price: e.target.value };
-                      setServices(updated);
-                    }}
-                    placeholder="$0"
-                    className="w-24 rounded-lg border px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                  <div className="flex items-center gap-1 rounded-lg border px-2 py-1 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = [...services];
-                        const cur = (updated[i].duration_minutes as number | undefined) ?? 60;
-                        updated[i] = { ...updated[i], duration_minutes: Math.max(60, cur - 60) };
-                        setServices(updated);
-                      }}
-                      className="px-1 text-gray-500 hover:text-gray-700"
-                      aria-label="Decrease duration"
-                    >
-                      −
-                    </button>
-                    <span className="w-8 text-center font-medium tabular-nums">
-                      {((s.duration_minutes as number | undefined) ?? 60) / 60}h
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const updated = [...services];
-                        const cur = (updated[i].duration_minutes as number | undefined) ?? 60;
-                        updated[i] = { ...updated[i], duration_minutes: Math.min(480, cur + 60) };
-                        setServices(updated);
-                      }}
-                      className="px-1 text-gray-500 hover:text-gray-700"
-                      aria-label="Increase duration"
-                    >
-                      +
-                    </button>
-                  </div>
-                  <button
-                    onClick={() => setServices((prev) => prev.filter((_, j) => j !== i))}
-                    className="text-gray-400 hover:text-red-500"
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
+                <ServiceRow
+                  key={i}
+                  service={s}
+                  founderTenantId={tenantId}
+                  onChange={(next) => {
+                    const updated = [...services];
+                    updated[i] = next;
+                    setServices(updated);
+                  }}
+                  onDelete={() => setServices((prev) => prev.filter((_, j) => j !== i))}
+                />
               ))}
             </div>
           </section>
