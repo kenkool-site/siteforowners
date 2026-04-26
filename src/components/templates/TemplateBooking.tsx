@@ -54,6 +54,11 @@ interface TemplateBookingProps {
     | { mode: "in_site_only" }
     | { mode: "external_only"; url: string; providerName: string }
     | { mode: "both"; url: string; providerName: string };
+  /** Per-weekday open/close (or null for closed). Used by the in-site
+   * date picker to grey out closed weekdays. */
+  workingHours?: Record<string, { open: string; close: string } | null> | null;
+  /** ISO date strings (YYYY-MM-DD) the tenant has blocked off. */
+  blockedDates?: string[];
 }
 
 // For Vagaro URLs, ensure the embed loads the /services page directly
@@ -82,6 +87,7 @@ export function isEmbeddableBookingUrl(url: string): boolean {
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 function MockBookingCalendar({
@@ -393,6 +399,8 @@ function RealBookingCalendar({
   previewSlug,
   onClose,
   initialService = null,
+  workingHours = null,
+  blockedDates = [],
 }: {
   services: SimpleService[];
   colors: ThemeColors;
@@ -400,6 +408,8 @@ function RealBookingCalendar({
   previewSlug: string;
   onClose: () => void;
   initialService?: SimpleService | null;
+  workingHours?: Record<string, { open: string; close: string } | null> | null;
+  blockedDates?: string[];
 }) {
   const [step, setStep] = useState<"service" | "date" | "time" | "info" | "confirm">(
     initialService ? "date" : "service",
@@ -562,15 +572,32 @@ function RealBookingCalendar({
                   {selectedService?.name}
                 </button>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {dates.map((date, i) => (
-                    <button key={i} onClick={() => handleDateSelect(date)}
-                      className="flex flex-col items-center rounded-xl px-2 py-3 transition-all hover:scale-105"
-                      style={{ backgroundColor: colors.muted, color: colors.foreground }}>
-                      <span className="text-[10px] font-medium uppercase tracking-wider opacity-50">{DAYS[date.getDay()]}</span>
-                      <span className="text-xl font-bold">{date.getDate()}</span>
-                      <span className="text-[10px] opacity-50">{MONTHS[date.getMonth()].slice(0, 3)}</span>
-                    </button>
-                  ))}
+                  {dates.map((date, i) => {
+                    const weekdayName = WEEKDAYS_FULL[date.getDay()];
+                    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                    // null in workingHours means tenant is closed that weekday;
+                    // an undefined entry (e.g. before any hours saved) is allowed.
+                    const dayClosed = workingHours ? workingHours[weekdayName] === null : false;
+                    const dayBlocked = blockedDates.includes(iso);
+                    const unavailable = dayClosed || dayBlocked;
+                    return (
+                      <button
+                        key={i}
+                        disabled={unavailable}
+                        onClick={() => !unavailable && handleDateSelect(date)}
+                        aria-label={unavailable ? `${DAYS[date.getDay()]} ${date.getDate()} — closed` : undefined}
+                        className={`flex flex-col items-center rounded-xl px-2 py-3 transition-all ${
+                          unavailable ? "cursor-not-allowed opacity-30" : "hover:scale-105"
+                        }`}
+                        style={{ backgroundColor: colors.muted, color: colors.foreground }}
+                      >
+                        <span className="text-[10px] font-medium uppercase tracking-wider opacity-50">{DAYS[date.getDay()]}</span>
+                        <span className="text-xl font-bold">{date.getDate()}</span>
+                        <span className="text-[10px] opacity-50">{MONTHS[date.getMonth()].slice(0, 3)}</span>
+                        {unavailable && <span className="text-[9px] mt-0.5 opacity-70">Closed</span>}
+                      </button>
+                    );
+                  })}
                 </div>
               </motion.div>
             )}
@@ -718,6 +745,8 @@ export function TemplateBooking({
   isLive = false,
   onSelectService,
   bookingMode,
+  workingHours = null,
+  blockedDates = [],
 }: TemplateBookingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
@@ -1134,6 +1163,8 @@ export function TemplateBooking({
                 setPendingServiceName(null);
               }}
               initialService={initialService}
+              workingHours={workingHours}
+              blockedDates={blockedDates}
             />
           ) : (
             <MockBookingCalendar
