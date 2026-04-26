@@ -13,6 +13,9 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Indexes flagged by the most recent save attempt; ServiceRow uses this
+  // to expand + highlight the broken rows + scroll the first one into view.
+  const [failingIndexes, setFailingIndexes] = useState<Set<number>>(new Set());
 
   // Track whether the on-screen array differs from the last saved snapshot.
   const initialJson = JSON.stringify(initialServices);
@@ -21,11 +24,17 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   function update(index: number, next: ServiceItem) {
     setServices((prev) => prev.map((s, i) => (i === index ? next : s)));
     setSavedAt(null);
+    if (failingIndexes.has(index)) {
+      const nextSet = new Set(failingIndexes);
+      nextSet.delete(index);
+      setFailingIndexes(nextSet);
+    }
   }
 
   function remove(index: number) {
     setServices((prev) => prev.filter((_, i) => i !== index));
     setSavedAt(null);
+    setFailingIndexes(new Set());  // indexes shift after delete; clear all
   }
 
   function add() {
@@ -60,12 +69,16 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
             });
           if (errs.length > 3) lines.push(`…and ${errs.length - 3} more`);
           setError(lines.join("\n"));
+          // Mark the failing rows so ServiceRow expands + highlights them.
+          setFailingIndexes(new Set(errs.map((e) => e.index).filter((i) => i >= 0)));
         } else {
           setError(data?.error || "Save failed");
+          setFailingIndexes(new Set());
         }
         return;
       }
       setSavedAt(Date.now());
+      setFailingIndexes(new Set());
     } catch {
       setError("Network error");
     } finally {
@@ -92,7 +105,14 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
         </div>
       ) : (
         services.map((s, i) => (
-          <ServiceRow key={i} service={s} onChange={(next) => update(i, next)} onDelete={() => remove(i)} />
+          <ServiceRow
+            key={i}
+            rowNumber={i + 1}
+            service={s}
+            failing={failingIndexes.has(i)}
+            onChange={(next) => update(i, next)}
+            onDelete={() => remove(i)}
+          />
         ))
       )}
 
