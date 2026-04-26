@@ -4,13 +4,16 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
+type Mode = "in_site_only" | "external_only" | "both";
+
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; bookingDeepLink?: string }[];
+  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number }[];
   colors: ThemeColors;
   onSelectService?: (bookingDeepLink: string) => void;
+  bookingMode?: Mode;
 }
 
-export function ElegantServices({ services, colors, onSelectService }: ServicesProps) {
+export function ElegantServices({ services, colors, onSelectService, bookingMode }: ServicesProps) {
   const rc = readableColors(colors);
   return (
     <section className="px-6 py-20" style={{ backgroundColor: colors.background }}>
@@ -43,15 +46,31 @@ export function ElegantServices({ services, colors, onSelectService }: ServicesP
             );
             return (
               <AnimateSection key={service.name} animation="fade-in" delay={i * 0.15}>
-                {onSelectService && service.bookingDeepLink ? (
-                  <button
-                    type="button"
-                    onClick={() => onSelectService(service.bookingDeepLink!)}
-                    className="block w-full text-left"
-                  >
-                    {card}
-                  </button>
-                ) : card}
+                {(() => {
+                  const m = bookingMode ?? "in_site_only";
+                  if (m === "external_only") {
+                    if (!service.bookingDeepLink) return card;
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => window.open(service.bookingDeepLink!, "_blank", "noopener,noreferrer")}
+                        className="block w-full text-left"
+                      >
+                        {card}
+                      </button>
+                    );
+                  }
+                  if (!onSelectService) return card;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => onSelectService(service.bookingDeepLink ?? "")}
+                      className="block w-full text-left"
+                    >
+                      {card}
+                    </button>
+                  );
+                })()}
               </AnimateSection>
             );
           })}

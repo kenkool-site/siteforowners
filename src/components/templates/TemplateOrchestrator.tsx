@@ -4,6 +4,8 @@ import { useState } from "react";
 import type { PreviewData, GeneratedCopy } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
+import type { BookingModePolicy } from "@/lib/admin-auth";
+import { detectProvider } from "@/lib/admin-bookings";
 
 // Heroes
 import { ClassicHero } from "./heroes/ClassicHero";
@@ -60,6 +62,8 @@ interface TemplateOrchestratorProps {
   bookingHours?: Record<string, { open: string; close: string } | null> | null;
   checkoutMode?: "mockup" | "pickup";
   tenantId?: string | null;
+  /** v2: booking entry policy. Defaults to in_site_only. */
+  bookingMode?: BookingModePolicy;
 }
 
 function getTemplateName(data: PreviewData): TemplateName {
@@ -173,6 +177,7 @@ export function TemplateOrchestrator({
   bookingHours = null,
   checkoutMode = "mockup",
   tenantId = null,
+  bookingMode = "in_site_only",
 }: TemplateOrchestratorProps) {
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const ss = getSectionSettings(data);
@@ -228,6 +233,10 @@ export function TemplateOrchestrator({
     ...s,
     description: copy?.service_descriptions?.[s.name] ?? s.description,
     bookingDeepLink: serviceDeepLinkUrls.get(normalizeServiceName(s.name)),
+    // Map snake_case from DB JSONB to camelCase for the UI components.
+    // ServiceItem in @/lib/ai/types doesn't yet declare duration_minutes,
+    // so we assert the shape here at the boundary.
+    durationMinutes: (s as { duration_minutes?: number }).duration_minutes,
   }));
 
   // Modal state — holds the fully-resolved deep-link URL to load in the iframe.
@@ -290,17 +299,31 @@ export function TemplateOrchestrator({
     </div>
   ) : null;
 
+  // Build the discriminated booking-mode object that TemplateBooking
+  // expects. The simple `bookingMode` string is the policy; we attach
+  // the URL + provider name only when the policy needs them. If the
+  // policy says external/both but no URL is configured, degrade to
+  // in_site_only (mirrors getBookingMode's defensive fallback).
+  const tbBookingUrl = data.booking_url?.trim() || "";
+  const bookingModeProp =
+    bookingMode === "in_site_only" || !tbBookingUrl
+      ? ({ mode: "in_site_only" } as const)
+      : bookingMode === "external_only"
+      ? ({ mode: "external_only", url: tbBookingUrl, providerName: detectProvider(tbBookingUrl) } as const)
+      : ({ mode: "both", url: tbBookingUrl, providerName: detectProvider(tbBookingUrl) } as const);
+
   const bookingSection = showBooking ? (
     <TemplateBooking
       phone={data.phone}
       bookingUrl={data.booking_url}
       colors={colors}
       bookingCategories={bookingCategories}
-      services={data.services}
+      services={services}
       businessName={data.business_name}
       previewSlug={data.slug}
       isLive={isLive}
       onSelectService={onSelectService}
+      bookingMode={bookingModeProp}
     />
   ) : null;
 
@@ -338,7 +361,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showGallery && galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><BoldServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
+          {showServices && <div id="services"><BoldServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
           {productsSection}
           {showAbout && <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -355,7 +378,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
-          {showServices && <div id="services"><ElegantServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
+          {showServices && <div id="services"><ElegantServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
           {productsSection}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -371,7 +394,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><VibrantServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
+          {showServices && <div id="services"><VibrantServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
           {showGallery && galleryImages.length > 0 && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
@@ -391,7 +414,7 @@ export function TemplateOrchestrator({
           <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><WarmServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
+          {showServices && <div id="services"><WarmServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
           {productsSection}
           {testimonialsSection || ratingSection}
           {bookingSection}
@@ -407,7 +430,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><ClassicServices services={services} colors={colors} onSelectService={onSelectService} /></div>}
+          {showServices && <div id="services"><ClassicServices services={services} colors={colors} onSelectService={onSelectService} bookingMode={bookingMode} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
           {showAbout && <div id="about"><ClassicAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}

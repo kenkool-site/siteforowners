@@ -10,6 +10,7 @@ import {
   parseGoogleHoursString,
 } from "@/lib/defaults/businessHours";
 import type { BusinessHours, BusinessType, ColorTheme } from "@/lib/ai/types";
+import type { BookingModePolicy } from "@/lib/admin-auth";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
@@ -23,6 +24,7 @@ interface ServiceItem {
   name: string;
   price: string;
   description?: string;
+  duration_minutes?: number;
 }
 
 interface ProductItem {
@@ -81,6 +83,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   );
   const [notificationEmail, setNotificationEmail] = useState<string>(
     (tenant.email as string | null) || ""
+  );
+  const [bookingMode, setBookingMode] = useState<BookingModePolicy>(
+    (tenant.booking_mode as BookingModePolicy | undefined) ?? "in_site_only"
   );
 
   // Images
@@ -301,6 +306,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               updates: {
                 checkout_mode: checkoutMode,
                 email: notificationEmail.trim() || null,
+                booking_mode: bookingMode,
               },
             }),
           })
@@ -1023,6 +1029,33 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 />
               </div>
               <div className="sm:col-span-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Booking mode</label>
+                  <p className="text-xs text-gray-500">How customers book on this site.</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { v: "in_site_only" as const,  label: "In-site only",  sub: "Just our calendar" },
+                      { v: "external_only" as const, label: "External only", sub: "Their existing tool" },
+                      { v: "both" as const,          label: "Both",          sub: "In-site + quiet link" },
+                    ]).map((opt) => (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setBookingMode(opt.v)}
+                        className={`text-left p-3 border rounded-lg transition-colors ${
+                          bookingMode === opt.v
+                            ? "border-amber-500 bg-amber-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="text-sm font-semibold text-gray-900">{opt.label}</div>
+                        <div className="text-xs text-gray-500">{opt.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-gray-600">
                   Booking notes <span className="text-gray-400">(optional)</span>
                 </label>
@@ -1103,7 +1136,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             <div className="mb-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-gray-900">Services</h2>
               <button
-                onClick={() => setServices((prev) => [...prev, { name: "", price: "" }])}
+                onClick={() => setServices((prev) => [...prev, { name: "", price: "", duration_minutes: 60 }])}
                 className="text-sm font-medium text-amber-600 hover:text-amber-700"
               >
                 + Add
@@ -1134,6 +1167,37 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                     placeholder="$0"
                     className="w-24 rounded-lg border px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
                   />
+                  <div className="flex items-center gap-1 rounded-lg border px-2 py-1 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...services];
+                        const cur = (updated[i].duration_minutes as number | undefined) ?? 60;
+                        updated[i] = { ...updated[i], duration_minutes: Math.max(60, cur - 60) };
+                        setServices(updated);
+                      }}
+                      className="px-1 text-gray-500 hover:text-gray-700"
+                      aria-label="Decrease duration"
+                    >
+                      −
+                    </button>
+                    <span className="w-8 text-center font-medium tabular-nums">
+                      {((s.duration_minutes as number | undefined) ?? 60) / 60}h
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const updated = [...services];
+                        const cur = (updated[i].duration_minutes as number | undefined) ?? 60;
+                        updated[i] = { ...updated[i], duration_minutes: Math.min(480, cur + 60) };
+                        setServices(updated);
+                      }}
+                      className="px-1 text-gray-500 hover:text-gray-700"
+                      aria-label="Increase duration"
+                    >
+                      +
+                    </button>
+                  </div>
                   <button
                     onClick={() => setServices((prev) => prev.filter((_, j) => j !== i))}
                     className="text-gray-400 hover:text-red-500"
@@ -1440,28 +1504,10 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 </button>
               </div>
 
-              {/* Slot config */}
+              {/* Slot config — Slot Duration is now per-service (see Services
+                  section above). Buffer Between is unused in v1. Only
+                  Max Per Slot is surfaced. */}
               <div className="mb-6 grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Slot Duration</label>
-                  <select value={slotDuration} onChange={(e) => setSlotDuration(Number(e.target.value))}
-                    className="w-full rounded-lg border px-3 py-2 text-sm">
-                    <option value={30}>30 min</option>
-                    <option value={45}>45 min</option>
-                    <option value={60}>1 hour</option>
-                    <option value={90}>1.5 hours</option>
-                    <option value={120}>2 hours</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Buffer Between</label>
-                  <select value={bufferMinutes} onChange={(e) => setBufferMinutes(Number(e.target.value))}
-                    className="w-full rounded-lg border px-3 py-2 text-sm">
-                    <option value={0}>No buffer</option>
-                    <option value={15}>15 min</option>
-                    <option value={30}>30 min</option>
-                  </select>
-                </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Max Per Slot</label>
                   <select value={maxPerSlot} onChange={(e) => setMaxPerSlot(Number(e.target.value))}
@@ -1471,6 +1517,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                     <option value={3}>3</option>
                     <option value={5}>5</option>
                   </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Concurrent bookings per hour (e.g. 2 chairs, 2 stylists).
+                  </p>
                 </div>
               </div>
 
@@ -1540,6 +1589,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             data={previewData as never}
             locale="en"
             checkoutMode={checkoutMode}
+            bookingMode={bookingMode}
           />
         </div>
       )}

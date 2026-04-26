@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { computeAvailableStarts, formatTimeRange } from "@/lib/availability";
 
 interface BookingService {
   name: string;
@@ -29,6 +30,7 @@ interface BookingCategory {
 interface SimpleService {
   name: string;
   price: string;
+  durationMinutes?: number;  // optional, defaults to 60 throughout the flow
 }
 
 interface TemplateBookingProps {
@@ -47,6 +49,11 @@ interface TemplateBookingProps {
    * modal (deep-linked to the service) instead of opening a new tab.
    */
   onSelectService?: (deepLinkUrl: string) => void;
+  /** v2: drives the dual-mode entry CTA. Defaults to legacy behavior when absent. */
+  bookingMode?:
+    | { mode: "in_site_only" }
+    | { mode: "external_only"; url: string; providerName: string }
+    | { mode: "both"; url: string; providerName: string };
 }
 
 // For Vagaro URLs, ensure the embed loads the /services page directly
@@ -72,25 +79,6 @@ export function isEmbeddableBookingUrl(url: string): boolean {
   return embeddablePatterns.some((pattern) =>
     url.toLowerCase().includes(pattern)
   );
-}
-
-// Generate mock time slots for a given date
-function generateTimeSlots(date: Date): string[] {
-  const slots: string[] = [];
-  const day = date.getDay();
-  // No slots on Sunday
-  if (day === 0) return [];
-  const start = 9;
-  const end = day === 6 ? 17 : 19; // Saturday shorter hours
-  for (let h = start; h < end; h++) {
-    slots.push(`${h > 12 ? h - 12 : h}:00 ${h >= 12 ? "PM" : "AM"}`);
-    if (h < end - 1) {
-      slots.push(`${h > 12 ? h - 12 : h}:30 ${h >= 12 ? "PM" : "AM"}`);
-    }
-  }
-  // Randomly "book out" some slots to look realistic
-  const seed = date.getDate() * 7 + date.getMonth();
-  return slots.filter((_, i) => (seed * (i + 3) * 13) % 7 !== 0);
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -124,7 +112,30 @@ function MockBookingCalendar({
     return result;
   }, []);
 
-  const timeSlots = selectedDate ? generateTimeSlots(selectedDate) : [];
+  const timeSlots = selectedDate && selectedService
+    ? computeAvailableStarts({
+        date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`,
+        durationMinutes: selectedService.durationMinutes ?? 60,
+        // Mock defaults — preview/marketing has no real bookings/hours data.
+        // Mon-Sat 10-19, Sunday closed.
+        workingHours: {
+          Sunday: null,
+          Monday: { openHour: 10, closeHour: 19 },
+          Tuesday: { openHour: 10, closeHour: 19 },
+          Wednesday: { openHour: 10, closeHour: 19 },
+          Thursday: { openHour: 10, closeHour: 19 },
+          Friday: { openHour: 10, closeHour: 19 },
+          Saturday: { openHour: 10, closeHour: 17 },
+        },
+        existingBookings: [],
+        maxPerSlot: 1,
+        blockedDates: [],
+      }).map((h) => {
+        const period = h >= 12 ? "PM" : "AM";
+        const h12 = h % 12 === 0 ? 12 : h % 12;
+        return `${h12}:00 ${period}`;
+      })
+    : [];
 
   return (
     <motion.div
@@ -201,7 +212,9 @@ function MockBookingCalendar({
                       }}
                     >
                       <span className="font-medium">{svc.name}</span>
-                      <span className="text-sm font-semibold" style={{ color: colors.primary }}>{svc.price}</span>
+                      <span className="text-sm font-semibold" style={{ color: colors.primary }}>
+                        {((svc.durationMinutes ?? 60) / 60)}h · {svc.price}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -339,7 +352,9 @@ function MockBookingCalendar({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Time</span>
-                        <span className="text-sm font-semibold" style={{ color: colors.foreground }}>{selectedTime}</span>
+                        <span className="text-sm font-semibold" style={{ color: colors.foreground }}>
+                          {selectedTime && formatTimeRange(selectedTime, selectedService?.durationMinutes ?? 60)}
+                        </span>
                       </div>
                       <div className="border-t pt-2.5" style={{ borderColor: `${colors.foreground}10` }}>
                         <div className="flex justify-between">
@@ -405,11 +420,12 @@ function RealBookingCalendar({
   }, []);
 
   // Fetch available slots when date is selected
-  const fetchSlots = async (date: Date) => {
+  const fetchSlots = async (date: Date, service: SimpleService | null) => {
     setLoadingSlots(true);
     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
+    const dur = service?.durationMinutes ?? 60;
     try {
-      const res = await fetch(`/api/available-slots?slug=${previewSlug}&date=${dateStr}`);
+      const res = await fetch(`/api/available-slots?slug=${previewSlug}&date=${dateStr}&duration_minutes=${dur}`);
       const data = await res.json();
       setAvailableSlots(data.slots || []);
     } catch {
@@ -421,7 +437,7 @@ function RealBookingCalendar({
 
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
-    fetchSlots(date);
+    fetchSlots(date, selectedService);
     setStep("time");
   };
 
@@ -438,6 +454,7 @@ function RealBookingCalendar({
           preview_slug: previewSlug,
           service_name: selectedService.name,
           service_price: selectedService.price,
+          duration_minutes: selectedService.durationMinutes ?? 60,
           booking_date: dateStr,
           booking_time: selectedTime,
           customer_name: customerName.trim(),
@@ -517,7 +534,9 @@ function RealBookingCalendar({
                       className="flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left transition-all hover:scale-[1.01]"
                       style={{ backgroundColor: colors.muted, color: colors.foreground }}>
                       <span className="font-medium">{svc.name}</span>
-                      <span className="text-sm font-semibold" style={{ color: colors.primary }}>{svc.price}</span>
+                      <span className="text-sm font-semibold" style={{ color: colors.primary }}>
+                        {((svc.durationMinutes ?? 60) / 60)}h · {svc.price}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -647,7 +666,9 @@ function RealBookingCalendar({
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Time</span>
-                        <span className="text-sm font-semibold" style={{ color: colors.foreground }}>{selectedTime}</span>
+                        <span className="text-sm font-semibold" style={{ color: colors.foreground }}>
+                          {selectedTime && formatTimeRange(selectedTime, selectedService?.durationMinutes ?? 60)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -675,6 +696,7 @@ export function TemplateBooking({
   previewSlug,
   isLive = false,
   onSelectService,
+  bookingMode,
 }: TemplateBookingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
@@ -683,12 +705,21 @@ export function TemplateBooking({
   const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
   const showInternalBooking = !bookingUrl && !hasCategories && services && services.length > 0;
 
+  // Compute effective mode. If `bookingMode` prop is provided, trust it.
+  // Otherwise fall back to legacy logic so existing callers without the
+  // prop still work (preview/marketing pages).
+  const effectiveMode: "in_site_only" | "external_only" | "both" =
+    bookingMode?.mode
+    ?? (bookingUrl ? "external_only" : "in_site_only");
+
   // Auto-open when navigated to via #booking anchor
   useEffect(() => {
     const handleHash = () => {
       if (window.location.hash === "#booking") {
         if (hasCategories) {
           setExpandedCategory(bookingCategories![0].name);
+        } else if (effectiveMode === "in_site_only" || effectiveMode === "both") {
+          setShowBookingCalendar(true);
         } else if (canEmbed) {
           setShowFallbackEmbed(true);
         } else if (showInternalBooking) {
@@ -699,7 +730,7 @@ export function TemplateBooking({
     handleHash();
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
-  }, [hasCategories, canEmbed, showInternalBooking, bookingCategories]);
+  }, [hasCategories, canEmbed, showInternalBooking, bookingCategories, effectiveMode]);
 
   return (
     <section
@@ -870,81 +901,149 @@ export function TemplateBooking({
         ) : (
           /* Fallback: buttons + iframe embed or mock calendar */
           <>
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              {bookingUrl ? (
+            {effectiveMode === "both" ? (
+              /* Layout A: primary in-site button + quiet external link */
+              <div className="space-y-3">
                 <Button
-                  size="lg"
-                  className="rounded-full px-10 py-6 text-base font-semibold"
-                  style={{
-                    backgroundColor: colors.primary,
-                    color: colors.background,
-                  }}
-                  onClick={
-                    canEmbed
-                      ? () => setShowFallbackEmbed(!showFallbackEmbed)
-                      : undefined
-                  }
-                  asChild={!canEmbed}
-                >
-                  {canEmbed ? (
-                    <span>
-                      {showFallbackEmbed ? "Close Booking" : "Book Online"}
-                    </span>
-                  ) : (
-                    <a
-                      href={bookingUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Book Online
-                    </a>
-                  )}
-                </Button>
-              ) : showInternalBooking ? (
-                <Button
-                  size="lg"
-                  className="rounded-full px-10 py-6 text-base font-semibold"
-                  style={{
-                    backgroundColor: colors.primary,
-                    color: colors.background,
-                  }}
                   onClick={() => setShowBookingCalendar(true)}
+                  className="w-full rounded-xl py-5 text-base font-semibold"
+                  style={{ background: colors.primary, color: colors.background }}
                 >
-                  Book Online
+                  Book instantly on this website →
                 </Button>
-              ) : null}
-              {phone && (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="rounded-full !bg-transparent px-10 py-6 text-base font-semibold"
-                  style={{
-                    borderColor: colors.primary,
-                    color: colors.primary,
-                  }}
-                  asChild
-                >
-                  <a href={`tel:${phone}`}>Call {phone}</a>
-                </Button>
-              )}
-              {!bookingUrl && !phone && !showInternalBooking && (
-                <Button
-                  size="lg"
-                  className="rounded-full px-10 py-6 text-base font-semibold"
-                  style={{
-                    backgroundColor: colors.primary,
-                    color: colors.background,
-                  }}
-                >
-                  Contact Us
-                </Button>
-              )}
-            </div>
+                <p className="text-center text-xs opacity-70" style={{ color: colors.background }}>
+                  Already using {bookingMode?.mode === "both" ? bookingMode.providerName : "your booking provider"}?{" "}
+                  <a
+                    href={bookingMode?.mode === "both" ? bookingMode.url : "#"}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline"
+                    style={{ color: colors.primary }}
+                  >
+                    You can still book there ↗
+                  </a>
+                </p>
+              </div>
+            ) : effectiveMode === "in_site_only" ? (
+              /* In-site only: primary button opens booking calendar */
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                {services && services.length > 0 ? (
+                  <Button
+                    size="lg"
+                    className="rounded-full px-10 py-6 text-base font-semibold"
+                    style={{
+                      backgroundColor: colors.primary,
+                      color: colors.background,
+                    }}
+                    onClick={() => setShowBookingCalendar(true)}
+                  >
+                    Book instantly on this website →
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="rounded-full px-10 py-6 text-base font-semibold"
+                    style={{
+                      backgroundColor: colors.primary,
+                      color: colors.background,
+                    }}
+                  >
+                    Contact Us
+                  </Button>
+                )}
+                {phone && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full !bg-transparent px-10 py-6 text-base font-semibold"
+                    style={{
+                      borderColor: colors.primary,
+                      color: colors.primary,
+                    }}
+                    asChild
+                  >
+                    <a href={`tel:${phone}`}>Call {phone}</a>
+                  </Button>
+                )}
+              </div>
+            ) : (
+              /* external_only: legacy behavior — render the external embed/redirect */
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+                {bookingUrl ? (
+                  <Button
+                    size="lg"
+                    className="rounded-full px-10 py-6 text-base font-semibold"
+                    style={{
+                      backgroundColor: colors.primary,
+                      color: colors.background,
+                    }}
+                    onClick={
+                      canEmbed
+                        ? () => setShowFallbackEmbed(!showFallbackEmbed)
+                        : undefined
+                    }
+                    asChild={!canEmbed}
+                  >
+                    {canEmbed ? (
+                      <span>
+                        {showFallbackEmbed ? "Close Booking" : "Book Online"}
+                      </span>
+                    ) : (
+                      <a
+                        href={bookingUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        Book Online
+                      </a>
+                    )}
+                  </Button>
+                ) : showInternalBooking ? (
+                  <Button
+                    size="lg"
+                    className="rounded-full px-10 py-6 text-base font-semibold"
+                    style={{
+                      backgroundColor: colors.primary,
+                      color: colors.background,
+                    }}
+                    onClick={() => setShowBookingCalendar(true)}
+                  >
+                    Book Online
+                  </Button>
+                ) : null}
+                {phone && (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="rounded-full !bg-transparent px-10 py-6 text-base font-semibold"
+                    style={{
+                      borderColor: colors.primary,
+                      color: colors.primary,
+                    }}
+                    asChild
+                  >
+                    <a href={`tel:${phone}`}>Call {phone}</a>
+                  </Button>
+                )}
+                {!bookingUrl && !phone && !showInternalBooking && (
+                  <Button
+                    size="lg"
+                    className="rounded-full px-10 py-6 text-base font-semibold"
+                    style={{
+                      backgroundColor: colors.primary,
+                      color: colors.background,
+                    }}
+                  >
+                    Contact Us
+                  </Button>
+                )}
+              </div>
+            )}
 
             {canEmbed && showFallbackEmbed && (
               <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl" style={{ height: 800 }}>
                 <iframe
-                  src={getEmbedUrl(bookingUrl)}
+                  src={getEmbedUrl(bookingUrl!)}
                   title="Book an appointment"
                   className="w-full border-0"
                   style={{ height: 1600, marginTop: -200 }}

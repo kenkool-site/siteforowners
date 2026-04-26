@@ -136,7 +136,7 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
               viewMode === "mobile" ? "h-[700px] overflow-y-auto" : ""
             }
           >
-            <TemplateOrchestrator data={data} locale={locale} />
+            <TemplateOrchestrator data={data} locale={locale} bookingMode="in_site_only" />
           </div>
         </div>
       </div>

@@ -32,7 +32,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
   // (same source the public site uses). If the tenant has Acuity / Booksy /
   // etc. configured, hide the booking rollups since they'd always be 0.
   const showSchedule =
-    !bookingMode.external &&
+    bookingMode.mode !== "external_only" &&
     (!tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal");
   const visitStats = shapeVisits(visitRows, new Date());
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BookingRow as BookingRowType } from "@/lib/admin-bookings";
+import { formatTimeRange } from "@/lib/availability";
 
 const STATUS_PILL: Record<string, string> = {
   confirmed: "bg-amber-100 text-amber-700",
@@ -51,7 +52,7 @@ export function BookingRow({ row: initialRow }: { row: BookingRowType }) {
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="text-sm font-medium">
-              {row.booking_time} · {row.customer_name}
+              {formatTimeRange(row.booking_time, row.duration_minutes)} · {row.customer_name}
             </div>
             <div className="text-xs text-gray-500 mt-0.5">
               {row.service_name} · {row.customer_phone}
@@ -74,7 +75,7 @@ export function BookingRow({ row: initialRow }: { row: BookingRowType }) {
           >
             <div className="w-10 h-1 bg-gray-300 rounded mx-auto mb-3 md:hidden" />
             <div className="text-sm font-semibold mb-3">
-              {row.customer_name} · {row.booking_time}
+              {row.customer_name} · {formatTimeRange(row.booking_time, row.duration_minutes)}
             </div>
             <div className="space-y-2">
               <button
