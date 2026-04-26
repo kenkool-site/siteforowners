@@ -8,7 +8,7 @@ import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booki
 type Mode = "in_site_only" | "external_only" | "both";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number }[];
+  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number; image?: string }[];
   colors: ThemeColors;
   bookingMode?: Mode;
 }
