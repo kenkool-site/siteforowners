@@ -22,6 +22,15 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // booking_settings.preview_slug is NOT NULL. Required when this is the
+  // tenant's first booking_settings row (e.g. they've never edited hours).
+  const previewSlug = session.tenant.preview_slug;
+  if (!previewSlug) {
+    console.error("[admin/bookings/block-date] tenant has no preview_slug", { tenantId: session.tenant.id });
+    return NextResponse.json({ error: "Tenant misconfigured (no preview_slug)" }, { status: 500 });
+  }
+
   const { data: row } = await supabase
     .from("booking_settings")
     .select("blocked_dates")
@@ -36,7 +45,12 @@ export async function POST(request: NextRequest) {
   const { error } = await supabase
     .from("booking_settings")
     .upsert(
-      { tenant_id: session.tenant.id, blocked_dates: next, updated_at: new Date().toISOString() },
+      {
+        tenant_id: session.tenant.id,
+        preview_slug: previewSlug,
+        blocked_dates: next,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "tenant_id" }
     );
   if (error) {

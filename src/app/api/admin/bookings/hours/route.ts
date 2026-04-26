@@ -39,10 +39,25 @@ export async function POST(request: NextRequest) {
   if (!hours) return NextResponse.json({ error: "Invalid hours shape" }, { status: 400 });
 
   const supabase = createAdminClient();
+
+  // booking_settings.preview_slug is NOT NULL. If this is the tenant's
+  // first hours-save (no row exists yet), we'd fail the constraint
+  // without supplying it. Look up the tenant's slug and include it.
+  const previewSlug = session.tenant.preview_slug;
+  if (!previewSlug) {
+    console.error("[admin/bookings/hours] tenant has no preview_slug", { tenantId: session.tenant.id });
+    return NextResponse.json({ error: "Tenant misconfigured (no preview_slug)" }, { status: 500 });
+  }
+
   const { error } = await supabase
     .from("booking_settings")
     .upsert(
-      { tenant_id: session.tenant.id, working_hours: hours, updated_at: new Date().toISOString() },
+      {
+        tenant_id: session.tenant.id,
+        preview_slug: previewSlug,
+        working_hours: hours,
+        updated_at: new Date().toISOString(),
+      },
       { onConflict: "tenant_id" }
     );
   if (error) {
