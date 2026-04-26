@@ -3,7 +3,7 @@
 import type { ThemeColors } from "@/lib/templates/themes";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
-import { openBookingCalendarForService } from "@/lib/booking-events";
+import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
@@ -61,6 +61,17 @@ export function VibrantServices({ services, colors, bookingMode }: ServicesProps
                       <button
                         type="button"
                         onClick={() => window.open(service.bookingDeepLink!, "_blank", "noopener,noreferrer")}
+                        className="block w-full text-left"
+                      >
+                        {card}
+                      </button>
+                    );
+                  }
+                  if (m === "both" && service.bookingDeepLink) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => requestBookingChoice(service.name, service.bookingDeepLink!)}
                         className="block w-full text-left"
                       >
                         {card}

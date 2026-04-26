@@ -804,6 +804,26 @@ export function TemplateBooking({
     ? services.find((s) => s.name === pendingServiceName) ?? null
     : null;
 
+  // In `both` mode, per-service Book buttons with a deep link request a
+  // choice between in-site and external first (mirrors the main entry CTA
+  // dual options). State + listener owned here so a single dialog instance
+  // serves all services without a per-service mount.
+  const [bookingChoice, setBookingChoice] = useState<{ serviceName: string; deepLink: string } | null>(null);
+  useEffect(() => {
+    if (effectiveMode !== "both") return;
+    const handleRequest = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { serviceName: string; deepLink: string } | undefined;
+      if (detail?.serviceName && detail.deepLink) {
+        setBookingChoice({ serviceName: detail.serviceName, deepLink: detail.deepLink });
+      }
+    };
+    window.addEventListener("siteforowners:request-booking-choice", handleRequest);
+    return () => window.removeEventListener("siteforowners:request-booking-choice", handleRequest);
+  }, [effectiveMode]);
+
+  const choiceProviderName =
+    bookingMode?.mode === "both" ? bookingMode.providerName : "your booking provider";
+
   return (
     <section
       id="booking"
@@ -1178,6 +1198,80 @@ export function TemplateBooking({
               initialService={initialService}
             />
           )
+        )}
+      </AnimatePresence>
+
+      {/* Booking choice dialog — `both` mode + deep link only. Mirrors the
+          main entry CTA's dual options (primary in-site, secondary external)
+          for per-service clicks. */}
+      <AnimatePresence>
+        {bookingChoice && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+            onClick={() => setBookingChoice(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl p-5"
+              style={{ backgroundColor: colors.background }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="text-xs font-medium uppercase tracking-wider opacity-60 mb-1" style={{ color: colors.foreground }}>
+                {bookingChoice.serviceName}
+              </div>
+              <h3 className="text-lg font-bold mb-4" style={{ color: colors.foreground }}>
+                How would you like to book?
+              </h3>
+
+              <Button
+                onClick={() => {
+                  const name = bookingChoice.serviceName;
+                  setBookingChoice(null);
+                  // Defer to the existing in-site flow so the calendar can
+                  // pick up the preselected service via the same channel
+                  // /admin/Services use.
+                  setTimeout(() => {
+                    document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });
+                    window.dispatchEvent(
+                      new CustomEvent("siteforowners:open-booking-calendar", {
+                        detail: { serviceName: name },
+                      }),
+                    );
+                  }, 0);
+                }}
+                className="w-full rounded-xl py-5 text-base font-semibold"
+                style={{ background: colors.primary, color: colors.background }}
+              >
+                Book instantly on this website →
+              </Button>
+
+              <a
+                href={bookingChoice.deepLink}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setBookingChoice(null)}
+                className="block text-center mt-3 text-xs underline opacity-70"
+                style={{ color: colors.primary }}
+              >
+                Or continue with {choiceProviderName} ↗
+              </a>
+
+              <button
+                type="button"
+                onClick={() => setBookingChoice(null)}
+                className="block w-full text-center mt-4 text-xs opacity-50"
+                style={{ color: colors.foreground }}
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </section>
