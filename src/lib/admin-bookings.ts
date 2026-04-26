@@ -49,7 +49,13 @@ export async function getBookingMode(previewSlug: string | null): Promise<Bookin
     : null;
 
   if (bookingMode === "in_site_only") return { mode: "in_site_only" };
-  if (!bookingUrl) return { mode: "in_site_only" };
+  if (!bookingUrl) {
+    console.warn(
+      "[getBookingMode] tenant policy is %s but no booking_url; defaulting to in_site_only",
+      { previewSlug, bookingMode },
+    );
+    return { mode: "in_site_only" };
+  }
   if (bookingMode === "external_only") {
     return { mode: "external_only", url: bookingUrl, providerName: detectProvider(bookingUrl) };
   }

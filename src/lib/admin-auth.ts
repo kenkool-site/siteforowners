@@ -77,7 +77,7 @@ export function verifySession(signed: string): SessionPayload | null {
   }
 }
 
-export type BookingMode = "in_site_only" | "external_only" | "both";
+export type BookingModePolicy = "in_site_only" | "external_only" | "both";
 
 export type AdminTenant = {
   id: string;
@@ -91,7 +91,7 @@ export type AdminTenant = {
   site_published: boolean;
   booking_tool: string | null;
   checkout_mode: string | null;
-  booking_mode: BookingMode;
+  booking_mode: BookingModePolicy;
 };
 
 /**
