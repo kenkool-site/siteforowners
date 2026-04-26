@@ -1504,28 +1504,10 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 </button>
               </div>
 
-              {/* Slot config */}
+              {/* Slot config — Slot Duration is now per-service (see Services
+                  section above). Buffer Between is unused in v1. Only
+                  Max Per Slot is surfaced. */}
               <div className="mb-6 grid gap-4 sm:grid-cols-3">
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Slot Duration</label>
-                  <select value={slotDuration} onChange={(e) => setSlotDuration(Number(e.target.value))}
-                    className="w-full rounded-lg border px-3 py-2 text-sm">
-                    <option value={30}>30 min</option>
-                    <option value={45}>45 min</option>
-                    <option value={60}>1 hour</option>
-                    <option value={90}>1.5 hours</option>
-                    <option value={120}>2 hours</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-1 block text-xs font-medium text-gray-500">Buffer Between</label>
-                  <select value={bufferMinutes} onChange={(e) => setBufferMinutes(Number(e.target.value))}
-                    className="w-full rounded-lg border px-3 py-2 text-sm">
-                    <option value={0}>No buffer</option>
-                    <option value={15}>15 min</option>
-                    <option value={30}>30 min</option>
-                  </select>
-                </div>
                 <div>
                   <label className="mb-1 block text-xs font-medium text-gray-500">Max Per Slot</label>
                   <select value={maxPerSlot} onChange={(e) => setMaxPerSlot(Number(e.target.value))}
@@ -1535,6 +1517,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                     <option value={3}>3</option>
                     <option value={5}>5</option>
                   </select>
+                  <p className="mt-1 text-xs text-gray-500">
+                    Concurrent bookings per hour (e.g. 2 chairs, 2 stylists).
+                  </p>
                 </div>
               </div>
 
