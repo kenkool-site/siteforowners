@@ -4,6 +4,7 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
+import { formatDuration } from "@/lib/availability";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
@@ -44,9 +45,14 @@ export function ClassicServices({ services, colors, bookingMode }: ServicesProps
                     </p>
                   )}
                 </div>
-                <span className="ml-4 whitespace-nowrap text-lg font-bold" style={{ color: rc.primaryOnMuted }}>
-                  {service.price}
-                </span>
+                <div className="ml-4 text-right">
+                  <span className="whitespace-nowrap text-lg font-bold" style={{ color: rc.primaryOnMuted }}>
+                    {service.price}
+                  </span>
+                  <span className="text-xs opacity-60 ml-2" style={{ color: rc.textOnMuted }}>
+                    · {formatDuration(service.durationMinutes ?? 60)}
+                  </span>
+                </div>
               </div>
             );
             return (
