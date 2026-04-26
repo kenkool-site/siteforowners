@@ -1,8 +1,10 @@
+import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { SiteEditor } from "./SiteEditor";
 
 async function getData(tenantId: string) {
+  noStore();
   const supabase = createAdminClient();
 
   const { data: tenant } = await supabase
@@ -24,6 +26,7 @@ async function getData(tenantId: string) {
   return { tenant, preview };
 }
 
+export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function EditSitePage({
@@ -31,6 +34,7 @@ export default async function EditSitePage({
 }: {
   params: { tenantId: string };
 }) {
+  noStore();
   const data = await getData(params.tenantId);
 
   if (!data) {
