@@ -44,7 +44,25 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error || "Save failed");
+        // Surface field-level validation errors so the owner can find the
+        // failing row. Without this, "Save failed" hides which row is broken,
+        // and a single bad row blocks the entire atomic save.
+        const errs = (data?.errors as Array<{ index: number; field: string; reason: string }> | undefined) ?? [];
+        if (errs.length > 0) {
+          const lines = errs
+            .slice(0, 3)
+            .map((e) => {
+              const rowLabel =
+                e.index >= 0 && services[e.index]?.name
+                  ? `Row ${e.index + 1} (${services[e.index].name})`
+                  : `Row ${e.index + 1}`;
+              return `${rowLabel}: ${e.field} — ${e.reason}`;
+            });
+          if (errs.length > 3) lines.push(`…and ${errs.length - 3} more`);
+          setError(lines.join("\n"));
+        } else {
+          setError(data?.error || "Save failed");
+        }
         return;
       }
       setSavedAt(Date.now());
@@ -81,7 +99,11 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
       {/* Sticky save bar */}
       <div className="fixed bottom-16 md:bottom-4 inset-x-0 px-4 md:px-8 pointer-events-none">
         <div className="max-w-3xl mx-auto flex items-center justify-end gap-3 pointer-events-auto">
-          {error && <span className="text-xs text-red-600">{error}</span>}
+          {error && (
+            <span className="text-xs text-red-600 whitespace-pre-line max-w-md text-right">
+              {error}
+            </span>
+          )}
           {savedAt && !dirty && <span className="text-xs text-green-700">✓ Saved</span>}
           <button
             type="button"
