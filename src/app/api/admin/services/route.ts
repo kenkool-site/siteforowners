@@ -37,19 +37,26 @@ function validateServices(raw: unknown): { ok: true; services: ServiceItem[] } |
       return;
     }
     const r = item as Record<string, unknown>;
-    const name = typeof r.name === "string" ? r.name.trim() : "";
-    const price = typeof r.price === "string" ? r.price.trim() : "";
-    const description = typeof r.description === "string" ? r.description.trim() : undefined;
+    // Length-bounded fields: silently TRUNCATE to the cap rather than
+    // rejecting. The maxLength inputs in ServiceRow already prevent over-typing
+    // for new edits; truncation handles legacy/AI-generated data that
+    // pre-dates the current caps. Save never fails for length reasons.
+    let name = typeof r.name === "string" ? r.name.trim() : "";
+    let price = typeof r.price === "string" ? r.price.trim() : "";
+    let description = typeof r.description === "string" ? r.description.trim() : undefined;
     const duration_minutes = typeof r.duration_minutes === "number" ? r.duration_minutes : undefined;
     const image = typeof r.image === "string" ? r.image.trim() : undefined;
 
-    if (!name) errors.push({ index, field: "name", reason: "required" });
-    else if (name.length > MAX_NAME) errors.push({ index, field: "name", reason: `max ${MAX_NAME} chars` });
-    if (!price) errors.push({ index, field: "price", reason: "required" });
-    else if (price.length > MAX_PRICE) errors.push({ index, field: "price", reason: `max ${MAX_PRICE} chars` });
+    if (name.length > MAX_NAME) name = name.slice(0, MAX_NAME);
+    if (price.length > MAX_PRICE) price = price.slice(0, MAX_PRICE);
     if (description !== undefined && description.length > MAX_DESCRIPTION) {
-      errors.push({ index, field: "description", reason: `max ${MAX_DESCRIPTION} chars` });
+      description = description.slice(0, MAX_DESCRIPTION);
     }
+
+    // Required fields and structural rules still error — these can't be
+    // fixed by truncation and reflect genuinely invalid input.
+    if (!name) errors.push({ index, field: "name", reason: "required" });
+    if (!price) errors.push({ index, field: "price", reason: "required" });
     if (duration_minutes !== undefined) {
       if (!Number.isInteger(duration_minutes) || duration_minutes < 30 || duration_minutes > 480 || duration_minutes % 30 !== 0) {
         errors.push({ index, field: "duration_minutes", reason: "must be an integer multiple of 30 in [30, 480]" });
