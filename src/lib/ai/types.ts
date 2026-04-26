@@ -23,6 +23,10 @@ export interface ServiceItem {
   name: string;
   price: string;
   description?: string;
+  /** v2 (Spec 1) — already used in JSONB; declare explicitly. Whole hours, multiples of 60, range [60, 480]. */
+  duration_minutes?: number;
+  /** v3 (Spec 3) — public URL of the uploaded service image (Supabase Storage, service-images bucket). */
+  image?: string;
 }
 
 export interface ProductItem {

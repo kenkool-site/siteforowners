@@ -73,3 +73,60 @@ test("verifySession: returns null for malformed input", () => {
   assert.equal(verifySession("no-dot"), null);
   assert.equal(verifySession("a.b.c"), null);
 });
+
+import { requireOwnerOrFounder } from "./admin-auth";
+
+// Minimal NextRequest stand-in — only the methods our helper uses.
+function fakeRequest(opts: {
+  ownerCookie?: string;       // raw owner_session cookie value (encoded JWT)
+  adminCookie?: string;       // raw admin_session cookie value
+  host?: string;
+}): import("next/server").NextRequest {
+  const cookies = new Map<string, { value: string }>();
+  if (opts.ownerCookie) cookies.set("owner_session", { value: opts.ownerCookie });
+  if (opts.adminCookie) cookies.set("admin_session", { value: opts.adminCookie });
+  return {
+    cookies: { get: (name: string) => cookies.get(name) },
+    headers: {
+      get: (name: string) => (name.toLowerCase() === "host" ? (opts.host ?? "") : null),
+    },
+  } as unknown as import("next/server").NextRequest;
+}
+
+test("requireOwnerOrFounder: returns null when no auth", async () => {
+  const result = await requireOwnerOrFounder(fakeRequest({}));
+  assert.equal(result, null);
+});
+
+test("requireOwnerOrFounder: founder cookie + tenant_id → founder branch", async () => {
+  process.env.ADMIN_PASSWORD = "test-admin-pass";
+  const result = await requireOwnerOrFounder(
+    fakeRequest({ adminCookie: "test-admin-pass" }),
+    "tenant-abc",
+  );
+  assert.deepEqual(result, { kind: "founder", tenantId: "tenant-abc" });
+});
+
+test("requireOwnerOrFounder: founder cookie WITHOUT tenant_id → null", async () => {
+  process.env.ADMIN_PASSWORD = "test-admin-pass";
+  const result = await requireOwnerOrFounder(fakeRequest({ adminCookie: "test-admin-pass" }));
+  assert.equal(result, null);
+});
+
+test("requireOwnerOrFounder: wrong admin cookie → null", async () => {
+  process.env.ADMIN_PASSWORD = "test-admin-pass";
+  const result = await requireOwnerOrFounder(
+    fakeRequest({ adminCookie: "wrong-pass" }),
+    "tenant-abc",
+  );
+  assert.equal(result, null);
+});
+
+test("requireOwnerOrFounder: no ADMIN_PASSWORD env → founder branch never matches", async () => {
+  delete process.env.ADMIN_PASSWORD;
+  const result = await requireOwnerOrFounder(
+    fakeRequest({ adminCookie: "anything" }),
+    "tenant-abc",
+  );
+  assert.equal(result, null);
+});

@@ -8,7 +8,7 @@ import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booki
 type Mode = "in_site_only" | "external_only" | "both";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number }[];
+  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number; image?: string }[];
   colors: ThemeColors;
   bookingMode?: Mode;
 }
@@ -31,6 +31,10 @@ export function VibrantServices({ services, colors, bookingMode }: ServicesProps
                 className="rounded-2xl p-6 transition-shadow hover:shadow-lg"
                 style={{ background: `linear-gradient(135deg, ${colors.muted}, ${colors.background})` }}
               >
+                {service.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={service.image} alt={service.name} className="w-full h-40 object-cover rounded-md mb-3" />
+                )}
                 <div
                   className="mb-3 h-3 w-3 rounded-full"
                   style={{ backgroundColor: colors.primary }}

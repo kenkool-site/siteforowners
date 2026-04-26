@@ -197,3 +197,36 @@ function parseCookieHeader(header: string): Record<string, string> {
   }
   return out;
 }
+
+export type DualAuthResult =
+  | { kind: "owner"; tenantId: string; tenant: AdminTenant }
+  | { kind: "founder"; tenantId: string };
+
+/**
+ * Resolves either an owner session OR the founder admin-password cookie.
+ * For founder requests, the tenant_id must come from the body/query string
+ * (the founder can operate on any tenant). For owner requests, the session
+ * cookie's tenant is authoritative — fallbackTenantId is ignored.
+ */
+export async function requireOwnerOrFounder(
+  request: NextRequest | Request,
+  fallbackTenantId?: string,
+): Promise<DualAuthResult | null> {
+  const ownerSession = await requireOwnerSession(request);
+  if (ownerSession) {
+    return { kind: "owner", tenantId: ownerSession.tenant.id, tenant: ownerSession.tenant };
+  }
+  const adminCookieGetter = (request as NextRequest).cookies?.get;
+  const adminCookie =
+    typeof adminCookieGetter === "function"
+      ? (request as NextRequest).cookies.get("admin_session")?.value
+      : undefined;
+  if (
+    process.env.ADMIN_PASSWORD &&
+    adminCookie === process.env.ADMIN_PASSWORD &&
+    fallbackTenantId
+  ) {
+    return { kind: "founder", tenantId: fallbackTenantId };
+  }
+  return null;
+}

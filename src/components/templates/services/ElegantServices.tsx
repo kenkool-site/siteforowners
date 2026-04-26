@@ -8,7 +8,7 @@ import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booki
 type Mode = "in_site_only" | "external_only" | "both";
 
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number }[];
+  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number; image?: string }[];
   colors: ThemeColors;
   bookingMode?: Mode;
 }
@@ -27,21 +27,27 @@ export function ElegantServices({ services, colors, bookingMode }: ServicesProps
         <div className="space-y-6">
           {services.map((service, i) => {
             const card = (
-              <div className="group">
-                <div className="flex items-baseline justify-between">
-                  <h3 className="text-lg font-medium" style={{ color: rc.textOnBg }}>
-                    {service.name}
-                  </h3>
-                  <div className="mx-4 flex-1 border-b border-dotted" style={{ borderColor: `${rc.textOnBg}30` }} />
-                  <span className="text-lg" style={{ color: rc.primaryOnBg }}>
-                    {service.price}
-                  </span>
-                </div>
-                {service.description && (
-                  <p className="mt-1 text-sm italic opacity-50" style={{ color: rc.textOnBg }}>
-                    {service.description}
-                  </p>
+              <div className="group flex items-start gap-3">
+                {service.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={service.image} alt={service.name} className="h-16 w-16 rounded-md object-cover flex-shrink-0" />
                 )}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline justify-between">
+                    <h3 className="text-lg font-medium" style={{ color: rc.textOnBg }}>
+                      {service.name}
+                    </h3>
+                    <div className="mx-4 flex-1 border-b border-dotted" style={{ borderColor: `${rc.textOnBg}30` }} />
+                    <span className="text-lg" style={{ color: rc.primaryOnBg }}>
+                      {service.price}
+                    </span>
+                  </div>
+                  {service.description && (
+                    <p className="mt-1 text-sm italic opacity-50" style={{ color: rc.textOnBg }}>
+                      {service.description}
+                    </p>
+                  )}
+                </div>
               </div>
             );
             return (

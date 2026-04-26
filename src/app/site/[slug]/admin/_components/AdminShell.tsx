@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SignOutButton } from "./SignOutButton";
+import { LeadsBadge } from "./LeadsBadge";
 
 type Tab = { href: string; label: string; icon: string };
 
@@ -18,8 +19,12 @@ function buildTabs(tenant: ShellTenant): Tab[] {
   const tabs: Tab[] = [{ href: "/admin", label: "Home", icon: "⌂" }];
   if (showSchedule) tabs.push({ href: "/admin/schedule", label: "Schedule", icon: "📅" });
   if (showOrders) tabs.push({ href: "/admin/orders", label: "Orders", icon: "🛍" });
-  tabs.push({ href: "/admin/leads", label: "Leads", icon: "✉" });
+  // Spec 3: Services replaces Leads in primary slots.
+  if (showSchedule) tabs.push({ href: "/admin/services", label: "Services", icon: "✂" });
   tabs.push({ href: "/admin/updates", label: "Updates", icon: "✏" });
+  // Leads demoted to overflow (page still exists; the LeadsBadge in the
+  // top bar / sidebar header is the primary entry now).
+  tabs.push({ href: "/admin/leads", label: "Leads", icon: "✉" });
   tabs.push({ href: "/admin/billing", label: "Billing", icon: "💳" });
   tabs.push({ href: "/admin/settings", label: "Settings", icon: "⚙" });
   return tabs;
@@ -27,9 +32,11 @@ function buildTabs(tenant: ShellTenant): Tab[] {
 
 export function AdminShell({
   tenant,
+  unreadCount = 0,
   children,
 }: {
   tenant: ShellTenant;
+  unreadCount?: number;
   children: React.ReactNode;
 }) {
   const currentPath = usePathname() || "/admin";
@@ -51,6 +58,9 @@ export function AdminShell({
           >
             View site ↗
           </a>
+          <div className="mt-2">
+            <LeadsBadge unreadCount={unreadCount} variant="desktop" />
+          </div>
         </div>
         <nav className="flex flex-col gap-1">
           {tabs.map((t) => (
@@ -88,6 +98,7 @@ export function AdminShell({
             >
               View site ↗
             </a>
+            <LeadsBadge unreadCount={unreadCount} variant="mobile" />
             <SignOutButton className="text-xs opacity-90" />
           </div>
         </header>
