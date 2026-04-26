@@ -85,7 +85,7 @@ export function ScheduleClient({
             onToggleDayBlock={handleToggleDayBlock}
           />
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2 px-1">
+            <div className="text-xs uppercase tracking-wider font-bold text-[color:var(--admin-primary)] mb-2 px-1">
               Coming up
             </div>
             <UpcomingList
@@ -118,14 +118,20 @@ export function ScheduleClient({
         />
       )}
 
-      <details className="bg-white border border-gray-200 rounded-lg">
-        <summary className="px-4 py-3 cursor-pointer font-medium text-sm">
+      <div>
+        <div className="text-xs uppercase tracking-wider font-bold text-[color:var(--admin-primary)] mb-2 px-1">
           Working hours
-        </summary>
-        <div className="px-4 pb-4">
-          <HoursEditor initial={workingHours} />
         </div>
-      </details>
+        <details className="bg-white border border-gray-200 rounded-lg group">
+          <summary className="px-4 py-3 cursor-pointer text-sm font-semibold flex items-center justify-between list-none">
+            <span>Set days &amp; hours</span>
+            <span className="text-gray-400 group-open:rotate-180 transition-transform">▾</span>
+          </summary>
+          <div className="px-4 pb-4">
+            <HoursEditor initial={workingHours} />
+          </div>
+        </details>
+      </div>
 
       {activeBooking && (
         <BookingActionSheet
