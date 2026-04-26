@@ -413,6 +413,7 @@ function RealBookingCalendar({
   const [customerPhone, setCustomerPhone] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
   const [customerNotes, setCustomerNotes] = useState("");
+  const [customerSmsOptIn, setCustomerSmsOptIn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -469,6 +470,7 @@ function RealBookingCalendar({
           customer_phone: customerPhone.trim(),
           customer_email: customerEmail.trim() || undefined,
           customer_notes: customerNotes.trim() || undefined,
+          customer_sms_opt_in: customerSmsOptIn,
         }),
       });
       if (!res.ok) {
@@ -621,6 +623,17 @@ function RealBookingCalendar({
                   <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder="Phone Number *" required
                     className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
+                  <label className="mt-2 flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={customerSmsOptIn}
+                      onChange={(e) => setCustomerSmsOptIn(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span style={{ color: colors.foreground }}>
+                      Text me a confirmation and a day-before reminder. Reply STOP anytime.
+                    </span>
+                  </label>
                   <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)}
                     placeholder="Email (optional — for calendar invite)"
                     className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
