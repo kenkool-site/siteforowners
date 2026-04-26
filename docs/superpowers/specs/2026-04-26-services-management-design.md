@@ -156,7 +156,7 @@ CREATE POLICY IF NOT EXISTS "service-images service-role write"
 
 **Field rules:**
 - **Image** — 64×64 thumbnail. Click to upload (single file, JPG/PNG/WebP, ≤ 5 MB). Replace by clicking again. Uses `POST /api/admin/services/upload-image`; persists URL on the row.
-- **Name** — required, max 60 chars.
+- **Name** — required, max 80 chars.
 - **Price** — required, free-form text ("$180", "From $50", "$45+"). Same as today.
 - **Duration** — required, `−`/`+` stepper (existing pattern from SiteEditor), range 1h–8h, multiples of 60 min.
 - **Description** — optional, max 200 chars, multi-line.
@@ -194,7 +194,7 @@ Each of the 5 service templates (`Bold/Vibrant/Classic/Elegant/WarmServices.tsx`
 
 - Auth: dual.
 - Body: `{ services: ServiceItem[] }` — replaces the entire array atomically. (Founder also includes `tenant_id` in the body.)
-- Validates each item: `name` non-empty string ≤ 60 chars; `price` non-empty string ≤ 30 chars; `duration_minutes` integer in `[60, 480]` and multiple of 60; `description` ≤ 200 chars; `image` either omitted or a URL whose origin matches the project's Supabase Storage public host (prevents owners from planting arbitrary URLs / phishing).
+- Validates each item: `name` non-empty string ≤ 80 chars; `price` non-empty string ≤ 30 chars; `duration_minutes` integer in `[60, 480]` and multiple of 60; `description` ≤ 200 chars; `image` either omitted or a URL whose origin matches the project's Supabase Storage public host (prevents owners from planting arbitrary URLs / phishing).
 - **Save is atomic.** If any row fails validation, the whole request returns `400` with the failing index + reason; no rows are written. UI then highlights the failing row.
 - On success, returns `{ ok: true, services: ServiceItem[] }` (echoes the saved array).
 

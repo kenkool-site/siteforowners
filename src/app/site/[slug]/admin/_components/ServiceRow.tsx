@@ -137,7 +137,7 @@ export function ServiceRow({ rowNumber, service, founderTenantId, failing = fals
             onChange={(e) => set("name", e.target.value)}
             placeholder="Service name"
             className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm"
-            maxLength={60}
+            maxLength={80}
           />
           <div className="flex gap-2">
             <input
