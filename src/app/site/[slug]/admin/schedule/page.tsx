@@ -1,37 +1,39 @@
 import { unstable_noStore as noStore } from "next/cache";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import {
-  getTodayBookings,
-  getUpcomingBookings,
+  getBookingsForRange,
   getBookingSettings,
-  groupBookingsByDate,
   getBookingMode,
 } from "@/lib/admin-bookings";
-import { BookingRow } from "../_components/BookingRow";
-import { HoursEditor } from "../_components/HoursEditor";
-import { BlockDateDialog } from "../_components/BlockDateDialog";
-import { TabBar } from "../_components/TabBar";
+import { ScheduleClient } from "./ScheduleClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-type Tab = "today" | "upcoming" | "hours";
+function isoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = (d.getMonth() + 1).toString().padStart(2, "0");
+  const day = d.getDate().toString().padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+function startOfWeekSunday(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  out.setDate(out.getDate() - out.getDay());
+  return out;
+}
 
 export default async function SchedulePage({
   params,
-  searchParams,
 }: {
   params: { slug: string };
-  searchParams: { tab?: string };
 }) {
   noStore();
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
 
-  // External booking (Acuity / Booksy / etc.): we have nothing to show — bookings live there.
-  // Replace the whole page with a friendly redirect note instead of a misleading "no bookings".
   const bookingMode = await getBookingMode(tenant.preview_slug);
   if (bookingMode.mode === "external_only") {
     return (
@@ -61,83 +63,35 @@ export default async function SchedulePage({
     );
   }
 
-  // Read the tab from the x-search header set by middleware. Next.js's
-  // `searchParams` prop has been observed dropping the query on rewritten
-  // admin paths in prod; the header channel is reliable. Fall back to
-  // searchParams for local dev (where middleware may not always run).
-  const searchHeader = headers().get("x-search") ?? "";
-  const tabFromHeader = new URLSearchParams(searchHeader).get("tab");
-  const tabSource = tabFromHeader ?? searchParams.tab;
-  const tab: Tab =
-    tabSource === "upcoming"
-      ? "upcoming"
-      : tabSource === "hours"
-      ? "hours"
-      : "today";
+  const weekStart = startOfWeekSunday(new Date());
+  const weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
 
-  const settings = await getBookingSettings(tenant.id);
+  // Fetch a slightly wider window so prev/next-week navigation has data
+  // without a round-trip on first interaction.
+  const fetchStart = new Date(weekStart);
+  fetchStart.setDate(fetchStart.getDate() - 7);
+  const fetchEnd = new Date(weekEnd);
+  fetchEnd.setDate(fetchEnd.getDate() + 14);
+
+  const [bookings, settings] = await Promise.all([
+    getBookingsForRange(tenant.id, isoDate(fetchStart), isoDate(fetchEnd)),
+    getBookingSettings(tenant.id),
+  ]);
 
   return (
     <div className="py-4 md:py-6">
-      <div className="px-4 md:px-8 flex items-baseline justify-between">
+      <div className="px-4 md:px-8">
         <div className="text-lg font-semibold">Schedule</div>
-        <BlockDateDialog initial={settings?.blocked_dates ?? []} />
       </div>
-
-      <TabBar
-        tabs={[
-          { value: "today", label: "Today" },
-          { value: "upcoming", label: "Upcoming" },
-          { value: "hours", label: "Hours" },
-        ]}
-        defaultValue="today"
-      />
-
       <div className="px-3 md:px-8 mt-4">
-        {tab === "hours" ? (
-          <HoursEditor initial={settings?.working_hours ?? null} />
-        ) : (
-          <ScheduleList tab={tab} tenantId={tenant.id} />
-        )}
+        <ScheduleClient
+          initialWeekStart={isoDate(weekStart)}
+          bookings={bookings}
+          workingHours={settings?.working_hours ?? null}
+          blockedDates={settings?.blocked_dates ?? []}
+        />
       </div>
-    </div>
-  );
-}
-
-async function ScheduleList({ tab, tenantId }: { tab: "today" | "upcoming"; tenantId: string }) {
-  const rows = tab === "today"
-    ? await getTodayBookings(tenantId)
-    : await getUpcomingBookings(tenantId);
-
-  if (rows.length === 0) {
-    return (
-      <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-sm text-gray-500">
-        {tab === "today" ? "No bookings today." : "No upcoming bookings."}
-      </div>
-    );
-  }
-
-  if (tab === "today") {
-    return (
-      <div className="bg-white border border-gray-200 rounded-lg">
-        {rows.map((r) => <BookingRow key={r.id} row={r} />)}
-      </div>
-    );
-  }
-
-  const groups = groupBookingsByDate(rows);
-  return (
-    <div className="space-y-4">
-      {groups.map((g) => (
-        <div key={g.date}>
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2 px-1">
-            {g.date}
-          </div>
-          <div className="bg-white border border-gray-200 rounded-lg">
-            {g.rows.map((r) => <BookingRow key={r.id} row={r} />)}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

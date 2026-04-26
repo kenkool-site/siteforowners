@@ -127,6 +127,29 @@ export async function getTodayBookings(tenantId: string): Promise<BookingRow[]> 
   return (data ?? []) as BookingRow[];
 }
 
+/** Bookings whose date is in [startIso, endIso], inclusive. Both YYYY-MM-DD. */
+export async function getBookingsForRange(
+  tenantId: string,
+  startIso: string,
+  endIso: string,
+): Promise<BookingRow[]> {
+  noStore();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("bookings")
+    .select("id, booking_date, booking_time, duration_minutes, customer_name, customer_phone, service_name, status")
+    .eq("tenant_id", tenantId)
+    .gte("booking_date", startIso)
+    .lte("booking_date", endIso)
+    .order("booking_date", { ascending: true })
+    .order("booking_time", { ascending: true });
+  if (error) {
+    console.error("[admin-bookings] getBookingsForRange failed", { tenantId, startIso, endIso, error });
+    return [];
+  }
+  return (data ?? []) as BookingRow[];
+}
+
 /** Fetch booking_settings for a tenant (may be null on first load). */
 export async function getBookingSettings(tenantId: string): Promise<{
   working_hours: Record<string, { open: string; close: string } | null> | null;
