@@ -30,7 +30,11 @@ export function ClassicServices({ services, colors, bookingMode }: ServicesProps
                 className="flex items-start justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
                 style={{ backgroundColor: colors.muted }}
               >
-                <div className="flex-1">
+                {service.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={service.image} alt={service.name} className="h-16 w-16 rounded-md object-cover flex-shrink-0 mr-3" />
+                )}
+                <div className="flex-1 min-w-0">
                   <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
                     {service.name}
                   </h3>

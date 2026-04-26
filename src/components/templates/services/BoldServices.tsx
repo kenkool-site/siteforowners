@@ -32,6 +32,10 @@ export function BoldServices({ services, colors, bookingMode }: ServicesProps) {
                 className="min-w-[260px] snap-start rounded-xl border-l-4 p-6 md:min-w-0"
                 style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
               >
+                {service.image && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={service.image} alt={service.name} className="w-full h-40 object-cover rounded-md mb-3" />
+                )}
                 <div className="mb-2 flex items-start justify-between">
                   <h3 className="text-lg font-bold" style={{ color: rc.textOnMuted }}>
                     {service.name}
