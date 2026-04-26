@@ -240,12 +240,30 @@ export function TemplateOrchestrator({
   }));
 
   // Modal state — holds the fully-resolved deep-link URL to load in the iframe.
+  // Used only by external_only mode with Acuity-style deep links.
   const [selectedBookingDeepLink, setSelectedBookingDeepLink] = useState<string | null>(null);
   const canOpenBookingModal =
     !!data.booking_url && serviceDeepLinkUrls.size > 0;
-  const onSelectService = canOpenBookingModal
-    ? (url: string) => setSelectedBookingDeepLink(url)
-    : undefined;
+
+  // onSelectService dispatches the per-service Book click. Behavior depends on
+  // booking mode:
+  //   external_only: open the Acuity iframe modal at the deep link (legacy).
+  //   in_site_only / both: open the in-site booking calendar via custom event.
+  // The 5 service templates already gate themselves on `bookingMode === "external_only"`
+  // separately and use `window.open` for that branch, so this callback only
+  // has to handle the in-site case meaningfully — but we keep the deep-link
+  // path for callers (e.g. TemplateBooking's bookingCategories block) that
+  // still need it in external mode.
+  const onSelectService = (url: string) => {
+    if (bookingMode === "in_site_only" || bookingMode === "both") {
+      document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });
+      window.dispatchEvent(new CustomEvent("siteforowners:open-booking-calendar"));
+      return;
+    }
+    if (canOpenBookingModal) {
+      setSelectedBookingDeepLink(url);
+    }
+  };
 
   const headline = copy?.hero_headline ?? `Welcome to ${data.business_name}`;
   const subheadline = copy?.hero_subheadline ?? "Your neighborhood destination for quality service.";

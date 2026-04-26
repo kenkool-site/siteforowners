@@ -732,6 +732,17 @@ export function TemplateBooking({
     return () => window.removeEventListener("hashchange", handleHash);
   }, [hasCategories, canEmbed, showInternalBooking, bookingCategories, effectiveMode]);
 
+  // External trigger: per-service "Book Now" buttons in the Services section
+  // dispatch this event to open the in-site booking calendar (in_site_only and
+  // both modes). Decoupled from prop drilling so the Services components can
+  // trigger the calendar without a parent-managed callback.
+  useEffect(() => {
+    if (effectiveMode !== "in_site_only" && effectiveMode !== "both") return;
+    const handleOpen = () => setShowBookingCalendar(true);
+    window.addEventListener("siteforowners:open-booking-calendar", handleOpen);
+    return () => window.removeEventListener("siteforowners:open-booking-calendar", handleOpen);
+  }, [effectiveMode]);
+
   return (
     <section
       id="booking"
