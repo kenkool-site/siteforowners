@@ -3,7 +3,7 @@ import { requireOwnerOrFounder } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { ServiceItem } from "@/lib/ai/types";
 
-const MAX_NAME = 60;
+const MAX_NAME = 80;
 const MAX_PRICE = 30;
 const MAX_DESCRIPTION = 200;
 

@@ -1140,6 +1140,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               {services.map((s, i) => (
                 <ServiceRow
                   key={i}
+                  rowNumber={i + 1}
                   service={s}
                   founderTenantId={tenantId}
                   onChange={(next) => {

@@ -1,24 +1,41 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
 import { formatDuration } from "@/lib/availability";
 
 interface ServiceRowProps {
+  /** 1-indexed row number for display next to the name (helps owners find a
+   * specific row when validation errors reference an index). */
+  rowNumber?: number;
   service: ServiceItem;
   /** Owner page passes undefined; SiteEditor passes the founder tenant_id so
    * the upload endpoint can resolve the founder branch. */
   founderTenantId?: string;
+  /** When true, force-expand the row, render a red border, and scroll into
+   * view. Used after a failed save to surface the row that broke validation. */
+  failing?: boolean;
   onChange: (next: ServiceItem) => void;
   onDelete: () => void;
 }
 
-export function ServiceRow({ service, founderTenantId, onChange, onDelete }: ServiceRowProps) {
-  // Auto-expand when the row is brand-new (no name yet) or has uncommitted edits.
-  const [expanded, setExpanded] = useState(!service.name);
+export function ServiceRow({ rowNumber, service, founderTenantId, failing = false, onChange, onDelete }: ServiceRowProps) {
+  // Auto-expand when the row is brand-new (no name yet), or when the parent
+  // marks it as failing so the owner can see all the fields without a click.
+  const [expanded, setExpanded] = useState(!service.name || failing);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  // When the parent flips `failing` (after a save error), force-expand and
+  // scroll the row into view so the owner can find the broken field.
+  useEffect(() => {
+    if (failing) {
+      setExpanded(true);
+      containerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [failing]);
 
   const duration = service.duration_minutes ?? 60;
 
@@ -53,9 +70,12 @@ export function ServiceRow({ service, founderTenantId, onChange, onDelete }: Ser
   if (!expanded) {
     return (
       <button
+        ref={containerRef as unknown as React.RefObject<HTMLButtonElement>}
         type="button"
         onClick={() => setExpanded(true)}
-        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-3 flex items-center gap-3 text-left hover:border-gray-300 transition-colors"
+        className={`w-full bg-white border rounded-lg px-3 py-3 flex items-center gap-3 text-left transition-colors ${
+          failing ? "border-red-500 ring-2 ring-red-200" : "border-gray-200 hover:border-gray-300"
+        }`}
       >
         {service.image ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -64,7 +84,12 @@ export function ServiceRow({ service, founderTenantId, onChange, onDelete }: Ser
           <div className="h-12 w-12 rounded-md bg-gray-100 flex-shrink-0" />
         )}
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold truncate">{service.name || "(untitled)"}</div>
+          <div className="text-sm font-semibold truncate">
+            {rowNumber !== undefined && (
+              <span className="text-gray-400 font-normal mr-1">{rowNumber}.</span>
+            )}
+            {service.name || "(untitled)"}
+          </div>
           <div className="text-xs text-gray-500">
             {formatDuration(duration)} · {service.price || "—"}
           </div>
@@ -75,7 +100,17 @@ export function ServiceRow({ service, founderTenantId, onChange, onDelete }: Ser
   }
 
   return (
-    <div className="bg-white border border-[color:var(--admin-primary)] rounded-lg p-3 space-y-3">
+    <div
+      ref={containerRef}
+      className={`bg-white border rounded-lg p-3 space-y-3 ${
+        failing ? "border-red-500 ring-2 ring-red-200" : "border-[color:var(--admin-primary)]"
+      }`}
+    >
+      {rowNumber !== undefined && (
+        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+          Row {rowNumber}
+        </div>
+      )}
       <div className="flex items-start gap-3">
         {/* Image picker */}
         <button
@@ -102,7 +137,7 @@ export function ServiceRow({ service, founderTenantId, onChange, onDelete }: Ser
             onChange={(e) => set("name", e.target.value)}
             placeholder="Service name"
             className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm"
-            maxLength={60}
+            maxLength={80}
           />
           <div className="flex gap-2">
             <input
