@@ -31,7 +31,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "File exceeds 5MB limit" }, { status: 400 });
   }
 
-  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  // Derive extension from the validated MIME type (file.name is client-supplied
+  // and could contain path traversal characters or arbitrary extensions).
+  const extByType: Record<string, string> = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+  const ext = extByType[file.type] ?? "jpg";
   const id = crypto.randomUUID();
   const filePath = `tenants/${auth.tenantId}/${id}.${ext}`;
 

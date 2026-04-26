@@ -15,7 +15,7 @@ function imageOriginAllowed(url: string): boolean {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
     if (!supabaseUrl) return false;
     const expected = new URL(supabaseUrl);
-    return u.origin === expected.origin && u.pathname.includes("/storage/v1/object/public/service-images/");
+    return u.origin === expected.origin && u.pathname.startsWith("/storage/v1/object/public/service-images/");
   } catch {
     return false;
   }

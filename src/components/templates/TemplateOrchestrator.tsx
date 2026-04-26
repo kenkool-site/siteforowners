@@ -237,9 +237,7 @@ export function TemplateOrchestrator({
     description: copy?.service_descriptions?.[s.name] ?? s.description,
     bookingDeepLink: serviceDeepLinkUrls.get(normalizeServiceName(s.name)),
     // Map snake_case from DB JSONB to camelCase for the UI components.
-    // ServiceItem in @/lib/ai/types doesn't yet declare duration_minutes,
-    // so we assert the shape here at the boundary.
-    durationMinutes: (s as { duration_minutes?: number }).duration_minutes,
+    durationMinutes: s.duration_minutes,
   }));
 
   // Modal state — holds the fully-resolved deep-link URL to load in the iframe.
