@@ -10,6 +10,7 @@ import {
   parseGoogleHoursString,
 } from "@/lib/defaults/businessHours";
 import type { BusinessHours, BusinessType, ColorTheme } from "@/lib/ai/types";
+import type { BookingModePolicy } from "@/lib/admin-auth";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
@@ -81,6 +82,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   );
   const [notificationEmail, setNotificationEmail] = useState<string>(
     (tenant.email as string | null) || ""
+  );
+  const [bookingMode, setBookingMode] = useState<BookingModePolicy>(
+    (tenant.booking_mode as BookingModePolicy | undefined) ?? "in_site_only"
   );
 
   // Images
@@ -301,6 +305,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               updates: {
                 checkout_mode: checkoutMode,
                 email: notificationEmail.trim() || null,
+                booking_mode: bookingMode,
               },
             }),
           })
@@ -1023,6 +1028,33 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 />
               </div>
               <div className="sm:col-span-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-gray-700">Booking mode</label>
+                  <p className="text-xs text-gray-500">How customers book on this site.</p>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { v: "in_site_only" as const,  label: "In-site only",  sub: "Just our calendar" },
+                      { v: "external_only" as const, label: "External only", sub: "Their existing tool" },
+                      { v: "both" as const,          label: "Both",          sub: "In-site + quiet link" },
+                    ]).map((opt) => (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => setBookingMode(opt.v)}
+                        className={`text-left p-3 border rounded-lg transition-colors ${
+                          bookingMode === opt.v
+                            ? "border-amber-500 bg-amber-50"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <div className="text-sm font-semibold text-gray-900">{opt.label}</div>
+                        <div className="text-xs text-gray-500">{opt.sub}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-gray-600">
                   Booking notes <span className="text-gray-400">(optional)</span>
                 </label>
@@ -1540,7 +1572,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             data={previewData as never}
             locale="en"
             checkoutMode={checkoutMode}
-            bookingMode="in_site_only"
+            bookingMode={bookingMode}
           />
         </div>
       )}

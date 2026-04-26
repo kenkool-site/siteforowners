@@ -4,12 +4,14 @@ import { createAdminClient } from "@/lib/supabase/admin";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const ALLOWED_CHECKOUT_MODES = new Set(["mockup", "pickup"]);
+const ALLOWED_BOOKING_MODES = new Set(["in_site_only", "external_only", "both"]);
 
 interface UpdatesBody {
   tenant_id?: unknown;
   updates?: {
     checkout_mode?: unknown;
     email?: unknown;
+    booking_mode?: unknown;
   };
 }
 
@@ -48,6 +50,13 @@ export async function POST(request: NextRequest) {
     } else {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
+  }
+
+  if (updates.booking_mode !== undefined) {
+    if (typeof updates.booking_mode !== "string" || !ALLOWED_BOOKING_MODES.has(updates.booking_mode)) {
+      return NextResponse.json({ error: "Invalid booking_mode" }, { status: 400 });
+    }
+    allowed.booking_mode = updates.booking_mode;
   }
 
   if (Object.keys(allowed).length === 0) {
