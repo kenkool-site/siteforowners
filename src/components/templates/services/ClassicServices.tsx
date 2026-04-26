@@ -3,17 +3,17 @@
 import type { ThemeColors } from "@/lib/templates/themes";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
+import { openBookingCalendarForService } from "@/lib/booking-events";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
 interface ServicesProps {
   services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number }[];
   colors: ThemeColors;
-  onSelectService?: (bookingDeepLink: string) => void;
   bookingMode?: Mode;
 }
 
-export function ClassicServices({ services, colors, onSelectService, bookingMode }: ServicesProps) {
+export function ClassicServices({ services, colors, bookingMode }: ServicesProps) {
   const rc = readableColors(colors);
   return (
     <section className="px-6 py-20" style={{ backgroundColor: colors.background }}>
@@ -61,11 +61,10 @@ export function ClassicServices({ services, colors, onSelectService, bookingMode
                       </button>
                     );
                   }
-                  if (!onSelectService) return card;
                   return (
                     <button
                       type="button"
-                      onClick={() => onSelectService(service.bookingDeepLink ?? "")}
+                      onClick={() => openBookingCalendarForService(service.name)}
                       className="block w-full text-left"
                     >
                       {card}
