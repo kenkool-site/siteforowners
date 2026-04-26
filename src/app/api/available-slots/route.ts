@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { computeAvailableStarts, parseBookingTime, type WorkingHours } from "@/lib/availability";
 
 interface WorkingHoursDay {
-  open: string; // "10:00" (24h) or "10:00 AM"
+  open: string;  // "10:00" or "10:00 AM"
   close: string;
 }
 
-function parse24hTime(t: string): number {
-  // Handle both "10:00" and "10:00 AM" formats
+function parseClockTime(t: string): number {
   const amPmMatch = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (amPmMatch) {
     let h = parseInt(amPmMatch[1]);
@@ -20,97 +20,92 @@ function parse24hTime(t: string): number {
   return h * 60 + (m || 0);
 }
 
-function formatTime(totalMinutes: number): string {
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  const period = h >= 12 ? "PM" : "AM";
-  const displayH = h > 12 ? h - 12 : h === 0 ? 12 : h;
-  return `${displayH}:${m.toString().padStart(2, "0")} ${period}`;
+function toAvailabilityWorkingHours(
+  dbHours: Record<string, WorkingHoursDay | null> | null,
+): WorkingHours {
+  const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+  const out: WorkingHours = {};
+  // Defaults if no working_hours configured: Mon-Fri 10-19, Sat 10-17, Sun closed.
+  const defaults: Record<string, { openHour: number; closeHour: number } | null> = {
+    Sunday: null,
+    Monday: { openHour: 10, closeHour: 19 },
+    Tuesday: { openHour: 10, closeHour: 19 },
+    Wednesday: { openHour: 10, closeHour: 19 },
+    Thursday: { openHour: 10, closeHour: 19 },
+    Friday: { openHour: 10, closeHour: 19 },
+    Saturday: { openHour: 10, closeHour: 17 },
+  };
+  for (const day of days) {
+    const dbDay = dbHours?.[day];
+    if (dbDay === null) {
+      out[day] = null;
+    } else if (dbDay) {
+      out[day] = {
+        openHour: Math.floor(parseClockTime(dbDay.open) / 60),
+        closeHour: Math.ceil(parseClockTime(dbDay.close) / 60),
+      };
+    } else {
+      out[day] = defaults[day];
+    }
+  }
+  return out;
 }
 
-const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+function formatHour(h: number): string {
+  const period = h >= 12 ? "PM" : "AM";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:00 ${period}`;
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const slug = searchParams.get("slug");
-  const date = searchParams.get("date"); // "2026-04-21"
+  const date = searchParams.get("date");
+  const durationParam = searchParams.get("duration_minutes");
 
   if (!slug || !date) {
     return NextResponse.json({ error: "slug and date required" }, { status: 400 });
   }
 
+  const durationMinutes = durationParam ? Number(durationParam) : 60;
+  if (!Number.isInteger(durationMinutes) || durationMinutes < 60 || durationMinutes > 480 || durationMinutes % 60 !== 0) {
+    return NextResponse.json({ error: "duration_minutes must be a whole number of hours between 1 and 8" }, { status: 400 });
+  }
+
   const supabase = createAdminClient();
 
-  // Get booking settings
   const { data: settings } = await supabase
     .from("booking_settings")
-    .select("*")
+    .select("working_hours, blocked_dates, max_per_slot")
     .eq("preview_slug", slug)
-    .single();
+    .maybeSingle();
 
-  const slotDuration = settings?.slot_duration || 60;
-  const buffer = settings?.buffer_minutes || 0;
-  const maxPerSlot = settings?.max_per_slot || 1;
-  const blockedDates: string[] = settings?.blocked_dates || [];
+  const blockedDates: string[] = settings?.blocked_dates ?? [];
+  const maxPerSlot: number = settings?.max_per_slot ?? 1;
+  const workingHours = toAvailabilityWorkingHours(
+    (settings?.working_hours as Record<string, WorkingHoursDay | null> | null) ?? null,
+  );
 
-  // Check if date is blocked
-  if (blockedDates.includes(date)) {
-    return NextResponse.json({ slots: [], blocked: true });
-  }
-
-  // Get day of week
-  const dateObj = new Date(date + "T12:00:00");
-  const dayName = DAY_NAMES[dateObj.getDay()];
-
-  // Get working hours for this day
-  const workingHours = settings?.working_hours as Record<string, WorkingHoursDay | null> | null;
-  let dayHours: WorkingHoursDay | null = null;
-
-  if (workingHours) {
-    dayHours = workingHours[dayName] || null;
-  } else {
-    // Default hours: Mon-Sat 10am-7pm, Sunday closed
-    if (dayName === "Sunday") {
-      dayHours = null;
-    } else if (dayName === "Saturday") {
-      dayHours = { open: "10:00 AM", close: "5:00 PM" };
-    } else {
-      dayHours = { open: "10:00 AM", close: "7:00 PM" };
-    }
-  }
-
-  if (!dayHours) {
-    return NextResponse.json({ slots: [], closed: true });
-  }
-
-  // Generate time slots
-  const openMinutes = parse24hTime(dayHours.open);
-  const closeMinutes = parse24hTime(dayHours.close);
-  const step = slotDuration + buffer;
-
-  const allSlots: string[] = [];
-  for (let t = openMinutes; t + slotDuration <= closeMinutes; t += step) {
-    allSlots.push(formatTime(t));
-  }
-
-  // Get existing bookings for this date
-  const { data: existingBookings } = await supabase
+  const { data: bookings } = await supabase
     .from("bookings")
-    .select("booking_time")
+    .select("booking_time, duration_minutes")
     .eq("preview_slug", slug)
     .eq("booking_date", date)
     .eq("status", "confirmed");
 
-  // Count bookings per time slot
-  const bookingCounts: Record<string, number> = {};
-  for (const b of existingBookings || []) {
-    bookingCounts[b.booking_time] = (bookingCounts[b.booking_time] || 0) + 1;
-  }
+  const existing = (bookings ?? []).map((b) => ({
+    startMinutes: parseBookingTime(b.booking_time as string),
+    durationMinutes: (b.duration_minutes as number) ?? 60,
+  }));
 
-  // Filter out fully booked slots
-  const availableSlots = allSlots.filter(
-    (slot) => (bookingCounts[slot] || 0) < maxPerSlot
-  );
+  const startHours = computeAvailableStarts({
+    date,
+    durationMinutes,
+    workingHours,
+    existingBookings: existing,
+    maxPerSlot,
+    blockedDates,
+  });
 
-  return NextResponse.json({ slots: availableSlots });
+  return NextResponse.json({ slots: startHours.map(formatHour) });
 }
