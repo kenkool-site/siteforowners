@@ -760,8 +760,12 @@ export function TemplateBooking({
           {subtitle}
         </p>
 
-        {/* Native category/service booking UI */}
-        {hasCategories ? (
+        {/* Native category/service booking UI — only the legacy
+            Acuity-driven entry path. In `both` and `in_site_only` modes the
+            new Layout A / primary-button rendering below takes precedence
+            so the dual booking options stay visible even when Acuity
+            categories were previously imported. */}
+        {hasCategories && effectiveMode === "external_only" ? (
           <div className="space-y-3 text-left">
             {bookingCategories.map((category) => (
               <div
