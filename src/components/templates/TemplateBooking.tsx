@@ -623,7 +623,7 @@ function RealBookingCalendar({
                       className="h-4 w-4"
                     />
                     <span style={{ color: colors.foreground }}>
-                      Send me text reminders
+                      Text me a confirmation and a day-before reminder. Reply STOP anytime.
                     </span>
                   </label>
                   <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)}

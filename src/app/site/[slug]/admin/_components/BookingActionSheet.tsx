@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import type { BookingRow as BookingRowType } from "@/lib/admin-bookings";
 import { formatTimeRange } from "@/lib/availability";
 
@@ -13,6 +14,7 @@ export function BookingActionSheet({
   onClose: () => void;
   onStatusChange: () => void;
 }) {
+  const router = useRouter();
   const [pending, setPending] = useState(false);
 
   async function setStatus(toStatus: string) {
@@ -29,6 +31,9 @@ export function BookingActionSheet({
         alert(d?.error || "Could not update booking");
         return;
       }
+      // Refresh server data so the calendar reflects the new status without
+      // requiring a manual page reload.
+      router.refresh();
       onStatusChange();
     } catch {
       alert("Network error");

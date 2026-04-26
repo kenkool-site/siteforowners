@@ -65,20 +65,34 @@ export async function GET(request: Request) {
       businessAddress: tenant?.address ?? undefined,
     };
 
+    // Claim the row first (atomic flip with WHERE sms_reminder_sent = false)
+    // so a transient send error doesn't trigger a duplicate text on the next
+    // run. Trade-off chosen: one missed reminder is better than two
+    // back-to-back texts to the same customer.
+    const { data: claimed, error: claimErr } = await supabase
+      .from("bookings")
+      .update({ sms_reminder_sent: true })
+      .eq("id", r.id)
+      .eq("sms_reminder_sent", false)
+      .select("id");
+    if (claimErr || !claimed || claimed.length === 0) {
+      if (claimErr) console.error("[cron/send-reminders] claim failed", { id: r.id, claimErr });
+      // Already claimed by another run, or DB error — skip without sending.
+      continue;
+    }
+
     try {
       await sendBookingCustomerReminder(smsData);
-      const { error: upErr } = await supabase
-        .from("bookings")
-        .update({ sms_reminder_sent: true })
-        .eq("id", r.id);
-      if (upErr) {
-        console.error("[cron/send-reminders] flag update failed", { id: r.id, upErr });
-        failed++;
-      } else {
-        sent++;
-      }
+      sent++;
     } catch (e) {
-      console.error("[cron/send-reminders] send threw", { id: r.id, e });
+      // Row is already flagged sent; we choose not to roll back to avoid
+      // duplicate sends on retry. Log loudly so the founder can manually
+      // call/text the customer if the SMS infrastructure is down.
+      console.error("[cron/send-reminders] send failed AFTER flag set — manual follow-up may be needed", {
+        id: r.id,
+        customerPhone: r.customer_phone,
+        e,
+      });
       failed++;
     }
   }
