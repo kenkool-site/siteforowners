@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { verifySession } from "@/lib/admin-auth";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { loadAdminTheme, adminThemeStyle } from "@/lib/admin-theme";
+import { getRollups } from "@/lib/admin-rollups";
 import { PinEntry } from "./_components/PinEntry";
 import { AdminShell, ShellTenant } from "./_components/AdminShell";
 
@@ -51,9 +52,11 @@ export default async function AdminLayout({
     checkout_mode: tenant.checkout_mode,
   };
 
+  const rollups = await getRollups(tenant.id);
+
   return (
     <div style={themeStyle}>
-      <AdminShell tenant={shellTenant}>{children}</AdminShell>
+      <AdminShell tenant={shellTenant} unreadCount={rollups.unreadLeads}>{children}</AdminShell>
     </div>
   );
 }
