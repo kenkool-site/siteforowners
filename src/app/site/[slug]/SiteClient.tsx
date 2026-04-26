@@ -7,6 +7,7 @@ import type { BookingModePolicy } from "@/lib/admin-auth";
 interface SiteClientProps {
   data: PreviewData;
   bookingHours?: Record<string, { open: string; close: string } | null> | null;
+  blockedDates?: string[];
   tenantId?: string | null;
   checkoutMode?: "mockup" | "pickup";
   bookingMode?: BookingModePolicy;
@@ -15,6 +16,7 @@ interface SiteClientProps {
 export function SiteClient({
   data,
   bookingHours = null,
+  blockedDates = [],
   tenantId = null,
   checkoutMode = "mockup",
   bookingMode = "in_site_only",
@@ -27,6 +29,7 @@ export function SiteClient({
         locale="en"
         isLive
         bookingHours={bookingHours}
+        blockedDates={blockedDates}
         tenantId={tenantId}
         checkoutMode={checkoutMode}
         bookingMode={bookingMode}

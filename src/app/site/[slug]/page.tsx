@@ -11,6 +11,7 @@ type BookingHoursMap = Record<string, { open: string; close: string } | null> | 
 interface SiteData {
   preview: PreviewData;
   bookingHours: BookingHoursMap;
+  blockedDates: string[];
   tenantId: string | null;
   checkoutMode: "mockup" | "pickup";
   bookingMode: BookingModePolicy;
@@ -28,6 +29,7 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
 
   // Find the tenant that owns this preview, if any, then load booking hours + checkout mode.
   let bookingHours: BookingHoursMap = null;
+  let blockedDates: string[] = [];
   let tenantId: string | null = null;
   let checkoutMode: "mockup" | "pickup" = "mockup";
   let bookingMode: BookingModePolicy = "in_site_only";
@@ -48,13 +50,14 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
     }
     const { data: bs } = await supabase
       .from("booking_settings")
-      .select("working_hours")
+      .select("working_hours, blocked_dates")
       .eq("tenant_id", tenant.id)
       .maybeSingle();
     bookingHours = (bs?.working_hours as BookingHoursMap) ?? null;
+    blockedDates = (bs?.blocked_dates as string[] | null) ?? [];
   }
 
-  return { preview: preview as PreviewData, bookingHours, tenantId, checkoutMode, bookingMode };
+  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode };
 }
 
 export async function generateMetadata({
@@ -103,6 +106,7 @@ export default async function SitePage({
       <SiteClient
         data={result.preview}
         bookingHours={result.bookingHours}
+        blockedDates={result.blockedDates}
         tenantId={result.tenantId}
         checkoutMode={result.checkoutMode}
         bookingMode={result.bookingMode}

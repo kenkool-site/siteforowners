@@ -3,7 +3,7 @@
 import type { ThemeColors } from "@/lib/templates/themes";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
-import { openBookingCalendarForService } from "@/lib/booking-events";
+import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
@@ -57,6 +57,19 @@ export function BoldServices({ services, colors, bookingMode }: ServicesProps) {
                       <button
                         type="button"
                         onClick={() => window.open(service.bookingDeepLink!, "_blank", "noopener,noreferrer")}
+                        className="block w-full text-left"
+                      >
+                        {card}
+                      </button>
+                    );
+                  }
+                  // `both` with a deep link — show the dual-choice dialog
+                  // (mirrors the main entry CTA's primary/secondary options).
+                  if (m === "both" && service.bookingDeepLink) {
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => requestBookingChoice(service.name, service.bookingDeepLink!)}
                         className="block w-full text-left"
                       >
                         {card}

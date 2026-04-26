@@ -60,6 +60,8 @@ interface TemplateOrchestratorProps {
   locale?: "en" | "es";
   isLive?: boolean;
   bookingHours?: Record<string, { open: string; close: string } | null> | null;
+  /** ISO date strings (YYYY-MM-DD) for whole days where the tenant is closed. */
+  blockedDates?: string[];
   checkoutMode?: "mockup" | "pickup";
   tenantId?: string | null;
   /** v2: booking entry policy. Defaults to in_site_only. */
@@ -175,6 +177,7 @@ export function TemplateOrchestrator({
   locale: initialLocale = "en",
   isLive = false,
   bookingHours = null,
+  blockedDates = [],
   checkoutMode = "mockup",
   tenantId = null,
   bookingMode = "in_site_only",
@@ -332,6 +335,8 @@ export function TemplateOrchestrator({
       isLive={isLive}
       onSelectService={onSelectService}
       bookingMode={bookingModeProp}
+      workingHours={bookingHours}
+      blockedDates={blockedDates}
     />
   ) : null;
 
