@@ -2,7 +2,12 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateIcs, parseTime } from "@/lib/ics";
 import { sendBookingNotification, sendBookingConfirmation } from "@/lib/email";
-import { wouldExceedCapacity, parseBookingTime } from "@/lib/availability";
+import { wouldExceedCapacity, parseBookingTime, formatTimeRange } from "@/lib/availability";
+import {
+  sendBookingOwnerNotification,
+  sendBookingCustomerConfirmation,
+  type BookingSmsData,
+} from "@/lib/sms";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -21,6 +26,7 @@ export async function POST(request: Request) {
       customer_phone,
       customer_email,
       customer_notes,
+      customer_sms_opt_in,
     } = body;
 
     if (!preview_slug || !service_name || !booking_date || !booking_time || !customer_name || !customer_phone) {
@@ -34,6 +40,8 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const smsOptIn = customer_sms_opt_in === true;
 
     const supabase = createAdminClient();
 
@@ -106,6 +114,7 @@ export async function POST(request: Request) {
         customer_phone,
         customer_email: customer_email || null,
         customer_notes: customer_notes || null,
+        customer_sms_opt_in: smsOptIn,
       })
       .select("id")
       .single();
@@ -152,14 +161,37 @@ export async function POST(request: Request) {
       customerNotes: customer_notes || undefined,
     };
 
-    // Send emails in background
+    // Look up owner SMS phone (falls back to tenants.phone)
+    let ownerSmsPhone = "";
+    if (tenantId) {
+      const { data: t } = await supabase
+        .from("tenants")
+        .select("sms_phone, phone")
+        .eq("id", tenantId)
+        .maybeSingle();
+      ownerSmsPhone = (t?.sms_phone as string | null) ?? (t?.phone as string | null) ?? "";
+    }
+
+    const smsData: BookingSmsData = {
+      businessName,
+      serviceName: service_name,
+      date: dateStr,
+      time: formatTimeRange(booking_time, durationMinutes),
+      customerName: customer_name,
+      customerPhone: customer_phone,
+      businessAddress: businessAddress || undefined,
+    };
+
+    // Send emails + SMS in background
     Promise.allSettled([
       sendBookingNotification(ownerEmail, emailData, icsContent),
       sendBookingConfirmation(emailData, icsContent),
+      sendBookingOwnerNotification(ownerSmsPhone, smsData),
+      smsOptIn ? sendBookingCustomerConfirmation(smsData) : Promise.resolve(),
     ]).then((results) => {
       for (const r of results) {
         if (r.status === "rejected") {
-          console.error("Booking email failed:", r.reason);
+          console.error("Booking notification failed:", r.reason);
         }
       }
     });
