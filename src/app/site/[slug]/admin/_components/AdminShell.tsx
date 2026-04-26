@@ -94,34 +94,35 @@ export function AdminShell({
 
         <main className="flex-1 pb-20 md:pb-0">{children}</main>
 
-        {/* Mobile bottom nav */}
-        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 py-2 flex justify-around text-xs">
+        {/* Mobile bottom nav — each item gets a 56px-tall touch target
+            (Apple HIG recommends ≥44pt) and a larger icon for visibility. */}
+        <nav className="md:hidden fixed bottom-0 inset-x-0 bg-white border-t border-gray-200 flex justify-around text-xs pb-[env(safe-area-inset-bottom)]">
           {primary.map((t) => (
             <Link
               key={t.href}
               href={t.href}
               className={
-                "flex flex-col items-center " +
+                "flex flex-col items-center justify-center flex-1 min-h-[56px] py-1 " +
                 (currentPath === t.href ? "text-[color:var(--admin-primary)]" : "text-gray-500")
               }
             >
-              <span className="text-base">{t.icon}</span>
-              <span className="mt-0.5">{t.label}</span>
+              <span className="text-xl leading-none">{t.icon}</span>
+              <span className="mt-1 text-[11px] leading-none">{t.label}</span>
             </Link>
           ))}
           {overflow.length > 0 && (
-            <details className="flex flex-col items-center text-gray-500 relative">
-              <summary className="list-none cursor-pointer text-center">
-                <span className="text-base">⋯</span>
-                <span className="block mt-0.5">More</span>
+            <details className="flex-1 relative text-gray-500">
+              <summary className="list-none cursor-pointer flex flex-col items-center justify-center min-h-[56px] py-1">
+                <span className="text-xl leading-none">⋯</span>
+                <span className="mt-1 text-[11px] leading-none">More</span>
               </summary>
-              <div className="absolute bottom-full right-2 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-40">
+              <div className="absolute bottom-full right-2 mb-2 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-44">
                 {overflow.map((t) => (
                   <Link
                     key={t.href}
                     href={t.href}
                     className={
-                      "block px-4 py-2 text-sm " +
+                      "block px-4 py-3 text-sm " +
                       (currentPath === t.href ? "text-[color:var(--admin-primary)] bg-[var(--admin-primary-light)]" : "text-gray-700")
                     }
                   >

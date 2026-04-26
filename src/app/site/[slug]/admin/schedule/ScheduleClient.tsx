@@ -6,6 +6,7 @@ import { WeekCalendar } from "../_components/WeekCalendar";
 import { DayAgenda } from "../_components/DayAgenda";
 import { HoursEditor } from "../_components/HoursEditor";
 import { BookingActionSheet } from "../_components/BookingActionSheet";
+import { UpcomingList } from "../_components/UpcomingList";
 
 type DayHours = { open: string; close: string };
 type WorkingHours = Record<string, DayHours | null>;
@@ -71,17 +72,29 @@ export function ScheduleClient({
   return (
     <div className="space-y-4">
       {isMobile ? (
-        <DayAgenda
-          date={agendaDate}
-          bookings={bookings.filter((b) => b.booking_date === formatIso(agendaDate))}
-          workingHours={workingHours}
-          blockedDates={blockedDates}
-          onPrevDay={() => setAgendaDate((d) => addDays(d, -1))}
-          onNextDay={() => setAgendaDate((d) => addDays(d, 1))}
-          onToday={() => setAgendaDate(new Date())}
-          onBookingClick={setActiveBooking}
-          onToggleDayBlock={handleToggleDayBlock}
-        />
+        <>
+          <DayAgenda
+            date={agendaDate}
+            bookings={bookings.filter((b) => b.booking_date === formatIso(agendaDate))}
+            workingHours={workingHours}
+            blockedDates={blockedDates}
+            onPrevDay={() => setAgendaDate((d) => addDays(d, -1))}
+            onNextDay={() => setAgendaDate((d) => addDays(d, 1))}
+            onToday={() => setAgendaDate(new Date())}
+            onBookingClick={setActiveBooking}
+            onToggleDayBlock={handleToggleDayBlock}
+          />
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2 px-1">
+              Coming up
+            </div>
+            <UpcomingList
+              bookings={bookings}
+              today={new Date()}
+              onBookingClick={setActiveBooking}
+            />
+          </div>
+        </>
       ) : (
         <WeekCalendar
           weekStart={weekStart}

@@ -36,13 +36,16 @@ export default async function AdminHome({ params }: { params: { slug: string } }
     (!tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal");
   const visitStats = shapeVisits(visitRows, new Date());
 
-  const cards: { value: number | string; label: string }[] = [];
-  if (showOrders) cards.push({ value: rollups.newOrders, label: "New orders" });
+  // Hrefs use the same /admin/* paths the AdminShell tabs use — middleware
+  // rewrites the tenant-subdomain URL onto /site/<slug>/admin/* server-side,
+  // so the client-visible URL is always /admin/...
+  const cards: { value: number | string; label: string; href?: string }[] = [];
+  if (showOrders) cards.push({ value: rollups.newOrders, label: "New orders", href: "/admin/orders" });
   if (showSchedule) {
-    cards.push({ value: rollups.bookingsToday, label: "Bookings today" });
-    cards.push({ value: rollups.bookingsNext7Days, label: "Bookings next 7 days" });
+    cards.push({ value: rollups.bookingsToday, label: "Bookings today", href: "/admin/schedule" });
+    cards.push({ value: rollups.bookingsNext7Days, label: "Bookings next 7 days", href: "/admin/schedule" });
   }
-  cards.push({ value: rollups.unreadLeads, label: "Unread leads" });
+  cards.push({ value: rollups.unreadLeads, label: "Unread leads", href: "/admin/leads" });
 
   const gridCols = cards.length === 1 ? "grid-cols-1" : "grid-cols-2 md:grid-cols-4";
 
@@ -57,7 +60,7 @@ export default async function AdminHome({ params }: { params: { slug: string } }
 
       <div className={"grid gap-2.5 px-3 md:px-8 mt-4 " + gridCols}>
         {cards.map((c) => (
-          <StatCard key={c.label} value={c.value} label={c.label} fullWidth={cards.length === 1} />
+          <StatCard key={c.label} value={c.value} label={c.label} fullWidth={cards.length === 1} href={c.href} />
         ))}
       </div>
 
