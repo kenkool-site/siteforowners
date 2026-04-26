@@ -34,6 +34,7 @@ Deferred or owned by future specs:
 - **Reply STOP webhook.** Twilio's automatic STOP handling is sufficient.
 - **Tenant-local timezone for reminders.** Uses 9am UTC; tenants are mostly EST/CDT.
 - **Service categories + add-ons.** Spec 3 (booking flow polish).
+- **Owner-facing services management.** Owners still ask the founder to edit services. Bundled with Spec 3 since categories/add-ons restructure the services data anyway — same API surface, same auth work.
 
 ---
 
