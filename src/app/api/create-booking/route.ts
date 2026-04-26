@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateIcs, parseTime } from "@/lib/ics";
 import { sendBookingNotification, sendBookingConfirmation } from "@/lib/email";
+import { wouldExceedCapacity, parseBookingTime } from "@/lib/availability";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -13,8 +14,9 @@ export async function POST(request: Request) {
       preview_slug,
       service_name,
       service_price,
-      booking_date, // "2026-04-21"
-      booking_time, // "2:00 PM"
+      duration_minutes,
+      booking_date,
+      booking_time,
       customer_name,
       customer_phone,
       customer_email,
@@ -23,6 +25,14 @@ export async function POST(request: Request) {
 
     if (!preview_slug || !service_name || !booking_date || !booking_time || !customer_name || !customer_phone) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
+    }
+
+    const durationMinutes = Number.isInteger(duration_minutes) ? Number(duration_minutes) : 60;
+    if (durationMinutes < 60 || durationMinutes > 480 || durationMinutes % 60 !== 0) {
+      return NextResponse.json(
+        { error: "duration_minutes must be a whole number of hours between 1 and 8" },
+        { status: 400 }
+      );
     }
 
     const supabase = createAdminClient();
@@ -57,15 +67,23 @@ export async function POST(request: Request) {
 
       const maxPerSlot = settings?.max_per_slot || 1;
 
-      const { count } = await supabase
+      const { data: sameDay } = await supabase
         .from("bookings")
-        .select("*", { count: "exact", head: true })
-        .eq("preview_slug", preview_slug)
+        .select("booking_time, duration_minutes")
+        .eq("tenant_id", tenantId)
         .eq("booking_date", booking_date)
-        .eq("booking_time", booking_time)
         .eq("status", "confirmed");
 
-      if ((count || 0) >= maxPerSlot) {
+      const candidate = {
+        startMinutes: parseBookingTime(booking_time),
+        durationMinutes,
+      };
+      const existing = (sameDay ?? []).map((r) => ({
+        startMinutes: parseBookingTime(r.booking_time as string),
+        durationMinutes: (r.duration_minutes as number) ?? 60,
+      }));
+
+      if (wouldExceedCapacity(candidate, existing, maxPerSlot)) {
         return NextResponse.json(
           { error: "This time slot is no longer available. Please choose another time." },
           { status: 409 }
@@ -81,6 +99,7 @@ export async function POST(request: Request) {
         preview_slug,
         service_name,
         service_price: service_price || null,
+        duration_minutes: durationMinutes,
         booking_date,
         booking_time,
         customer_name,
@@ -101,20 +120,7 @@ export async function POST(request: Request) {
     const { hours, minutes } = parseTime(booking_time);
     const startDate = new Date(dateObj);
     startDate.setHours(hours, minutes, 0);
-    const endDate = new Date(startDate);
-    endDate.setHours(startDate.getHours() + 1); // Default 1 hour
-
-    // If we have booking settings, use slot_duration
-    if (tenantId) {
-      const { data: settings } = await supabase
-        .from("booking_settings")
-        .select("slot_duration")
-        .eq("tenant_id", tenantId)
-        .single();
-      if (settings?.slot_duration) {
-        endDate.setTime(startDate.getTime() + settings.slot_duration * 60 * 1000);
-      }
-    }
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
 
     const dayName = DAYS[dateObj.getDay()];
     const monthName = MONTHS[dateObj.getMonth()];
