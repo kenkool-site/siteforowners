@@ -112,7 +112,10 @@ export function TemplateBooking({
     bookingMode?.mode
     ?? (bookingUrl ? "external_only" : "in_site_only");
 
-  // Auto-open when navigated to via #booking anchor
+  // Auto-open when navigated to via #booking anchor (e.g. direct URL load
+  // with /#booking in the address bar). Page scroll on load is fine — we
+  // can't capture the "before" position anyway. For runtime clicks on
+  // anchor links, see the click interceptor below.
   useEffect(() => {
     const handleHash = () => {
       if (window.location.hash === "#booking") {
@@ -131,6 +134,33 @@ export function TemplateBooking({
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
   }, [hasCategories, canEmbed, showInternalBooking, bookingCategories, effectiveMode]);
+
+  // Intercept clicks on <a href="#booking"> anywhere on the page (heroes,
+  // SiteNav, custom buttons) and open the booking modal directly without
+  // letting the browser auto-scroll the page to the #booking section.
+  // Without this, clicking "Book Now" from anywhere left the page scrolled
+  // to the bottom after the customer closed the modal.
+  useEffect(() => {
+    const inSiteFlow = effectiveMode === "in_site_only" || effectiveMode === "both";
+    if (!inSiteFlow && !showInternalBooking) return;
+    const handleClick = (e: MouseEvent) => {
+      // Allow modifier-clicks (open in new tab) and right-clicks to pass through.
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+      const target = e.target as HTMLElement | null;
+      const link = target?.closest('a[href="#booking"]') as HTMLAnchorElement | null;
+      if (!link) return;
+      e.preventDefault();
+      if (hasCategories) {
+        setExpandedCategory(bookingCategories![0].name);
+      } else if (canEmbed && effectiveMode === "external_only") {
+        setShowFallbackEmbed(true);
+      } else {
+        setShowBookingCalendar(true);
+      }
+    };
+    document.addEventListener("click", handleClick);
+    return () => document.removeEventListener("click", handleClick);
+  }, [effectiveMode, hasCategories, canEmbed, showInternalBooking, bookingCategories]);
 
   // External trigger: per-service "Book Now" buttons in the Services section
   // dispatch this event to open the in-site booking calendar (in_site_only and
@@ -585,9 +615,11 @@ export function TemplateBooking({
                   setBookingChoice(null);
                   // Defer to the existing in-site flow so the calendar can
                   // pick up the preselected service via the same channel
-                  // /admin/Services use.
+                  // per-service Book buttons use. Don't scroll — the modal
+                  // is a fullscreen overlay, and scrolling to #booking
+                  // leaves the page at the bottom after the customer closes
+                  // the modal instead of leaving them where they tapped.
                   setTimeout(() => {
-                    document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });
                     window.dispatchEvent(
                       new CustomEvent("siteforowners:open-booking-calendar", {
                         detail: { serviceName: name },
