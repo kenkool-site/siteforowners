@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
-import type { AddOn } from "@/lib/ai/types";
-import { CustomerBookingFlow, MockBookingCalendar } from "./CustomerBookingFlow";
+import { CustomerBookingFlow } from "./CustomerBookingFlow";
+import { type SimpleService } from "./CustomerBookingFlow";
+import { MockBookingCalendar } from "./MockBookingCalendar";
 
 interface BookingService {
   name: string;
@@ -26,15 +27,6 @@ interface BookingCategory {
   name: string;
   services: BookingService[];
   directUrl: string;
-}
-
-interface SimpleService {
-  name: string;
-  price: string;
-  durationMinutes?: number;  // optional, defaults to 60 throughout the flow
-  description?: string;
-  image?: string;
-  addOns?: AddOn[];
 }
 
 interface TemplateBookingProps {
