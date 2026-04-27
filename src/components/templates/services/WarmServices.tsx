@@ -45,7 +45,7 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
         <div className="flex items-start gap-3">
           {service.image && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={service.image} alt={service.name} className="h-12 w-12 rounded-md object-cover flex-shrink-0" />
+            <img src={service.image} alt={service.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-baseline justify-between gap-3">
