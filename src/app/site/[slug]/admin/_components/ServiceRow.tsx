@@ -14,7 +14,6 @@ interface ServiceRowProps {
   onDelete: () => void;
 }
 
-const ADD_ON_DURATION_OPTIONS = [0, 30, 60, 90, 120];
 const MAX_ADD_ONS = 10;
 
 /**
@@ -48,6 +47,72 @@ function PriceDeltaInput({
       placeholder="0"
       className={className}
     />
+  );
+}
+
+/**
+ * Free-form integer-minute duration input. Renders the underlying minute
+ * count as a number input plus a small "min" suffix and the formatted
+ * preview ("1h 30m") so owners get both precise control and readable
+ * verification of what they typed. `variant="addon"` makes the input
+ * narrower and prefixes a "+" since add-ons add minutes to the base.
+ */
+function DurationMinutesInput({
+  value,
+  min,
+  max,
+  variant = "service",
+  onChange,
+}: {
+  value: number;
+  min: number;
+  max: number;
+  variant?: "service" | "addon";
+  onChange: (next: number) => void;
+}) {
+  // Local string state so partial entries (empty field, leading zeros) don't
+  // get clobbered by the controlled re-render before the user finishes typing.
+  const [text, setText] = useState<string>(String(value));
+  // Keep local in sync if the parent resets the value externally.
+  const lastSyncRef = useRef(value);
+  if (lastSyncRef.current !== value && parseInt(text, 10) !== value) {
+    lastSyncRef.current = value;
+    setText(String(value));
+  }
+  const isAddOn = variant === "addon";
+  return (
+    <div className="flex items-center gap-1 rounded border border-gray-200 px-2 py-1">
+      {isAddOn && <span className="text-xs text-gray-500">+</span>}
+      <input
+        type="number"
+        min={min}
+        max={max}
+        step={1}
+        inputMode="numeric"
+        value={text}
+        onChange={(e) => {
+          const v = e.target.value;
+          setText(v);
+          const parsed = parseInt(v, 10);
+          if (Number.isFinite(parsed)) {
+            const clamped = Math.max(min, Math.min(max, parsed));
+            lastSyncRef.current = clamped;
+            onChange(clamped);
+          } else {
+            const fallback = isAddOn ? 0 : 60;
+            lastSyncRef.current = fallback;
+            onChange(fallback);
+          }
+        }}
+        className={`${isAddOn ? "w-12" : "w-14"} bg-transparent text-sm text-center tabular-nums focus:outline-none`}
+      />
+      <span className="text-xs text-gray-500">min</span>
+      {value > 0 && (
+        <span className="text-[10px] text-gray-400 ml-1 whitespace-nowrap">
+          ({formatDuration(value)})
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -192,11 +257,12 @@ export function ServiceRow({
               className="flex-1 rounded border border-gray-200 px-2 py-1.5 text-sm"
               maxLength={30}
             />
-            <div className="flex items-center gap-1 rounded border border-gray-200 px-2">
-              <button type="button" onClick={() => set("duration_minutes", Math.max(30, duration - 30))} aria-label="Decrease duration" className="px-1 text-gray-500">−</button>
-              <span className="text-sm font-medium w-14 text-center tabular-nums">{formatDuration(duration)}</span>
-              <button type="button" onClick={() => set("duration_minutes", Math.min(480, duration + 30))} aria-label="Increase duration" className="px-1 text-gray-500">+</button>
-            </div>
+            <DurationMinutesInput
+              value={duration}
+              min={5}
+              max={600}
+              onChange={(next) => set("duration_minutes", next)}
+            />
           </div>
 
           {/* Category dropdown — only when categories are defined */}
@@ -253,15 +319,13 @@ export function ServiceRow({
               className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs"
               maxLength={80}
             />
-            <select
+            <DurationMinutesInput
               value={ao.duration_delta_minutes}
-              onChange={(e) => setAddOn(i, { ...ao, duration_delta_minutes: Number(e.target.value) })}
-              className="rounded border border-gray-200 px-1 py-1 text-xs bg-white"
-            >
-              {ADD_ON_DURATION_OPTIONS.map((m) => (
-                <option key={m} value={m}>+{formatDuration(m) || "0m"}</option>
-              ))}
-            </select>
+              min={0}
+              max={240}
+              variant="addon"
+              onChange={(next) => setAddOn(i, { ...ao, duration_delta_minutes: next })}
+            />
             <PriceDeltaInput
               value={ao.price_delta}
               onChange={(next) => setAddOn(i, { ...ao, price_delta: next })}

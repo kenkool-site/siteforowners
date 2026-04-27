@@ -41,9 +41,21 @@ test("validateAddOns: rejects negative price_delta", () => {
   assert.equal(r.ok, false);
 });
 
-test("validateAddOns: rejects non-multiple-of-30 duration", () => {
+test("validateAddOns: accepts arbitrary integer minute durations", () => {
   const r = validateAddOns([
     { name: "x", price_delta: 0, duration_delta_minutes: 45 },
+    { name: "y", price_delta: 0, duration_delta_minutes: 7 },
+  ]);
+  assert.equal(r.ok, true);
+  if (r.ok) {
+    assert.equal(r.value[0].duration_delta_minutes, 45);
+    assert.equal(r.value[1].duration_delta_minutes, 7);
+  }
+});
+
+test("validateAddOns: rejects non-integer duration", () => {
+  const r = validateAddOns([
+    { name: "x", price_delta: 0, duration_delta_minutes: 12.5 },
   ]);
   assert.equal(r.ok, false);
 });

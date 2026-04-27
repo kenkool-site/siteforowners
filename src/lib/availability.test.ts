@@ -193,21 +193,21 @@ test("computeAvailableStarts: throws on durationMinutes=0", () => {
       maxPerSlot: 1,
       blockedDates: [],
     }),
-    /durationMinutes must be a positive multiple of 30/,
+    /durationMinutes must be a positive integer/,
   );
 });
 
-test("computeAvailableStarts: throws on non-30-multiple duration (legacy: 90 now valid)", () => {
+test("computeAvailableStarts: throws on non-integer duration", () => {
   assert.throws(
     () => computeAvailableStarts({
       date: "2026-04-27",
-      durationMinutes: 45,
+      durationMinutes: 12.5,
       workingHours: FULL_WEEK,
       existingBookings: [],
       maxPerSlot: 1,
       blockedDates: [],
     }),
-    /durationMinutes must be a positive multiple of 30/,
+    /durationMinutes must be a positive integer/,
   );
 });
 
@@ -281,18 +281,34 @@ test("computeAvailableStarts: accepts 30-minute durations", () => {
   assert.deepEqual(starts, [9, 10, 11, 12, 13, 14, 15, 16]);
 });
 
-test("computeAvailableStarts: rejects non-30-multiple duration", () => {
-  assert.throws(
-    () => computeAvailableStarts({
-      date: "2026-04-27",
-      durationMinutes: 45,
-      workingHours: FULL_WEEK,
-      existingBookings: [],
-      maxPerSlot: 1,
-      blockedDates: [],
-    }),
-    /durationMinutes must be a positive multiple of 30/,
-  );
+test("computeAvailableStarts: accepts arbitrary integer durations (45 min)", () => {
+  const starts = computeAvailableStarts({
+    date: "2026-04-27",
+    durationMinutes: 45,
+    workingHours: FULL_WEEK,
+    existingBookings: [],
+    maxPerSlot: 1,
+    blockedDates: [],
+  });
+  // 9-17 working hours, 45-min service can start every whole hour 9..16
+  // (last start 16:00 → 16:45 finishes before 17:00 close)
+  assert.deepEqual(starts, [9, 10, 11, 12, 13, 14, 15, 16]);
+});
+
+test("computeAvailableStarts: 70-min booking conflicts at fine granularity", () => {
+  // Existing 70-min booking at 10:00 → 10:00–11:10. Candidate slot at 11:00
+  // overlaps minutes 11:00–11:10 → must be excluded with maxPerSlot=1.
+  const starts = computeAvailableStarts({
+    date: "2026-04-27",
+    durationMinutes: 60,
+    workingHours: FULL_WEEK,
+    existingBookings: [{ startMinutes: 10 * 60, durationMinutes: 70 }],
+    maxPerSlot: 1,
+    blockedDates: [],
+  });
+  // Hours 9..16 minus 10 (booked) and 11 (overlaps the 11:00–11:10 tail
+  // of the existing 70-min booking).
+  assert.deepEqual(starts, [9, 12, 13, 14, 15, 16]);
 });
 
 test("wouldExceedCapacity: catches sub-hour overlap (30-min existing booking)", () => {
