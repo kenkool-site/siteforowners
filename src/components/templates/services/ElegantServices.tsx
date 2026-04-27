@@ -41,7 +41,7 @@ export function ElegantServices({ services, categories, colors, bookingMode }: S
       <div className="group flex items-start gap-3">
         {service.image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={service.image} alt={service.name} className="h-16 w-16 rounded-md object-cover flex-shrink-0" />
+          <img src={service.image} alt={service.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline justify-between">

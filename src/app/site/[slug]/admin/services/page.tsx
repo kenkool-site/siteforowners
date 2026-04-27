@@ -13,14 +13,28 @@ async function loadServices(
 ): Promise<{ services: ServiceItem[]; categories: string[] }> {
   if (!previewSlug) return { services: [], categories: [] };
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const primary = await supabase
     .from("previews")
     .select("services, categories")
     .eq("slug", previewSlug)
     .maybeSingle();
+  if (!primary.error) {
+    return {
+      services: (primary.data?.services as ServiceItem[] | null) ?? [],
+      categories: (primary.data?.categories as string[] | null) ?? [],
+    };
+  }
+  // Fallback: the categories column may not exist yet in this environment
+  // (Spec 4 migration 018 not applied). Re-query services alone so the admin
+  // page still works. Categories default to empty.
+  const fallback = await supabase
+    .from("previews")
+    .select("services")
+    .eq("slug", previewSlug)
+    .maybeSingle();
   return {
-    services: (data?.services as ServiceItem[] | null) ?? [],
-    categories: (data?.categories as string[] | null) ?? [],
+    services: (fallback.data?.services as ServiceItem[] | null) ?? [],
+    categories: [],
   };
 }
 

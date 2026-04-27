@@ -32,19 +32,25 @@ function ServiceDetailsPanel({
   colors: ThemeColors;
 }) {
   return (
-    <div className="flex gap-3 p-3 rounded-lg" style={{ backgroundColor: `${colors.primary}10` }}>
+    <div className="overflow-hidden rounded-lg" style={{ backgroundColor: `${colors.primary}10` }}>
       {service.image && (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={service.image} alt="" className="h-16 w-16 rounded-md object-cover flex-shrink-0" />
+        <img
+          src={service.image}
+          alt={service.name}
+          className="block w-full h-44 object-cover"
+        />
       )}
-      <div className="flex-1 min-w-0">
+      <div className="p-3">
         <div className="flex items-baseline justify-between gap-2">
-          <h3 className="font-semibold truncate">{service.name}</h3>
-          <span className="font-bold" style={{ color: colors.primary }}>{service.price}</span>
+          <h3 className="font-semibold truncate text-base">{service.name}</h3>
+          <span className="font-bold whitespace-nowrap" style={{ color: colors.primary }}>
+            {service.price}
+          </span>
         </div>
         <div className="text-xs text-gray-500">Base · {formatDuration(service.durationMinutes ?? 60)}</div>
         {service.description && (
-          <p className="text-xs text-gray-700 mt-1 leading-relaxed">{service.description}</p>
+          <p className="text-sm text-gray-700 mt-1.5 leading-snug">{service.description}</p>
         )}
       </div>
     </div>
@@ -340,8 +346,8 @@ export function CustomerBookingFlow({
                     colors={colors}
                   />
 
-                  {/* Date picker */}
-                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                  {/* Date picker — compact single-line pills, 4 cols on mobile, 6 on desktop */}
+                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
                     {dates.map((date, i) => {
                       const weekdayName = WEEKDAYS_FULL[date.getDay()];
                       const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -349,24 +355,27 @@ export function CustomerBookingFlow({
                       const dayBlocked = blockedDates.includes(iso);
                       const unavailable = dayClosed || dayBlocked;
                       const isSelected = selectedDate?.toDateString() === date.toDateString();
+                      // Show month label only on the first cell or when crossing a month boundary.
+                      const showMonth = i === 0 || dates[i - 1].getMonth() !== date.getMonth();
                       return (
                         <button
                           key={i}
                           disabled={unavailable}
                           onClick={() => !unavailable && handleDateSelect(date)}
-                          aria-label={unavailable ? `${DAYS[date.getDay()]} ${date.getDate()} — closed` : undefined}
-                          className={`flex flex-col items-center rounded-xl px-2 py-3 transition-all ${
-                            unavailable ? "cursor-not-allowed opacity-30" : "hover:scale-105"
+                          aria-label={`${DAYS[date.getDay()]} ${MONTHS[date.getMonth()]} ${date.getDate()}${unavailable ? " — closed" : ""}`}
+                          className={`flex items-baseline justify-center gap-1 rounded-lg py-1.5 text-xs transition-all ${
+                            unavailable ? "cursor-not-allowed opacity-30 line-through" : "hover:opacity-80"
                           }`}
                           style={{
                             backgroundColor: isSelected ? colors.primary : colors.muted,
                             color: isSelected ? colors.background : colors.foreground,
                           }}
                         >
-                          <span className="text-[10px] font-medium uppercase tracking-wider opacity-50">{DAYS[date.getDay()]}</span>
-                          <span className="text-xl font-bold">{date.getDate()}</span>
-                          <span className="text-[10px] opacity-50">{MONTHS[date.getMonth()].slice(0, 3)}</span>
-                          {unavailable && <span className="text-[9px] mt-0.5 opacity-70">Closed</span>}
+                          <span className="font-medium opacity-60">{DAYS[date.getDay()]}</span>
+                          <span className="font-bold">{date.getDate()}</span>
+                          {showMonth && (
+                            <span className="text-[10px] opacity-50">{MONTHS[date.getMonth()].slice(0, 3)}</span>
+                          )}
                         </button>
                       );
                     })}

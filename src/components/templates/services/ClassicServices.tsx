@@ -44,7 +44,7 @@ export function ClassicServices({ services, categories, colors, bookingMode }: S
       >
         {service.image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={service.image} alt={service.name} className="h-16 w-16 rounded-md object-cover flex-shrink-0 mr-3" />
+          <img src={service.image} alt={service.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0 mr-3" />
         )}
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
