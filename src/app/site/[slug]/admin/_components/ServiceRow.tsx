@@ -105,9 +105,6 @@ export function ServiceRow({
         )}
         <div className="flex-1 min-w-0">
           <div className="text-sm font-semibold truncate">
-            {rowNumber !== undefined && (
-              <span className="text-gray-400 font-normal mr-1">{rowNumber}.</span>
-            )}
             {service.name || "(untitled)"}
           </div>
           <div className="text-xs text-gray-500">
@@ -127,11 +124,6 @@ export function ServiceRow({
         failing ? "border-red-500 ring-2 ring-red-200" : "border-[color:var(--admin-primary)]"
       }`}
     >
-      {rowNumber !== undefined && (
-        <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-          Row {rowNumber}
-        </div>
-      )}
       <div className="flex items-start gap-3">
         <button
           type="button"
