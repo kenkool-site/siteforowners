@@ -39,33 +39,39 @@ export function ClassicServices({ services, categories, colors, bookingMode }: S
   const renderService = (service: DisplayService, i: number) => {
     const card = (
       <div
-        className="flex items-start justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
+        className="overflow-hidden rounded-xl transition-shadow hover:shadow-md"
         style={{ backgroundColor: colors.muted }}
       >
         {service.image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={service.image} alt={service.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0 mr-3" />
+          <img
+            src={service.image}
+            alt={service.name}
+            className="block h-32 w-full object-cover"
+          />
         )}
-        <div className="flex-1 min-w-0">
-          <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
-            {service.name}
-          </h3>
+        <div className="p-5">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
+              {service.name}
+            </h3>
+            <div className="flex-shrink-0 whitespace-nowrap text-right">
+              <span className="text-lg font-bold" style={{ color: rc.primaryOnMuted }}>
+                {service.price}
+              </span>
+              <span className="ml-2 text-xs opacity-60" style={{ color: rc.textOnMuted }}>
+                · {formatDuration(service.durationMinutes ?? 60)}
+              </span>
+            </div>
+          </div>
           {service.description && (
             <p
-              className="mt-1 text-sm opacity-70 line-clamp-4"
+              className="mt-1 text-sm opacity-70 line-clamp-3"
               style={{ color: rc.textOnMuted }}
             >
               {service.description}
             </p>
           )}
-        </div>
-        <div className="ml-4 text-right">
-          <span className="whitespace-nowrap text-lg font-bold" style={{ color: rc.primaryOnMuted }}>
-            {service.price}
-          </span>
-          <span className="text-xs opacity-60 ml-2" style={{ color: rc.textOnMuted }}>
-            · {formatDuration(service.durationMinutes ?? 60)}
-          </span>
         </div>
       </div>
     );
