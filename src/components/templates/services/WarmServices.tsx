@@ -39,34 +39,32 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
   const renderService = (service: DisplayService, i: number) => {
     const card = (
       <div
-        className="rounded-xl border-l-4 p-6"
+        className="rounded-xl border-l-4 p-4"
         style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
       >
-        <div className="flex items-start justify-between">
+        <div className="flex items-start gap-3">
           {service.image && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={service.image} alt={service.name} className="h-16 w-16 rounded-md object-cover flex-shrink-0 mr-3" />
+            <img src={service.image} alt={service.name} className="h-12 w-12 rounded-md object-cover flex-shrink-0" />
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
-              {service.name}
-            </h3>
+            <div className="flex items-baseline justify-between gap-3">
+              <h3 className="text-base font-semibold leading-tight" style={{ color: rc.textOnMuted }}>
+                {service.name}
+              </h3>
+              <div className="text-right flex-shrink-0 whitespace-nowrap text-sm" style={{ color: rc.textOnMuted }}>
+                <span className="font-semibold">{service.price}</span>
+                <span className="opacity-60"> · {formatDuration(service.durationMinutes ?? 60)}</span>
+              </div>
+            </div>
             {service.description && (
               <p
-                className="mt-2 text-base leading-relaxed opacity-70 line-clamp-4"
+                className="mt-1 text-sm leading-snug opacity-70 line-clamp-3"
                 style={{ color: rc.textOnMuted }}
               >
                 {service.description}
               </p>
             )}
-          </div>
-          <div className="ml-4 text-right flex-shrink-0">
-            <div className="text-base font-medium opacity-70" style={{ color: rc.textOnMuted }}>
-              {service.price}
-            </div>
-            <div className="text-xs opacity-60" style={{ color: rc.textOnMuted }}>
-              · {formatDuration(service.durationMinutes ?? 60)}
-            </div>
           </div>
         </div>
       </div>
