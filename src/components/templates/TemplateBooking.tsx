@@ -585,9 +585,11 @@ export function TemplateBooking({
                   setBookingChoice(null);
                   // Defer to the existing in-site flow so the calendar can
                   // pick up the preselected service via the same channel
-                  // /admin/Services use.
+                  // per-service Book buttons use. Don't scroll — the modal
+                  // is a fullscreen overlay, and scrolling to #booking
+                  // leaves the page at the bottom after the customer closes
+                  // the modal instead of leaving them where they tapped.
                   setTimeout(() => {
-                    document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });
                     window.dispatchEvent(
                       new CustomEvent("siteforowners:open-booking-calendar", {
                         detail: { serviceName: name },
