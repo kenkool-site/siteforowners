@@ -39,7 +39,7 @@ export function ClassicServices({ services, categories, colors, bookingMode }: S
   const renderService = (service: DisplayService, i: number) => {
     const card = (
       <div
-        className="overflow-hidden rounded-xl transition-shadow hover:shadow-md"
+        className="flex overflow-hidden rounded-xl transition-shadow hover:shadow-md"
         style={{ backgroundColor: colors.muted }}
       >
         {service.image && (
@@ -47,10 +47,10 @@ export function ClassicServices({ services, categories, colors, bookingMode }: S
           <img
             src={service.image}
             alt={service.name}
-            className="block h-32 w-full object-cover"
+            className="block w-32 self-stretch flex-shrink-0 object-cover"
           />
         )}
-        <div className="p-5">
+        <div className="flex-1 min-w-0 p-5">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
               {service.name}
@@ -66,7 +66,7 @@ export function ClassicServices({ services, categories, colors, bookingMode }: S
           </div>
           {service.description && (
             <p
-              className="mt-1 text-sm opacity-70 line-clamp-3"
+              className="mt-1 text-sm opacity-70 line-clamp-4"
               style={{ color: rc.textOnMuted }}
             >
               {service.description}
