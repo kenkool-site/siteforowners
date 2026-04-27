@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { AddOn } from "@/lib/ai/types";
-import { computeAvailableStarts, formatTimeRange, formatDuration } from "@/lib/availability";
+import { formatTimeRange, formatDuration } from "@/lib/availability";
 
 export interface SimpleService {
   name: string;

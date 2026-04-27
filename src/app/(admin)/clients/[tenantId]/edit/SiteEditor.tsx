@@ -69,7 +69,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
       client_id: s.client_id ?? crypto.randomUUID(),
     }))
   );
-  const [categories, setCategories] = useState<string[]>(
+  // Founder admin consumes categories (used by ServiceRow dropdowns) but does
+  // not have a CategoriesPanel — owners edit the list via /site/[slug]/admin.
+  const [categories] = useState<string[]>(
     (preview.categories as string[]) || []
   );
 
