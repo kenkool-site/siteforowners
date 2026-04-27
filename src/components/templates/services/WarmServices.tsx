@@ -39,7 +39,7 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
   const renderService = (service: DisplayService, i: number) => {
     const card = (
       <div
-        className="overflow-hidden rounded-xl border-l-4"
+        className="flex overflow-hidden rounded-xl border-l-4"
         style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
       >
         {service.image && (
@@ -47,10 +47,10 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
           <img
             src={service.image}
             alt={service.name}
-            className="block h-32 w-full object-cover"
+            className="block w-32 self-stretch flex-shrink-0 object-cover"
           />
         )}
-        <div className="p-4">
+        <div className="flex-1 min-w-0 p-4">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="text-base font-semibold leading-tight" style={{ color: rc.textOnMuted }}>
               {service.name}
@@ -62,7 +62,7 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
           </div>
           {service.description && (
             <p
-              className="mt-1 text-sm leading-snug opacity-70 line-clamp-3"
+              className="mt-1 text-sm leading-snug opacity-70 line-clamp-4"
               style={{ color: rc.textOnMuted }}
             >
               {service.description}

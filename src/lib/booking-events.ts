@@ -27,7 +27,10 @@ export type RequestBookingChoiceDetail = {
 };
 
 export function openBookingCalendarForService(serviceName: string): void {
-  document.getElementById("booking")?.scrollIntoView({ behavior: "smooth" });
+  // Don't scroll — the booking modal is a fullscreen overlay, so page
+  // scroll position is irrelevant while it's open. Previously we scrolled
+  // to #booking, which left the page at the bottom after the customer
+  // closed the modal instead of leaving them on the service they clicked.
   window.dispatchEvent(
     new CustomEvent<OpenBookingCalendarDetail>(OPEN_CAL_EVENT, {
       detail: { serviceName },

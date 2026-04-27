@@ -346,39 +346,83 @@ export function CustomerBookingFlow({
                     colors={colors}
                   />
 
-                  {/* Date picker — compact single-line pills, 4 cols on mobile, 6 on desktop */}
-                  <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6">
-                    {dates.map((date, i) => {
-                      const weekdayName = WEEKDAYS_FULL[date.getDay()];
-                      const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-                      const dayClosed = workingHours ? workingHours[weekdayName] === null : false;
-                      const dayBlocked = blockedDates.includes(iso);
-                      const unavailable = dayClosed || dayBlocked;
-                      const isSelected = selectedDate?.toDateString() === date.toDateString();
-                      // Show month label only on the first cell or when crossing a month boundary.
-                      const showMonth = i === 0 || dates[i - 1].getMonth() !== date.getMonth();
-                      return (
-                        <button
+                  {/* Date picker — month-grid (iOS Calendar style). 7-col grid per
+                      month with leading empty cells so weekdays line up. */}
+                  <div className="space-y-3">
+                    {/* Weekday header — once at top, columns reused by every month below */}
+                    <div className="grid grid-cols-7 gap-1 text-center">
+                      {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                        <div
                           key={i}
-                          disabled={unavailable}
-                          onClick={() => !unavailable && handleDateSelect(date)}
-                          aria-label={`${DAYS[date.getDay()]} ${MONTHS[date.getMonth()]} ${date.getDate()}${unavailable ? " — closed" : ""}`}
-                          className={`flex items-baseline justify-center gap-1 rounded-lg py-1.5 text-xs transition-all ${
-                            unavailable ? "cursor-not-allowed opacity-30 line-through" : "hover:opacity-80"
-                          }`}
-                          style={{
-                            backgroundColor: isSelected ? colors.primary : colors.muted,
-                            color: isSelected ? colors.background : colors.foreground,
-                          }}
+                          className="text-[10px] font-medium uppercase tracking-wider opacity-50"
+                          style={{ color: colors.foreground }}
                         >
-                          <span className="font-medium opacity-60">{DAYS[date.getDay()]}</span>
-                          <span className="font-bold">{date.getDate()}</span>
-                          {showMonth && (
-                            <span className="text-[10px] opacity-50">{MONTHS[date.getMonth()].slice(0, 3)}</span>
-                          )}
-                        </button>
-                      );
-                    })}
+                          {d}
+                        </div>
+                      ))}
+                    </div>
+
+                    {(() => {
+                      // Group the 30-day window by year-month, padding leading empty
+                      // cells in each group so the first date lands under the right weekday.
+                      type Cell = Date | null;
+                      type MonthGroup = { key: string; label: string; cells: Cell[] };
+                      const groups: MonthGroup[] = [];
+                      let current: MonthGroup | null = null;
+                      const todayYear = new Date().getFullYear();
+                      for (const d of dates) {
+                        const key = `${d.getFullYear()}-${d.getMonth()}`;
+                        if (!current || current.key !== key) {
+                          const yearLabel = d.getFullYear() !== todayYear ? ` ${d.getFullYear()}` : "";
+                          current = {
+                            key,
+                            label: `${MONTHS[d.getMonth()]}${yearLabel}`,
+                            cells: Array(d.getDay()).fill(null),
+                          };
+                          groups.push(current);
+                        }
+                        current.cells.push(d);
+                      }
+                      return groups.map((group) => (
+                        <div key={group.key}>
+                          <div
+                            className="mb-2 text-base font-bold"
+                            style={{ color: colors.foreground }}
+                          >
+                            {group.label}
+                          </div>
+                          <div className="grid grid-cols-7 gap-1">
+                            {group.cells.map((cell, i) => {
+                              if (!cell) return <div key={`pad-${group.key}-${i}`} className="aspect-square" />;
+                              const date = cell;
+                              const weekdayName = WEEKDAYS_FULL[date.getDay()];
+                              const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                              const dayClosed = workingHours ? workingHours[weekdayName] === null : false;
+                              const dayBlocked = blockedDates.includes(iso);
+                              const unavailable = dayClosed || dayBlocked;
+                              const isSelected = selectedDate?.toDateString() === date.toDateString();
+                              return (
+                                <button
+                                  key={iso}
+                                  disabled={unavailable}
+                                  onClick={() => !unavailable && handleDateSelect(date)}
+                                  aria-label={`${DAYS[date.getDay()]} ${MONTHS[date.getMonth()]} ${date.getDate()}${unavailable ? " — closed" : ""}`}
+                                  className={`aspect-square flex items-center justify-center rounded-full text-sm transition-all ${
+                                    unavailable ? "cursor-not-allowed opacity-25" : "hover:opacity-80"
+                                  } ${isSelected ? "font-bold" : "font-medium"}`}
+                                  style={{
+                                    backgroundColor: isSelected ? colors.primary : "transparent",
+                                    color: isSelected ? colors.background : colors.foreground,
+                                  }}
+                                >
+                                  {date.getDate()}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ));
+                    })()}
                   </div>
 
                   <div className="sticky bottom-0 bg-white pt-3 pb-[env(safe-area-inset-bottom)] -mx-5 px-5 sm:static sm:bg-transparent sm:p-0 sm:m-0 sm:pb-0">
