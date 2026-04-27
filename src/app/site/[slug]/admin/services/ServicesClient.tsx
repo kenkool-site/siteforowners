@@ -4,21 +4,60 @@ import { useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
 import { ServiceRow } from "../_components/ServiceRow";
 
+// Mirror the server caps so we can pre-truncate legacy/AI-generated data
+// before the owner sees it. Saving fields longer than these will succeed
+// regardless (the server also truncates), but applying the same caps client-
+// side keeps what the owner sees in the UI in sync with what gets stored.
+const MAX_NAME = 80;
+const MAX_PRICE = 30;
+const MAX_DESCRIPTION = 200;
+
+function normalizeService(s: ServiceItem): ServiceItem {
+  return {
+    ...s,
+    name: s.name.length > MAX_NAME ? s.name.slice(0, MAX_NAME) : s.name,
+    price: s.price.length > MAX_PRICE ? s.price.slice(0, MAX_PRICE) : s.price,
+    description:
+      s.description && s.description.length > MAX_DESCRIPTION
+        ? s.description.slice(0, MAX_DESCRIPTION)
+        : s.description,
+  };
+}
+
 interface ServicesClientProps {
   initialServices: ServiceItem[];
 }
 
 export function ServicesClient({ initialServices }: ServicesClientProps) {
-  const [services, setServices] = useState<ServiceItem[]>(initialServices);
+  // Pre-truncate any legacy fields that exceed the current caps so the owner
+  // sees the same shape that will be saved. We track which rows were affected
+  // to surface a banner ("we shortened N rows").
+  const truncatedIndexes = new Set<number>();
+  initialServices.forEach((s, i) => {
+    if (
+      s.name.length > MAX_NAME ||
+      s.price.length > MAX_PRICE ||
+      (s.description && s.description.length > MAX_DESCRIPTION)
+    ) {
+      truncatedIndexes.add(i);
+    }
+  });
+  const normalizedInitial = initialServices.map(normalizeService);
+
+  const [services, setServices] = useState<ServiceItem[]>(normalizedInitial);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Indexes flagged by the most recent save attempt; ServiceRow uses this
   // to expand + highlight the broken rows + scroll the first one into view.
   const [failingIndexes, setFailingIndexes] = useState<Set<number>>(new Set());
+  // Whether to show the "we shortened N rows" banner.
+  const [showTruncatedNotice, setShowTruncatedNotice] = useState(truncatedIndexes.size > 0);
 
   // Track whether the on-screen array differs from the last saved snapshot.
-  const initialJson = JSON.stringify(initialServices);
+  // Use the NORMALIZED initial as the baseline so the dirty-check doesn't
+  // immediately mark the page dirty just because we truncated on load.
+  const initialJson = JSON.stringify(normalizedInitial);
   const dirty = JSON.stringify(services) !== initialJson;
 
   function update(index: number, next: ServiceItem) {
@@ -88,6 +127,15 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
 
   return (
     <div className="space-y-3 pb-24">
+      {showTruncatedNotice && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2">
+          <span aria-hidden>ℹ️</span>
+          <div className="flex-1">
+            <span className="font-semibold">{truncatedIndexes.size} {truncatedIndexes.size === 1 ? "service was" : "services were"} shortened</span> to fit current limits (name ≤ {MAX_NAME}, price ≤ {MAX_PRICE}, description ≤ {MAX_DESCRIPTION} chars). Review the rows below before saving — you can edit them now.
+          </div>
+          <button type="button" onClick={() => setShowTruncatedNotice(false)} className="text-amber-700 hover:text-amber-900" aria-label="Dismiss">×</button>
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">{services.length} {services.length === 1 ? "service" : "services"}</span>
         <button
