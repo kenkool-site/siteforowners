@@ -61,9 +61,18 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const [footerTagline, setFooterTagline] = useState((enCopy.footer_tagline as string) || "");
   const [bookingIntro, setBookingIntro] = useState((enCopy.booking_intro as string) || "");
 
-  // Services
-  const [services, setServices] = useState<ServiceItem[]>(
-    (preview.services as ServiceItem[]) || []
+  // Services — assign a stable client_id to anything missing one so React
+  // keys survive renames (Spec 4 stable IDs).
+  const [services, setServices] = useState<ServiceItem[]>(() =>
+    ((preview.services as ServiceItem[]) || []).map((s) => ({
+      ...s,
+      client_id: s.client_id ?? crypto.randomUUID(),
+    }))
+  );
+  // Founder admin consumes categories (used by ServiceRow dropdowns) but does
+  // not have a CategoriesPanel — owners edit the list via /site/[slug]/admin.
+  const [categories] = useState<string[]>(
+    (preview.categories as string[]) || []
   );
 
   // Products
@@ -267,6 +276,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             address,
             booking_url: bookingUrl || null,
             services: services.filter((s) => s.name.trim()),
+            categories,
             products: products.filter((p) => p.name.trim()),
             images,
             hero_video_url: heroVideoUrl,
@@ -547,6 +557,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     address,
     booking_url: bookingUrl,
     services: services.filter((s) => s.name.trim()),
+    categories,
     products: products.filter((p) => p.name.trim()),
     images,
     hero_video_url: heroVideoUrl,
@@ -1139,9 +1150,10 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             <div className="space-y-2">
               {services.map((s, i) => (
                 <ServiceRow
-                  key={i}
+                  key={s.client_id ?? i}
                   rowNumber={i + 1}
                   service={s}
+                  categories={categories}
                   founderTenantId={tenantId}
                   onChange={(next) => {
                     const updated = [...services];

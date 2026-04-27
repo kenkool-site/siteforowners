@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerOrFounder } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { ServiceItem } from "@/lib/ai/types";
+import type { ServiceItem, AddOn } from "@/lib/ai/types";
+import { validateCategories } from "@/lib/validation/categories";
+import { validateAddOns } from "@/lib/validation/add-ons";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
 const MAX_DESCRIPTION = 1000;
 
-// Public origin of the project's Supabase Storage. Reject image URLs that
-// don't originate from here (prevents owners planting arbitrary URLs).
 function imageOriginAllowed(url: string): boolean {
   try {
     const u = new URL(url);
@@ -27,25 +27,50 @@ interface ValidationError {
   reason: string;
 }
 
-function validateServices(raw: unknown): { ok: true; services: ServiceItem[] } | { ok: false; errors: ValidationError[] } {
-  if (!Array.isArray(raw)) return { ok: false, errors: [{ index: -1, field: "services", reason: "must be an array" }] };
+interface ValidationOk {
+  ok: true;
+  services: ServiceItem[];
+  categories: string[];
+}
+interface ValidationFail {
+  ok: false;
+  errors: ValidationError[];
+}
+
+function validatePayload(body: Record<string, unknown>): ValidationOk | ValidationFail {
   const errors: ValidationError[] = [];
+
+  // Categories first — service.category validation depends on the parsed list.
+  const catResult = validateCategories(body.categories);
+  if (!catResult.ok) {
+    catResult.errors.forEach((e) => errors.push({ index: -1, field: e.field, reason: e.reason }));
+  }
+  const categories: string[] = catResult.ok ? catResult.value : [];
+  const categorySet = new Set(categories);
+
+  const rawServices = body.services;
+  if (!Array.isArray(rawServices)) {
+    errors.push({ index: -1, field: "services", reason: "must be an array" });
+    return { ok: false, errors };
+  }
+
   const services: ServiceItem[] = [];
-  raw.forEach((item, index) => {
+  rawServices.forEach((item, index) => {
     if (!item || typeof item !== "object") {
       errors.push({ index, field: "service", reason: "must be an object" });
       return;
     }
     const r = item as Record<string, unknown>;
-    // Length-bounded fields: silently TRUNCATE to the cap rather than
-    // rejecting. The maxLength inputs in ServiceRow already prevent over-typing
-    // for new edits; truncation handles legacy/AI-generated data that
-    // pre-dates the current caps. Save never fails for length reasons.
     let name = typeof r.name === "string" ? r.name.trim() : "";
     let price = typeof r.price === "string" ? r.price.trim() : "";
     let description = typeof r.description === "string" ? r.description.trim() : undefined;
     const duration_minutes = typeof r.duration_minutes === "number" ? r.duration_minutes : undefined;
     const image = typeof r.image === "string" ? r.image.trim() : undefined;
+    const client_id = typeof r.client_id === "string" ? r.client_id.trim() || undefined : undefined;
+    const category =
+      typeof r.category === "string" && r.category.trim().length > 0
+        ? r.category.trim()
+        : undefined;
 
     if (name.length > MAX_NAME) name = name.slice(0, MAX_NAME);
     if (price.length > MAX_PRICE) price = price.slice(0, MAX_PRICE);
@@ -53,8 +78,6 @@ function validateServices(raw: unknown): { ok: true; services: ServiceItem[] } |
       description = description.slice(0, MAX_DESCRIPTION);
     }
 
-    // Required fields and structural rules still error — these can't be
-    // fixed by truncation and reflect genuinely invalid input.
     if (!name) errors.push({ index, field: "name", reason: "required" });
     if (!price) errors.push({ index, field: "price", reason: "required" });
     if (duration_minutes !== undefined) {
@@ -65,18 +88,38 @@ function validateServices(raw: unknown): { ok: true; services: ServiceItem[] } |
     if (image !== undefined && image !== "" && !imageOriginAllowed(image)) {
       errors.push({ index, field: "image", reason: "must be a service-images bucket URL" });
     }
+    if (category !== undefined && !categorySet.has(category)) {
+      errors.push({ index, field: "category", reason: `not in categories list: "${category}"` });
+    }
+
+    // Validate add-ons. Wrap errors with the service index for the row-level UI.
+    const aoResult = validateAddOns(r.add_ons);
+    if (!aoResult.ok) {
+      aoResult.errors.forEach((e) => errors.push({ index, field: e.field, reason: e.reason }));
+    }
+    const add_ons: AddOn[] | undefined =
+      aoResult.ok && aoResult.value.length > 0 ? aoResult.value : undefined;
+
     services.push({
       name,
       price,
       description: description || undefined,
       duration_minutes,
       image: image || undefined,
+      client_id,
+      category,
+      add_ons,
     });
   });
-  return errors.length === 0 ? { ok: true, services } : { ok: false, errors };
+
+  return errors.length === 0
+    ? { ok: true, services, categories }
+    : { ok: false, errors };
 }
 
-async function loadServicesForTenant(tenantId: string): Promise<ServiceItem[]> {
+async function loadStateForTenant(
+  tenantId: string,
+): Promise<{ services: ServiceItem[]; categories: string[] }> {
   const supabase = createAdminClient();
   const { data: tenant } = await supabase
     .from("tenants")
@@ -84,16 +127,23 @@ async function loadServicesForTenant(tenantId: string): Promise<ServiceItem[]> {
     .eq("id", tenantId)
     .maybeSingle();
   const slug = tenant?.preview_slug as string | undefined;
-  if (!slug) return [];
+  if (!slug) return { services: [], categories: [] };
   const { data: preview } = await supabase
     .from("previews")
-    .select("services")
+    .select("services, categories")
     .eq("slug", slug)
     .maybeSingle();
-  return ((preview?.services as ServiceItem[] | null) ?? []);
+  return {
+    services: ((preview?.services as ServiceItem[] | null) ?? []),
+    categories: ((preview?.categories as string[] | null) ?? []),
+  };
 }
 
-async function saveServicesForTenant(tenantId: string, services: ServiceItem[]): Promise<{ ok: boolean; error?: string }> {
+async function saveStateForTenant(
+  tenantId: string,
+  services: ServiceItem[],
+  categories: string[],
+): Promise<{ ok: boolean; error?: string }> {
   const supabase = createAdminClient();
   const { data: tenant } = await supabase
     .from("tenants")
@@ -104,7 +154,7 @@ async function saveServicesForTenant(tenantId: string, services: ServiceItem[]):
   if (!slug) return { ok: false, error: "Tenant has no preview_slug" };
   const { error } = await supabase
     .from("previews")
-    .update({ services })
+    .update({ services, categories })
     .eq("slug", slug);
   if (error) {
     console.error("[admin/services] save failed", { tenantId, error });
@@ -117,8 +167,8 @@ export async function GET(request: NextRequest) {
   const tenantIdParam = new URL(request.url).searchParams.get("tenant_id") ?? undefined;
   const auth = await requireOwnerOrFounder(request, tenantIdParam);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const services = await loadServicesForTenant(auth.tenantId);
-  return NextResponse.json({ services });
+  const state = await loadStateForTenant(auth.tenantId);
+  return NextResponse.json(state);
 }
 
 export async function POST(request: NextRequest) {
@@ -134,14 +184,14 @@ export async function POST(request: NextRequest) {
   const auth = await requireOwnerOrFounder(request, fallbackTenantId);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const result = validateServices((body as Record<string, unknown>).services);
+  const result = validatePayload(body as Record<string, unknown>);
   if (!result.ok) {
     return NextResponse.json({ error: "Validation failed", errors: result.errors }, { status: 400 });
   }
 
-  const saveResult = await saveServicesForTenant(auth.tenantId, result.services);
+  const saveResult = await saveStateForTenant(auth.tenantId, result.services, result.categories);
   if (!saveResult.ok) {
     return NextResponse.json({ error: saveResult.error ?? "Save failed" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, services: result.services });
+  return NextResponse.json({ ok: true, services: result.services, categories: result.categories });
 }

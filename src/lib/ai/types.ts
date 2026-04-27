@@ -19,14 +19,30 @@ export type ColorTheme =
 
 export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm';
 
+/**
+ * Customer-selectable extra applied to a single service. Persisted in
+ * previews.services[].add_ons. Multiple of 30 minutes; non-negative price.
+ */
+export interface AddOn {
+  name: string;                    // ≤ 80 chars (server truncates)
+  price_delta: number;             // ≥ 0, max 2 decimals
+  duration_delta_minutes: number;  // ≥ 0, multiple of 30
+}
+
 export interface ServiceItem {
   name: string;
   price: string;
   description?: string;
-  /** v2 (Spec 1) — already used in JSONB; declare explicitly. Whole hours, multiples of 60, range [60, 480]. */
+  /** v2 (Spec 1) — multiples of 30, range [30, 480]. */
   duration_minutes?: number;
-  /** v3 (Spec 3) — public URL of the uploaded service image (Supabase Storage, service-images bucket). */
+  /** v3 (Spec 3) — public URL of the uploaded service image. */
   image?: string;
+  /** v4 (Spec 4) — stable client-side ID; preserved across renames. */
+  client_id?: string;
+  /** v4 (Spec 4) — must match one of previews.categories if set. */
+  category?: string;
+  /** v4 (Spec 4) — optional extras the customer can add at booking time. */
+  add_ons?: AddOn[];
 }
 
 export interface ProductItem {
@@ -73,6 +89,7 @@ export interface PreviewData {
   phone?: string;
   color_theme: ColorTheme;
   services: ServiceItem[];
+  categories?: string[];
   products?: ProductItem[];
   booking_url?: string;
   hours?: BusinessHours;

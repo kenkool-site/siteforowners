@@ -1,13 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
 import { ServiceRow } from "../_components/ServiceRow";
+import { CategoriesPanel } from "./CategoriesPanel";
 
-// Mirror the server caps so we can pre-truncate legacy/AI-generated data
-// before the owner sees it. Saving fields longer than these will succeed
-// regardless (the server also truncates), but applying the same caps client-
-// side keeps what the owner sees in the UI in sync with what gets stored.
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
 const MAX_DESCRIPTION = 1000;
@@ -21,17 +18,18 @@ function normalizeService(s: ServiceItem): ServiceItem {
       s.description && s.description.length > MAX_DESCRIPTION
         ? s.description.slice(0, MAX_DESCRIPTION)
         : s.description,
+    // Lazy backfill — assign a stable client_id to any service that doesn't
+    // have one yet, so React keys survive renames.
+    client_id: s.client_id ?? crypto.randomUUID(),
   };
 }
 
 interface ServicesClientProps {
   initialServices: ServiceItem[];
+  initialCategories: string[];
 }
 
-export function ServicesClient({ initialServices }: ServicesClientProps) {
-  // Pre-truncate any legacy fields that exceed the current caps so the owner
-  // sees the same shape that will be saved. We track which rows were affected
-  // to surface a banner ("we shortened N rows").
+export function ServicesClient({ initialServices, initialCategories }: ServicesClientProps) {
   const truncatedIndexes = new Set<number>();
   initialServices.forEach((s, i) => {
     if (
@@ -45,20 +43,28 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   const normalizedInitial = initialServices.map(normalizeService);
 
   const [services, setServices] = useState<ServiceItem[]>(normalizedInitial);
+  const [categories, setCategories] = useState<string[]>(initialCategories);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Indexes flagged by the most recent save attempt; ServiceRow uses this
-  // to expand + highlight the broken rows + scroll the first one into view.
   const [failingIndexes, setFailingIndexes] = useState<Set<number>>(new Set());
-  // Whether to show the "we shortened N rows" banner.
   const [showTruncatedNotice, setShowTruncatedNotice] = useState(truncatedIndexes.size > 0);
 
-  // Track whether the on-screen array differs from the last saved snapshot.
-  // Use the NORMALIZED initial as the baseline so the dirty-check doesn't
-  // immediately mark the page dirty just because we truncated on load.
-  const initialJson = JSON.stringify(normalizedInitial);
-  const dirty = JSON.stringify(services) !== initialJson;
+  const initialJson = JSON.stringify({ services: normalizedInitial, categories: initialCategories });
+  const dirty = JSON.stringify({ services, categories }) !== initialJson;
+
+  // Per-category service counts for the categories panel.
+  const counts = useMemo(() => {
+    const out: Record<string, number> = { Other: 0 };
+    services.forEach((s) => {
+      if (s.category && categories.includes(s.category)) {
+        out[s.category] = (out[s.category] ?? 0) + 1;
+      } else {
+        out.Other += 1;
+      }
+    });
+    return out;
+  }, [services, categories]);
 
   function update(index: number, next: ServiceItem) {
     setServices((prev) => prev.map((s, i) => (i === index ? next : s)));
@@ -73,11 +79,35 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
   function remove(index: number) {
     setServices((prev) => prev.filter((_, i) => i !== index));
     setSavedAt(null);
-    setFailingIndexes(new Set());  // indexes shift after delete; clear all
+    setFailingIndexes(new Set());
   }
 
   function add() {
-    setServices((prev) => [...prev, { name: "", price: "", duration_minutes: 60 }]);
+    setServices((prev) => [
+      ...prev,
+      { name: "", price: "", duration_minutes: 60, client_id: crypto.randomUUID() },
+    ]);
+    setSavedAt(null);
+  }
+
+  // Categories panel callback — handles rename cascade and remove cascade
+  // entirely client-side so the server only sees a single coherent payload.
+  function handleCategoriesChange(
+    next: string[],
+    rename?: { from: string; to: string },
+    removed?: string,
+  ) {
+    setCategories(next);
+    if (rename) {
+      setServices((prev) =>
+        prev.map((s) => (s.category === rename.from ? { ...s, category: rename.to } : s)),
+      );
+    }
+    if (removed) {
+      setServices((prev) =>
+        prev.map((s) => (s.category === removed ? { ...s, category: undefined } : s)),
+      );
+    }
     setSavedAt(null);
   }
 
@@ -88,27 +118,23 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
       const res = await fetch("/api/admin/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ services }),
+        body: JSON.stringify({ services, categories }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        // Surface field-level validation errors so the owner can find the
-        // failing row. Without this, "Save failed" hides which row is broken,
-        // and a single bad row blocks the entire atomic save.
         const errs = (data?.errors as Array<{ index: number; field: string; reason: string }> | undefined) ?? [];
         if (errs.length > 0) {
-          const lines = errs
-            .slice(0, 3)
-            .map((e) => {
-              const rowLabel =
-                e.index >= 0 && services[e.index]?.name
-                  ? `Row ${e.index + 1} (${services[e.index].name})`
-                  : `Row ${e.index + 1}`;
-              return `${rowLabel}: ${e.field} — ${e.reason}`;
-            });
+          const lines = errs.slice(0, 3).map((e) => {
+            const rowLabel =
+              e.index >= 0 && services[e.index]?.name
+                ? `Row ${e.index + 1} (${services[e.index].name})`
+                : e.index >= 0
+                  ? `Row ${e.index + 1}`
+                  : `Categories`;
+            return `${rowLabel}: ${e.field} — ${e.reason}`;
+          });
           if (errs.length > 3) lines.push(`…and ${errs.length - 3} more`);
           setError(lines.join("\n"));
-          // Mark the failing rows so ServiceRow expands + highlights them.
           setFailingIndexes(new Set(errs.map((e) => e.index).filter((i) => i >= 0)));
         } else {
           setError(data?.error || "Save failed");
@@ -136,6 +162,13 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
           <button type="button" onClick={() => setShowTruncatedNotice(false)} className="text-amber-700 hover:text-amber-900" aria-label="Dismiss">×</button>
         </div>
       )}
+
+      <CategoriesPanel
+        categories={categories}
+        counts={counts}
+        onChange={handleCategoriesChange}
+      />
+
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">{services.length} {services.length === 1 ? "service" : "services"}</span>
         <button
@@ -154,9 +187,10 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
       ) : (
         services.map((s, i) => (
           <ServiceRow
-            key={i}
+            key={s.client_id ?? i}
             rowNumber={i + 1}
             service={s}
+            categories={categories}
             failing={failingIndexes.has(i)}
             onChange={(next) => update(i, next)}
             onDelete={() => remove(i)}
@@ -164,7 +198,6 @@ export function ServicesClient({ initialServices }: ServicesClientProps) {
         ))
       )}
 
-      {/* Sticky save bar */}
       <div className="fixed bottom-16 md:bottom-4 inset-x-0 px-4 md:px-8 pointer-events-none">
         <div className="max-w-3xl mx-auto flex items-center justify-end gap-3 pointer-events-auto">
           {error && (

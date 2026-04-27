@@ -8,15 +8,20 @@ import { ServicesClient } from "./ServicesClient";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-async function loadServices(previewSlug: string | null): Promise<ServiceItem[]> {
-  if (!previewSlug) return [];
+async function loadServices(
+  previewSlug: string | null,
+): Promise<{ services: ServiceItem[]; categories: string[] }> {
+  if (!previewSlug) return { services: [], categories: [] };
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("previews")
-    .select("services")
+    .select("services, categories")
     .eq("slug", previewSlug)
     .maybeSingle();
-  return ((data?.services as ServiceItem[] | null) ?? []);
+  return {
+    services: (data?.services as ServiceItem[] | null) ?? [],
+    categories: (data?.categories as string[] | null) ?? [],
+  };
 }
 
 export default async function ServicesPage({
@@ -27,7 +32,7 @@ export default async function ServicesPage({
   noStore();
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
-  const services = await loadServices(tenant.preview_slug);
+  const { services, categories } = await loadServices(tenant.preview_slug);
 
   return (
     <div className="py-4 md:py-6">
@@ -35,7 +40,10 @@ export default async function ServicesPage({
         <div className="text-lg font-semibold">Services</div>
       </div>
       <div className="px-3 md:px-8 mt-4">
-        <ServicesClient initialServices={services} />
+        <ServicesClient
+          initialServices={services}
+          initialCategories={categories}
+        />
       </div>
     </div>
   );
