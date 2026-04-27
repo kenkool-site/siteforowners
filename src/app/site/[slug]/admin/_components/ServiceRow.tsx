@@ -160,10 +160,10 @@ export function ServiceRow({ rowNumber, service, founderTenantId, failing = fals
       <textarea
         value={service.description ?? ""}
         onChange={(e) => set("description", e.target.value)}
-        placeholder="Description (optional)"
+        placeholder="Description (optional) — owners can write up to ~5 paragraphs"
         className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm"
-        rows={2}
-        maxLength={200}
+        rows={4}
+        maxLength={1000}
       />
 
       <div className="flex items-center justify-between pt-1">

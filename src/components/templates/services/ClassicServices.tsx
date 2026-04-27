@@ -40,7 +40,10 @@ export function ClassicServices({ services, colors, bookingMode }: ServicesProps
                     {service.name}
                   </h3>
                   {service.description && (
-                    <p className="mt-1 text-sm opacity-70" style={{ color: rc.textOnMuted }}>
+                    <p
+                      className="mt-1 text-sm opacity-70 line-clamp-4"
+                      style={{ color: rc.textOnMuted }}
+                    >
                       {service.description}
                     </p>
                   )}

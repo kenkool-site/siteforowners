@@ -110,11 +110,11 @@ function MockBookingCalendar({
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
 
-  // Generate 2 weeks of dates starting tomorrow
+  // Generate 30 days of dates starting tomorrow
   const dates = useMemo(() => {
     const result: Date[] = [];
     const today = new Date();
-    for (let i = 1; i <= 14; i++) {
+    for (let i = 1; i <= 30; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       result.push(d);
@@ -430,7 +430,7 @@ function RealBookingCalendar({
   const dates = useMemo(() => {
     const result: Date[] = [];
     const today = new Date();
-    for (let i = 1; i <= 14; i++) {
+    for (let i = 1; i <= 30; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       result.push(d);

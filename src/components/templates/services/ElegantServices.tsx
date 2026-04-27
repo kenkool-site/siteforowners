@@ -49,7 +49,10 @@ export function ElegantServices({ services, colors, bookingMode }: ServicesProps
                     </div>
                   </div>
                   {service.description && (
-                    <p className="mt-1 text-sm italic opacity-50" style={{ color: rc.textOnBg }}>
+                    <p
+                      className="mt-1 text-sm italic opacity-50 line-clamp-4"
+                      style={{ color: rc.textOnBg }}
+                    >
                       {service.description}
                     </p>
                   )}

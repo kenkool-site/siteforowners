@@ -51,7 +51,10 @@ export function BoldServices({ services, colors, bookingMode }: ServicesProps) {
                   </div>
                 </div>
                 {service.description && (
-                  <p className="text-sm opacity-60" style={{ color: rc.textOnMuted }}>
+                  <p
+                    className="text-sm opacity-60 line-clamp-4"
+                    style={{ color: rc.textOnMuted }}
+                  >
                     {service.description}
                   </p>
                 )}

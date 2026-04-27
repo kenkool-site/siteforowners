@@ -44,7 +44,10 @@ export function VibrantServices({ services, colors, bookingMode }: ServicesProps
                   {service.name}
                 </h3>
                 {service.description && (
-                  <p className="mb-3 text-sm opacity-60" style={{ color: rc.textOnMuted }}>
+                  <p
+                    className="mb-3 text-sm opacity-60 line-clamp-4"
+                    style={{ color: rc.textOnMuted }}
+                  >
                     {service.description}
                   </p>
                 )}

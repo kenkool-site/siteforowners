@@ -5,7 +5,7 @@ import type { ServiceItem } from "@/lib/ai/types";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
-const MAX_DESCRIPTION = 200;
+const MAX_DESCRIPTION = 1000;
 
 // Public origin of the project's Supabase Storage. Reject image URLs that
 // don't originate from here (prevents owners planting arbitrary URLs).

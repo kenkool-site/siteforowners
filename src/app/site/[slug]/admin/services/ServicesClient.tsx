@@ -10,7 +10,7 @@ import { ServiceRow } from "../_components/ServiceRow";
 // side keeps what the owner sees in the UI in sync with what gets stored.
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
-const MAX_DESCRIPTION = 200;
+const MAX_DESCRIPTION = 1000;
 
 function normalizeService(s: ServiceItem): ServiceItem {
   return {
