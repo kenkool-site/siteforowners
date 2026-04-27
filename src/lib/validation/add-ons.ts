@@ -9,7 +9,7 @@ export type AddOnValidationResult =
   | { ok: true; value: AddOn[] }
   | { ok: false; errors: AddOnValidationError[] };
 
-const MAX_ENTRIES = 5;
+const MAX_ENTRIES = 10;
 const MAX_NAME_LENGTH = 80;
 
 export function validateAddOns(input: unknown): AddOnValidationResult {
@@ -49,10 +49,10 @@ export function validateAddOns(input: unknown): AddOnValidationResult {
       errors.push({ field: `add_ons[${i}].price_delta`, reason: "must be a non-negative number" });
       return;
     }
-    if (!Number.isInteger(duration) || duration < 0 || duration % 30 !== 0) {
+    if (!Number.isInteger(duration) || duration < 0) {
       errors.push({
         field: `add_ons[${i}].duration_delta_minutes`,
-        reason: "must be a non-negative integer multiple of 30",
+        reason: "must be a non-negative integer (minutes)",
       });
       return;
     }

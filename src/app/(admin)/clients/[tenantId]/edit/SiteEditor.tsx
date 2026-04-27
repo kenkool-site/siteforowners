@@ -1151,7 +1151,6 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
               {services.map((s, i) => (
                 <ServiceRow
                   key={s.client_id ?? i}
-                  rowNumber={i + 1}
                   service={s}
                   categories={categories}
                   founderTenantId={tenantId}

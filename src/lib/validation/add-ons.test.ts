@@ -41,9 +41,21 @@ test("validateAddOns: rejects negative price_delta", () => {
   assert.equal(r.ok, false);
 });
 
-test("validateAddOns: rejects non-multiple-of-30 duration", () => {
+test("validateAddOns: accepts arbitrary integer minute durations", () => {
   const r = validateAddOns([
     { name: "x", price_delta: 0, duration_delta_minutes: 45 },
+    { name: "y", price_delta: 0, duration_delta_minutes: 7 },
+  ]);
+  assert.equal(r.ok, true);
+  if (r.ok) {
+    assert.equal(r.value[0].duration_delta_minutes, 45);
+    assert.equal(r.value[1].duration_delta_minutes, 7);
+  }
+});
+
+test("validateAddOns: rejects non-integer duration", () => {
+  const r = validateAddOns([
+    { name: "x", price_delta: 0, duration_delta_minutes: 12.5 },
   ]);
   assert.equal(r.ok, false);
 });
@@ -55,15 +67,15 @@ test("validateAddOns: rejects negative duration", () => {
   assert.equal(r.ok, false);
 });
 
-test("validateAddOns: truncates to 5 entries silently", () => {
-  const six = Array(6).fill(0).map((_, i) => ({
+test("validateAddOns: truncates to 10 entries silently", () => {
+  const eleven = Array(11).fill(0).map((_, i) => ({
     name: `a${i}`,
     price_delta: 0,
     duration_delta_minutes: 0,
   }));
-  const r = validateAddOns(six);
+  const r = validateAddOns(eleven);
   assert.equal(r.ok, true);
-  if (r.ok) assert.equal(r.value.length, 5);
+  if (r.ok) assert.equal(r.value.length, 10);
 });
 
 test("validateAddOns: rejects empty name after trim", () => {

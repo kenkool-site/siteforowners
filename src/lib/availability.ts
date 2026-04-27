@@ -1,5 +1,6 @@
 // Pure booking-availability primitives. Half-open intervals throughout.
-// v2: 30-minute duration granularity (starts still on the hour).
+// v3: free-form integer-minute durations (Spec 4 polish). Slot starts
+// remain on the hour for predictable customer-facing slot grids.
 
 /**
  * A booking interval, half-open: `[startMinutes, startMinutes + durationMinutes)`.
@@ -18,12 +19,16 @@ export function bookingsOverlap(a: BookingInterval, b: BookingInterval): boolean
 
 /**
  * Returns true iff inserting `candidate` would push the count of
- * concurrent bookings for any single 30-min slot it spans to or above
- * `maxPerSlot`. Walks the candidate's range in 30-minute steps
- * (v2 grid: hourly starts, sub-hour durations allowed); per-slot rather
- * than per-overlap so a 3h booking that touches two non-overlapping 1h
- * bookings on a `maxPerSlot=2` calendar is still allowed where capacity
- * exists.
+ * concurrent bookings to or above `maxPerSlot` at any moment its
+ * interval spans. Walks the candidate's range in 1-minute steps so
+ * arbitrary integer-minute durations (e.g. 47, 70) are checked
+ * correctly — finer than the booking grid for safety, but trivially
+ * cheap (a 3h booking with 20 existing same-day bookings is 3600
+ * iterations).
+ *
+ * Per-moment rather than per-overlap so a 3h booking that touches two
+ * non-overlapping 1h bookings on a `maxPerSlot=2` calendar is still
+ * allowed where capacity exists.
  */
 export function wouldExceedCapacity(
   candidate: BookingInterval,
@@ -31,7 +36,7 @@ export function wouldExceedCapacity(
   maxPerSlot: number,
 ): boolean {
   const candidateEnd = candidate.startMinutes + candidate.durationMinutes;
-  for (let m = candidate.startMinutes; m < candidateEnd; m += 30) {
+  for (let m = candidate.startMinutes; m < candidateEnd; m++) {
     let count = 0;
     for (const b of existing) {
       const bEnd = b.startMinutes + b.durationMinutes;
@@ -77,8 +82,8 @@ export function computeAvailableStarts(input: AvailabilityInput): number[] {
     blockedDates,
   } = input;
 
-  if (durationMinutes <= 0 || durationMinutes % 30 !== 0) {
-    throw new Error(`durationMinutes must be a positive multiple of 30: got ${durationMinutes}`);
+  if (!Number.isInteger(durationMinutes) || durationMinutes <= 0) {
+    throw new Error(`durationMinutes must be a positive integer: got ${durationMinutes}`);
   }
 
   if (blockedDates.includes(date)) return [];
