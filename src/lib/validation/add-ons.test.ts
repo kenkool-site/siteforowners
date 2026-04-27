@@ -55,15 +55,15 @@ test("validateAddOns: rejects negative duration", () => {
   assert.equal(r.ok, false);
 });
 
-test("validateAddOns: truncates to 5 entries silently", () => {
-  const six = Array(6).fill(0).map((_, i) => ({
+test("validateAddOns: truncates to 10 entries silently", () => {
+  const eleven = Array(11).fill(0).map((_, i) => ({
     name: `a${i}`,
     price_delta: 0,
     duration_delta_minutes: 0,
   }));
-  const r = validateAddOns(six);
+  const r = validateAddOns(eleven);
   assert.equal(r.ok, true);
-  if (r.ok) assert.equal(r.value.length, 5);
+  if (r.ok) assert.equal(r.value.length, 10);
 });
 
 test("validateAddOns: rejects empty name after trim", () => {

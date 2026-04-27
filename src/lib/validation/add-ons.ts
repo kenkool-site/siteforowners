@@ -9,7 +9,7 @@ export type AddOnValidationResult =
   | { ok: true; value: AddOn[] }
   | { ok: false; errors: AddOnValidationError[] };
 
-const MAX_ENTRIES = 5;
+const MAX_ENTRIES = 10;
 const MAX_NAME_LENGTH = 80;
 
 export function validateAddOns(input: unknown): AddOnValidationResult {

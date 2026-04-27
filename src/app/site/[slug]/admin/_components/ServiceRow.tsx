@@ -15,7 +15,41 @@ interface ServiceRowProps {
 }
 
 const ADD_ON_DURATION_OPTIONS = [0, 30, 60, 90, 120];
-const MAX_ADD_ONS = 5;
+const MAX_ADD_ONS = 10;
+
+/**
+ * Add-on price input. Wraps a controlled number input so the displayed
+ * text doesn't lock to the parent state — lets the user type decimals
+ * and clear the field without the placeholder "0" reappearing mid-edit.
+ */
+function PriceDeltaInput({
+  value,
+  onChange,
+  className,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+  className?: string;
+}) {
+  const [text, setText] = useState<string>(value === 0 ? "" : String(value));
+  return (
+    <input
+      type="number"
+      min={0}
+      step="0.01"
+      inputMode="decimal"
+      value={text}
+      onChange={(e) => {
+        const v = e.target.value;
+        setText(v);
+        const parsed = parseFloat(v);
+        onChange(Number.isFinite(parsed) && parsed >= 0 ? parsed : 0);
+      }}
+      placeholder="0"
+      className={className}
+    />
+  );
+}
 
 export function ServiceRow({
   service,
@@ -228,13 +262,9 @@ export function ServiceRow({
                 <option key={m} value={m}>+{formatDuration(m) || "0m"}</option>
               ))}
             </select>
-            <input
-              type="number"
-              min={0}
-              step="0.01"
+            <PriceDeltaInput
               value={ao.price_delta}
-              onChange={(e) => setAddOn(i, { ...ao, price_delta: Number(e.target.value) || 0 })}
-              placeholder="0"
+              onChange={(next) => setAddOn(i, { ...ao, price_delta: next })}
               className="w-20 rounded border border-gray-200 px-2 py-1 text-xs"
             />
             <button
