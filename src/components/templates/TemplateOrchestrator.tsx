@@ -240,6 +240,8 @@ export function TemplateOrchestrator({
     durationMinutes: s.duration_minutes,
   }));
 
+  const categories = (data.categories ?? []) as string[];
+
   // Modal state — holds the fully-resolved deep-link URL to load in the iframe.
   // Used only by external_only mode with Acuity-style deep links.
   const [selectedBookingDeepLink, setSelectedBookingDeepLink] = useState<string | null>(null);
@@ -372,7 +374,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showGallery && galleryImages.length > 0 && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><BoldServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><BoldServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
           {productsSection}
           {showAbout && <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -389,7 +391,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
-          {showServices && <div id="services"><ElegantServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><ElegantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
           {productsSection}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -405,7 +407,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><VibrantServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><VibrantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
           {showGallery && galleryImages.length > 0 && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
@@ -425,7 +427,7 @@ export function TemplateOrchestrator({
           <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           {showAbout && <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><WarmServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><WarmServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
           {productsSection}
           {testimonialsSection || ratingSection}
           {bookingSection}
@@ -441,7 +443,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
-          {showServices && <div id="services"><ClassicServices services={services} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><ClassicServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
           {showGallery && galleryImages.length > 0 && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}
           {showAbout && <div id="about"><ClassicAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
