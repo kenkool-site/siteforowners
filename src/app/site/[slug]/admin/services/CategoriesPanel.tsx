@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 interface CategoriesPanelProps {
   categories: string[];
@@ -17,6 +17,10 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
   const [draftName, setDraftName] = useState("");
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDraft, setPendingDraft] = useState<string | null>(null);
+  // Tracks whether the pending draft was committed via Enter so the
+  // subsequent blur event does not discard the just-committed value.
+  const pendingCommittedRef = useRef(false);
 
   function commitRename(index: number) {
     const trimmed = draftName.trim();
@@ -29,6 +33,7 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
       return;
     }
     const lower = trimmed.toLowerCase();
+    // For conflict check, only compare against committed categories
     const conflict = categories.some(
       (c, i) => i !== index && c.toLowerCase() === lower,
     );
@@ -36,6 +41,17 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
       setError("That name already exists");
       return;
     }
+
+    // Pending draft slot — committing adds it to parent state for the first time
+    if (index === categories.length) {
+      pendingCommittedRef.current = true;
+      onChange([...categories, trimmed]);
+      setPendingDraft(null);
+      setEditingIndex(null);
+      setError(null);
+      return;
+    }
+
     const oldName = categories[index];
     if (oldName === trimmed) {
       setEditingIndex(null);
@@ -48,15 +64,21 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
     setError(null);
   }
 
+  function discardPendingDraft() {
+    setPendingDraft(null);
+    setEditingIndex(null);
+    setError(null);
+  }
+
   function add() {
     if (categories.length >= MAX_ENTRIES) {
       setError(`At most ${MAX_ENTRIES} categories`);
       return;
     }
     const placeholder = "New category";
-    const next = [...categories, placeholder];
-    onChange(next);
-    setEditingIndex(next.length - 1);
+    pendingCommittedRef.current = false;
+    setPendingDraft(placeholder);
+    setEditingIndex(categories.length);
     setDraftName(placeholder);
     setError(null);
   }
@@ -75,7 +97,7 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
     setRemoveTarget(null);
   }
 
-  if (categories.length === 0 && editingIndex === null) {
+  if (categories.length === 0 && pendingDraft === null) {
     return (
       <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm">
         <div className="text-xs text-gray-500 mb-2">
@@ -165,6 +187,35 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
             </div>
           );
         })}
+
+        {/* Pending draft chip — shown in edit mode until Enter commits or Esc/blur discards */}
+        {pendingDraft !== null && (
+          <div className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-full pl-3 pr-1 py-1 text-xs">
+            <input
+              autoFocus
+              type="text"
+              value={draftName}
+              onChange={(e) => setDraftName(e.target.value)}
+              onBlur={() => {
+                // If Enter already committed, the blur fires right after — skip discard.
+                if (pendingCommittedRef.current) {
+                  pendingCommittedRef.current = false;
+                  return;
+                }
+                discardPendingDraft();
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitRename(categories.length);
+                }
+                if (e.key === "Escape") discardPendingDraft();
+              }}
+              maxLength={MAX_LENGTH}
+              className="bg-white border border-gray-300 rounded px-1 py-0.5 text-xs w-32"
+            />
+          </div>
+        )}
       </div>
 
       {removeTarget && (
