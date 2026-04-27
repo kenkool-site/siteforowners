@@ -1,21 +1,115 @@
 "use client";
 
+import { useState } from "react";
 import type { ThemeColors } from "@/lib/templates/themes";
+import type { ServiceItem } from "@/lib/ai/types";
 import { readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 import { formatDuration } from "@/lib/availability";
+import { groupServices } from "./groupServices";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
+type DisplayService = {
+  name: string;
+  price: string;
+  description?: string;
+  bookingDeepLink?: string;
+  durationMinutes?: number;
+  image?: string;
+  category?: string;
+};
+
 interface ServicesProps {
-  services: { name: string; price: string; description?: string; bookingDeepLink?: string; durationMinutes?: number; image?: string }[];
+  services: DisplayService[];
+  categories?: string[];
   colors: ThemeColors;
   bookingMode?: Mode;
 }
 
-export function ClassicServices({ services, colors, bookingMode }: ServicesProps) {
+export function ClassicServices({ services, categories, colors, bookingMode }: ServicesProps) {
   const rc = readableColors(colors);
+  const groups = groupServices(services as unknown as ServiceItem[], categories);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+
+  const toggle = (label: string) =>
+    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+
+  const renderService = (service: DisplayService, i: number) => {
+    const card = (
+      <div
+        className="flex items-start justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
+        style={{ backgroundColor: colors.muted }}
+      >
+        {service.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={service.image} alt={service.name} className="h-16 w-16 rounded-md object-cover flex-shrink-0 mr-3" />
+        )}
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
+            {service.name}
+          </h3>
+          {service.description && (
+            <p
+              className="mt-1 text-sm opacity-70 line-clamp-4"
+              style={{ color: rc.textOnMuted }}
+            >
+              {service.description}
+            </p>
+          )}
+        </div>
+        <div className="ml-4 text-right">
+          <span className="whitespace-nowrap text-lg font-bold" style={{ color: rc.primaryOnMuted }}>
+            {service.price}
+          </span>
+          <span className="text-xs opacity-60 ml-2" style={{ color: rc.textOnMuted }}>
+            · {formatDuration(service.durationMinutes ?? 60)}
+          </span>
+        </div>
+      </div>
+    );
+    return (
+      <AnimateSection key={service.name} delay={i * 0.1}>
+        {(() => {
+          const m = bookingMode ?? "in_site_only";
+          if (m === "external_only") {
+            if (!service.bookingDeepLink) return card;
+            return (
+              <button
+                type="button"
+                onClick={() => window.open(service.bookingDeepLink!, "_blank", "noopener,noreferrer")}
+                className="block w-full text-left"
+              >
+                {card}
+              </button>
+            );
+          }
+          if (m === "both" && service.bookingDeepLink) {
+            return (
+              <button
+                type="button"
+                onClick={() => requestBookingChoice(service.name, service.bookingDeepLink!)}
+                className="block w-full text-left"
+              >
+                {card}
+              </button>
+            );
+          }
+          return (
+            <button
+              type="button"
+              onClick={() => openBookingCalendarForService(service.name)}
+              className="block w-full text-left"
+            >
+              {card}
+            </button>
+          );
+        })()}
+      </AnimateSection>
+    );
+  };
+
   return (
     <section className="px-6 py-20" style={{ backgroundColor: colors.background }}>
       <div className="mx-auto max-w-4xl">
@@ -24,81 +118,35 @@ export function ClassicServices({ services, colors, bookingMode }: ServicesProps
             Our Services
           </h2>
         </AnimateSection>
-        <div className="grid gap-4 md:grid-cols-2">
-          {services.map((service, i) => {
-            const card = (
-              <div
-                className="flex items-start justify-between rounded-xl p-5 transition-shadow hover:shadow-md"
-                style={{ backgroundColor: colors.muted }}
-              >
-                {service.image && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={service.image} alt={service.name} className="h-16 w-16 rounded-md object-cover flex-shrink-0 mr-3" />
-                )}
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold" style={{ color: rc.textOnMuted }}>
-                    {service.name}
-                  </h3>
-                  {service.description && (
-                    <p
-                      className="mt-1 text-sm opacity-70 line-clamp-4"
-                      style={{ color: rc.textOnMuted }}
-                    >
-                      {service.description}
-                    </p>
-                  )}
-                </div>
-                <div className="ml-4 text-right">
-                  <span className="whitespace-nowrap text-lg font-bold" style={{ color: rc.primaryOnMuted }}>
-                    {service.price}
+
+        {groups.map((group) => {
+          const isCollapsed = group.label ? !!collapsed[group.label] : false;
+          return (
+            <div key={group.label ?? "_flat"} className="mb-8">
+              {group.label && (
+                <button
+                  type="button"
+                  onClick={() => toggle(group.label!)}
+                  className="w-full mb-5 flex items-center gap-3"
+                >
+                  <span className="flex-1 border-t border-current opacity-30" aria-hidden />
+                  <span className="font-serif italic text-base" style={{ color: rc.textOnBg }}>
+                    {group.label}
                   </span>
-                  <span className="text-xs opacity-60 ml-2" style={{ color: rc.textOnMuted }}>
-                    · {formatDuration(service.durationMinutes ?? 60)}
+                  <span className="text-xs opacity-60" style={{ color: rc.textOnBg }}>
+                    {isCollapsed ? "▸" : "▾"}
                   </span>
+                  <span className="flex-1 border-t border-current opacity-30" aria-hidden />
+                </button>
+              )}
+              {!isCollapsed && (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {(group.services as DisplayService[]).map((service, i) => renderService(service, i))}
                 </div>
-              </div>
-            );
-            return (
-              <AnimateSection key={service.name} delay={i * 0.1}>
-                {(() => {
-                  const m = bookingMode ?? "in_site_only";
-                  if (m === "external_only") {
-                    if (!service.bookingDeepLink) return card;
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => window.open(service.bookingDeepLink!, "_blank", "noopener,noreferrer")}
-                        className="block w-full text-left"
-                      >
-                        {card}
-                      </button>
-                    );
-                  }
-                  if (m === "both" && service.bookingDeepLink) {
-                    return (
-                      <button
-                        type="button"
-                        onClick={() => requestBookingChoice(service.name, service.bookingDeepLink!)}
-                        className="block w-full text-left"
-                      >
-                        {card}
-                      </button>
-                    );
-                  }
-                  return (
-                    <button
-                      type="button"
-                      onClick={() => openBookingCalendarForService(service.name)}
-                      className="block w-full text-left"
-                    >
-                      {card}
-                    </button>
-                  );
-                })()}
-              </AnimateSection>
-            );
-          })}
-        </div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
