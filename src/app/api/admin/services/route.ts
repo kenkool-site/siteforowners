@@ -128,14 +128,27 @@ async function loadStateForTenant(
     .maybeSingle();
   const slug = tenant?.preview_slug as string | undefined;
   if (!slug) return { services: [], categories: [] };
-  const { data: preview } = await supabase
+  const primary = await supabase
     .from("previews")
     .select("services, categories")
     .eq("slug", slug)
     .maybeSingle();
+  if (!primary.error) {
+    return {
+      services: ((primary.data?.services as ServiceItem[] | null) ?? []),
+      categories: ((primary.data?.categories as string[] | null) ?? []),
+    };
+  }
+  // Fallback: categories column may not exist yet in this environment.
+  // Re-query services alone so the API still serves correct data.
+  const fallback = await supabase
+    .from("previews")
+    .select("services")
+    .eq("slug", slug)
+    .maybeSingle();
   return {
-    services: ((preview?.services as ServiceItem[] | null) ?? []),
-    categories: ((preview?.categories as string[] | null) ?? []),
+    services: ((fallback.data?.services as ServiceItem[] | null) ?? []),
+    categories: [],
   };
 }
 
