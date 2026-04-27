@@ -81,8 +81,8 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
     if (!name) errors.push({ index, field: "name", reason: "required" });
     if (!price) errors.push({ index, field: "price", reason: "required" });
     if (duration_minutes !== undefined) {
-      if (!Number.isInteger(duration_minutes) || duration_minutes < 5 || duration_minutes > 600) {
-        errors.push({ index, field: "duration_minutes", reason: "must be an integer minute count in [5, 600]" });
+      if (!Number.isInteger(duration_minutes) || duration_minutes < 5 || duration_minutes > 600 || duration_minutes % 5 !== 0) {
+        errors.push({ index, field: "duration_minutes", reason: "must be a multiple of 5 in [5, 600] minutes" });
       }
     }
     if (image !== undefined && image !== "" && !imageOriginAllowed(image)) {

@@ -50,12 +50,14 @@ function PriceDeltaInput({
   );
 }
 
+const MINUTE_OPTIONS = [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55];
+
 /**
- * Free-form integer-minute duration input. Renders the underlying minute
- * count as a number input plus a small "min" suffix and the formatted
- * preview ("1h 30m") so owners get both precise control and readable
- * verification of what they typed. `variant="addon"` makes the input
- * narrower and prefixes a "+" since add-ons add minutes to the base.
+ * Hours + minutes duration picker. Owners pick hours and minutes
+ * independently from two compact dropdowns — no mental math from raw
+ * minute counts. 5-minute granularity (the lowest realistic step in
+ * salon scheduling). `variant="addon"` prefixes a "+" since add-ons
+ * add to the base.
  */
 function DurationMinutesInput({
   value,
@@ -70,48 +72,44 @@ function DurationMinutesInput({
   variant?: "service" | "addon";
   onChange: (next: number) => void;
 }) {
-  // Local string state so partial entries (empty field, leading zeros) don't
-  // get clobbered by the controlled re-render before the user finishes typing.
-  const [text, setText] = useState<string>(String(value));
-  // Keep local in sync if the parent resets the value externally.
-  const lastSyncRef = useRef(value);
-  if (lastSyncRef.current !== value && parseInt(text, 10) !== value) {
-    lastSyncRef.current = value;
-    setText(String(value));
-  }
   const isAddOn = variant === "addon";
+  // Snap incoming value to the nearest 5 for display (legacy non-multiple-of-5
+  // values still render cleanly; first edit will commit a snapped value).
+  const snapped = Math.round(value / 5) * 5;
+  const hours = Math.max(0, Math.floor(snapped / 60));
+  const minutes = Math.max(0, snapped % 60);
+  const maxHours = Math.floor(max / 60);
+
+  function commit(h: number, m: number) {
+    const total = Math.max(min, Math.min(max, h * 60 + m));
+    onChange(total);
+  }
+
   return (
-    <div className="flex items-center gap-1 rounded border border-gray-200 px-2 py-1">
+    <div className="flex items-center gap-1 rounded border border-gray-200 px-1.5 py-1 text-sm">
       {isAddOn && <span className="text-xs text-gray-500">+</span>}
-      <input
-        type="number"
-        min={min}
-        max={max}
-        step={1}
-        inputMode="numeric"
-        value={text}
-        onChange={(e) => {
-          const v = e.target.value;
-          setText(v);
-          const parsed = parseInt(v, 10);
-          if (Number.isFinite(parsed)) {
-            const clamped = Math.max(min, Math.min(max, parsed));
-            lastSyncRef.current = clamped;
-            onChange(clamped);
-          } else {
-            const fallback = isAddOn ? 0 : 60;
-            lastSyncRef.current = fallback;
-            onChange(fallback);
-          }
-        }}
-        className={`${isAddOn ? "w-12" : "w-14"} bg-transparent text-sm text-center tabular-nums focus:outline-none`}
-      />
-      <span className="text-xs text-gray-500">min</span>
-      {value > 0 && (
-        <span className="text-[10px] text-gray-400 ml-1 whitespace-nowrap">
-          ({formatDuration(value)})
-        </span>
-      )}
+      <select
+        value={hours}
+        onChange={(e) => commit(parseInt(e.target.value, 10), minutes)}
+        aria-label="Hours"
+        className="bg-transparent tabular-nums focus:outline-none"
+      >
+        {Array.from({ length: maxHours + 1 }, (_, i) => (
+          <option key={i} value={i}>{i}</option>
+        ))}
+      </select>
+      <span className="text-xs text-gray-500">h</span>
+      <select
+        value={minutes}
+        onChange={(e) => commit(hours, parseInt(e.target.value, 10))}
+        aria-label="Minutes"
+        className="bg-transparent tabular-nums focus:outline-none"
+      >
+        {MINUTE_OPTIONS.map((m) => (
+          <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
+        ))}
+      </select>
+      <span className="text-xs text-gray-500">m</span>
     </div>
   );
 }
