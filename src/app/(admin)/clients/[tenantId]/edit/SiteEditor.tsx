@@ -65,6 +65,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const [services, setServices] = useState<ServiceItem[]>(
     (preview.services as ServiceItem[]) || []
   );
+  const [categories, setCategories] = useState<string[]>(
+    (preview.categories as string[]) || []
+  );
 
   // Products
   const [products, setProducts] = useState<ProductItem[]>(
@@ -267,6 +270,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             address,
             booking_url: bookingUrl || null,
             services: services.filter((s) => s.name.trim()),
+            categories,
             products: products.filter((p) => p.name.trim()),
             images,
             hero_video_url: heroVideoUrl,
@@ -547,6 +551,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     address,
     booking_url: bookingUrl,
     services: services.filter((s) => s.name.trim()),
+    categories,
     products: products.filter((p) => p.name.trim()),
     images,
     hero_video_url: heroVideoUrl,
@@ -1142,6 +1147,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                   key={i}
                   rowNumber={i + 1}
                   service={s}
+                  categories={categories}
                   founderTenantId={tenantId}
                   onChange={(next) => {
                     const updated = [...services];

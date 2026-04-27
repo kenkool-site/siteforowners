@@ -190,6 +190,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
             key={s.client_id ?? i}
             rowNumber={i + 1}
             service={s}
+            categories={categories}
             failing={failingIndexes.has(i)}
             onChange={(next) => update(i, next)}
             onDelete={() => remove(i)}
