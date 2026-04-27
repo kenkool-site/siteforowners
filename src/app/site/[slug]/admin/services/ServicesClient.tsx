@@ -188,7 +188,6 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
         services.map((s, i) => (
           <ServiceRow
             key={s.client_id ?? i}
-            rowNumber={i + 1}
             service={s}
             categories={categories}
             failing={failingIndexes.has(i)}

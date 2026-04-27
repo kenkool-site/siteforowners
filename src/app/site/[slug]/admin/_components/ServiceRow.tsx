@@ -5,7 +5,6 @@ import type { ServiceItem, AddOn } from "@/lib/ai/types";
 import { formatDuration } from "@/lib/availability";
 
 interface ServiceRowProps {
-  rowNumber?: number;
   service: ServiceItem;
   /** Owner-managed list; passed so the dropdown can render options. */
   categories?: string[];
@@ -19,7 +18,6 @@ const ADD_ON_DURATION_OPTIONS = [0, 30, 60, 90, 120];
 const MAX_ADD_ONS = 5;
 
 export function ServiceRow({
-  rowNumber,
   service,
   categories = [],
   founderTenantId,

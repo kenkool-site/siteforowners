@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 interface CategoriesPanelProps {
   categories: string[];
@@ -18,9 +18,6 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
   const [removeTarget, setRemoveTarget] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingDraft, setPendingDraft] = useState<string | null>(null);
-  // Tracks whether the pending draft was committed via Enter so the
-  // subsequent blur event does not discard the just-committed value.
-  const pendingCommittedRef = useRef(false);
 
   function commitRename(index: number) {
     const trimmed = draftName.trim();
@@ -44,7 +41,6 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
 
     // Pending draft slot — committing adds it to parent state for the first time
     if (index === categories.length) {
-      pendingCommittedRef.current = true;
       onChange([...categories, trimmed]);
       setPendingDraft(null);
       setEditingIndex(null);
@@ -76,7 +72,6 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
       return;
     }
     const placeholder = "New category";
-    pendingCommittedRef.current = false;
     setPendingDraft(placeholder);
     setEditingIndex(categories.length);
     setDraftName(placeholder);
@@ -144,51 +139,75 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
               className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-full pl-3 pr-1 py-1 text-xs"
             >
               {isEditing ? (
-                <input
-                  autoFocus
-                  type="text"
-                  value={draftName}
-                  onChange={(e) => setDraftName(e.target.value)}
-                  onBlur={() => commitRename(i)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") commitRename(i);
-                    if (e.key === "Escape") {
+                <>
+                  <input
+                    autoFocus
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitRename(i);
+                      if (e.key === "Escape") {
+                        setEditingIndex(null);
+                        setError(null);
+                      }
+                    }}
+                    maxLength={MAX_LENGTH}
+                    className="bg-white border border-gray-300 rounded px-1 py-0.5 text-xs w-32"
+                  />
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => commitRename(i)}
+                    aria-label="Save"
+                    className="text-green-700 hover:text-green-900 px-1 font-bold"
+                  >
+                    ✓
+                  </button>
+                  <button
+                    type="button"
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
                       setEditingIndex(null);
                       setError(null);
-                    }
-                  }}
-                  maxLength={MAX_LENGTH}
-                  className="bg-white border border-gray-300 rounded px-1 py-0.5 text-xs w-32"
-                />
+                    }}
+                    aria-label="Cancel"
+                    className="text-gray-500 hover:text-red-600 px-1"
+                  >
+                    ×
+                  </button>
+                </>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingIndex(i);
-                    setDraftName(name);
-                    setError(null);
-                  }}
-                  className="font-medium hover:underline"
-                >
-                  {name}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingIndex(i);
+                      setDraftName(name);
+                      setError(null);
+                    }}
+                    className="font-medium hover:underline"
+                  >
+                    {name}
+                  </button>
+                  <span className="text-gray-500">({count})</span>
+                  <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" className="text-gray-500 disabled:opacity-30 px-1">↑</button>
+                  <button type="button" onClick={() => move(i, 1)} disabled={i === categories.length - 1} aria-label="Move down" className="text-gray-500 disabled:opacity-30 px-1">↓</button>
+                  <button
+                    type="button"
+                    onClick={() => setRemoveTarget(name)}
+                    aria-label="Remove"
+                    className="text-gray-500 hover:text-red-600 px-1"
+                  >
+                    ×
+                  </button>
+                </>
               )}
-              <span className="text-gray-500">({count})</span>
-              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" className="text-gray-500 disabled:opacity-30 px-1">↑</button>
-              <button type="button" onClick={() => move(i, 1)} disabled={i === categories.length - 1} aria-label="Move down" className="text-gray-500 disabled:opacity-30 px-1">↓</button>
-              <button
-                type="button"
-                onClick={() => setRemoveTarget(name)}
-                aria-label="Remove"
-                className="text-gray-500 hover:text-red-600 px-1"
-              >
-                ×
-              </button>
             </div>
           );
         })}
 
-        {/* Pending draft chip — shown in edit mode until Enter commits or Esc/blur discards */}
+        {/* Pending draft chip — explicit ✓ to commit, × to discard, Enter / Esc on keyboard. */}
         {pendingDraft !== null && (
           <div className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-full pl-3 pr-1 py-1 text-xs">
             <input
@@ -196,14 +215,6 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
               type="text"
               value={draftName}
               onChange={(e) => setDraftName(e.target.value)}
-              onBlur={() => {
-                // If Enter already committed, the blur fires right after — skip discard.
-                if (pendingCommittedRef.current) {
-                  pendingCommittedRef.current = false;
-                  return;
-                }
-                discardPendingDraft();
-              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
@@ -214,6 +225,24 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
               maxLength={MAX_LENGTH}
               className="bg-white border border-gray-300 rounded px-1 py-0.5 text-xs w-32"
             />
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => commitRename(categories.length)}
+              aria-label="Save"
+              className="text-green-700 hover:text-green-900 px-1 font-bold"
+            >
+              ✓
+            </button>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={discardPendingDraft}
+              aria-label="Cancel"
+              className="text-gray-500 hover:text-red-600 px-1"
+            >
+              ×
+            </button>
           </div>
         )}
       </div>
