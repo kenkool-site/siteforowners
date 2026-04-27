@@ -39,33 +39,35 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
   const renderService = (service: DisplayService, i: number) => {
     const card = (
       <div
-        className="rounded-xl border-l-4 p-4"
+        className="overflow-hidden rounded-xl border-l-4"
         style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
       >
-        <div className="flex items-start gap-3">
-          {service.image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={service.image} alt={service.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
-          )}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="text-base font-semibold leading-tight" style={{ color: rc.textOnMuted }}>
-                {service.name}
-              </h3>
-              <div className="text-right flex-shrink-0 whitespace-nowrap text-sm" style={{ color: rc.textOnMuted }}>
-                <span className="font-semibold">{service.price}</span>
-                <span className="opacity-60"> · {formatDuration(service.durationMinutes ?? 60)}</span>
-              </div>
+        {service.image && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={service.image}
+            alt={service.name}
+            className="block h-32 w-full object-cover"
+          />
+        )}
+        <div className="p-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h3 className="text-base font-semibold leading-tight" style={{ color: rc.textOnMuted }}>
+              {service.name}
+            </h3>
+            <div className="flex-shrink-0 whitespace-nowrap text-right text-sm" style={{ color: rc.textOnMuted }}>
+              <span className="font-semibold">{service.price}</span>
+              <span className="opacity-60"> · {formatDuration(service.durationMinutes ?? 60)}</span>
             </div>
-            {service.description && (
-              <p
-                className="mt-1 text-sm leading-snug opacity-70 line-clamp-3"
-                style={{ color: rc.textOnMuted }}
-              >
-                {service.description}
-              </p>
-            )}
           </div>
+          {service.description && (
+            <p
+              className="mt-1 text-sm leading-snug opacity-70 line-clamp-3"
+              style={{ color: rc.textOnMuted }}
+            >
+              {service.description}
+            </p>
+          )}
         </div>
       </div>
     );

@@ -38,13 +38,17 @@ export function ElegantServices({ services, categories, colors, bookingMode }: S
 
   const renderService = (service: DisplayService, i: number) => {
     const card = (
-      <div className="group flex items-start gap-3">
+      <div className="group space-y-2">
         {service.image && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={service.image} alt={service.name} className="h-20 w-20 rounded-md object-cover flex-shrink-0" />
+          <img
+            src={service.image}
+            alt={service.name}
+            className="block h-32 w-full rounded-md object-cover"
+          />
         )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline justify-between">
+        <div>
+          <div className="flex items-baseline">
             <h3 className="text-lg font-medium" style={{ color: rc.textOnBg }}>
               {service.name}
             </h3>
@@ -60,7 +64,7 @@ export function ElegantServices({ services, categories, colors, bookingMode }: S
           </div>
           {service.description && (
             <p
-              className="mt-1 text-sm italic opacity-50 line-clamp-4"
+              className="mt-1 text-sm italic opacity-50 line-clamp-3"
               style={{ color: rc.textOnBg }}
             >
               {service.description}
