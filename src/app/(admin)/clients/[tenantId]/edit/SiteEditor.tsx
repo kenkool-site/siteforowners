@@ -61,9 +61,13 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const [footerTagline, setFooterTagline] = useState((enCopy.footer_tagline as string) || "");
   const [bookingIntro, setBookingIntro] = useState((enCopy.booking_intro as string) || "");
 
-  // Services
-  const [services, setServices] = useState<ServiceItem[]>(
-    (preview.services as ServiceItem[]) || []
+  // Services — assign a stable client_id to anything missing one so React
+  // keys survive renames (Spec 4 stable IDs).
+  const [services, setServices] = useState<ServiceItem[]>(() =>
+    ((preview.services as ServiceItem[]) || []).map((s) => ({
+      ...s,
+      client_id: s.client_id ?? crypto.randomUUID(),
+    }))
   );
   const [categories, setCategories] = useState<string[]>(
     (preview.categories as string[]) || []
@@ -1144,7 +1148,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             <div className="space-y-2">
               {services.map((s, i) => (
                 <ServiceRow
-                  key={i}
+                  key={s.client_id ?? i}
                   rowNumber={i + 1}
                   service={s}
                   categories={categories}
