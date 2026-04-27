@@ -22,6 +22,7 @@ export function validateAddOns(input: unknown): AddOnValidationResult {
   const limited = input.slice(0, MAX_ENTRIES);
   const errors: AddOnValidationError[] = [];
   const value: AddOn[] = [];
+  const seenNames = new Set<string>();
   limited.forEach((entry, i) => {
     if (!entry || typeof entry !== "object") {
       errors.push({ field: `add_ons[${i}]`, reason: "must be an object" });
@@ -36,6 +37,12 @@ export function validateAddOns(input: unknown): AddOnValidationResult {
       return;
     }
     if (name.length > MAX_NAME_LENGTH) name = name.slice(0, MAX_NAME_LENGTH);
+    const nameKey = name.toLowerCase();
+    if (seenNames.has(nameKey)) {
+      errors.push({ field: `add_ons[${i}].name`, reason: "duplicate of an earlier add-on" });
+      return;
+    }
+    seenNames.add(nameKey);
     const price = typeof priceRaw === "number" ? priceRaw : Number(priceRaw);
     const duration = typeof durationRaw === "number" ? durationRaw : Number(durationRaw);
     if (!Number.isFinite(price) || price < 0) {

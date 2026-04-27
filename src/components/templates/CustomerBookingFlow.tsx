@@ -420,7 +420,7 @@ export function CustomerBookingFlow({
   // Reset add-ons whenever the user picks a different service
   useEffect(() => {
     setSelectedAddOns([]);
-  }, [selectedService]);
+  }, [selectedService?.name]);
 
   const dates = useMemo(() => {
     const result: Date[] = [];
@@ -609,9 +609,18 @@ export function CustomerBookingFlow({
                                 type="checkbox"
                                 checked={checked}
                                 onChange={() => {
-                                  setSelectedAddOns((prev) =>
-                                    checked ? prev.filter((a) => a.name !== ao.name) : [...prev, ao],
-                                  );
+                                  setSelectedAddOns((prev) => {
+                                    if (checked) {
+                                      return prev.filter((a) => a.name !== ao.name);
+                                    }
+                                    const baseDur = selectedService.durationMinutes ?? 60;
+                                    const currentTotal = baseDur + prev.reduce((sum, a) => sum + a.duration_delta_minutes, 0);
+                                    if (currentTotal + ao.duration_delta_minutes > 720) {
+                                      // Silently no-op; could surface a toast but spec says "client prevents"
+                                      return prev;
+                                    }
+                                    return [...prev, ao];
+                                  });
                                 }}
                                 style={{ accentColor: colors.primary }}
                               />
@@ -670,7 +679,6 @@ export function CustomerBookingFlow({
                     disabled={!selectedDate}
                     onClick={() => {
                       if (selectedDate) {
-                        fetchSlots(selectedDate, selectedService);
                         setStep("schedule");
                       }
                     }}

@@ -77,3 +77,12 @@ test("validateAddOns: rejects non-array input", () => {
   const r = validateAddOns("nope");
   assert.equal(r.ok, false);
 });
+
+test("validateAddOns: rejects duplicate names (case-insensitive after trim)", () => {
+  const r = validateAddOns([
+    { name: "Hair Wash", price_delta: 0, duration_delta_minutes: 30 },
+    { name: "  hair wash  ", price_delta: 0, duration_delta_minutes: 60 },
+  ]);
+  assert.equal(r.ok, false);
+  if (!r.ok) assert.match(r.errors[0].reason, /duplicate/i);
+});
