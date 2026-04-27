@@ -238,6 +238,8 @@ export function TemplateOrchestrator({
     bookingDeepLink: serviceDeepLinkUrls.get(normalizeServiceName(s.name)),
     // Map snake_case from DB JSONB to camelCase for the UI components.
     durationMinutes: s.duration_minutes,
+    addOns: s.add_ons,
+    image: s.image,
   }));
 
   const categories = (data.categories ?? []) as string[];

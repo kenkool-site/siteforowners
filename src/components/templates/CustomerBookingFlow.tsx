@@ -1,15 +1,19 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
+import type { AddOn } from "@/lib/ai/types";
 import { computeAvailableStarts, formatTimeRange, formatDuration } from "@/lib/availability";
 
 export interface SimpleService {
   name: string;
   price: string;
   durationMinutes?: number;  // optional, defaults to 60 throughout the flow
+  description?: string;
+  image?: string;
+  addOns?: AddOn[];
 }
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -352,19 +356,22 @@ function ServiceDetailsPanel({
 function RunningTotalBar({
   baseDuration,
   basePrice,
+  addOns,
   colors,
 }: {
   baseDuration: number;
   basePrice: string;
+  addOns: AddOn[];
   colors: ThemeColors;
 }) {
-  // Task 11: no add-ons yet — total equals base. Task 12 will add the add-on aware version.
   const numericPrice = parseFloat(basePrice.replace(/[^0-9.]/g, "")) || 0;
+  const totalDuration = baseDuration + addOns.reduce((sum, a) => sum + a.duration_delta_minutes, 0);
+  const totalPrice = numericPrice + addOns.reduce((sum, a) => sum + a.price_delta, 0);
   return (
     <div className="flex items-center justify-between px-3 py-2 rounded bg-gray-50 border border-gray-200">
       <span className="text-xs text-gray-600">Total</span>
       <span className="font-bold">
-        {formatDuration(baseDuration)} · <span style={{ color: colors.primary }}>${numericPrice.toFixed(2)}</span>
+        {formatDuration(totalDuration)} · <span style={{ color: colors.primary }}>${totalPrice.toFixed(2)}</span>
       </span>
     </div>
   );
@@ -408,6 +415,12 @@ export function CustomerBookingFlow({
   const [customerSmsOptIn, setCustomerSmsOptIn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
+
+  // Reset add-ons whenever the user picks a different service
+  useEffect(() => {
+    setSelectedAddOns([]);
+  }, [selectedService]);
 
   const dates = useMemo(() => {
     const result: Date[] = [];
@@ -424,7 +437,9 @@ export function CustomerBookingFlow({
   const fetchSlots = async (date: Date, service: SimpleService | null) => {
     setLoadingSlots(true);
     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
-    const dur = service?.durationMinutes ?? 60;
+    const baseDur = service?.durationMinutes ?? 60;
+    const addOnDur = selectedAddOns.reduce((sum, a) => sum + a.duration_delta_minutes, 0);
+    const dur = baseDur + addOnDur;
     try {
       const res = await fetch(`/api/available-slots?slug=${previewSlug}&date=${dateStr}&duration_minutes=${dur}`);
       const data = await res.json();
@@ -442,6 +457,20 @@ export function CustomerBookingFlow({
     setSelectedDate(date);
   };
 
+  // Re-fetch slots when add-ons change while on the schedule screen
+  useEffect(() => {
+    if (step !== "schedule" || !selectedDate || !selectedService) return;
+    fetchSlots(selectedDate, selectedService);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, selectedAddOns]);
+
+  // Deselect a previously chosen time if it's no longer in the refreshed slot list
+  useEffect(() => {
+    if (selectedTime && !availableSlots.includes(selectedTime)) {
+      setSelectedTime(null);
+    }
+  }, [availableSlots, selectedTime]);
+
   const handleBook = async () => {
     if (!selectedService || !selectedDate || !selectedTime || !customerName.trim() || !customerPhone.trim()) return;
     setSubmitting(true);
@@ -455,7 +484,7 @@ export function CustomerBookingFlow({
           preview_slug: previewSlug,
           service_name: selectedService.name,
           service_price: selectedService.price,
-          duration_minutes: selectedService.durationMinutes ?? 60,
+          duration_minutes: (selectedService.durationMinutes ?? 60) + selectedAddOns.reduce((sum, a) => sum + a.duration_delta_minutes, 0),
           booking_date: dateStr,
           booking_time: selectedTime,
           customer_name: customerName.trim(),
@@ -463,6 +492,10 @@ export function CustomerBookingFlow({
           customer_email: customerEmail.trim() || undefined,
           customer_notes: customerNotes.trim() || undefined,
           customer_sms_opt_in: customerSmsOptIn,
+          selected_add_ons: selectedAddOns.length > 0 ? selectedAddOns : undefined,
+          add_ons_total_price: selectedAddOns.length > 0
+            ? selectedAddOns.reduce((sum, a) => sum + a.price_delta, 0)
+            : undefined,
         }),
       });
       if (!res.ok) {
@@ -554,9 +587,49 @@ export function CustomerBookingFlow({
 
                   <ServiceDetailsPanel service={selectedService} colors={colors} />
 
+                  {(selectedService.addOns?.length ?? 0) > 0 && (
+                    <div className="space-y-2">
+                      <div className="text-xs uppercase tracking-wider text-gray-500 font-semibold">
+                        Add-ons (optional)
+                      </div>
+                      {selectedService.addOns!.map((ao, i) => {
+                        const checked = selectedAddOns.some((a) => a.name === ao.name);
+                        return (
+                          <label
+                            key={ao.name + i}
+                            className="flex items-center justify-between p-3 rounded-lg border cursor-pointer text-sm"
+                            style={
+                              checked
+                                ? { backgroundColor: `${colors.primary}15`, borderColor: `${colors.primary}55` }
+                                : { backgroundColor: "white", borderColor: "#e5e7eb" }
+                            }
+                          >
+                            <span className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  setSelectedAddOns((prev) =>
+                                    checked ? prev.filter((a) => a.name !== ao.name) : [...prev, ao],
+                                  );
+                                }}
+                                style={{ accentColor: colors.primary }}
+                              />
+                              <span className="font-medium">{ao.name}</span>
+                            </span>
+                            <span className="text-xs text-gray-500">
+                              +{formatDuration(ao.duration_delta_minutes) || "0m"} · +${ao.price_delta.toFixed(2)}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
                   <RunningTotalBar
                     baseDuration={selectedService.durationMinutes ?? 60}
                     basePrice={selectedService.price}
+                    addOns={selectedAddOns}
                     colors={colors}
                   />
 
@@ -635,6 +708,7 @@ export function CustomerBookingFlow({
                   <RunningTotalBar
                     baseDuration={selectedService.durationMinutes ?? 60}
                     basePrice={selectedService.price}
+                    addOns={selectedAddOns}
                     colors={colors}
                   />
 
