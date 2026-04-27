@@ -73,3 +73,40 @@ test("tomorrowIsoUtc: returns next-day ISO in UTC", () => {
   assert.equal(tomorrowIsoUtc(new Date("2026-05-31T23:59:00Z")), "2026-06-01");
   assert.equal(tomorrowIsoUtc(new Date("2026-12-31T23:59:00Z")), "2027-01-01");
 });
+
+test("sms owner template: no add-ons → no parenthetical", () => {
+  const body = (b: { customerName: string; serviceName: string; date: string; time: string; addOnNames?: string[] }) => {
+    const addOns = b.addOnNames && b.addOnNames.length > 0
+      ? ` (+ ${b.addOnNames.join(", ")})`
+      : "";
+    return `🔔 New booking: ${b.customerName}, ${b.serviceName}${addOns}, ${b.date} @ ${b.time}.`;
+  };
+  assert.equal(
+    body({
+      customerName: "Mariam",
+      serviceName: "Knotless Braids",
+      date: "Sat May 2",
+      time: "10:00 AM – 3:00 PM",
+    }),
+    "🔔 New booking: Mariam, Knotless Braids, Sat May 2 @ 10:00 AM – 3:00 PM.",
+  );
+});
+
+test("sms owner template: with add-ons → comma-separated parenthetical", () => {
+  const body = (b: { customerName: string; serviceName: string; date: string; time: string; addOnNames?: string[] }) => {
+    const addOns = b.addOnNames && b.addOnNames.length > 0
+      ? ` (+ ${b.addOnNames.join(", ")})`
+      : "";
+    return `🔔 New booking: ${b.customerName}, ${b.serviceName}${addOns}, ${b.date} @ ${b.time}.`;
+  };
+  assert.equal(
+    body({
+      customerName: "Mariam",
+      serviceName: "Knotless Braids",
+      date: "Sat May 2",
+      time: "10:00 AM – 3:30 PM",
+      addOnNames: ["Hair Wash", "Deep Conditioning"],
+    }),
+    "🔔 New booking: Mariam, Knotless Braids (+ Hair Wash, Deep Conditioning), Sat May 2 @ 10:00 AM – 3:30 PM.",
+  );
+});

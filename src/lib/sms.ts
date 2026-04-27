@@ -68,6 +68,8 @@ export interface BookingSmsData {
   customerName: string;
   customerPhone: string;
   businessAddress?: string;
+  /** Spec 4: optional add-on names selected at booking time. */
+  addOnNames?: string[];
 }
 
 async function send(to: string, body: string): Promise<void> {
@@ -86,9 +88,12 @@ async function send(to: string, body: string): Promise<void> {
 
 export async function sendBookingOwnerNotification(ownerPhone: string, b: BookingSmsData): Promise<void> {
   if (!ownerPhone) return;
+  const addOns = b.addOnNames && b.addOnNames.length > 0
+    ? ` (+ ${b.addOnNames.join(", ")})`
+    : "";
   await send(
     ownerPhone,
-    `🔔 New booking: ${b.customerName}, ${b.serviceName}, ${b.date} @ ${b.time}.`,
+    `🔔 New booking: ${b.customerName}, ${b.serviceName}${addOns}, ${b.date} @ ${b.time}.`,
   );
 }
 
