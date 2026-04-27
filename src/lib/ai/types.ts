@@ -90,6 +90,9 @@ export interface PreviewData {
   color_theme: ColorTheme;
   services: ServiceItem[];
   categories?: string[];
+  /** Spec 4 polish — owner-defined booking terms (deposit, late, reschedule
+   * rules) shown on the booking modal's schedule step. Free-form text. */
+  booking_policies?: string;
   products?: ProductItem[];
   booking_url?: string;
   hours?: BusinessHours;

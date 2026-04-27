@@ -94,6 +94,7 @@ export function CustomerBookingFlow({
   initialService = null,
   workingHours = null,
   blockedDates = [],
+  bookingPolicies = "",
 }: {
   services: SimpleService[];
   colors: ThemeColors;
@@ -103,6 +104,7 @@ export function CustomerBookingFlow({
   initialService?: SimpleService | null;
   workingHours?: Record<string, { open: string; close: string } | null> | null;
   blockedDates?: string[];
+  bookingPolicies?: string;
 }) {
   const [step, setStep] = useState<"service" | "details" | "schedule" | "confirm">(
     initialService ? "details" : "service",
@@ -120,6 +122,8 @@ export function CustomerBookingFlow({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
+  const [policiesOpen, setPoliciesOpen] = useState(false);
+  const policiesHeadline = bookingPolicies.split("\n").find((l) => l.trim().length > 0)?.trim() ?? "";
 
   // Reset add-ons whenever the user picks a different service
   useEffect(() => {
@@ -535,6 +539,24 @@ export function CustomerBookingFlow({
                       className="w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
                   </div>
 
+                  {/* Booking policies callout — only renders if owner set any */}
+                  {policiesHeadline && (
+                    <button
+                      type="button"
+                      onClick={() => setPoliciesOpen(true)}
+                      className="w-full text-left rounded-xl px-4 py-3 text-sm flex items-start gap-2"
+                      style={{ backgroundColor: `${colors.primary}12`, color: colors.foreground }}
+                    >
+                      <span aria-hidden className="flex-shrink-0">ℹ️</span>
+                      <span className="flex-1">
+                        <span className="font-semibold">{policiesHeadline}</span>
+                        <span className="block text-xs opacity-70 mt-0.5" style={{ color: colors.primary }}>
+                          View booking policies →
+                        </span>
+                      </span>
+                    </button>
+                  )}
+
                   <div className="sticky bottom-0 bg-white pt-3 pb-[env(safe-area-inset-bottom)] -mx-5 px-5 sm:static sm:bg-transparent sm:p-0 sm:m-0 sm:pb-0">
                     <button
                       type="button"
@@ -597,6 +619,48 @@ export function CustomerBookingFlow({
 
           </AnimatePresence>
         </div>
+
+        {/* Booking-policies drawer — slides up from the bottom of the modal,
+            covers the modal content with a scrim. Renders full owner text
+            with newlines preserved (whitespace-pre-wrap). Tap outside or
+            the close button to dismiss. */}
+        <AnimatePresence>
+          {policiesOpen && bookingPolicies && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="absolute inset-0 z-10 flex items-end bg-black/40"
+              onClick={() => setPoliciesOpen(false)}
+            >
+              <motion.div
+                initial={{ y: "100%" }}
+                animate={{ y: 0 }}
+                exit={{ y: "100%" }}
+                transition={{ type: "spring", damping: 28, stiffness: 320 }}
+                className="w-full max-h-[80%] overflow-y-auto rounded-t-2xl bg-white p-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+                onClick={(e) => e.stopPropagation()}
+                style={{ color: colors.foreground }}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <h3 className="text-lg font-bold">Booking policies</h3>
+                  <button
+                    type="button"
+                    onClick={() => setPoliciesOpen(false)}
+                    aria-label="Close"
+                    className="text-2xl leading-none text-gray-400 hover:text-gray-700 -mt-1"
+                  >
+                    ×
+                  </button>
+                </div>
+                <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                  {bookingPolicies}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </motion.div>
   );

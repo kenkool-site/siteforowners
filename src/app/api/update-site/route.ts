@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     if (updates.booking_url !== undefined) allowed.booking_url = updates.booking_url;
     if (updates.services !== undefined) allowed.services = updates.services;
     if (updates.categories !== undefined) allowed.categories = updates.categories;
+    if (updates.booking_policies !== undefined) allowed.booking_policies = updates.booking_policies;
     if (updates.products !== undefined) allowed.products = updates.products;
     if (updates.images !== undefined) allowed.images = updates.images;
     if (updates.hero_video_url !== undefined) allowed.hero_video_url = updates.hero_video_url;

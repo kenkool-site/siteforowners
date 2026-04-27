@@ -243,6 +243,7 @@ export function TemplateOrchestrator({
   }));
 
   const categories = (data.categories ?? []) as string[];
+  const bookingPolicies = (data.booking_policies ?? "") as string;
 
   // Modal state — holds the fully-resolved deep-link URL to load in the iframe.
   // Used only by external_only mode with Acuity-style deep links.
@@ -339,6 +340,7 @@ export function TemplateOrchestrator({
       bookingMode={bookingModeProp}
       workingHours={bookingHours}
       blockedDates={blockedDates}
+      bookingPolicies={bookingPolicies}
     />
   ) : null;
 
