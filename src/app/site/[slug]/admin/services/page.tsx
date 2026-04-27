@@ -10,23 +10,24 @@ export const revalidate = 0;
 
 async function loadServices(
   previewSlug: string | null,
-): Promise<{ services: ServiceItem[]; categories: string[] }> {
-  if (!previewSlug) return { services: [], categories: [] };
+): Promise<{ services: ServiceItem[]; categories: string[]; bookingPolicies: string }> {
+  if (!previewSlug) return { services: [], categories: [], bookingPolicies: "" };
   const supabase = createAdminClient();
   const primary = await supabase
     .from("previews")
-    .select("services, categories")
+    .select("services, categories, booking_policies")
     .eq("slug", previewSlug)
     .maybeSingle();
   if (!primary.error) {
     return {
       services: (primary.data?.services as ServiceItem[] | null) ?? [],
       categories: (primary.data?.categories as string[] | null) ?? [],
+      bookingPolicies: (primary.data?.booking_policies as string | null) ?? "",
     };
   }
-  // Fallback: the categories column may not exist yet in this environment
-  // (Spec 4 migration 018 not applied). Re-query services alone so the admin
-  // page still works. Categories default to empty.
+  // Fallback: one of the newer columns (categories, booking_policies) may
+  // not exist yet in this environment. Re-query services alone so the admin
+  // page still works.
   const fallback = await supabase
     .from("previews")
     .select("services")
@@ -35,6 +36,7 @@ async function loadServices(
   return {
     services: (fallback.data?.services as ServiceItem[] | null) ?? [],
     categories: [],
+    bookingPolicies: "",
   };
 }
 
@@ -46,7 +48,7 @@ export default async function ServicesPage({
   noStore();
   const tenant = await loadTenantBySlug(params.slug);
   if (!tenant) notFound();
-  const { services, categories } = await loadServices(tenant.preview_slug);
+  const { services, categories, bookingPolicies } = await loadServices(tenant.preview_slug);
 
   return (
     <div className="py-4 md:py-6">
@@ -57,6 +59,7 @@ export default async function ServicesPage({
         <ServicesClient
           initialServices={services}
           initialCategories={categories}
+          initialBookingPolicies={bookingPolicies}
         />
       </div>
     </div>

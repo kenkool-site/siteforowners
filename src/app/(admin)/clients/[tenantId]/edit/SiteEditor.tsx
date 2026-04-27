@@ -74,6 +74,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const [categories] = useState<string[]>(
     (preview.categories as string[]) || []
   );
+  const [bookingPolicies, setBookingPolicies] = useState<string>(
+    (preview.booking_policies as string) || ""
+  );
 
   // Products
   const [products, setProducts] = useState<ProductItem[]>(
@@ -277,6 +280,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             booking_url: bookingUrl || null,
             services: services.filter((s) => s.name.trim()),
             categories,
+            booking_policies: bookingPolicies.trim() || null,
             products: products.filter((p) => p.name.trim()),
             images,
             hero_video_url: heroVideoUrl,
@@ -558,6 +562,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     booking_url: bookingUrl,
     services: services.filter((s) => s.name.trim()),
     categories,
+    booking_policies: bookingPolicies.trim() || undefined,
     products: products.filter((p) => p.name.trim()),
     images,
     hero_video_url: heroVideoUrl,
@@ -1162,6 +1167,22 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                   onDelete={() => setServices((prev) => prev.filter((_, j) => j !== i))}
                 />
               ))}
+            </div>
+
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Booking policies
+              </label>
+              <p className="text-xs text-gray-500 mb-2">
+                Deposit, lateness, reschedule rules — shown to customers when they pick a time. First non-empty line becomes the inline headline; full text opens in a drawer.
+              </p>
+              <textarea
+                value={bookingPolicies}
+                onChange={(e) => setBookingPolicies(e.target.value.slice(0, 10000))}
+                placeholder={"e.g.\n$40 non-refundable deposit required to confirm.\n- One reschedule allowed with the deposit.\n- Balance due in cash at the time of service."}
+                rows={6}
+                className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm font-mono leading-snug"
+              />
             </div>
           </section>
 

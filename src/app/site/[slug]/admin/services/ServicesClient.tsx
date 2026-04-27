@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
 import { ServiceRow } from "../_components/ServiceRow";
 import { CategoriesPanel } from "./CategoriesPanel";
+import { BookingPoliciesEditor } from "./BookingPoliciesEditor";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
@@ -27,9 +28,10 @@ function normalizeService(s: ServiceItem): ServiceItem {
 interface ServicesClientProps {
   initialServices: ServiceItem[];
   initialCategories: string[];
+  initialBookingPolicies: string;
 }
 
-export function ServicesClient({ initialServices, initialCategories }: ServicesClientProps) {
+export function ServicesClient({ initialServices, initialCategories, initialBookingPolicies }: ServicesClientProps) {
   const truncatedIndexes = new Set<number>();
   initialServices.forEach((s, i) => {
     if (
@@ -44,14 +46,15 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
 
   const [services, setServices] = useState<ServiceItem[]>(normalizedInitial);
   const [categories, setCategories] = useState<string[]>(initialCategories);
+  const [bookingPolicies, setBookingPolicies] = useState<string>(initialBookingPolicies);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failingIndexes, setFailingIndexes] = useState<Set<number>>(new Set());
   const [showTruncatedNotice, setShowTruncatedNotice] = useState(truncatedIndexes.size > 0);
 
-  const initialJson = JSON.stringify({ services: normalizedInitial, categories: initialCategories });
-  const dirty = JSON.stringify({ services, categories }) !== initialJson;
+  const initialJson = JSON.stringify({ services: normalizedInitial, categories: initialCategories, bookingPolicies: initialBookingPolicies });
+  const dirty = JSON.stringify({ services, categories, bookingPolicies }) !== initialJson;
 
   // Per-category service counts for the categories panel.
   const counts = useMemo(() => {
@@ -118,7 +121,7 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
       const res = await fetch("/api/admin/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ services, categories }),
+        body: JSON.stringify({ services, categories, booking_policies: bookingPolicies }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -168,6 +171,8 @@ export function ServicesClient({ initialServices, initialCategories }: ServicesC
         counts={counts}
         onChange={handleCategoriesChange}
       />
+
+      <BookingPoliciesEditor value={bookingPolicies} onChange={setBookingPolicies} />
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">{services.length} {services.length === 1 ? "service" : "services"}</span>

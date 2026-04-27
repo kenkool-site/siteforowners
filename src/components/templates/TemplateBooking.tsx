@@ -55,6 +55,9 @@ interface TemplateBookingProps {
   workingHours?: Record<string, { open: string; close: string } | null> | null;
   /** ISO date strings (YYYY-MM-DD) the tenant has blocked off. */
   blockedDates?: string[];
+  /** Owner-defined booking terms (deposit, lateness, reschedule rules)
+   * shown on the booking modal's schedule step. Empty = no callout. */
+  bookingPolicies?: string;
 }
 
 // For Vagaro URLs, ensure the embed loads the /services page directly
@@ -97,6 +100,7 @@ export function TemplateBooking({
   bookingMode,
   workingHours = null,
   blockedDates = [],
+  bookingPolicies = "",
 }: TemplateBookingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
@@ -565,6 +569,7 @@ export function TemplateBooking({
               initialService={initialService}
               workingHours={workingHours}
               blockedDates={blockedDates}
+              bookingPolicies={bookingPolicies}
             />
           ) : (
             <MockBookingCalendar

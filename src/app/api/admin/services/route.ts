@@ -119,7 +119,7 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
 
 async function loadStateForTenant(
   tenantId: string,
-): Promise<{ services: ServiceItem[]; categories: string[] }> {
+): Promise<{ services: ServiceItem[]; categories: string[]; booking_policies: string }> {
   const supabase = createAdminClient();
   const { data: tenant } = await supabase
     .from("tenants")
@@ -127,20 +127,22 @@ async function loadStateForTenant(
     .eq("id", tenantId)
     .maybeSingle();
   const slug = tenant?.preview_slug as string | undefined;
-  if (!slug) return { services: [], categories: [] };
+  if (!slug) return { services: [], categories: [], booking_policies: "" };
   const primary = await supabase
     .from("previews")
-    .select("services, categories")
+    .select("services, categories, booking_policies")
     .eq("slug", slug)
     .maybeSingle();
   if (!primary.error) {
     return {
       services: ((primary.data?.services as ServiceItem[] | null) ?? []),
       categories: ((primary.data?.categories as string[] | null) ?? []),
+      booking_policies: ((primary.data?.booking_policies as string | null) ?? ""),
     };
   }
-  // Fallback: categories column may not exist yet in this environment.
-  // Re-query services alone so the API still serves correct data.
+  // Fallback: one of the newer columns may not exist yet in this
+  // environment (e.g. migrations 018/020 not applied). Re-query just
+  // services so the admin page still works.
   const fallback = await supabase
     .from("previews")
     .select("services")
@@ -149,6 +151,7 @@ async function loadStateForTenant(
   return {
     services: ((fallback.data?.services as ServiceItem[] | null) ?? []),
     categories: [],
+    booking_policies: "",
   };
 }
 
@@ -156,6 +159,7 @@ async function saveStateForTenant(
   tenantId: string,
   services: ServiceItem[],
   categories: string[],
+  bookingPolicies: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const supabase = createAdminClient();
   const { data: tenant } = await supabase
@@ -167,7 +171,7 @@ async function saveStateForTenant(
   if (!slug) return { ok: false, error: "Tenant has no preview_slug" };
   const { error } = await supabase
     .from("previews")
-    .update({ services, categories })
+    .update({ services, categories, booking_policies: bookingPolicies || null })
     .eq("slug", slug);
   if (error) {
     console.error("[admin/services] save failed", { tenantId, error });
@@ -202,9 +206,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Validation failed", errors: result.errors }, { status: 400 });
   }
 
-  const saveResult = await saveStateForTenant(auth.tenantId, result.services, result.categories);
+  // Booking policies — free-form text, trimmed and length-capped (10k is
+  // generous; the salon example is ~600 chars).
+  const rawPolicies = (body as Record<string, unknown>)?.booking_policies;
+  const bookingPolicies = typeof rawPolicies === "string" ? rawPolicies.trim().slice(0, 10000) : "";
+
+  const saveResult = await saveStateForTenant(auth.tenantId, result.services, result.categories, bookingPolicies);
   if (!saveResult.ok) {
     return NextResponse.json({ error: saveResult.error ?? "Save failed" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, services: result.services, categories: result.categories });
+  return NextResponse.json({ ok: true, services: result.services, categories: result.categories, booking_policies: bookingPolicies });
 }
