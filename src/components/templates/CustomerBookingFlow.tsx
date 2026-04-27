@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
@@ -318,6 +318,62 @@ export function MockBookingCalendar({
   );
 }
 
+// ---------------------------------------------------------------------------
+// Helper sub-components for CustomerBookingFlow
+// ---------------------------------------------------------------------------
+
+function ServiceDetailsPanel({
+  service,
+  colors,
+}: {
+  service: SimpleService & { description?: string; image?: string };
+  colors: ThemeColors;
+}) {
+  return (
+    <div className="flex gap-3 p-3 rounded-lg" style={{ backgroundColor: `${colors.primary}10` }}>
+      {service.image && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={service.image} alt="" className="h-16 w-16 rounded-md object-cover flex-shrink-0" />
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-baseline justify-between gap-2">
+          <h3 className="font-semibold truncate">{service.name}</h3>
+          <span className="font-bold" style={{ color: colors.primary }}>{service.price}</span>
+        </div>
+        <div className="text-xs text-gray-500">Base · {formatDuration(service.durationMinutes ?? 60)}</div>
+        {service.description && (
+          <p className="text-xs text-gray-700 mt-1 leading-relaxed">{service.description}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function RunningTotalBar({
+  baseDuration,
+  basePrice,
+  colors,
+}: {
+  baseDuration: number;
+  basePrice: string;
+  colors: ThemeColors;
+}) {
+  // Task 11: no add-ons yet — total equals base. Task 12 will add the add-on aware version.
+  const numericPrice = parseFloat(basePrice.replace(/[^0-9.]/g, "")) || 0;
+  return (
+    <div className="flex items-center justify-between px-3 py-2 rounded bg-gray-50 border border-gray-200">
+      <span className="text-xs text-gray-600">Total</span>
+      <span className="font-bold">
+        {formatDuration(baseDuration)} · <span style={{ color: colors.primary }}>${numericPrice.toFixed(2)}</span>
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CustomerBookingFlow — 2-screen flow: service? → details → schedule → confirm
+// ---------------------------------------------------------------------------
+
 export function CustomerBookingFlow({
   services,
   colors,
@@ -337,8 +393,8 @@ export function CustomerBookingFlow({
   workingHours?: Record<string, { open: string; close: string } | null> | null;
   blockedDates?: string[];
 }) {
-  const [step, setStep] = useState<"service" | "date" | "time" | "info" | "confirm">(
-    initialService ? "date" : "service",
+  const [step, setStep] = useState<"service" | "details" | "schedule" | "confirm">(
+    initialService ? "details" : "service",
   );
   const [selectedService, setSelectedService] = useState<SimpleService | null>(initialService);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -364,7 +420,7 @@ export function CustomerBookingFlow({
     return result;
   }, []);
 
-  // Fetch available slots when date is selected
+  // Fetch available slots when the user clicks Continue on the details screen
   const fetchSlots = async (date: Date, service: SimpleService | null) => {
     setLoadingSlots(true);
     const dateStr = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}`;
@@ -380,10 +436,10 @@ export function CustomerBookingFlow({
     }
   };
 
+  // Only stores the date — no auto-advance, no slot fetch.
+  // The Continue button on the details screen drives the transition + fetch.
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
-    fetchSlots(date, selectedService);
-    setStep("time");
   };
 
   const handleBook = async () => {
@@ -421,7 +477,7 @@ export function CustomerBookingFlow({
     }
   };
 
-  const allSteps = ["service", "date", "time", "info", "confirm"];
+  const allSteps = ["service", "details", "schedule", "confirm"];
 
   return (
     <motion.div
@@ -446,9 +502,8 @@ export function CustomerBookingFlow({
             <p className="text-xs font-medium uppercase tracking-wider opacity-60" style={{ color: colors.background }}>{businessName}</p>
             <h3 className="text-lg font-bold" style={{ color: colors.background }}>
               {step === "service" && "Select a Service"}
-              {step === "date" && "Pick a Date"}
-              {step === "time" && "Choose a Time"}
-              {step === "info" && "Your Information"}
+              {step === "details" && "Service Details"}
+              {step === "schedule" && "Pick a Time"}
               {step === "confirm" && "Booking Confirmed!"}
             </h3>
           </div>
@@ -472,11 +527,13 @@ export function CustomerBookingFlow({
         {/* Content */}
         <div className="max-h-[60vh] overflow-y-auto px-5 pb-5">
           <AnimatePresence mode="wait">
+
+            {/* Step: service — service list picker */}
             {step === "service" && (
               <motion.div key="service" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
                 <div className="space-y-2 py-2">
                   {services.map((svc, i) => (
-                    <button key={i} onClick={() => { setSelectedService(svc); setStep("date"); }}
+                    <button key={i} onClick={() => { setSelectedService(svc); setStep("details"); }}
                       className="flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left transition-all hover:scale-[1.01]"
                       style={{ backgroundColor: colors.muted, color: colors.foreground }}>
                       <span className="font-medium">{svc.name}</span>
@@ -489,125 +546,174 @@ export function CustomerBookingFlow({
               </motion.div>
             )}
 
-            {step === "date" && (
-              <motion.div key="date" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                <button onClick={() => setStep("service")}
-                  className="mb-4 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium"
-                  style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}>
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                  {selectedService?.name}
-                </button>
-                <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                  {dates.map((date, i) => {
-                    const weekdayName = WEEKDAYS_FULL[date.getDay()];
-                    const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-                    // null in workingHours means tenant is closed that weekday;
-                    // an undefined entry (e.g. before any hours saved) is allowed.
-                    const dayClosed = workingHours ? workingHours[weekdayName] === null : false;
-                    const dayBlocked = blockedDates.includes(iso);
-                    const unavailable = dayClosed || dayBlocked;
-                    return (
-                      <button
-                        key={i}
-                        disabled={unavailable}
-                        onClick={() => !unavailable && handleDateSelect(date)}
-                        aria-label={unavailable ? `${DAYS[date.getDay()]} ${date.getDate()} — closed` : undefined}
-                        className={`flex flex-col items-center rounded-xl px-2 py-3 transition-all ${
-                          unavailable ? "cursor-not-allowed opacity-30" : "hover:scale-105"
-                        }`}
-                        style={{ backgroundColor: colors.muted, color: colors.foreground }}
-                      >
-                        <span className="text-[10px] font-medium uppercase tracking-wider opacity-50">{DAYS[date.getDay()]}</span>
-                        <span className="text-xl font-bold">{date.getDate()}</span>
-                        <span className="text-[10px] opacity-50">{MONTHS[date.getMonth()].slice(0, 3)}</span>
-                        {unavailable && <span className="text-[9px] mt-0.5 opacity-70">Closed</span>}
-                      </button>
-                    );
-                  })}
+            {/* Step: details — service summary + date picker + Continue CTA */}
+            {step === "details" && selectedService && (
+              <motion.div key="details" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
+                <div className="space-y-4">
+                  <div className="text-xs text-gray-500 mb-1">Step 1 of 2 — Details</div>
+
+                  <ServiceDetailsPanel service={selectedService} colors={colors} />
+
+                  <RunningTotalBar
+                    baseDuration={selectedService.durationMinutes ?? 60}
+                    basePrice={selectedService.price}
+                    colors={colors}
+                  />
+
+                  {/* Date picker */}
+                  <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                    {dates.map((date, i) => {
+                      const weekdayName = WEEKDAYS_FULL[date.getDay()];
+                      const iso = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+                      const dayClosed = workingHours ? workingHours[weekdayName] === null : false;
+                      const dayBlocked = blockedDates.includes(iso);
+                      const unavailable = dayClosed || dayBlocked;
+                      const isSelected = selectedDate?.toDateString() === date.toDateString();
+                      return (
+                        <button
+                          key={i}
+                          disabled={unavailable}
+                          onClick={() => !unavailable && handleDateSelect(date)}
+                          aria-label={unavailable ? `${DAYS[date.getDay()]} ${date.getDate()} — closed` : undefined}
+                          className={`flex flex-col items-center rounded-xl px-2 py-3 transition-all ${
+                            unavailable ? "cursor-not-allowed opacity-30" : "hover:scale-105"
+                          }`}
+                          style={{
+                            backgroundColor: isSelected ? colors.primary : colors.muted,
+                            color: isSelected ? colors.background : colors.foreground,
+                          }}
+                        >
+                          <span className="text-[10px] font-medium uppercase tracking-wider opacity-50">{DAYS[date.getDay()]}</span>
+                          <span className="text-xl font-bold">{date.getDate()}</span>
+                          <span className="text-[10px] opacity-50">{MONTHS[date.getMonth()].slice(0, 3)}</span>
+                          {unavailable && <span className="text-[9px] mt-0.5 opacity-70">Closed</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={!selectedDate}
+                    onClick={() => {
+                      if (selectedDate) {
+                        fetchSlots(selectedDate, selectedService);
+                        setStep("schedule");
+                      }
+                    }}
+                    className="w-full py-3 rounded-lg font-semibold disabled:opacity-50"
+                    style={{ backgroundColor: colors.primary, color: "white" }}
+                  >
+                    Continue →
+                  </button>
                 </div>
               </motion.div>
             )}
 
-            {step === "time" && (
-              <motion.div key="time" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                <button onClick={() => setStep("date")}
-                  className="mb-4 inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium"
-                  style={{ backgroundColor: `${colors.primary}15`, color: colors.primary }}>
-                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" /></svg>
-                  {selectedDate && `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()].slice(0, 3)} ${selectedDate.getDate()}`}
-                </button>
-                {loadingSlots ? (
-                  <div className="flex justify-center py-8">
-                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200" style={{ borderTopColor: colors.primary }} />
-                  </div>
-                ) : availableSlots.length > 0 ? (
-                  <div className="grid grid-cols-3 gap-2">
-                    {availableSlots.map((time) => (
-                      <button key={time} onClick={() => { setSelectedTime(time); setStep("info"); }}
-                        className="rounded-xl py-3 text-center text-sm font-medium transition-all hover:scale-105"
-                        style={{ backgroundColor: colors.muted, color: colors.foreground }}>
-                        {time}
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="py-8 text-center text-sm opacity-50" style={{ color: colors.foreground }}>No availability on this day</p>
-                )}
-              </motion.div>
-            )}
-
-            {step === "info" && (
-              <motion.div key="info" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                {/* Summary pill */}
-                <div className="mb-4 rounded-xl p-3 text-xs" style={{ backgroundColor: colors.muted, color: colors.foreground }}>
-                  <span className="font-semibold">{selectedService?.name}</span> &middot;{" "}
-                  {selectedDate && `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()].slice(0, 3)} ${selectedDate.getDate()}`} &middot;{" "}
-                  {selectedTime}
-                </div>
-
-                {error && (
-                  <div className="mb-3 rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</div>
-                )}
-
-                <div className="space-y-3">
-                  <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Your Name *" required
-                    className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
-                  <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="Phone Number *" required
-                    className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
-                  <label className="mt-2 flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={customerSmsOptIn}
-                      onChange={(e) => setCustomerSmsOptIn(e.target.checked)}
-                      className="h-4 w-4"
-                    />
-                    <span style={{ color: colors.foreground }}>
-                      Text me a confirmation and a day-before reminder. Reply STOP anytime.
+            {/* Step: schedule — time slots + contact form + Confirm CTA */}
+            {step === "schedule" && selectedService && selectedDate && (
+              <motion.div key="schedule" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => setStep("details")}
+                      className="text-xs font-semibold"
+                      style={{ color: colors.primary }}
+                    >
+                      ← Back
+                    </button>
+                    <span className="text-xs text-gray-500">
+                      Step 2 of 2 — Time
                     </span>
-                  </label>
-                  <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="Email (optional — for calendar invite)"
-                    className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
-                  <textarea value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)}
-                    placeholder="Notes (optional)" rows={2}
-                    className="w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
-                </div>
+                  </div>
 
-                <div className="mt-4 flex gap-2">
-                  <button onClick={() => setStep("time")} className="rounded-xl border px-4 py-3 text-sm" style={{ borderColor: `${colors.foreground}20`, color: colors.foreground }}>
-                    Back
-                  </button>
-                  <button onClick={handleBook} disabled={submitting || !customerName.trim() || !customerPhone.trim()}
-                    className="flex-1 rounded-xl py-3 text-sm font-semibold disabled:opacity-50"
-                    style={{ backgroundColor: colors.primary, color: colors.background }}>
-                    {submitting ? "Booking..." : "Confirm Booking"}
+                  <div className="text-xs text-gray-500">
+                    {selectedService.name} · {selectedDate.toLocaleDateString()}
+                  </div>
+
+                  <RunningTotalBar
+                    baseDuration={selectedService.durationMinutes ?? 60}
+                    basePrice={selectedService.price}
+                    colors={colors}
+                  />
+
+                  {/* Time slots grid */}
+                  {loadingSlots ? (
+                    <div className="flex justify-center py-8">
+                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200" style={{ borderTopColor: colors.primary }} />
+                    </div>
+                  ) : availableSlots.length > 0 ? (
+                    <div className="grid grid-cols-3 gap-2">
+                      {availableSlots.map((time) => (
+                        <button
+                          key={time}
+                          onClick={() => setSelectedTime(time)}
+                          className="rounded-xl py-3 text-center text-sm font-medium transition-all hover:scale-105"
+                          style={{
+                            backgroundColor: selectedTime === time ? colors.primary : colors.muted,
+                            color: selectedTime === time ? colors.background : colors.foreground,
+                          }}
+                        >
+                          {time}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="py-8 text-center text-sm opacity-50" style={{ color: colors.foreground }}>No availability on this day</p>
+                  )}
+
+                  {/* Contact form */}
+                  <div className="mb-4 rounded-xl p-3 text-xs" style={{ backgroundColor: colors.muted, color: colors.foreground }}>
+                    <span className="font-semibold">{selectedService?.name}</span> &middot;{" "}
+                    {selectedDate && `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()].slice(0, 3)} ${selectedDate.getDate()}`} &middot;{" "}
+                    {selectedTime ?? "— pick a time above"}
+                  </div>
+
+                  {error && (
+                    <div className="mb-3 rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</div>
+                  )}
+
+                  <div className="space-y-3">
+                    <input type="text" value={customerName} onChange={(e) => setCustomerName(e.target.value)}
+                      placeholder="Your Name *" required
+                      className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
+                    <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
+                      placeholder="Phone Number *" required
+                      className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
+                    <label className="mt-2 flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={customerSmsOptIn}
+                        onChange={(e) => setCustomerSmsOptIn(e.target.checked)}
+                        className="h-4 w-4"
+                      />
+                      <span style={{ color: colors.foreground }}>
+                        Text me a confirmation and a day-before reminder. Reply STOP anytime.
+                      </span>
+                    </label>
+                    <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)}
+                      placeholder="Email (optional — for calendar invite)"
+                      className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
+                    <textarea value={customerNotes} onChange={(e) => setCustomerNotes(e.target.value)}
+                      placeholder="Notes (optional)" rows={2}
+                      className="w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={submitting || !selectedTime || !customerName.trim() || !customerPhone.trim()}
+                    onClick={handleBook}
+                    className="w-full py-3 rounded-lg font-semibold disabled:opacity-50"
+                    style={{ backgroundColor: colors.primary, color: "white" }}
+                  >
+                    {submitting ? "Booking..." : "Confirm booking"}
                   </button>
                 </div>
               </motion.div>
             )}
 
+            {/* Step: confirm — success state (unchanged) */}
             {step === "confirm" && (
               <motion.div key="confirm" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
                 <div className="py-4 text-center">
@@ -651,6 +757,7 @@ export function CustomerBookingFlow({
                 </div>
               </motion.div>
             )}
+
           </AnimatePresence>
         </div>
       </motion.div>
