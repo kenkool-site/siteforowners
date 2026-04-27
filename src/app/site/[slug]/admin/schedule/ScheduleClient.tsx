@@ -122,7 +122,7 @@ export function ScheduleClient({
         <div className="text-xs uppercase tracking-wider font-bold text-[color:var(--admin-primary)] mb-2 px-1">
           Working hours
         </div>
-        <details className="bg-white border border-gray-200 rounded-lg group">
+        <details open className="bg-white border border-gray-200 rounded-lg group">
           <summary className="px-4 py-3 cursor-pointer text-sm font-semibold flex items-center justify-between list-none">
             <span>Set days &amp; hours</span>
             <span className="text-gray-400 group-open:rotate-180 transition-transform">▾</span>
