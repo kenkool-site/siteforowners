@@ -37,79 +37,80 @@ export function ElegantServices({ services, categories, colors, bookingMode }: S
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
 
   const renderService = (service: DisplayService, i: number) => {
-    const card = (
-      <div className="group flex items-stretch gap-4">
-        {service.image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={service.image}
-            alt={service.name}
-            className="block w-32 self-stretch flex-shrink-0 rounded-md object-cover"
-          />
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-baseline">
-            <h3 className="text-lg font-medium" style={{ color: rc.textOnBg }}>
-              {service.name}
-            </h3>
-            <div className="mx-4 flex-1 border-b border-dotted" style={{ borderColor: `${rc.textOnBg}30` }} />
-            <div className="text-right">
-              <span className="text-lg" style={{ color: rc.primaryOnBg }}>
-                {service.price}
-              </span>
-              <span className="text-xs opacity-60 ml-2" style={{ color: rc.textOnBg }}>
-                · {formatDuration(service.durationMinutes ?? 60)}
-              </span>
-            </div>
-          </div>
-          {service.description && (
-            <p
-              className="mt-1 text-sm italic opacity-50 line-clamp-4"
-              style={{ color: rc.textOnBg }}
-            >
-              {service.description}
-            </p>
-          )}
-        </div>
-      </div>
-    );
+    const m = bookingMode ?? "in_site_only";
+    const canBook = !(m === "external_only" && !service.bookingDeepLink);
+    const triggerBook = () => {
+      if (m === "external_only" && service.bookingDeepLink) {
+        window.open(service.bookingDeepLink, "_blank", "noopener,noreferrer");
+      } else if (m === "both" && service.bookingDeepLink) {
+        requestBookingChoice(service.name, service.bookingDeepLink);
+      } else {
+        openBookingCalendarForService(service.name);
+      }
+    };
     return (
       <AnimateSection key={service.name} animation="fade-in" delay={i * 0.15}>
-        {(() => {
-          const m = bookingMode ?? "in_site_only";
-          if (m === "external_only") {
-            if (!service.bookingDeepLink) return card;
-            return (
-              <button
-                type="button"
-                onClick={() => window.open(service.bookingDeepLink!, "_blank", "noopener,noreferrer")}
-                className="block w-full text-left"
+        <div
+          className={`group flex items-stretch gap-4${canBook ? " cursor-pointer" : ""}`}
+          {...(canBook
+            ? {
+                role: "button",
+                tabIndex: 0,
+                onClick: triggerBook,
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    triggerBook();
+                  }
+                },
+              }
+            : {})}
+        >
+          {service.image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={service.image}
+              alt={service.name}
+              className="block w-32 self-stretch flex-shrink-0 rounded-md object-cover"
+            />
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-baseline">
+              <h3 className="text-lg font-medium" style={{ color: rc.textOnBg }}>
+                {service.name}
+              </h3>
+              <div className="mx-4 flex-1 border-b border-dotted" style={{ borderColor: `${rc.textOnBg}30` }} />
+              <div className="text-right">
+                <span className="text-lg" style={{ color: rc.primaryOnBg }}>
+                  {service.price}
+                </span>
+                <span className="text-xs opacity-60 ml-2" style={{ color: rc.textOnBg }}>
+                  · {formatDuration(service.durationMinutes ?? 60)}
+                </span>
+              </div>
+            </div>
+            {service.description && (
+              <p
+                className="mt-1 text-sm italic opacity-50 line-clamp-4"
+                style={{ color: rc.textOnBg }}
               >
-                {card}
-              </button>
-            );
-          }
-          if (m === "both" && service.bookingDeepLink) {
-            return (
-              <button
-                type="button"
-                onClick={() => requestBookingChoice(service.name, service.bookingDeepLink!)}
-                className="block w-full text-left"
-              >
-                {card}
-              </button>
-            );
-          }
-          return (
-            <button
-              type="button"
-              onClick={() => openBookingCalendarForService(service.name)}
-              className="block w-full text-left"
-            >
-              {card}
-            </button>
-          );
-        })()}
+                {service.description}
+              </p>
+            )}
+            {canBook && (
+              <div className="mt-2">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); triggerBook(); }}
+                  className="text-xs uppercase tracking-[0.3em] font-light underline-offset-4 hover:underline"
+                  style={{ color: rc.primaryOnBg }}
+                >
+                  Book →
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </AnimateSection>
     );
   };
