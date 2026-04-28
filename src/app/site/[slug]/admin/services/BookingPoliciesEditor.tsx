@@ -10,10 +10,14 @@ interface BookingPoliciesEditorProps {
 const MAX_LENGTH = 10000;
 
 export function BookingPoliciesEditor({ value, onChange }: BookingPoliciesEditorProps) {
-  const [expanded, setExpanded] = useState(value.length > 0);
+  // Start collapsed when content already exists so the section doesn't
+  // dominate the page after the owner reloads. Empty + collapsed = the
+  // initial "+ Add" prompt.
+  const [expanded, setExpanded] = useState(false);
   const headline = (value.split("\n").find((l) => l.trim().length > 0) ?? "").trim();
 
-  if (!expanded) {
+  // Collapsed, no content → compact CTA prompt.
+  if (!expanded && !value.trim()) {
     return (
       <button
         type="button"
@@ -28,15 +32,48 @@ export function BookingPoliciesEditor({ value, onChange }: BookingPoliciesEditor
     );
   }
 
+  // Collapsed with content → summary card showing the headline + Edit.
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="w-full bg-white border border-gray-200 rounded-lg p-3 text-left hover:border-gray-300"
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+            Booking policies
+          </span>
+          <span className="text-xs text-[var(--admin-primary)] font-medium">
+            Edit ▾
+          </span>
+        </div>
+        <p className="mt-1 text-sm text-gray-600 line-clamp-2">
+          {headline}
+        </p>
+      </button>
+    );
+  }
+
+  // Expanded — textarea + Done button to collapse.
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
           Booking policies
         </span>
-        <span className="text-[10px] text-gray-400">
-          {value.length}/{MAX_LENGTH.toLocaleString()}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-[10px] text-gray-400">
+            {value.length}/{MAX_LENGTH.toLocaleString()}
+          </span>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="text-xs text-[var(--admin-primary)] font-medium"
+          >
+            Done ▴
+          </button>
+        </div>
       </div>
       <textarea
         value={value}
