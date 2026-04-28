@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
@@ -159,11 +159,27 @@ export function CustomerBookingFlow({
     }
   };
 
+  // Time slots block on the details step — scrolled into view on date
+  // change so the customer notices the slots appearing below the calendar
+  // instead of just seeing the calendar refresh and not knowing where to go.
+  const timeSlotsRef = useRef<HTMLDivElement | null>(null);
+
   // Only stores the date — no auto-advance, no slot fetch.
-  // The Continue button on the details screen drives the transition + fetch.
+  // The fetch effect below fires on selectedDate change.
   const handleDateSelect = (date: Date) => {
     setSelectedDate(date);
   };
+
+  // Scroll the time slots into view when a date is selected (or changed)
+  // on the details step. Defer to the next frame so the slots block has
+  // rendered before we measure.
+  useEffect(() => {
+    if (step !== "details" || !selectedDate) return;
+    const id = requestAnimationFrame(() => {
+      timeSlotsRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedDate, step]);
 
   // Fetch slots whenever the customer picks a date or toggles add-ons —
   // the time grid lives inline on the details step so customers can see
@@ -434,9 +450,10 @@ export function CustomerBookingFlow({
 
                   {/* Time slots — render inline once a date is selected so the
                       customer can confirm day + time availability together
-                      without going to the next screen. */}
+                      without going to the next screen. Auto-scrolled into
+                      view on date change (see useEffect above). */}
                   {selectedDate && (
-                    <div className="space-y-2">
+                    <div ref={timeSlotsRef} className="space-y-2 scroll-mt-4">
                       <div className="text-xs font-semibold uppercase tracking-wider opacity-60" style={{ color: colors.foreground }}>
                         Available times — {DAYS[selectedDate.getDay()]}, {MONTHS[selectedDate.getMonth()].slice(0, 3)} {selectedDate.getDate()}
                       </div>
