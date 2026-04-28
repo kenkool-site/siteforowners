@@ -357,7 +357,7 @@ export function ServiceRow({
         ))}
       </div>
 
-      <div className="flex items-center justify-between pt-1">
+      <div className="flex items-center justify-between pt-2">
         {confirmDelete ? (
           <div className="flex items-center gap-2 text-xs">
             <span className="text-red-600">Delete this service?</span>
@@ -367,7 +367,13 @@ export function ServiceRow({
         ) : (
           <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs text-red-600">Delete</button>
         )}
-        <button type="button" onClick={() => setExpanded(false)} className="text-xs text-gray-500">▾ Collapse</button>
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          className="rounded-lg border border-[color:var(--admin-primary)] text-[color:var(--admin-primary)] bg-white text-sm font-semibold px-4 py-1.5"
+        >
+          Done ▴
+        </button>
       </div>
     </div>
   );
