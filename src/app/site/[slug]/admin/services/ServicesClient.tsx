@@ -208,7 +208,7 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
         ))
       )}
 
-      <div className="fixed bottom-16 md:bottom-4 inset-x-0 px-4 md:px-8 pointer-events-none">
+      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-4 inset-x-0 px-4 md:px-8 pointer-events-none">
         <div className="max-w-3xl mx-auto flex items-center justify-end gap-3 pointer-events-auto">
           {error && (
             <span className="text-xs text-red-600 whitespace-pre-line max-w-md text-right">
