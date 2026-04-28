@@ -77,6 +77,9 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const [bookingPolicies, setBookingPolicies] = useState<string>(
     (preview.booking_policies as string) || ""
   );
+  // Bumped on Save click to fold every ServiceRow back to its compact view
+  // alongside the rest of the form (mirrors owner-side ServicesClient).
+  const [serviceCollapseSignal, setServiceCollapseSignal] = useState(0);
 
   // Products
   const [products, setProducts] = useState<ProductItem[]>(
@@ -256,6 +259,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     setSaving(true);
     setError("");
     setSaved(false);
+    setServiceCollapseSignal((s) => s + 1);
 
     const pickupNeedsEmail = checkoutMode === "pickup" && !notificationEmail.trim();
     if (pickupNeedsEmail) {
@@ -1159,6 +1163,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                   service={s}
                   categories={categories}
                   founderTenantId={tenantId}
+                  collapseSignal={serviceCollapseSignal}
                   onChange={(next) => {
                     const updated = [...services];
                     updated[i] = next;

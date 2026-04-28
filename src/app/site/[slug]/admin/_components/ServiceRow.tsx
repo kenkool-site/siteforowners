@@ -10,6 +10,10 @@ interface ServiceRowProps {
   categories?: string[];
   founderTenantId?: string;
   failing?: boolean;
+  /** Increment from parent (e.g. on Save click) to force this row to
+   * collapse to the compact view. Failing rows ignore this — they
+   * auto-re-expand via the `failing` effect below. */
+  collapseSignal?: number;
   onChange: (next: ServiceItem) => void;
   onDelete: () => void;
 }
@@ -119,6 +123,7 @@ export function ServiceRow({
   categories = [],
   founderTenantId,
   failing = false,
+  collapseSignal = 0,
   onChange,
   onDelete,
 }: ServiceRowProps) {
@@ -134,6 +139,17 @@ export function ServiceRow({
       containerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [failing]);
+
+  // Parent bumps collapseSignal (e.g. on Save click) to fold every row
+  // back to its compact view. Skipped for failing rows — they auto-expand
+  // via the `failing` effect above.
+  useEffect(() => {
+    if (collapseSignal > 0 && !failing) {
+      setExpanded(false);
+      setConfirmDelete(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collapseSignal]);
 
   const duration = service.duration_minutes ?? 60;
   const addOns: AddOn[] = service.add_ons ?? [];

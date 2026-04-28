@@ -52,6 +52,10 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
   const [error, setError] = useState<string | null>(null);
   const [failingIndexes, setFailingIndexes] = useState<Set<number>>(new Set());
   const [showTruncatedNotice, setShowTruncatedNotice] = useState(truncatedIndexes.size > 0);
+  // Bumped on Save click to force every ServiceRow back to its compact
+  // collapsed view. Failing rows re-expand themselves via their `failing`
+  // prop; the rest stay tidy after a save.
+  const [collapseSignal, setCollapseSignal] = useState(0);
 
   const initialJson = JSON.stringify({ services: normalizedInitial, categories: initialCategories, bookingPolicies: initialBookingPolicies });
   const dirty = JSON.stringify({ services, categories, bookingPolicies }) !== initialJson;
@@ -116,6 +120,7 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
 
   async function save() {
     setSaving(true);
+    setCollapseSignal((s) => s + 1);
     setError(null);
     try {
       const res = await fetch("/api/admin/services", {
@@ -196,6 +201,7 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
             service={s}
             categories={categories}
             failing={failingIndexes.has(i)}
+            collapseSignal={collapseSignal}
             onChange={(next) => update(i, next)}
             onDelete={() => remove(i)}
           />
