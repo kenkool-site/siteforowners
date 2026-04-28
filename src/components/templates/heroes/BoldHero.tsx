@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
@@ -39,6 +40,21 @@ export function BoldHero({
   const accentColor = hasMedia ? ensureReadable(colors.primary, "#333333", 3) : rc.primaryOnFg;
   const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
 
+  // iOS autoplay reliability — see ClassicHero for the rationale.
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !heroVideo) return;
+    el.muted = true;
+    const tryPlay = () => {
+      el.play().catch(() => {});
+    };
+    tryPlay();
+    const onFirstTouch = () => tryPlay();
+    document.addEventListener("touchstart", onFirstTouch, { once: true, passive: true });
+    return () => document.removeEventListener("touchstart", onFirstTouch);
+  }, [heroVideo]);
+
   return (
     <section
       className="relative flex min-h-[100vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
@@ -48,16 +64,16 @@ export function BoldHero({
         <>
           {heroVideo ? (
             <video
+              ref={videoRef}
               autoPlay
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="auto"
               poster={heroImage}
               className="absolute inset-0 h-full w-full object-cover"
-            >
-              <source src={heroVideo} type="video/mp4" />
-            </video>
+              src={heroVideo}
+            />
           ) : (
             <Image
               src={heroImage!}
