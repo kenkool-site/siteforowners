@@ -37,75 +37,74 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
 
   const renderService = (service: DisplayService, i: number) => {
-    const card = (
-      <div
-        className="min-w-[260px] snap-start rounded-xl border-l-4 p-6 md:min-w-0"
-        style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
-      >
-        {service.image && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={service.image} alt={service.name} className="w-full h-40 object-cover rounded-md mb-3" />
-        )}
-        <div className="mb-2 flex items-start justify-between">
-          <h3 className="text-lg font-bold" style={{ color: rc.textOnMuted }}>
-            {service.name}
-          </h3>
-          <div className="ml-3 text-right">
-            <div className="whitespace-nowrap font-bold" style={{ color: rc.primaryOnMuted }}>
-              {service.price}
-            </div>
-            <div className="text-xs opacity-70" style={{ color: rc.primaryOnMuted }}>
-              {formatDuration(service.durationMinutes ?? 60)}
-            </div>
-          </div>
-        </div>
-        {service.description && (
-          <p
-            className="text-sm opacity-60 line-clamp-4"
-            style={{ color: rc.textOnMuted }}
-          >
-            {service.description}
-          </p>
-        )}
-      </div>
-    );
+    const m = bookingMode ?? "in_site_only";
+    const canBook = !(m === "external_only" && !service.bookingDeepLink);
+    const triggerBook = () => {
+      if (m === "external_only" && service.bookingDeepLink) {
+        window.open(service.bookingDeepLink, "_blank", "noopener,noreferrer");
+      } else if (m === "both" && service.bookingDeepLink) {
+        requestBookingChoice(service.name, service.bookingDeepLink);
+      } else {
+        openBookingCalendarForService(service.name);
+      }
+    };
     return (
       <AnimateSection key={service.name} animation="slide-right" delay={i * 0.1}>
-        {(() => {
-          const m = bookingMode ?? "in_site_only";
-          if (m === "external_only") {
-            if (!service.bookingDeepLink) return card;
-            return (
-              <button
-                type="button"
-                onClick={() => window.open(service.bookingDeepLink!, "_blank", "noopener,noreferrer")}
-                className="block w-full text-left"
-              >
-                {card}
-              </button>
-            );
-          }
-          if (m === "both" && service.bookingDeepLink) {
-            return (
-              <button
-                type="button"
-                onClick={() => requestBookingChoice(service.name, service.bookingDeepLink!)}
-                className="block w-full text-left"
-              >
-                {card}
-              </button>
-            );
-          }
-          return (
-            <button
-              type="button"
-              onClick={() => openBookingCalendarForService(service.name)}
-              className="block w-full text-left"
+        <div
+          className={`min-w-[260px] snap-start rounded-xl border-l-4 p-6 md:min-w-0 ${canBook ? "cursor-pointer transition-shadow hover:shadow-md" : ""}`}
+          style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
+          {...(canBook
+            ? {
+                role: "button",
+                tabIndex: 0,
+                onClick: triggerBook,
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    triggerBook();
+                  }
+                },
+              }
+            : {})}
+        >
+          {service.image && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={service.image} alt={service.name} className="w-full h-40 object-cover rounded-md mb-3" />
+          )}
+          <div className="mb-2 flex items-start justify-between">
+            <h3 className="text-lg font-bold" style={{ color: rc.textOnMuted }}>
+              {service.name}
+            </h3>
+            <div className="ml-3 text-right">
+              <div className="whitespace-nowrap font-bold" style={{ color: rc.primaryOnMuted }}>
+                {service.price}
+              </div>
+              <div className="text-xs opacity-70" style={{ color: rc.primaryOnMuted }}>
+                {formatDuration(service.durationMinutes ?? 60)}
+              </div>
+            </div>
+          </div>
+          {service.description && (
+            <p
+              className="text-sm opacity-60 line-clamp-4"
+              style={{ color: rc.textOnMuted }}
             >
-              {card}
-            </button>
-          );
-        })()}
+              {service.description}
+            </p>
+          )}
+          {canBook && (
+            <div className="mt-3">
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); triggerBook(); }}
+                className="w-full rounded-md px-4 py-2 text-sm font-bold uppercase tracking-wider"
+                style={{ backgroundColor: colors.primary, color: "#fff" }}
+              >
+                Book →
+              </button>
+            </div>
+          )}
+        </div>
       </AnimateSection>
     );
   };
