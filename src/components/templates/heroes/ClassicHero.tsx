@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
@@ -41,6 +42,27 @@ export function ClassicHero({
   const accentColor = hasMedia ? ensureReadable(colors.primary, "#333333", 3) : ensureReadable(colors.primary, colors.foreground, 3);
   const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
 
+  // React's `muted` JSX attribute doesn't always reach the DOM before iOS
+  // evaluates autoplay, so iOS sees the video as "has audio" and refuses to
+  // start it — the poster image stays. Force-set muted via a ref and try
+  // to play() once the element is mounted. Same fix lives in BoldHero/WarmHero.
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !heroVideo) return;
+    el.muted = true;
+    const tryPlay = () => {
+      el.play().catch(() => {
+        // Autoplay still refused (low-power mode, etc.); the poster persists.
+      });
+    };
+    tryPlay();
+    // Some iOS versions need a second attempt after the first user gesture.
+    const onFirstTouch = () => tryPlay();
+    document.addEventListener("touchstart", onFirstTouch, { once: true, passive: true });
+    return () => document.removeEventListener("touchstart", onFirstTouch);
+  }, [heroVideo]);
+
   return (
     <section
       className="relative flex min-h-[90vh] flex-col items-center justify-center overflow-hidden px-6 py-24 text-center"
@@ -50,16 +72,16 @@ export function ClassicHero({
         <>
           {heroVideo ? (
             <video
+              ref={videoRef}
               autoPlay
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="auto"
               poster={heroImage}
               className="absolute inset-0 h-full w-full object-cover"
-            >
-              <source src={heroVideo} type="video/mp4" />
-            </video>
+              src={heroVideo}
+            />
           ) : (
             <Image
               src={heroImage!}

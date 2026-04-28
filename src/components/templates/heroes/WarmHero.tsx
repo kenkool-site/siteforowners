@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
@@ -38,6 +39,21 @@ export function WarmHero({
   const rc = readableColors(colors);
   const btnTextColor = ensureReadable(colors.background, colors.primary, 3);
 
+  // iOS autoplay reliability — see ClassicHero for the rationale.
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || !heroVideo) return;
+    el.muted = true;
+    const tryPlay = () => {
+      el.play().catch(() => {});
+    };
+    tryPlay();
+    const onFirstTouch = () => tryPlay();
+    document.addEventListener("touchstart", onFirstTouch, { once: true, passive: true });
+    return () => document.removeEventListener("touchstart", onFirstTouch);
+  }, [heroVideo]);
+
   return (
     <section className="min-h-[90vh] md:grid md:grid-cols-[1fr_4px_1fr]">
       {/* Left: Image/Logo area */}
@@ -52,16 +68,16 @@ export function WarmHero({
           <>
             {heroVideo ? (
               <video
+                ref={videoRef}
                 autoPlay
                 muted
                 loop
                 playsInline
-                preload="metadata"
+                preload="auto"
                 poster={heroImage}
                 className="absolute inset-0 h-full w-full object-cover"
-              >
-                <source src={heroVideo} type="video/mp4" />
-              </video>
+                src={heroVideo}
+              />
             ) : (
               <Image
                 src={heroImage!}
