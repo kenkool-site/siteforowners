@@ -165,12 +165,15 @@ export function CustomerBookingFlow({
     setSelectedDate(date);
   };
 
-  // Re-fetch slots when add-ons change while on the schedule screen
+  // Fetch slots whenever the customer picks a date or toggles add-ons —
+  // the time grid lives inline on the details step so customers can see
+  // day + time availability together without going to the next screen.
   useEffect(() => {
-    if (step !== "schedule" || !selectedDate || !selectedService) return;
+    if (!selectedDate || !selectedService) return;
+    if (step !== "details" && step !== "schedule") return;
     fetchSlots(selectedDate, selectedService);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [step, selectedAddOns]);
+  }, [selectedDate, selectedAddOns, selectedService, step]);
 
   // Deselect a previously chosen time if it's no longer in the refreshed slot list
   useEffect(() => {
@@ -243,8 +246,8 @@ export function CustomerBookingFlow({
             <p className="text-xs font-medium uppercase tracking-wider opacity-60" style={{ color: colors.background }}>{businessName}</p>
             <h3 className="text-lg font-bold" style={{ color: colors.background }}>
               {step === "service" && "Select a Service"}
-              {step === "details" && "Service Details"}
-              {step === "schedule" && "Pick a Time"}
+              {step === "details" && "Pick a Date & Time"}
+              {step === "schedule" && "Your Details"}
               {step === "confirm" && "Booking Confirmed!"}
             </h3>
           </div>
@@ -429,12 +432,46 @@ export function CustomerBookingFlow({
                     })()}
                   </div>
 
+                  {/* Time slots — render inline once a date is selected so the
+                      customer can confirm day + time availability together
+                      without going to the next screen. */}
+                  {selectedDate && (
+                    <div className="space-y-2">
+                      <div className="text-xs font-semibold uppercase tracking-wider opacity-60" style={{ color: colors.foreground }}>
+                        Available times — {DAYS[selectedDate.getDay()]}, {MONTHS[selectedDate.getMonth()].slice(0, 3)} {selectedDate.getDate()}
+                      </div>
+                      {loadingSlots ? (
+                        <div className="flex justify-center py-6">
+                          <div className="h-7 w-7 animate-spin rounded-full border-4 border-gray-200" style={{ borderTopColor: colors.primary }} />
+                        </div>
+                      ) : availableSlots.length > 0 ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          {availableSlots.map((time) => (
+                            <button
+                              key={time}
+                              onClick={() => setSelectedTime(time)}
+                              className="rounded-xl py-3 text-center text-sm font-medium transition-all hover:scale-105"
+                              style={{
+                                backgroundColor: selectedTime === time ? colors.primary : colors.muted,
+                                color: selectedTime === time ? colors.background : colors.foreground,
+                              }}
+                            >
+                              {time}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="py-6 text-center text-sm opacity-50" style={{ color: colors.foreground }}>No availability on this day — try another date.</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="sticky bottom-0 bg-white pt-3 pb-[env(safe-area-inset-bottom)] -mx-5 px-5 sm:static sm:bg-transparent sm:p-0 sm:m-0 sm:pb-0">
                     <button
                       type="button"
-                      disabled={!selectedDate}
+                      disabled={!selectedDate || !selectedTime}
                       onClick={() => {
-                        if (selectedDate) {
+                        if (selectedDate && selectedTime) {
                           setStep("schedule");
                         }
                       }}
@@ -448,7 +485,7 @@ export function CustomerBookingFlow({
               </motion.div>
             )}
 
-            {/* Step: schedule — time slots + contact form + Confirm CTA */}
+            {/* Step: schedule — your details (contact form + Confirm CTA) */}
             {step === "schedule" && selectedService && selectedDate && (
               <motion.div key="schedule" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
                 <div className="space-y-4">
@@ -462,12 +499,16 @@ export function CustomerBookingFlow({
                       ← Back
                     </button>
                     <span className="text-xs text-gray-500">
-                      Step 2 of 2 — Time
+                      Step 2 of 2 — Your details
                     </span>
                   </div>
 
-                  <div className="text-xs text-gray-500">
-                    {selectedService.name} · {selectedDate.toLocaleDateString()}
+                  {/* Compact summary — service, date, picked time. The time
+                      grid lives on the previous screen now. */}
+                  <div className="rounded-xl p-3 text-sm" style={{ backgroundColor: colors.muted, color: colors.foreground }}>
+                    <span className="font-semibold">{selectedService?.name}</span> &middot;{" "}
+                    {selectedDate && `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()].slice(0, 3)} ${selectedDate.getDate()}`} &middot;{" "}
+                    <span className="font-semibold">{selectedTime}</span>
                   </div>
 
                   <RunningTotalBar
@@ -476,38 +517,6 @@ export function CustomerBookingFlow({
                     addOns={selectedAddOns}
                     colors={colors}
                   />
-
-                  {/* Time slots grid */}
-                  {loadingSlots ? (
-                    <div className="flex justify-center py-8">
-                      <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-200" style={{ borderTopColor: colors.primary }} />
-                    </div>
-                  ) : availableSlots.length > 0 ? (
-                    <div className="grid grid-cols-3 gap-2">
-                      {availableSlots.map((time) => (
-                        <button
-                          key={time}
-                          onClick={() => setSelectedTime(time)}
-                          className="rounded-xl py-3 text-center text-sm font-medium transition-all hover:scale-105"
-                          style={{
-                            backgroundColor: selectedTime === time ? colors.primary : colors.muted,
-                            color: selectedTime === time ? colors.background : colors.foreground,
-                          }}
-                        >
-                          {time}
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="py-8 text-center text-sm opacity-50" style={{ color: colors.foreground }}>No availability on this day</p>
-                  )}
-
-                  {/* Contact form */}
-                  <div className="mb-4 rounded-xl p-3 text-xs" style={{ backgroundColor: colors.muted, color: colors.foreground }}>
-                    <span className="font-semibold">{selectedService?.name}</span> &middot;{" "}
-                    {selectedDate && `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()].slice(0, 3)} ${selectedDate.getDate()}`} &middot;{" "}
-                    {selectedTime ?? "— pick a time above"}
-                  </div>
 
                   {error && (
                     <div className="mb-3 rounded-lg bg-red-50 p-3 text-xs text-red-700">{error}</div>
