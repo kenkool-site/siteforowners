@@ -8,6 +8,23 @@ const FROM = process.env.EMAIL_FROM || "SiteForOwners <hello@siteforowners.com>"
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
 
+const FALLBACK_FROM = FROM;
+const FROM_ADDRESS = (process.env.EMAIL_FROM_ADDRESS || "hello@siteforowners.com").trim();
+
+/**
+ * Build the From header with the tenant's business name as the display
+ * name, e.g. `"Mariam's Hair" <hello@siteforowners.com>`. Display names
+ * with special chars are double-quoted (RFC 5322). Falls back to the
+ * default FROM if no business name is supplied.
+ */
+function tenantFrom(businessName?: string | null): string {
+  if (!businessName) return FALLBACK_FROM;
+  // Strip quotes and angle brackets that would break the header.
+  const safe = businessName.replace(/[<>"]/g, "").trim();
+  if (!safe) return FALLBACK_FROM;
+  return `"${safe}" <${FROM_ADDRESS}>`;
+}
+
 interface LeadData {
   ownerName: string;
   phone: string;
@@ -137,6 +154,17 @@ export interface BookingEmailData {
   customerPhone: string;
   customerEmail?: string;
   customerNotes?: string;
+  /** Owner's notification email address — set as Reply-To on customer-facing
+   * emails so customer replies route to the owner. */
+  ownerEmail?: string;
+  /** Tenant's preview slug — used to build the admin link in the owner
+   * notification email. */
+  previewSlug?: string;
+  /** Booking status at send time. Affects the owner email's banner color +
+   * whether the deposit reminder section renders. */
+  status?: "confirmed" | "pending";
+  /** Deposit amount snapshot when applicable. */
+  depositAmount?: number;
 }
 
 /**
@@ -151,30 +179,89 @@ export async function sendBookingNotification(
   const toEmail = ownerEmail || ADMIN_EMAIL;
   if (!toEmail) return;
 
+  const isPending = booking.status === "pending";
+  const hasDeposit = !!(booking.depositAmount && booking.depositAmount > 0);
+  const adminUrl = booking.previewSlug
+    ? `https://siteforowners.com/site/${booking.previewSlug}/admin/schedule`
+    : null;
+
+  const subject = isPending
+    ? `⏳ Pending booking: ${booking.customerName} — ${booking.serviceName} (deposit needed)`
+    : `New Booking: ${booking.customerName} — ${booking.serviceName} on ${booking.date}`;
+
+  const headerColor = isPending ? "#f59e0b" : "#059669";
+  const headerLabel = isPending ? "Pending Deposit" : "New Booking";
+
   await resend.emails.send({
-    from: FROM,
+    from: tenantFrom(booking.businessName),
     to: toEmail,
-    subject: `New Booking: ${booking.customerName} — ${booking.serviceName} on ${booking.date}`,
+    ...(booking.customerEmail ? { replyTo: booking.customerEmail } : {}),
+    subject,
     attachments: [
       { filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") },
     ],
     html: `
-      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
-        <div style="background: #059669; padding: 16px 24px; border-radius: 12px 12px 0 0;">
-          <h2 style="margin: 0; color: #fff; font-size: 18px;">New Booking — ${booking.businessName}</h2>
+      <div style="font-family: -apple-system, sans-serif; max-width: 560px; margin: 0 auto;">
+        <div style="background: ${headerColor}; padding: 18px 24px; border-radius: 12px 12px 0 0;">
+          <div style="color: rgba(255,255,255,0.85); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600;">${headerLabel}</div>
+          <h2 style="margin: 4px 0 0; color: #fff; font-size: 18px;">${escapeHtml(booking.businessName)}</h2>
         </div>
         <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
-          <table style="width: 100%; border-collapse: collapse;">
-            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px; width: 90px;">Service</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.serviceName}${booking.servicePrice ? ` (${booking.servicePrice})` : ""}</td></tr>
-            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Date</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.date}</td></tr>
-            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Time</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.time}</td></tr>
-            <tr><td colspan="2" style="border-top: 1px solid #eee; padding-top: 8px;"></td></tr>
-            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Customer</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${booking.customerName}</td></tr>
-            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Phone</td><td style="padding: 8px 0; font-size: 14px;"><a href="tel:${booking.customerPhone}" style="color: #2563EB;">${booking.customerPhone}</a></td></tr>
-            ${booking.customerEmail ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Email</td><td style="padding: 8px 0; font-size: 14px;">${booking.customerEmail}</td></tr>` : ""}
-            ${booking.customerNotes ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Notes</td><td style="padding: 8px 0; font-size: 14px;">${booking.customerNotes}</td></tr>` : ""}
-          </table>
-          <p style="margin-top: 16px; font-size: 13px; color: #9CA3AF;">Calendar invite attached — open to add to your calendar.</p>
+          ${isPending && hasDeposit ? `
+            <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px; margin-bottom: 16px;">
+              <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #92400e; font-weight: 600;">Awaiting deposit</div>
+              <div style="font-size: 18px; font-weight: 700; color: #78350f; margin-top: 2px;">$${booking.depositAmount!.toFixed(2)}</div>
+              <div style="font-size: 13px; color: #78350f; margin-top: 4px;">Once you receive payment, mark deposit received in admin to confirm the booking.</div>
+            </div>
+          ` : ""}
+
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; font-weight: 600; margin-bottom: 6px;">Service</div>
+          <div style="font-size: 15px; font-weight: 600; color: #111827; margin-bottom: 14px;">
+            ${escapeHtml(booking.serviceName)}${booking.servicePrice ? ` <span style="color: #6b7280; font-weight: 400;">· ${escapeHtml(booking.servicePrice)}</span>` : ""}
+          </div>
+
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; font-weight: 600; margin-bottom: 6px;">When</div>
+          <div style="font-size: 15px; font-weight: 600; color: #111827; margin-bottom: 18px;">
+            ${escapeHtml(booking.date)} · ${escapeHtml(booking.time)}
+          </div>
+
+          <div style="border-top: 1px solid #f3f4f6; padding-top: 14px;">
+            <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7280; font-weight: 600; margin-bottom: 8px;">Customer</div>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 4px 0; color: #6B7280; font-size: 13px; width: 80px;">Name</td>
+                <td style="padding: 4px 0; font-size: 14px; font-weight: 600;">${escapeHtml(booking.customerName)}</td>
+              </tr>
+              <tr>
+                <td style="padding: 4px 0; color: #6B7280; font-size: 13px;">Phone</td>
+                <td style="padding: 4px 0; font-size: 14px;">
+                  <a href="tel:${escapeHtml(booking.customerPhone)}" style="color: #2563EB;">${escapeHtml(booking.customerPhone)}</a>
+                </td>
+              </tr>
+              ${booking.customerEmail ? `
+                <tr>
+                  <td style="padding: 4px 0; color: #6B7280; font-size: 13px;">Email</td>
+                  <td style="padding: 4px 0; font-size: 14px;">
+                    <a href="mailto:${escapeHtml(booking.customerEmail)}" style="color: #2563EB;">${escapeHtml(booking.customerEmail)}</a>
+                  </td>
+                </tr>
+              ` : ""}
+              ${booking.customerNotes ? `
+                <tr>
+                  <td style="padding: 4px 0; color: #6B7280; font-size: 13px; vertical-align: top;">Notes</td>
+                  <td style="padding: 4px 0; font-size: 14px; color: #4b5563;">${escapeHtml(booking.customerNotes)}</td>
+                </tr>
+              ` : ""}
+            </table>
+          </div>
+
+          ${adminUrl ? `
+            <div style="margin-top: 22px; text-align: center;">
+              <a href="${adminUrl}" style="display: inline-block; background: ${headerColor}; color: #fff; padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none;">View in Admin →</a>
+            </div>
+          ` : ""}
+
+          <p style="margin: 18px 0 0; font-size: 12px; color: #9CA3AF; text-align: center;">Calendar invite attached.</p>
         </div>
       </div>
     `,
@@ -189,8 +276,9 @@ export async function sendBookingConfirmation(booking: BookingEmailData, icsCont
   const firstName = booking.customerName.split(" ")[0];
 
   await resend.emails.send({
-    from: FROM,
+    from: tenantFrom(booking.businessName),
     to: booking.customerEmail,
+    ...(booking.ownerEmail ? { replyTo: booking.ownerEmail } : {}),
     subject: `Booking Confirmed — ${booking.serviceName} at ${booking.businessName}`,
     attachments: [
       { filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") },
@@ -228,8 +316,9 @@ export async function sendBookingPendingDepositEmail(
   const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
   const subject = `⏳ Pay $${deposit.amount.toFixed(2)} to secure your booking at ${booking.businessName}`;
   await resend.emails.send({
-    from: FROM,
+    from: tenantFrom(booking.businessName),
     to: booking.customerEmail,
+    ...(booking.ownerEmail ? { replyTo: booking.ownerEmail } : {}),
     subject,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
@@ -262,8 +351,9 @@ export async function sendBookingDepositReceivedEmail(
   const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
   const subject = `✓ Deposit received — booking confirmed at ${booking.businessName}`;
   await resend.emails.send({
-    from: FROM,
+    from: tenantFrom(booking.businessName),
     to: booking.customerEmail,
+    ...(booking.ownerEmail ? { replyTo: booking.ownerEmail } : {}),
     subject,
     attachments: icsContent
       ? [{ filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") }]
@@ -296,8 +386,9 @@ export async function sendBookingCanceledEmail(booking: BookingEmailData) {
   const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
   const subject = `Your booking at ${booking.businessName} has been canceled`;
   await resend.emails.send({
-    from: FROM,
+    from: tenantFrom(booking.businessName),
     to: booking.customerEmail,
+    ...(booking.ownerEmail ? { replyTo: booking.ownerEmail } : {}),
     subject,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
