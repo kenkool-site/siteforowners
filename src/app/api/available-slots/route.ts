@@ -65,6 +65,7 @@ export async function GET(request: Request) {
   const slug = searchParams.get("slug");
   const date = searchParams.get("date");
   const durationParam = searchParams.get("duration_minutes");
+  const excludeBookingId = searchParams.get("exclude_booking_id");
 
   if (!slug || !date) {
     return NextResponse.json({ error: "slug and date required" }, { status: 400 });
@@ -92,12 +93,14 @@ export async function GET(request: Request) {
   // Spec 5: pending bookings reserve slots too, so customer-facing slot
   // availability must hide them from new customers. Confirmed + pending
   // both block the slot.
-  const { data: bookings } = await supabase
+  let q = supabase
     .from("bookings")
     .select("booking_time, duration_minutes")
     .eq("preview_slug", slug)
     .eq("booking_date", date)
     .in("status", ["confirmed", "pending"]);
+  if (excludeBookingId) q = q.neq("id", excludeBookingId);
+  const { data: bookings } = await q;
 
   const existing = (bookings ?? []).map((b) => ({
     startMinutes: parseBookingTime(b.booking_time as string),
