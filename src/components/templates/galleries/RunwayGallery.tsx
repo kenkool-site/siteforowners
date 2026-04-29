@@ -38,7 +38,7 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
       <div className="relative z-10 mx-auto max-w-7xl">
         <AnimateSection>
           <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
-            <h2 className="max-w-4xl text-5xl font-black uppercase leading-[0.86] tracking-[-0.065em] sm:text-6xl md:text-7xl lg:text-8xl">
+            <h2 className="max-w-4xl text-4xl font-black uppercase leading-[0.9] tracking-[-0.05em] sm:text-5xl md:text-6xl lg:text-7xl">
               Gallery After The Chair
             </h2>
             <p className="max-w-sm text-sm leading-7 text-white/[0.62] md:text-base">

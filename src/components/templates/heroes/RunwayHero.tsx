@@ -90,7 +90,7 @@ export function RunwayHero({
             {businessName}
           </p>
 
-          <h1 className="max-w-5xl text-6xl font-black uppercase leading-[0.82] tracking-[-0.08em] sm:text-7xl md:text-8xl xl:text-[9.5rem]">
+          <h1 className="max-w-5xl text-5xl font-black uppercase leading-[0.88] tracking-[-0.06em] sm:text-6xl md:text-7xl xl:text-8xl">
             <span className="block">{headlineTop}</span>
             <span
               className="block"
