@@ -95,15 +95,14 @@ function PaymentMethodList({ methods }: { methods: PaymentMethods }) {
     <div className="space-y-1.5 text-sm">
       {methods.cashapp && (
         <div>
-          <span className="font-semibold">CashApp:</span>{" "}
           <a
             href={cashappUrl(methods.cashapp)}
             target="_blank"
             rel="noopener noreferrer"
-            className="underline"
-            style={{ color: "#1d4ed8" }}
+            className="inline-block rounded-md px-3 py-1.5 text-sm font-semibold text-white"
+            style={{ backgroundColor: "#00D632" }}
           >
-            cash.app/${normalizeCashapp(methods.cashapp)}
+            Pay ${normalizeCashapp(methods.cashapp)} on CashApp →
           </a>
         </div>
       )}

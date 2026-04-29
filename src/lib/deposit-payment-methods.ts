@@ -45,7 +45,7 @@ export function renderPaymentMethodsHtml(m: PaymentMethods): string {
   if (m.cashapp) {
     const handle = normalizeCashapp(m.cashapp);
     rows.push(
-      `<div style="margin: 0 0 6px; font-size: 14px; color: #111827;"><strong>CashApp:</strong> <a href="${esc(cashappUrl(handle))}" style="color: #2563EB; text-decoration: none;">cash.app/$${esc(handle)}</a></div>`,
+      `<div style="margin: 0 0 8px;"><a href="${esc(cashappUrl(handle))}" style="display: inline-block; padding: 8px 14px; background: #00D632; color: #fff; text-decoration: none; border-radius: 6px; font-size: 14px; font-weight: 600;">Pay $${esc(handle)} on CashApp →</a></div>`,
     );
   }
   if (m.zelle) {
