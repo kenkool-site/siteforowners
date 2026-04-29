@@ -75,9 +75,24 @@ export function RunwayHero({
       }}
     >
       <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0,transparent_30%,transparent_70%,rgba(255,255,255,0.06)_100%)]" />
+      {heroImage && (
+        <div className="absolute inset-y-0 right-0 w-full opacity-35 lg:w-[58%] lg:opacity-45" aria-hidden>
+          <Image
+            src={heroImage}
+            alt=""
+            fill
+            className="object-cover object-center brightness-75 contrast-125 saturate-90"
+            sizes="(max-width: 1024px) 100vw, 58vw"
+            priority
+            unoptimized
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/65 to-[#030303]/20" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/20" />
+        </div>
+      )}
       <div className="absolute left-1/2 top-0 h-full w-px bg-white/10" />
 
-      <div className="relative z-10 mx-auto grid min-h-[calc(92vh-12rem)] max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+      <div className="relative z-10 mx-auto grid min-h-[calc(92vh-12rem)] max-w-7xl items-center gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(320px,0.75fr)]">
         <motion.div
           initial={{ opacity: 0, y: 36 }}
           animate={{ opacity: 1, y: 0 }}
@@ -90,7 +105,7 @@ export function RunwayHero({
             {businessName}
           </p>
 
-          <h1 className="max-w-5xl text-5xl font-black uppercase leading-[0.88] tracking-[-0.06em] sm:text-6xl md:text-7xl xl:text-8xl">
+          <h1 className="max-w-3xl text-5xl font-black uppercase leading-[0.88] tracking-[-0.06em] sm:text-6xl md:text-7xl xl:text-8xl">
             <span className="block">{headlineTop}</span>
             <span
               className="block"
@@ -146,7 +161,7 @@ export function RunwayHero({
         </motion.div>
 
         <motion.div
-          className="relative"
+          className="relative mx-auto w-full max-w-md lg:mx-0 lg:ml-auto"
           initial={{ opacity: 0, x: 42, scale: 0.96 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           transition={{ duration: 0.85, delay: 0.12, ease: "easeOut" }}
