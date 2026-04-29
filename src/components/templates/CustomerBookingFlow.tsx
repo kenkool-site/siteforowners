@@ -163,17 +163,26 @@ export function CustomerBookingFlow({
   previewSlug,
   onClose,
   initialService = null,
+  initialCustomer,
   workingHours = null,
   blockedDates = [],
   bookingPolicies = "",
   depositSettings,
+  rescheduleMode,
 }: {
   services: SimpleService[];
   colors: ThemeColors;
   businessName: string;
   previewSlug: string;
-  onClose: () => void;
+  onClose?: () => void;
   initialService?: SimpleService | null;
+  /** Spec 6: pre-populate the details-step inputs (used by reschedule
+   * mode where customer info is already known). */
+  initialCustomer?: {
+    name: string;
+    phone: string;
+    email?: string;
+  };
   workingHours?: Record<string, { open: string; close: string } | null> | null;
   blockedDates?: string[];
   bookingPolicies?: string;
@@ -186,18 +195,29 @@ export function CustomerBookingFlow({
     deposit_other_label: string | null;
     deposit_other_value: string | null;
   };
+  /** Spec 6: when set, the flow renders in reschedule mode — service +
+   * customer info are locked, deposit panel is hidden, submit calls a
+   * different endpoint. */
+  rescheduleMode?: {
+    bookingId: string;
+    originalDateLabel: string;     // "Friday, May 1"
+    originalTimeLabel: string;     // "11:00 AM"
+    tokenExpiry: number;
+    tokenSignature: string;
+    onDone: () => void;
+  };
 }) {
   const [step, setStep] = useState<"service" | "details" | "schedule" | "confirm">(
-    initialService ? "details" : "service",
+    rescheduleMode ? "details" : initialService ? "details" : "service",
   );
   const [selectedService, setSelectedService] = useState<SimpleService | null>(initialService);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [availableSlots, setAvailableSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [customerEmail, setCustomerEmail] = useState("");
+  const [customerName, setCustomerName] = useState(initialCustomer?.name ?? "");
+  const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone ?? "");
+  const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email ?? "");
   const [customerNotes, setCustomerNotes] = useState("");
   const [customerSmsOptIn, setCustomerSmsOptIn] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -340,6 +360,34 @@ export function CustomerBookingFlow({
     }
   };
 
+  const handleReschedule = async () => {
+    if (!rescheduleMode || !selectedTime || !selectedDate) return;
+    setSubmitting(true);
+    try {
+      const y = selectedDate.getFullYear();
+      const m = (selectedDate.getMonth() + 1).toString().padStart(2, "0");
+      const d = selectedDate.getDate().toString().padStart(2, "0");
+      const newDate = `${y}-${m}-${d}`;
+      const res = await fetch(`/api/booking/${rescheduleMode.bookingId}/reschedule`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: { e: rescheduleMode.tokenExpiry, s: rescheduleMode.tokenSignature },
+          new_date: newDate,
+          new_time: selectedTime,
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        alert(errData?.error || "Could not reschedule. Try another slot or call us.");
+        return;
+      }
+      rescheduleMode.onDone();
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const allSteps = ["service", "details", "schedule", "confirm"];
 
   return (
@@ -413,7 +461,16 @@ export function CustomerBookingFlow({
             {step === "details" && selectedService && (
               <motion.div key="details" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
                 <div className="space-y-4">
-                  <div className="text-xs text-gray-500 mb-1">Step 1 of 2 — Details</div>
+                  {rescheduleMode ? (
+                    <div className="mb-3 rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm">
+                      <div className="text-xs uppercase tracking-wider text-blue-900 font-semibold mb-1">Currently scheduled</div>
+                      <div className="text-blue-900">
+                        {rescheduleMode.originalDateLabel} at {rescheduleMode.originalTimeLabel}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-500 mb-1">Step 1 of 2 — Details</div>
+                  )}
 
                   <ServiceDetailsPanel service={selectedService} colors={colors} />
 
@@ -668,8 +725,8 @@ export function CustomerBookingFlow({
                       className="w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
                   </div>
 
-                  {/* Deposit panel — only renders if deposit is required */}
-                  {isDepositRequired && (
+                  {/* Deposit panel — only renders if deposit is required and not in reschedule mode */}
+                  {!rescheduleMode && isDepositRequired && (
                     <div
                       className="rounded-xl border-l-4 p-3"
                       style={{ backgroundColor: "#fffbeb", borderLeftColor: "#f59e0b", color: "#451a03" }}
@@ -688,8 +745,8 @@ export function CustomerBookingFlow({
                     </div>
                   )}
 
-                  {/* Booking policies callout — only renders if owner set any */}
-                  {policiesHeadline && (
+                  {/* Booking policies callout — only renders if owner set any and not in reschedule mode */}
+                  {!rescheduleMode && policiesHeadline && (
                     <button
                       type="button"
                       onClick={() => setPoliciesOpen(true)}
@@ -709,12 +766,16 @@ export function CustomerBookingFlow({
                   <div className="sticky bottom-0 bg-white pt-3 pb-[env(safe-area-inset-bottom)] -mx-5 px-5 sm:static sm:bg-transparent sm:p-0 sm:m-0 sm:pb-0">
                     <button
                       type="button"
-                      disabled={submitting || !selectedTime || !customerName.trim() || !customerPhone.trim()}
-                      onClick={handleBook}
+                      disabled={submitting || !selectedTime || (!rescheduleMode && (!customerName.trim() || !customerPhone.trim()))}
+                      onClick={rescheduleMode ? handleReschedule : handleBook}
                       className="w-full py-3 rounded-lg font-semibold disabled:opacity-50"
                       style={{ backgroundColor: colors.primary, color: "white" }}
                     >
-                      {submitting ? "Booking..." : isDepositRequired ? "Confirm & I'll pay deposit" : "Confirm booking"}
+                      {submitting
+                        ? rescheduleMode ? "Saving..." : "Booking..."
+                        : rescheduleMode ? "Confirm reschedule"
+                        : isDepositRequired ? "Confirm & I'll pay deposit"
+                        : "Confirm booking"}
                     </button>
                   </div>
                 </div>
