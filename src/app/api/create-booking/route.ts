@@ -13,6 +13,9 @@ import {
 import { computeDeposit, parseServicePrice } from "@/lib/deposit";
 import type { AddOn } from "@/lib/ai/types";
 import { validateAddOns } from "@/lib/validation/add-ons";
+import { signToken, bookingStartToExpiry } from "@/lib/reschedule-token";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -232,6 +235,10 @@ export async function POST(request: Request) {
       endDate,
     });
 
+    const rescheduleExpiry = bookingStartToExpiry(booking_date, booking_time);
+    const rescheduleSig = signToken({ bookingId: booking.id, expiry: rescheduleExpiry });
+    const rescheduleUrl = `${APP_URL.replace(/\/$/, "")}/reschedule?b=${booking.id}&e=${rescheduleExpiry}&s=${rescheduleSig}`;
+
     const emailData = {
       businessName,
       businessPhone,
@@ -250,6 +257,7 @@ export async function POST(request: Request) {
       depositAmount: depositAmount > 0 ? depositAmount : undefined,
       bookingId: booking.id,
       googleCalendarUrl: gcalUrl,
+      rescheduleUrl,
     };
 
     // Look up owner SMS phone (falls back to tenants.phone)
