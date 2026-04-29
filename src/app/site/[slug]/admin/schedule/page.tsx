@@ -6,7 +6,9 @@ import {
   getBookingSettings,
   getBookingMode,
 } from "@/lib/admin-bookings";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { ScheduleClient } from "./ScheduleClient";
+import type { PendingBooking } from "./_components/PendingPaymentsList";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -79,6 +81,23 @@ export default async function SchedulePage({
     getBookingSettings(tenant.id),
   ]);
 
+  const pendingSupabase = createAdminClient();
+  const { data: pendingRows } = await pendingSupabase
+    .from("bookings")
+    .select("id, customer_name, service_name, booking_date, booking_time, deposit_amount, created_at")
+    .eq("tenant_id", tenant.id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  const initialPending: PendingBooking[] = (pendingRows ?? []).map((r) => ({
+    id: r.id as string,
+    customer_name: r.customer_name as string,
+    service_name: r.service_name as string,
+    booking_date: r.booking_date as string,
+    booking_time: r.booking_time as string,
+    deposit_amount: r.deposit_amount as number | null,
+    created_at: r.created_at as string,
+  }));
+
   return (
     <div className="py-4 md:py-6">
       <div className="px-4 md:px-8">
@@ -90,6 +109,7 @@ export default async function SchedulePage({
           bookings={bookings}
           workingHours={settings?.working_hours ?? null}
           blockedDates={settings?.blocked_dates ?? []}
+          initialPending={initialPending}
         />
       </div>
     </div>

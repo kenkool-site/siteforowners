@@ -65,7 +65,7 @@ export function UpcomingList({
     const d = addDays(start, i);
     const iso = isoDate(d);
     const rows = bookings.filter(
-      (b) => b.booking_date === iso && b.status === "confirmed",
+      (b) => b.booking_date === iso && (b.status === "confirmed" || b.status === "pending"),
     );
     if (rows.length > 0) groups.push({ date: d, iso, rows });
   }
@@ -111,13 +111,20 @@ export function UpcomingList({
                 key={r.id}
                 type="button"
                 onClick={() => onBookingClick(r)}
-                className="w-full px-4 py-3 text-left flex items-baseline gap-3 hover:bg-[var(--admin-primary-light)]/40 transition-colors"
+                className={`w-full px-4 py-3 text-left flex items-baseline gap-3 hover:bg-[var(--admin-primary-light)]/40 transition-colors${r.status === "pending" ? " bg-amber-50 border-l-4 border-amber-500" : ""}`}
               >
                 <div className="text-xs font-medium text-[color:var(--admin-primary)] w-32 shrink-0">
                   {formatTimeRange(r.booking_time, r.duration_minutes)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">{r.customer_name}</div>
+                  <div className="text-sm font-semibold truncate">
+                    {r.customer_name}
+                    {r.status === "pending" && (
+                      <span className="ml-2 inline-block bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                        Pending
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500 truncate">{r.service_name}</div>
                 </div>
               </button>

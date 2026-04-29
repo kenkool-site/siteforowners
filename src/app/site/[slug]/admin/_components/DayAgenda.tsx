@@ -74,7 +74,7 @@ export function DayAgenda({
   const bookingsByHour = useMemo(() => {
     const map = new Map<number, BookingRow>();
     for (const b of bookings) {
-      if (b.status !== "confirmed") continue;
+      if (b.status !== "confirmed" && b.status !== "pending") continue;
       const startH = Math.floor(parseBookingTime(b.booking_time) / 60);
       map.set(startH, b);
     }
@@ -148,9 +148,16 @@ export function DayAgenda({
                     <button
                       type="button"
                       onClick={() => onBookingClick(booking)}
-                      className="flex-1 text-left"
+                      className={`flex-1 text-left${booking.status === "pending" ? " border-l-4 border-amber-500 pl-2 bg-amber-50 rounded" : ""}`}
                     >
-                      <div className="font-semibold">{booking.customer_name}</div>
+                      <div className="font-semibold">
+                        {booking.customer_name}
+                        {booking.status === "pending" && (
+                          <span className="ml-2 inline-block bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                            Pending
+                          </span>
+                        )}
+                      </div>
                       <div className="text-xs text-gray-500">
                         {booking.service_name} · {formatTimeRange(booking.booking_time, booking.duration_minutes)}
                       </div>

@@ -7,6 +7,7 @@ import { DayAgenda } from "../_components/DayAgenda";
 import { HoursEditor } from "../_components/HoursEditor";
 import { BookingActionSheet } from "../_components/BookingActionSheet";
 import { UpcomingList } from "../_components/UpcomingList";
+import { PendingPaymentsList, type PendingBooking } from "./_components/PendingPaymentsList";
 
 type DayHours = { open: string; close: string };
 type WorkingHours = Record<string, DayHours | null>;
@@ -16,6 +17,7 @@ interface ScheduleClientProps {
   bookings: BookingRow[];
   workingHours: WorkingHours | null;
   blockedDates: string[];
+  initialPending?: PendingBooking[];
 }
 
 function parseIso(iso: string): Date {
@@ -41,12 +43,14 @@ export function ScheduleClient({
   bookings,
   workingHours,
   blockedDates: initialBlockedDates,
+  initialPending = [],
 }: ScheduleClientProps) {
   const [weekStart, setWeekStart] = useState<Date>(parseIso(initialWeekStart));
   const [agendaDate, setAgendaDate] = useState<Date>(new Date());
   const [blockedDates, setBlockedDates] = useState<string[]>(initialBlockedDates);
   const [activeBooking, setActiveBooking] = useState<BookingRow | null>(null);
   const [isMobile, setIsMobile] = useState(false);
+  const [pending, setPending] = useState<PendingBooking[]>(initialPending);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -69,8 +73,28 @@ export function ScheduleClient({
     setBlockedDates((data.blocked_dates as string[]) ?? []);
   }
 
+  async function handlePendingStatus(bookingId: string, toStatus: "confirmed" | "canceled") {
+    const res = await fetch("/api/admin/bookings/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bookingId, toStatus }),
+    });
+    if (res.ok) {
+      setPending((prev) => prev.filter((b) => b.id !== bookingId));
+    } else {
+      alert("Could not update booking status. Please try again.");
+    }
+  }
+
   return (
     <div className="space-y-4">
+      <div className="mb-3">
+        <PendingPaymentsList
+          pending={pending}
+          onMarkReceived={(id) => handlePendingStatus(id, "confirmed")}
+          onCancel={(id) => handlePendingStatus(id, "canceled")}
+        />
+      </div>
       {isMobile ? (
         <>
           <DayAgenda
