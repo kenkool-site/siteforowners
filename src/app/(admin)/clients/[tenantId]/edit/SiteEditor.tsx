@@ -1044,6 +1044,21 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 />
               </div>
               <div>
+                <label className="mb-1 block text-sm font-medium text-gray-600">
+                  Owner email{checkoutMode === "pickup" ? " *" : ""}
+                </label>
+                <input
+                  type="email"
+                  value={notificationEmail}
+                  onChange={(e) => setNotificationEmail(e.target.value)}
+                  placeholder="owner@example.com"
+                  className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Where booking + pickup notifications are sent. Required for pickup mode.
+                </p>
+              </div>
+              <div>
                 <label className="mb-1 block text-sm font-medium text-gray-600">Booking URL</label>
                 <input
                   type="url"
@@ -1308,21 +1323,11 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             </label>
           </div>
 
-          <div className="mt-4">
-            <label className="block text-xs font-medium text-gray-600">
-              Notification email{checkoutMode === "pickup" ? " *" : ""}
-            </label>
-            <input
-              type="email"
-              value={notificationEmail}
-              onChange={(e) => setNotificationEmail(e.target.value)}
-              placeholder="owner@example.com"
-              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-            />
-            <p className="mt-1 text-xs text-gray-500">
-              Where pickup orders are sent. Required when mode is Pickup.
+          {checkoutMode === "pickup" && !notificationEmail.trim() && (
+            <p className="mt-3 text-xs text-amber-700">
+              ⚠ Pickup mode requires an Owner email — set it in <strong>Business Info</strong> above.
             </p>
-          </div>
+          )}
         </section>
         )}
 
