@@ -4,18 +4,22 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { BookingRow as BookingRowType } from "@/lib/admin-bookings";
 import { formatTimeRange } from "@/lib/availability";
+import { RescheduleModal } from "./RescheduleModal";
 
 export function BookingActionSheet({
   row,
+  slug,
   onClose,
   onStatusChange,
 }: {
   row: BookingRowType;
+  slug: string;
   onClose: () => void;
   onStatusChange: () => void;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
+  const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
   async function setStatus(toStatus: string) {
     if (pending) return;
@@ -43,6 +47,7 @@ export function BookingActionSheet({
   }
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center"
       onClick={onClose}
@@ -95,6 +100,15 @@ export function BookingActionSheet({
           <button
             type="button"
             disabled={pending}
+            onClick={() => setRescheduleOpen(true)}
+            className="w-full bg-white border border-blue-600 text-blue-600 font-medium py-3 rounded-lg disabled:opacity-50"
+          >
+            Reschedule
+            {row.reschedule_count >= 1 && <span className="ml-2 text-xs opacity-70">(already moved once)</span>}
+          </button>
+          <button
+            type="button"
+            disabled={pending}
             onClick={() => setStatus("canceled")}
             className="w-full bg-white border border-red-600 text-red-600 font-medium py-3 rounded-lg disabled:opacity-50"
           >
@@ -109,5 +123,17 @@ export function BookingActionSheet({
         </div>
       </div>
     </div>
+    {rescheduleOpen && (
+      <RescheduleModal
+        row={row}
+        slug={slug}
+        onClose={() => setRescheduleOpen(false)}
+        onDone={() => {
+          setRescheduleOpen(false);
+          onStatusChange();
+        }}
+      />
+    )}
+    </>
   );
 }

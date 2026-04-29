@@ -110,6 +110,7 @@ export default async function SchedulePage({
           workingHours={settings?.working_hours ?? null}
           blockedDates={settings?.blocked_dates ?? []}
           initialPending={initialPending}
+          slug={tenant.preview_slug ?? params.slug}
         />
       </div>
     </div>
