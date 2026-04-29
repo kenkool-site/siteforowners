@@ -130,21 +130,21 @@ export function TemplateBooking({
   useEffect(() => {
     const handleHash = () => {
       if (window.location.hash === "#booking") {
-        if (hasCategories) {
+        if (effectiveMode === "both" && bookingUrl) {
+          setBookingChoice({ serviceName: "", deepLink: bookingUrl });
+        } else if (hasCategories) {
           setExpandedCategory(bookingCategories![0].name);
-        } else if (effectiveMode === "in_site_only" || effectiveMode === "both") {
+        } else if (effectiveMode === "in_site_only" || showInternalBooking) {
           setShowBookingCalendar(true);
         } else if (canEmbed) {
           setShowFallbackEmbed(true);
-        } else if (showInternalBooking) {
-          setShowBookingCalendar(true);
         }
       }
     };
     handleHash();
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
-  }, [hasCategories, canEmbed, showInternalBooking, bookingCategories, effectiveMode]);
+  }, [hasCategories, canEmbed, showInternalBooking, bookingCategories, effectiveMode, bookingUrl]);
 
   // Intercept clicks on <a href="#booking"> anywhere on the page (heroes,
   // SiteNav, custom buttons) and open the booking modal directly without
@@ -152,8 +152,6 @@ export function TemplateBooking({
   // Without this, clicking "Book Now" from anywhere left the page scrolled
   // to the bottom after the customer closed the modal.
   useEffect(() => {
-    const inSiteFlow = effectiveMode === "in_site_only" || effectiveMode === "both";
-    if (!inSiteFlow && !showInternalBooking) return;
     const handleClick = (e: MouseEvent) => {
       // Allow modifier-clicks (open in new tab) and right-clicks to pass through.
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
@@ -161,18 +159,19 @@ export function TemplateBooking({
       const link = target?.closest('a[href="#booking"]') as HTMLAnchorElement | null;
       if (!link) return;
       e.preventDefault();
-      if (hasCategories) {
-        setExpandedCategory(bookingCategories![0].name);
-      } else if (effectiveMode === "both" && bookingUrl) {
-        // In `both` mode the customer should choose between in-site and the
-        // owner's external provider before going further — same dialog the
-        // per-service Book buttons trigger, but with no preselected service
-        // (hero CTAs aren't tied to a single service).
+      // `both` mode wins regardless of categories: hero CTAs always offer the
+      // dual choice (in-site vs external) before going further. Otherwise
+      // category accordion takes precedence over the embed/calendar branch.
+      if (effectiveMode === "both" && bookingUrl) {
         setBookingChoice({ serviceName: "", deepLink: bookingUrl });
-      } else if (canEmbed && effectiveMode === "external_only") {
-        setShowFallbackEmbed(true);
-      } else {
+      } else if (hasCategories) {
+        setExpandedCategory(bookingCategories![0].name);
+      } else if (effectiveMode === "in_site_only" || showInternalBooking) {
         setShowBookingCalendar(true);
+      } else if (canEmbed) {
+        setShowFallbackEmbed(true);
+      } else if (bookingUrl) {
+        window.open(bookingUrl, "_blank", "noopener,noreferrer");
       }
     };
     document.addEventListener("click", handleClick);
