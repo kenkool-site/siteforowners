@@ -83,6 +83,42 @@ function RunningTotalBar({
   );
 }
 
+function CopyChip({
+  label,
+  value,
+  bgColor,
+}: {
+  label: string;
+  value: string;
+  bgColor: string;
+}) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // Older browsers / insecure contexts: fall through silently. The value
+      // is still visible so the customer can select-and-copy by hand.
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={handleCopy}
+      className="inline-flex w-full items-center justify-between gap-2 rounded-md px-3 py-1.5 text-sm font-semibold text-white"
+      style={{ backgroundColor: bgColor }}
+    >
+      <span className="flex items-baseline gap-2 min-w-0">
+        <span className="text-xs opacity-80 flex-shrink-0">{label}</span>
+        <span className="truncate">{value}</span>
+      </span>
+      <span className="text-xs flex-shrink-0">{copied ? "Copied!" : "Copy"}</span>
+    </button>
+  );
+}
+
 function PaymentMethodList({ methods }: { methods: PaymentMethods }) {
   if (!hasAnyMethod(methods)) {
     return (
@@ -107,16 +143,10 @@ function PaymentMethodList({ methods }: { methods: PaymentMethods }) {
         </div>
       )}
       {methods.zelle && (
-        <div>
-          <span className="font-semibold">Zelle:</span>{" "}
-          <span className="break-all">{methods.zelle}</span>
-        </div>
+        <CopyChip label="Zelle" value={methods.zelle} bgColor="#6D1ED4" />
       )}
       {methods.otherLabel && methods.otherValue && (
-        <div>
-          <span className="font-semibold">{methods.otherLabel}:</span>{" "}
-          <span className="break-all">{methods.otherValue}</span>
-        </div>
+        <CopyChip label={methods.otherLabel} value={methods.otherValue} bgColor="#374151" />
       )}
     </div>
   );
