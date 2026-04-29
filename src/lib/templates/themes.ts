@@ -122,6 +122,19 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
       },
       previewSwatch: ['#F0E6D3', '#1A1A1A', '#111111'],
     },
+    {
+      id: 'salon_runway_noir',
+      name: 'Runway Noir',
+      colors: {
+        primary: '#D8B255',
+        secondary: '#0A0A0A',
+        accent: '#F2CD73',
+        background: '#050505',
+        foreground: '#FFF4D8',
+        muted: '#18130C',
+      },
+      previewSwatch: ['#D8B255', '#0A0A0A', '#050505'],
+    },
   ],
   barbershop: [
     {
@@ -545,6 +558,19 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
         muted: '#F0E4E6',
       },
       previewSwatch: ['#B87080', '#F8F0F2', '#FFFAF8'],
+    },
+    {
+      id: 'braids_runway_noir',
+      name: 'Runway Noir',
+      colors: {
+        primary: '#D8B255',
+        secondary: '#0A0A0A',
+        accent: '#F2CD73',
+        background: '#050505',
+        foreground: '#FFF4D8',
+        muted: '#18130C',
+      },
+      previewSwatch: ['#D8B255', '#0A0A0A', '#050505'],
     },
   ],
 };

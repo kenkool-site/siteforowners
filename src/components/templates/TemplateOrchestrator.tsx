@@ -13,6 +13,7 @@ import { BoldHero } from "./heroes/BoldHero";
 import { ElegantHero } from "./heroes/ElegantHero";
 import { VibrantHero } from "./heroes/VibrantHero";
 import { WarmHero } from "./heroes/WarmHero";
+import { RunwayHero } from "./heroes/RunwayHero";
 
 // Services
 import { ClassicServices } from "./services/ClassicServices";
@@ -20,6 +21,7 @@ import { BoldServices } from "./services/BoldServices";
 import { ElegantServices } from "./services/ElegantServices";
 import { VibrantServices } from "./services/VibrantServices";
 import { WarmServices } from "./services/WarmServices";
+import { RunwayServices } from "./services/RunwayServices";
 
 // Galleries
 import { ClassicGallery } from "./galleries/ClassicGallery";
@@ -27,6 +29,7 @@ import { BoldGallery } from "./galleries/BoldGallery";
 import { ElegantGallery } from "./galleries/ElegantGallery";
 import { VibrantGallery } from "./galleries/VibrantGallery";
 import { WarmGallery } from "./galleries/WarmGallery";
+import { RunwayGallery } from "./galleries/RunwayGallery";
 
 // About
 import { ClassicAbout } from "./about/ClassicAbout";
@@ -34,6 +37,7 @@ import { BoldAbout } from "./about/BoldAbout";
 import { ElegantAbout } from "./about/ElegantAbout";
 import { VibrantAbout } from "./about/VibrantAbout";
 import { WarmAbout } from "./about/WarmAbout";
+import { RunwayAbout } from "./about/RunwayAbout";
 
 // Stats (Vibrant only)
 import { VibrantStats } from "./stats/VibrantStats";
@@ -52,8 +56,9 @@ import { TemplateRating } from "./TemplateRating";
 import { TemplateTestimonials } from "./TemplateTestimonials";
 import type { GoogleReview } from "./TemplateTestimonials";
 import { ServiceBookingModal } from "./ServiceBookingModal";
+import { RunwayBookingCTA } from "./RunwayBookingCTA";
 
-type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm";
+type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway";
 
 interface TemplateOrchestratorProps {
   data: PreviewData;
@@ -79,7 +84,7 @@ interface TemplateOrchestratorProps {
 
 function getTemplateName(data: PreviewData): TemplateName {
   const variant = data.template_variant;
-  if (variant && ["classic", "bold", "elegant", "vibrant", "warm"].includes(variant)) {
+  if (variant && ["classic", "bold", "elegant", "vibrant", "warm", "runway"].includes(variant)) {
     return variant as TemplateName;
   }
   return "classic";
@@ -379,10 +384,63 @@ export function TemplateOrchestrator({
       colors={colors}
     />
   );
+  const runwayMarqueeItems = ["Editorial Cuts", "Color Stories", "Protective Styling", "Camera-Ready Finish"];
 
   // Template-specific section rendering
   const renderTemplate = () => {
   switch (template) {
+    case "runway":
+      return (
+        <div className="bg-black">
+          <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
+          <div id="hero">
+            <RunwayHero
+              businessName={data.business_name}
+              headline={headline}
+              subheadline={subheadline}
+              heroImage={heroImage}
+              heroVideo={heroVideo}
+              colors={colors}
+              bookingUrl={data.booking_url}
+              rating={data.rating}
+              reviewCount={data.review_count}
+              hasBooking={!!bookingSection}
+              hasGallery={showGallery && galleryImages.length > 0}
+            />
+          </div>
+          {showServices && <div id="services"><RunwayServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
+          <div className="overflow-hidden border-y border-[#D8B255]/30 bg-black py-4 text-[#D8B255]">
+            <style>{`
+              @keyframes runway-marquee {
+                from { transform: translateX(0); }
+                to { transform: translateX(-50%); }
+              }
+            `}</style>
+            <div
+              className="flex w-max items-center gap-8 whitespace-nowrap text-xs font-black uppercase tracking-[0.36em]"
+              style={animationsEnabled ? { animation: "runway-marquee 24s linear infinite" } : undefined}
+              aria-hidden="true"
+            >
+              {[...runwayMarqueeItems, ...runwayMarqueeItems].map((item, index) => (
+                <span key={`${item}-${index}`} className="flex items-center gap-8">
+                  <span>{item}</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#D8B255]" />
+                </span>
+              ))}
+            </div>
+          </div>
+          {showGallery && galleryImages.length > 0 && <RunwayGallery images={galleryImages} colors={colors} />}
+          {showAbout && <div id="about"><RunwayAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
+          {productsSection}
+          {testimonialsSection || ratingSection}
+          {bookingSection && <RunwayBookingCTA />}
+          {bookingSection}
+          {contactSection}
+          {mapSection}
+          {footerSection}
+        </div>
+      );
+
     case "bold":
       return (
         <div>
