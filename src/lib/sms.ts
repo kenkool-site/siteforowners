@@ -131,7 +131,6 @@ export async function sendBookingPendingDepositCustomer(b: BookingSmsData): Prom
 
 /** Spec 5: customer notification when the owner marks the deposit received. */
 export async function sendBookingDepositReceivedCustomer(b: BookingSmsData): Promise<void> {
-  const firstName = b.customerName.split(" ")[0];
   await send(
     b.customerPhone,
     `✓ Got it! Your deposit is received and your booking at ${b.businessName} is confirmed for ${b.date} @ ${b.time}. See you then!`,
