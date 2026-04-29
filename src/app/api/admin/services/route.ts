@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { ServiceItem, AddOn } from "@/lib/ai/types";
 import { validateCategories } from "@/lib/validation/categories";
 import { validateAddOns } from "@/lib/validation/add-ons";
+import { validateDepositSettings } from "@/lib/validation/deposit-settings";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
@@ -119,7 +120,17 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
 
 async function loadStateForTenant(
   tenantId: string,
-): Promise<{ services: ServiceItem[]; categories: string[]; booking_policies: string }> {
+): Promise<{
+  services: ServiceItem[];
+  categories: string[];
+  booking_policies: string;
+  deposit: {
+    deposit_required: boolean;
+    deposit_mode: "fixed" | "percent" | null;
+    deposit_value: number | null;
+    deposit_instructions: string | null;
+  };
+}> {
   const supabase = createAdminClient();
   const { data: tenant } = await supabase
     .from("tenants")
@@ -127,32 +138,58 @@ async function loadStateForTenant(
     .eq("id", tenantId)
     .maybeSingle();
   const slug = tenant?.preview_slug as string | undefined;
-  if (!slug) return { services: [], categories: [], booking_policies: "" };
+  const empty = {
+    services: [] as ServiceItem[],
+    categories: [] as string[],
+    booking_policies: "",
+    deposit: {
+      deposit_required: false,
+      deposit_mode: null as "fixed" | "percent" | null,
+      deposit_value: null as number | null,
+      deposit_instructions: null as string | null,
+    },
+  };
+  if (!slug) return empty;
+
+  // Existing services + categories + policies load (with fallback for
+  // missing categories column from earlier deploys).
   const primary = await supabase
     .from("previews")
     .select("services, categories, booking_policies")
     .eq("slug", slug)
     .maybeSingle();
+  let services: ServiceItem[] = [];
+  let categories: string[] = [];
+  let booking_policies = "";
   if (!primary.error) {
-    return {
-      services: ((primary.data?.services as ServiceItem[] | null) ?? []),
-      categories: ((primary.data?.categories as string[] | null) ?? []),
-      booking_policies: ((primary.data?.booking_policies as string | null) ?? ""),
-    };
+    services = (primary.data?.services as ServiceItem[] | null) ?? [];
+    categories = (primary.data?.categories as string[] | null) ?? [];
+    booking_policies = (primary.data?.booking_policies as string | null) ?? "";
+  } else {
+    const fallback = await supabase
+      .from("previews")
+      .select("services")
+      .eq("slug", slug)
+      .maybeSingle();
+    services = (fallback.data?.services as ServiceItem[] | null) ?? [];
   }
-  // Fallback: one of the newer columns may not exist yet in this
-  // environment (e.g. migrations 018/020 not applied). Re-query just
-  // services so the admin page still works.
-  const fallback = await supabase
-    .from("previews")
-    .select("services")
-    .eq("slug", slug)
+
+  // Deposit settings live on booking_settings, keyed by tenant_id.
+  const settings = await supabase
+    .from("booking_settings")
+    .select("deposit_required, deposit_mode, deposit_value, deposit_instructions")
+    .eq("tenant_id", tenantId)
     .maybeSingle();
-  return {
-    services: ((fallback.data?.services as ServiceItem[] | null) ?? []),
-    categories: [],
-    booking_policies: "",
-  };
+  const deposit = settings.error || !settings.data
+    ? empty.deposit
+    : {
+        deposit_required: !!settings.data.deposit_required,
+        deposit_mode: (settings.data.deposit_mode as "fixed" | "percent" | null) ?? null,
+        deposit_value: settings.data.deposit_value as number | null,
+        deposit_instructions: (settings.data.deposit_instructions as string | null) ?? null,
+      };
+
+  return { services, categories, booking_policies, deposit };
 }
 
 async function saveStateForTenant(
@@ -211,9 +248,51 @@ export async function POST(request: NextRequest) {
   const rawPolicies = (body as Record<string, unknown>)?.booking_policies;
   const bookingPolicies = typeof rawPolicies === "string" ? rawPolicies.trim().slice(0, 10000) : "";
 
+  // Deposit settings live on booking_settings, not previews — validate
+  // and save them through a separate update.
+  const depositResult = validateDepositSettings({
+    deposit_required: (body as Record<string, unknown>)?.deposit_required as boolean | undefined,
+    deposit_mode: (body as Record<string, unknown>)?.deposit_mode as "fixed" | "percent" | null | undefined,
+    deposit_value: (body as Record<string, unknown>)?.deposit_value as number | null | undefined,
+    deposit_instructions: (body as Record<string, unknown>)?.deposit_instructions as string | null | undefined,
+  });
+  if (!depositResult.ok) {
+    return NextResponse.json(
+      {
+        error: "Validation failed",
+        errors: depositResult.errors.map((e) => ({ index: -1, field: e.field, reason: e.reason })),
+      },
+      { status: 400 },
+    );
+  }
+
   const saveResult = await saveStateForTenant(auth.tenantId, result.services, result.categories, bookingPolicies);
   if (!saveResult.ok) {
     return NextResponse.json({ error: saveResult.error ?? "Save failed" }, { status: 500 });
   }
-  return NextResponse.json({ ok: true, services: result.services, categories: result.categories, booking_policies: bookingPolicies });
+
+  const depositSaveSupabase = createAdminClient();
+  const { error: depositSaveError } = await depositSaveSupabase
+    .from("booking_settings")
+    .update({
+      deposit_required: depositResult.value.deposit_required,
+      deposit_mode: depositResult.value.deposit_mode,
+      deposit_value: depositResult.value.deposit_value,
+      deposit_instructions: depositResult.value.deposit_instructions,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("tenant_id", auth.tenantId);
+
+  if (depositSaveError) {
+    console.error("[admin/services] deposit save failed", { tenantId: auth.tenantId, error: depositSaveError });
+    return NextResponse.json({ error: "Save failed" }, { status: 500 });
+  }
+
+  return NextResponse.json({
+    ok: true,
+    services: result.services,
+    categories: result.categories,
+    booking_policies: bookingPolicies,
+    deposit: depositResult.value,
+  });
 }

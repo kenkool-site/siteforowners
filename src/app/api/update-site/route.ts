@@ -78,6 +78,34 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to save" }, { status: 500 });
     }
 
+    // Spec 5: deposit settings live on booking_settings (not previews).
+    // Update separately if any deposit field is in the payload.
+    if (
+      updates.deposit_required !== undefined ||
+      updates.deposit_mode !== undefined ||
+      updates.deposit_value !== undefined ||
+      updates.deposit_instructions !== undefined
+    ) {
+      const tenantRow = await supabase
+        .from("tenants")
+        .select("id")
+        .eq("preview_slug", slug)
+        .maybeSingle();
+      const tenantId = tenantRow.data?.id as string | undefined;
+      if (tenantId) {
+        await supabase
+          .from("booking_settings")
+          .update({
+            deposit_required: updates.deposit_required,
+            deposit_mode: updates.deposit_mode,
+            deposit_value: updates.deposit_value,
+            deposit_instructions: updates.deposit_instructions,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("tenant_id", tenantId);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Update site error:", error);
