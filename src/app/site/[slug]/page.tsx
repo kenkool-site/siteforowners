@@ -12,7 +12,10 @@ type DepositSettings = {
   deposit_required: boolean;
   deposit_mode: "fixed" | "percent" | null;
   deposit_value: number | null;
-  deposit_instructions: string | null;
+  deposit_cashapp: string | null;
+  deposit_zelle: string | null;
+  deposit_other_label: string | null;
+  deposit_other_value: string | null;
 };
 
 interface SiteData {
@@ -59,7 +62,7 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
     }
     const { data: bs } = await supabase
       .from("booking_settings")
-      .select("working_hours, blocked_dates, deposit_required, deposit_mode, deposit_value, deposit_instructions")
+      .select("working_hours, blocked_dates, deposit_required, deposit_mode, deposit_value, deposit_cashapp, deposit_zelle, deposit_other_label, deposit_other_value")
       .eq("tenant_id", tenant.id)
       .maybeSingle();
     bookingHours = (bs?.working_hours as BookingHoursMap) ?? null;
@@ -69,7 +72,10 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
           deposit_required: !!bs.deposit_required,
           deposit_mode: (bs.deposit_mode as "fixed" | "percent" | null) ?? null,
           deposit_value: bs.deposit_value as number | null,
-          deposit_instructions: (bs.deposit_instructions as string | null) ?? null,
+          deposit_cashapp: (bs.deposit_cashapp as string | null) ?? null,
+          deposit_zelle: (bs.deposit_zelle as string | null) ?? null,
+          deposit_other_label: (bs.deposit_other_label as string | null) ?? null,
+          deposit_other_value: (bs.deposit_other_value as string | null) ?? null,
         }
       : undefined;
   }

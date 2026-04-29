@@ -7,6 +7,7 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import type { AddOn } from "@/lib/ai/types";
 import { formatTimeRange, formatDuration } from "@/lib/availability";
 import { computeDeposit, parseServicePrice } from "@/lib/deposit";
+import { cashappUrl, normalizeCashapp, hasAnyMethod, type PaymentMethods } from "@/lib/deposit-payment-methods";
 
 export interface SimpleService {
   name: string;
@@ -82,6 +83,46 @@ function RunningTotalBar({
   );
 }
 
+function PaymentMethodList({ methods }: { methods: PaymentMethods }) {
+  if (!hasAnyMethod(methods)) {
+    return (
+      <div className="text-xs text-gray-500">
+        Payment instructions will follow.
+      </div>
+    );
+  }
+  return (
+    <div className="space-y-1.5 text-sm">
+      {methods.cashapp && (
+        <div>
+          <span className="font-semibold">CashApp:</span>{" "}
+          <a
+            href={cashappUrl(methods.cashapp)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+            style={{ color: "#1d4ed8" }}
+          >
+            cash.app/${normalizeCashapp(methods.cashapp)}
+          </a>
+        </div>
+      )}
+      {methods.zelle && (
+        <div>
+          <span className="font-semibold">Zelle:</span>{" "}
+          <span className="break-all">{methods.zelle}</span>
+        </div>
+      )}
+      {methods.otherLabel && methods.otherValue && (
+        <div>
+          <span className="font-semibold">{methods.otherLabel}:</span>{" "}
+          <span className="break-all">{methods.otherValue}</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // CustomerBookingFlow — 2-screen flow: service? → details → schedule → confirm
 // ---------------------------------------------------------------------------
@@ -111,7 +152,10 @@ export function CustomerBookingFlow({
     deposit_required: boolean;
     deposit_mode: "fixed" | "percent" | null;
     deposit_value: number | null;
-    deposit_instructions: string | null;
+    deposit_cashapp: string | null;
+    deposit_zelle: string | null;
+    deposit_other_label: string | null;
+    deposit_other_value: string | null;
   };
 }) {
   const [step, setStep] = useState<"service" | "details" | "schedule" | "confirm">(
@@ -146,6 +190,12 @@ export function CustomerBookingFlow({
       )
     : 0;
   const isDepositRequired = !!(depositSettings?.deposit_required && depositAmount > 0);
+  const paymentMethods: PaymentMethods = {
+    cashapp: depositSettings?.deposit_cashapp ?? null,
+    zelle: depositSettings?.deposit_zelle ?? null,
+    otherLabel: depositSettings?.deposit_other_label ?? null,
+    otherValue: depositSettings?.deposit_other_value ?? null,
+  };
 
   // Reset add-ons whenever the user picks a different service
   useEffect(() => {
@@ -600,8 +650,8 @@ export function CustomerBookingFlow({
                         <span className="text-xs opacity-70">non-refundable</span>
                       </div>
                       <div className="text-xs mb-2">Pay before your booking is confirmed:</div>
-                      <div className="bg-white rounded p-2 font-mono text-xs whitespace-pre-wrap leading-relaxed">
-                        {depositSettings!.deposit_instructions}
+                      <div className="bg-white rounded p-2 leading-relaxed" style={{ color: "#451a03" }}>
+                        <PaymentMethodList methods={paymentMethods} />
                       </div>
                       <div className="text-[10px] mt-2 opacity-70">
                         You&apos;ll get a confirmation once we receive payment.
@@ -666,8 +716,8 @@ export function CustomerBookingFlow({
                         <span className="text-xs font-semibold" style={{ color: "#92400e" }}>Deposit due</span>
                         <span className="text-lg font-bold" style={{ color: "#78350f" }}>${depositAmount.toFixed(2)}</span>
                       </div>
-                      <div className="rounded bg-white p-2 text-xs font-mono whitespace-pre-wrap" style={{ color: "#451a03" }}>
-                        {depositSettings?.deposit_instructions ?? ""}
+                      <div className="rounded bg-white p-2" style={{ color: "#451a03" }}>
+                        <PaymentMethodList methods={paymentMethods} />
                       </div>
                     </div>
                     <div className="mb-3 rounded-lg bg-gray-50 p-3 text-left text-sm">

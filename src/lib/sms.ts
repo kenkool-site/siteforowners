@@ -8,6 +8,7 @@
 //   - Twilio's automatic STOP handling is sufficient (no webhook)
 
 import twilio from "twilio";
+import { renderPaymentMethodsText, type PaymentMethods } from "@/lib/deposit-payment-methods";
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
@@ -72,8 +73,9 @@ export interface BookingSmsData {
   addOnNames?: string[];
   /** Spec 5: deposit amount in dollars (snapshotted at booking time). Falsy = no deposit. */
   depositAmount?: number;
-  /** Spec 5: free-form payment instructions to include in pending notifications. */
-  depositInstructions?: string;
+  /** Spec 5 follow-up: structured payment methods. The pending-deposit
+   * notification renders only the rows the owner populated. */
+  paymentMethods?: PaymentMethods;
 }
 
 async function send(to: string, body: string): Promise<void> {
@@ -121,11 +123,14 @@ export async function sendBookingCustomerReminder(b: BookingSmsData): Promise<vo
  * Leads with the action and amount so the customer knows what to do next. */
 export async function sendBookingPendingDepositCustomer(b: BookingSmsData): Promise<void> {
   const amt = b.depositAmount ?? 0;
-  const instr = b.depositInstructions ?? "";
+  const methods = b.paymentMethods
+    ? renderPaymentMethodsText(b.paymentMethods).replace(/\n/g, " · ")
+    : "";
   const firstName = b.customerName.split(" ")[0];
+  const tail = methods ? ` Pay via ${methods}.` : "";
   await send(
     b.customerPhone,
-    `Hi ${firstName}! Your booking at ${b.businessName} on ${b.date} @ ${b.time} is pending. Pay $${amt.toFixed(2)} to confirm: ${instr.replace(/\n/g, " · ")}. Reply STOP to opt out.`,
+    `Hi ${firstName}! Your booking at ${b.businessName} on ${b.date} @ ${b.time} is pending. Pay $${amt.toFixed(2)} to confirm.${tail} Reply STOP to opt out.`,
   );
 }
 

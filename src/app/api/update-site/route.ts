@@ -87,13 +87,19 @@ export async function POST(request: Request) {
       updates.deposit_required !== undefined ||
       updates.deposit_mode !== undefined ||
       updates.deposit_value !== undefined ||
-      updates.deposit_instructions !== undefined
+      updates.deposit_cashapp !== undefined ||
+      updates.deposit_zelle !== undefined ||
+      updates.deposit_other_label !== undefined ||
+      updates.deposit_other_value !== undefined
     ) {
       const depositResult = validateDepositSettings({
         deposit_required: updates.deposit_required,
         deposit_mode: updates.deposit_mode,
         deposit_value: updates.deposit_value,
-        deposit_instructions: updates.deposit_instructions,
+        deposit_cashapp: updates.deposit_cashapp,
+        deposit_zelle: updates.deposit_zelle,
+        deposit_other_label: updates.deposit_other_label,
+        deposit_other_value: updates.deposit_other_value,
       });
       if (!depositResult.ok) {
         return NextResponse.json(
@@ -114,7 +120,10 @@ export async function POST(request: Request) {
             deposit_required: depositResult.value.deposit_required,
             deposit_mode: depositResult.value.deposit_mode,
             deposit_value: depositResult.value.deposit_value,
-            deposit_instructions: depositResult.value.deposit_instructions,
+            deposit_cashapp: depositResult.value.deposit_cashapp,
+            deposit_zelle: depositResult.value.deposit_zelle,
+            deposit_other_label: depositResult.value.deposit_other_label,
+            deposit_other_value: depositResult.value.deposit_other_value,
             updated_at: new Date().toISOString(),
           })
           .eq("tenant_id", tenantId);

@@ -107,13 +107,16 @@ export async function POST(request: Request) {
       deposit_required?: boolean | null;
       deposit_mode?: string | null;
       deposit_value?: number | null;
-      deposit_instructions?: string | null;
+      deposit_cashapp?: string | null;
+      deposit_zelle?: string | null;
+      deposit_other_label?: string | null;
+      deposit_other_value?: string | null;
     } | null = null;
 
     if (tenantId) {
       const { data: settings } = await supabase
         .from("booking_settings")
-        .select("max_per_slot, deposit_required, deposit_mode, deposit_value, deposit_instructions")
+        .select("max_per_slot, deposit_required, deposit_mode, deposit_value, deposit_cashapp, deposit_zelle, deposit_other_label, deposit_other_value")
         .eq("tenant_id", tenantId)
         .single();
 
@@ -260,6 +263,13 @@ export async function POST(request: Request) {
       ownerSmsPhone = (t?.sms_phone as string | null) ?? (t?.phone as string | null) ?? "";
     }
 
+    const paymentMethods = {
+      cashapp: bookingSettings?.deposit_cashapp ?? null,
+      zelle: bookingSettings?.deposit_zelle ?? null,
+      otherLabel: bookingSettings?.deposit_other_label ?? null,
+      otherValue: bookingSettings?.deposit_other_value ?? null,
+    };
+
     const smsData: BookingSmsData = {
       businessName,
       serviceName: service_name,
@@ -270,7 +280,7 @@ export async function POST(request: Request) {
       businessAddress: businessAddress || undefined,
       addOnNames: validatedAddOns?.map((a) => a.name) ?? [],
       depositAmount: depositAmount > 0 ? depositAmount : undefined,
-      depositInstructions: bookingSettings?.deposit_instructions || undefined,
+      paymentMethods,
     };
 
     // Send emails + SMS in background
@@ -279,7 +289,7 @@ export async function POST(request: Request) {
       : isPending
         ? sendBookingPendingDepositEmail(emailData, {
             amount: depositAmount,
-            instructions: bookingSettings?.deposit_instructions ?? "",
+            paymentMethods,
           })
         : sendBookingConfirmation(emailData);
 

@@ -1,12 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { normalizeCashapp } from "@/lib/deposit-payment-methods";
 
 export interface DepositSettingsState {
   deposit_required: boolean;
   deposit_mode: "fixed" | "percent" | null;
   deposit_value: number | null;
-  deposit_instructions: string | null;
+  deposit_cashapp: string | null;
+  deposit_zelle: string | null;
+  deposit_other_label: string | null;
+  deposit_other_value: string | null;
 }
 
 interface DepositEditorProps {
@@ -14,14 +18,18 @@ interface DepositEditorProps {
   onChange: (next: DepositSettingsState) => void;
 }
 
-const MAX_INSTRUCTIONS = 1000;
-
 export function DepositEditor({ value, onChange }: DepositEditorProps) {
   const [expanded, setExpanded] = useState(false);
   const required = value.deposit_required;
   const mode = value.deposit_mode ?? "fixed";
   const numericValue = value.deposit_value ?? "";
-  const instructions = value.deposit_instructions ?? "";
+  const cashapp = value.deposit_cashapp ?? "";
+  const zelle = value.deposit_zelle ?? "";
+  const otherLabel = value.deposit_other_label ?? "";
+  const otherValue = value.deposit_other_value ?? "";
+
+  const methodCount =
+    (cashapp ? 1 : 0) + (zelle ? 1 : 0) + (otherLabel && otherValue ? 1 : 0);
 
   // Collapsed + nothing configured → "+ Require a deposit" prompt.
   if (!expanded && !required) {
@@ -54,6 +62,7 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
         </div>
         <p className="mt-1 text-sm text-gray-600">
           <strong>{displayValue}</strong> required ({mode === "fixed" ? "flat" : "of service total"})
+          {methodCount > 0 ? ` · ${methodCount} payment method${methodCount === 1 ? "" : "s"}` : ""}
         </p>
       </button>
     );
@@ -61,7 +70,7 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
 
   // Expanded.
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+    <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Deposit</span>
         <button
@@ -143,21 +152,68 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
             )}
           </div>
 
-          <div>
-            <label className="block text-[10px] uppercase tracking-wider text-gray-500 font-semibold mb-1">
-              Payment instructions
+          <div className="border-t border-gray-100 pt-3 space-y-2">
+            <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+              Payment methods
+            </div>
+            <p className="text-xs text-gray-500">
+              Fill in only the ones you accept. Customers will see what you provide.
+            </p>
+
+            <label className="block">
+              <span className="block text-xs text-gray-600 mb-1">CashApp</span>
+              <div className="flex items-center rounded border border-gray-200 overflow-hidden">
+                <span className="bg-gray-50 px-2 py-1 text-sm text-gray-500 border-r border-gray-200">$</span>
+                <input
+                  type="text"
+                  value={cashapp}
+                  onChange={(e) =>
+                    onChange({ ...value, deposit_cashapp: normalizeCashapp(e.target.value) })
+                  }
+                  placeholder="cashtag"
+                  className="flex-1 px-2 py-1 text-sm focus:outline-none"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                />
+              </div>
             </label>
-            <textarea
-              value={instructions}
-              onChange={(e) =>
-                onChange({ ...value, deposit_instructions: e.target.value.slice(0, MAX_INSTRUCTIONS) })
-              }
-              placeholder={"e.g.\nCash App: $letstrylocs\nZelle: (555) 123-4567"}
-              rows={4}
-              className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm font-mono leading-snug"
-            />
-            <div className="text-[10px] text-gray-500 mt-1">
-              Shown prominently to customers when they book. Be specific.
+
+            <label className="block">
+              <span className="block text-xs text-gray-600 mb-1">Zelle (phone or email)</span>
+              <input
+                type="text"
+                value={zelle}
+                onChange={(e) => onChange({ ...value, deposit_zelle: e.target.value })}
+                placeholder="(555) 123-4567 or you@example.com"
+                className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                autoCapitalize="off"
+                spellCheck={false}
+              />
+            </label>
+
+            <div>
+              <span className="block text-xs text-gray-600 mb-1">Other (optional)</span>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={otherLabel}
+                  onChange={(e) => onChange({ ...value, deposit_other_label: e.target.value })}
+                  placeholder="Venmo"
+                  className="rounded border border-gray-200 px-2 py-1 text-sm"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                />
+                <input
+                  type="text"
+                  value={otherValue}
+                  onChange={(e) => onChange({ ...value, deposit_other_value: e.target.value })}
+                  placeholder="@handle"
+                  className="rounded border border-gray-200 px-2 py-1 text-sm"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                />
+              </div>
             </div>
           </div>
         </>
