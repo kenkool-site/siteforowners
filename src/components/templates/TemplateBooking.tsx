@@ -163,6 +163,12 @@ export function TemplateBooking({
       e.preventDefault();
       if (hasCategories) {
         setExpandedCategory(bookingCategories![0].name);
+      } else if (effectiveMode === "both" && bookingUrl) {
+        // In `both` mode the customer should choose between in-site and the
+        // owner's external provider before going further — same dialog the
+        // per-service Book buttons trigger, but with no preselected service
+        // (hero CTAs aren't tied to a single service).
+        setBookingChoice({ serviceName: "", deepLink: bookingUrl });
       } else if (canEmbed && effectiveMode === "external_only") {
         setShowFallbackEmbed(true);
       } else {
@@ -171,7 +177,7 @@ export function TemplateBooking({
     };
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
-  }, [effectiveMode, hasCategories, canEmbed, showInternalBooking, bookingCategories]);
+  }, [effectiveMode, hasCategories, canEmbed, showInternalBooking, bookingCategories, bookingUrl]);
 
   // External trigger: per-service "Book Now" buttons in the Services section
   // dispatch this event to open the in-site booking calendar (in_site_only and
@@ -615,9 +621,11 @@ export function TemplateBooking({
               style={{ backgroundColor: colors.background }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="text-xs font-medium uppercase tracking-wider opacity-60 mb-1" style={{ color: colors.foreground }}>
-                {bookingChoice.serviceName}
-              </div>
+              {bookingChoice.serviceName && (
+                <div className="text-xs font-medium uppercase tracking-wider opacity-60 mb-1" style={{ color: colors.foreground }}>
+                  {bookingChoice.serviceName}
+                </div>
+              )}
               <h3 className="text-lg font-bold mb-4" style={{ color: colors.foreground }}>
                 How would you like to book?
               </h3>
