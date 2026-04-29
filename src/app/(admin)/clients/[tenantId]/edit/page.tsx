@@ -27,7 +27,7 @@ async function getData(tenantId: string) {
   // and passed to SiteEditor as a new prop. Returns nulls when no row.
   const { data: bookingSettings } = await supabase
     .from("booking_settings")
-    .select("deposit_required, deposit_mode, deposit_value, deposit_instructions")
+    .select("deposit_required, deposit_mode, deposit_value, deposit_cashapp, deposit_zelle, deposit_other_label, deposit_other_value")
     .eq("tenant_id", tenantId)
     .maybeSingle();
 
@@ -36,13 +36,19 @@ async function getData(tenantId: string) {
         deposit_required: !!bookingSettings.deposit_required,
         deposit_mode: (bookingSettings.deposit_mode as "fixed" | "percent" | null) ?? null,
         deposit_value: bookingSettings.deposit_value as number | null,
-        deposit_instructions: (bookingSettings.deposit_instructions as string | null) ?? null,
+        deposit_cashapp: (bookingSettings.deposit_cashapp as string | null) ?? null,
+        deposit_zelle: (bookingSettings.deposit_zelle as string | null) ?? null,
+        deposit_other_label: (bookingSettings.deposit_other_label as string | null) ?? null,
+        deposit_other_value: (bookingSettings.deposit_other_value as string | null) ?? null,
       }
     : {
         deposit_required: false,
         deposit_mode: null as "fixed" | "percent" | null,
         deposit_value: null as number | null,
-        deposit_instructions: null as string | null,
+        deposit_cashapp: null as string | null,
+        deposit_zelle: null as string | null,
+        deposit_other_label: null as string | null,
+        deposit_other_value: null as string | null,
       };
 
   return { tenant, preview, deposit };

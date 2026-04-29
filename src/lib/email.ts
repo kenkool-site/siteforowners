@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderPaymentMethodsHtml, type PaymentMethods } from "@/lib/deposit-payment-methods";
 
 const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
@@ -337,13 +338,14 @@ function renderCalendarButtons(booking: BookingEmailData): string {
  * Lead with the action and amount so the customer knows what to do next. */
 export async function sendBookingPendingDepositEmail(
   booking: BookingEmailData,
-  deposit: { amount: number; instructions: string },
+  deposit: { amount: number; paymentMethods: PaymentMethods },
 ) {
   if (!resend) return;
   if (!booking.customerEmail) return;
 
   const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
   const subject = `⏳ Pay $${deposit.amount.toFixed(2)} to secure your booking at ${booking.businessName}`;
+  const methodsHtml = renderPaymentMethodsHtml(deposit.paymentMethods);
   await resend.emails.send({
     from: tenantFrom(booking.businessName),
     to: booking.customerEmail,
@@ -358,8 +360,8 @@ export async function sendBookingPendingDepositEmail(
           <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">Hi ${escapeHtml(firstName)},</p>
           <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">Thanks for booking <strong>${escapeHtml(booking.serviceName)}</strong> at <strong>${escapeHtml(booking.businessName)}</strong> on <strong>${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}</strong>.</p>
           <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 16px 0;">
-            <div style="font-weight: 700; font-size: 18px; color: #78350f; margin-bottom: 8px;">Deposit due: $${deposit.amount.toFixed(2)}</div>
-            <div style="white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 14px; background: #fff; border-radius: 4px; padding: 10px; color: #451a03;">${escapeHtml(deposit.instructions)}</div>
+            <div style="font-weight: 700; font-size: 18px; color: #78350f; margin-bottom: 10px;">Deposit due: $${deposit.amount.toFixed(2)}</div>
+            ${methodsHtml || `<div style="font-size: 14px; color: #6b7280;">Your booking will follow up with payment instructions.</div>`}
           </div>
           <p style="color: #525252; font-size: 14px; margin: 0 0 6px;">We'll send a confirmation once we receive your deposit. Your slot stays held until then.</p>
           ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}

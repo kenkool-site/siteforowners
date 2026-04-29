@@ -13,7 +13,10 @@ const EMPTY_DEPOSIT: DepositSettingsState = {
   deposit_required: false,
   deposit_mode: null,
   deposit_value: null,
-  deposit_instructions: null,
+  deposit_cashapp: null,
+  deposit_zelle: null,
+  deposit_other_label: null,
+  deposit_other_value: null,
 };
 
 async function loadServices(
@@ -54,7 +57,7 @@ async function loadServices(
   if (tenantId) {
     const settings = await supabase
       .from("booking_settings")
-      .select("deposit_required, deposit_mode, deposit_value, deposit_instructions")
+      .select("deposit_required, deposit_mode, deposit_value, deposit_cashapp, deposit_zelle, deposit_other_label, deposit_other_value")
       .eq("tenant_id", tenantId)
       .maybeSingle();
     if (!settings.error && settings.data) {
@@ -62,7 +65,10 @@ async function loadServices(
         deposit_required: !!settings.data.deposit_required,
         deposit_mode: (settings.data.deposit_mode as "fixed" | "percent" | null) ?? null,
         deposit_value: settings.data.deposit_value as number | null,
-        deposit_instructions: (settings.data.deposit_instructions as string | null) ?? null,
+        deposit_cashapp: (settings.data.deposit_cashapp as string | null) ?? null,
+        deposit_zelle: (settings.data.deposit_zelle as string | null) ?? null,
+        deposit_other_label: (settings.data.deposit_other_label as string | null) ?? null,
+        deposit_other_value: (settings.data.deposit_other_value as string | null) ?? null,
       };
     }
   }

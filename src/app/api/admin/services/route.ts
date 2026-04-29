@@ -128,7 +128,10 @@ async function loadStateForTenant(
     deposit_required: boolean;
     deposit_mode: "fixed" | "percent" | null;
     deposit_value: number | null;
-    deposit_instructions: string | null;
+    deposit_cashapp: string | null;
+    deposit_zelle: string | null;
+    deposit_other_label: string | null;
+    deposit_other_value: string | null;
   };
 }> {
   const supabase = createAdminClient();
@@ -146,7 +149,10 @@ async function loadStateForTenant(
       deposit_required: false,
       deposit_mode: null as "fixed" | "percent" | null,
       deposit_value: null as number | null,
-      deposit_instructions: null as string | null,
+      deposit_cashapp: null as string | null,
+      deposit_zelle: null as string | null,
+      deposit_other_label: null as string | null,
+      deposit_other_value: null as string | null,
     },
   };
   if (!slug) return empty;
@@ -177,7 +183,7 @@ async function loadStateForTenant(
   // Deposit settings live on booking_settings, keyed by tenant_id.
   const settings = await supabase
     .from("booking_settings")
-    .select("deposit_required, deposit_mode, deposit_value, deposit_instructions")
+    .select("deposit_required, deposit_mode, deposit_value, deposit_cashapp, deposit_zelle, deposit_other_label, deposit_other_value")
     .eq("tenant_id", tenantId)
     .maybeSingle();
   const deposit = settings.error || !settings.data
@@ -186,7 +192,10 @@ async function loadStateForTenant(
         deposit_required: !!settings.data.deposit_required,
         deposit_mode: (settings.data.deposit_mode as "fixed" | "percent" | null) ?? null,
         deposit_value: settings.data.deposit_value as number | null,
-        deposit_instructions: (settings.data.deposit_instructions as string | null) ?? null,
+        deposit_cashapp: (settings.data.deposit_cashapp as string | null) ?? null,
+        deposit_zelle: (settings.data.deposit_zelle as string | null) ?? null,
+        deposit_other_label: (settings.data.deposit_other_label as string | null) ?? null,
+        deposit_other_value: (settings.data.deposit_other_value as string | null) ?? null,
       };
 
   return { services, categories, booking_policies, deposit };
@@ -250,11 +259,15 @@ export async function POST(request: NextRequest) {
 
   // Deposit settings live on booking_settings, not previews — validate
   // and save them through a separate update.
+  const b = body as Record<string, unknown>;
   const depositResult = validateDepositSettings({
-    deposit_required: (body as Record<string, unknown>)?.deposit_required as boolean | undefined,
-    deposit_mode: (body as Record<string, unknown>)?.deposit_mode as "fixed" | "percent" | null | undefined,
-    deposit_value: (body as Record<string, unknown>)?.deposit_value as number | null | undefined,
-    deposit_instructions: (body as Record<string, unknown>)?.deposit_instructions as string | null | undefined,
+    deposit_required: b?.deposit_required as boolean | undefined,
+    deposit_mode: b?.deposit_mode as "fixed" | "percent" | null | undefined,
+    deposit_value: b?.deposit_value as number | null | undefined,
+    deposit_cashapp: b?.deposit_cashapp as string | null | undefined,
+    deposit_zelle: b?.deposit_zelle as string | null | undefined,
+    deposit_other_label: b?.deposit_other_label as string | null | undefined,
+    deposit_other_value: b?.deposit_other_value as string | null | undefined,
   });
   if (!depositResult.ok) {
     return NextResponse.json(
@@ -278,7 +291,10 @@ export async function POST(request: NextRequest) {
       deposit_required: depositResult.value.deposit_required,
       deposit_mode: depositResult.value.deposit_mode,
       deposit_value: depositResult.value.deposit_value,
-      deposit_instructions: depositResult.value.deposit_instructions,
+      deposit_cashapp: depositResult.value.deposit_cashapp,
+      deposit_zelle: depositResult.value.deposit_zelle,
+      deposit_other_label: depositResult.value.deposit_other_label,
+      deposit_other_value: depositResult.value.deposit_other_value,
       updated_at: new Date().toISOString(),
     })
     .eq("tenant_id", auth.tenantId);

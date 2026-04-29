@@ -70,7 +70,10 @@ interface TemplateOrchestratorProps {
     deposit_required: boolean;
     deposit_mode: "fixed" | "percent" | null;
     deposit_value: number | null;
-    deposit_instructions: string | null;
+    deposit_cashapp: string | null;
+    deposit_zelle: string | null;
+    deposit_other_label: string | null;
+    deposit_other_value: string | null;
   };
 }
 

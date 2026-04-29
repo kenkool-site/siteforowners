@@ -146,7 +146,10 @@ export function ServicesClient({
           deposit_required: deposit.deposit_required,
           deposit_mode: deposit.deposit_mode,
           deposit_value: deposit.deposit_value,
-          deposit_instructions: deposit.deposit_instructions,
+          deposit_cashapp: deposit.deposit_cashapp,
+          deposit_zelle: deposit.deposit_zelle,
+          deposit_other_label: deposit.deposit_other_label,
+          deposit_other_value: deposit.deposit_other_value,
         }),
       });
       const data = await res.json().catch(() => ({}));
