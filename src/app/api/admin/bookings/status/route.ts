@@ -152,10 +152,16 @@ export async function POST(request: NextRequest) {
     }
   };
 
-  // Fire-and-forget the notification — don't make the owner wait.
-  fireCustomerNotification().catch((err) => {
+  // Await the notification before responding. Vercel's serverless runtime
+  // terminates the function the moment the response is sent, so true
+  // fire-and-forget loses notifications when there's any post-response
+  // async work (tenant lookup → Resend → Twilio). Owner waits ~1s extra,
+  // which is fine for an admin action.
+  try {
+    await fireCustomerNotification();
+  } catch (err) {
     console.error("[admin/bookings/status] notification failed", err);
-  });
+  }
 
   return NextResponse.json({ ok: true });
 }
