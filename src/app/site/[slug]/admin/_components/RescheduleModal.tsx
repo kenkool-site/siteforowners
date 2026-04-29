@@ -61,7 +61,14 @@ export function RescheduleModal({ row, slug, onClose, onDone }: RescheduleModalP
       });
       if (res.status === 409) {
         const d = await res.json().catch(() => ({}));
-        setConflict({ customerName: d?.conflict?.customer_name || "another customer" });
+        const conflictName = d?.conflict?.customer_name as string | undefined;
+        if (conflictName) {
+          setConflict({ customerName: conflictName });
+        } else {
+          // 409 without a conflict key = working hours / blocked date rejection
+          // (T9 still enforces these even with force=true). Hard alert.
+          alert(d?.error || "That slot isn't available.");
+        }
         return;
       }
       if (!res.ok) {
