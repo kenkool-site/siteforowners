@@ -165,6 +165,14 @@ export interface BookingEmailData {
   status?: "confirmed" | "pending";
   /** Deposit amount snapshot when applicable. */
   depositAmount?: number;
+  /** Booking row id — used to build the hosted .ics download link in
+   * customer-facing emails. Omit on the owner email; the owner gets the
+   * file as an attachment since their relationship with siteforowners.com
+   * is established. */
+  bookingId?: string;
+  /** Pre-built Google Calendar deep-link, passed in from the route so the
+   * email module doesn't need to know how to format dates. */
+  googleCalendarUrl?: string;
 }
 
 /**
@@ -269,20 +277,25 @@ export async function sendBookingNotification(
 }
 
 /**
- * Send booking confirmation to the customer (with .ics attachment)
+ * Send booking confirmation to the customer.
+ *
+ * No .ics attachment by design — Gmail shows a "do you want to auto-add
+ * invites from this sender?" banner whenever an unfamiliar From address
+ * delivers an attached invite, and that prompt clutters the customer's
+ * first-impression email. Instead we render Add-to-Calendar buttons in
+ * the body. Apple/Outlook users click through to the hosted .ics; Google
+ * users go to a prefilled calendar.google.com event.
  */
-export async function sendBookingConfirmation(booking: BookingEmailData, icsContent: string) {
+export async function sendBookingConfirmation(booking: BookingEmailData) {
   if (!resend || !booking.customerEmail) return;
   const firstName = booking.customerName.split(" ")[0];
+  const calendarButtons = renderCalendarButtons(booking);
 
   await resend.emails.send({
     from: tenantFrom(booking.businessName),
     to: booking.customerEmail,
     ...(booking.ownerEmail ? { replyTo: booking.ownerEmail } : {}),
     subject: `Booking Confirmed — ${booking.serviceName} at ${booking.businessName}`,
-    attachments: [
-      { filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") },
-    ],
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
         <div style="background: #059669; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
@@ -296,12 +309,28 @@ export async function sendBookingConfirmation(booking: BookingEmailData, icsCont
             <p style="margin: 0 0 8px; font-size: 14px;"><strong>Time:</strong> ${booking.time}</p>
             ${booking.businessAddress ? `<p style="margin: 0; font-size: 14px;"><strong>Location:</strong> ${booking.businessAddress}</p>` : ""}
           </div>
-          <p style="color: #6B7280; font-size: 13px; margin: 0 0 8px;">Calendar invite attached — open to add a reminder.</p>
-          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Need to reschedule? Call <a href="tel:${booking.businessPhone}" style="color: #2563EB;">${booking.businessPhone}</a></p>` : ""}
+          ${calendarButtons}
+          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 16px 0 0;">Need to reschedule? Call <a href="tel:${booking.businessPhone}" style="color: #2563EB;">${booking.businessPhone}</a></p>` : ""}
         </div>
       </div>
     `,
   });
+}
+
+/** Two-button Add-to-Calendar block. Returns empty string if neither URL is
+ * available, so the email body stays clean. */
+function renderCalendarButtons(booking: BookingEmailData): string {
+  const appUrl = APP_URL.replace(/\/$/, "");
+  const icsUrl = booking.bookingId ? `${appUrl}/api/booking/${booking.bookingId}/ics` : "";
+  const gcalUrl = booking.googleCalendarUrl ?? "";
+  if (!icsUrl && !gcalUrl) return "";
+  return `
+    <div style="margin: 4px 0 0; text-align: center;">
+      <p style="color: #6B7280; font-size: 13px; margin: 0 0 10px;">Add to your calendar:</p>
+      ${gcalUrl ? `<a href="${gcalUrl}" style="display: inline-block; margin: 0 4px 8px; padding: 9px 16px; background: #2563EB; color: #fff; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600;">Google Calendar</a>` : ""}
+      ${icsUrl ? `<a href="${icsUrl}" style="display: inline-block; margin: 0 4px 8px; padding: 9px 16px; background: #111827; color: #fff; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600;">Apple / Outlook</a>` : ""}
+    </div>
+  `;
 }
 
 /** Spec 5: customer email when a deposit-required booking is placed.
@@ -341,23 +370,18 @@ export async function sendBookingPendingDepositEmail(
 }
 
 /** Spec 5: customer email when the owner marks the deposit received. */
-export async function sendBookingDepositReceivedEmail(
-  booking: BookingEmailData,
-  icsContent?: string,
-) {
+export async function sendBookingDepositReceivedEmail(booking: BookingEmailData) {
   if (!resend) return;
   if (!booking.customerEmail) return;
 
   const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
   const subject = `✓ Deposit received — booking confirmed at ${booking.businessName}`;
+  const calendarButtons = renderCalendarButtons(booking);
   await resend.emails.send({
     from: tenantFrom(booking.businessName),
     to: booking.customerEmail,
     ...(booking.ownerEmail ? { replyTo: booking.ownerEmail } : {}),
     subject,
-    attachments: icsContent
-      ? [{ filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") }]
-      : undefined,
     html: `
       <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
         <div style="background: #059669; padding: 16px 24px; border-radius: 12px 12px 0 0;">
@@ -371,7 +395,8 @@ export async function sendBookingDepositReceivedEmail(
             <div style="font-size: 14px; color: #374151;">${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}</div>
             <div style="font-size: 14px; color: #6B7280; margin-top: 4px;">${escapeHtml(booking.businessName)}${booking.businessAddress ? ` · ${escapeHtml(booking.businessAddress)}` : ""}</div>
           </div>
-          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
+          ${calendarButtons}
+          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 16px 0 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
         </div>
       </div>
     `,

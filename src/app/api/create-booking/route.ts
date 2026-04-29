@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateIcs, parseTime } from "@/lib/ics";
+import { googleCalendarUrl } from "@/lib/calendar-links";
 import { sendBookingNotification, sendBookingConfirmation, sendBookingPendingDepositEmail } from "@/lib/email";
 import { wouldExceedCapacity, parseBookingTime, formatTimeRange } from "@/lib/availability";
 import {
@@ -203,16 +204,29 @@ export async function POST(request: Request) {
     const monthName = MONTHS[dateObj.getMonth()];
     const dateStr = `${dayName}, ${monthName} ${dateObj.getDate()}`;
 
-    // Generate .ics
+    const icsTitle = `${service_name} — ${businessName}`;
+    const icsDescription = `Service: ${service_name}${service_price ? ` (${service_price})` : ""}\nCustomer: ${customer_name}\nPhone: ${customer_phone}${customer_notes ? `\nNotes: ${customer_notes}` : ""}`;
+
+    // .ics for the owner email (still attached — owner relationship is
+    // already established, no Gmail first-contact friction).
     const icsContent = generateIcs({
-      title: `${service_name} — ${businessName}`,
-      description: `Service: ${service_name}${service_price ? ` (${service_price})` : ""}\nCustomer: ${customer_name}\nPhone: ${customer_phone}${customer_notes ? `\nNotes: ${customer_notes}` : ""}`,
+      title: icsTitle,
+      description: icsDescription,
       location: businessAddress || undefined,
       startDate,
       endDate,
       organizerName: businessName,
       attendeeName: customer_name,
       attendeeEmail: customer_email || undefined,
+    });
+
+    // Google Calendar deep-link for the customer email body.
+    const gcalUrl = googleCalendarUrl({
+      title: icsTitle,
+      description: icsDescription,
+      location: businessAddress || undefined,
+      startDate,
+      endDate,
     });
 
     const emailData = {
@@ -231,6 +245,8 @@ export async function POST(request: Request) {
       previewSlug: preview_slug,
       status: initialStatus as "confirmed" | "pending",
       depositAmount: depositAmount > 0 ? depositAmount : undefined,
+      bookingId: booking.id,
+      googleCalendarUrl: gcalUrl,
     };
 
     // Look up owner SMS phone (falls back to tenants.phone)
@@ -265,7 +281,7 @@ export async function POST(request: Request) {
             amount: depositAmount,
             instructions: bookingSettings?.deposit_instructions ?? "",
           })
-        : sendBookingConfirmation(emailData, icsContent);
+        : sendBookingConfirmation(emailData);
 
     const customerSmsPromise = !smsOptIn
       ? Promise.resolve()
