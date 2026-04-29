@@ -597,6 +597,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
         hero_subheadline: subheadline,
         about_paragraphs: aboutParagraphs,
         footer_tagline: footerTagline,
+        booking_intro: bookingIntro.trim() || undefined,
       },
       section_settings: {
         ...sectionSettings,
@@ -863,6 +864,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 <option value="elegant">Elegant</option>
                 <option value="vibrant">Vibrant</option>
                 <option value="warm">Warm</option>
+                <option value="runway">Runway</option>
               </select>
             </div>
 
