@@ -33,7 +33,7 @@ export function RunwayAbout({ paragraphs, image, colors }: RunwayAboutProps) {
           >
             Client Notes
           </p>
-          <blockquote className="max-w-3xl text-5xl font-black uppercase leading-[0.86] tracking-[-0.065em] sm:text-6xl md:text-7xl">
+          <blockquote className="max-w-3xl text-3xl font-black uppercase leading-[0.95] tracking-[-0.045em] sm:text-4xl md:text-5xl lg:text-6xl">
             &ldquo;{pullQuote}&rdquo;
           </blockquote>
         </AnimateSection>
