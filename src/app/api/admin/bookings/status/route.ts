@@ -10,7 +10,8 @@ import {
   sendBookingDepositReceivedEmail,
   sendBookingCanceledEmail,
 } from "@/lib/email";
-import { generateIcs, parseTime } from "@/lib/ics";
+import { parseTime } from "@/lib/ics";
+import { googleCalendarUrl } from "@/lib/calendar-links";
 import { formatTimeRange } from "@/lib/availability";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -117,24 +118,24 @@ export async function POST(request: NextRequest) {
     };
 
     if (fromStatus === "pending" && toStatus === "confirmed") {
-      // Build .ics for the now-confirmed booking
+      // Calendar buttons in the customer email get the same data the .ics
+      // route uses; no inline .ics generation needed since the email body
+      // links to the hosted endpoint.
       const { hours, minutes } = parseTime(row.booking_time as string);
       const startDate = new Date(dateObj);
       startDate.setHours(hours, minutes, 0);
       const endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);
-      const ics = generateIcs({
+      const gcalUrl = googleCalendarUrl({
         title: `${row.service_name} — ${businessName}`,
         description: `Service: ${row.service_name}\nCustomer: ${row.customer_name}`,
         location: businessAddress || undefined,
         startDate,
         endDate,
-        organizerName: businessName,
-        attendeeName: row.customer_name as string,
-        attendeeEmail: (row.customer_email as string) || undefined,
       });
+      const customerEmailData = { ...emailData, bookingId, googleCalendarUrl: gcalUrl };
 
       await Promise.allSettled([
-        emailData.customerEmail ? sendBookingDepositReceivedEmail(emailData, ics) : Promise.resolve(),
+        emailData.customerEmail ? sendBookingDepositReceivedEmail(customerEmailData) : Promise.resolve(),
         row.customer_sms_opt_in ? sendBookingDepositReceivedCustomer(smsData) : Promise.resolve(),
       ]);
     } else if (toStatus === "canceled") {
