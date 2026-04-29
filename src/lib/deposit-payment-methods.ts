@@ -50,12 +50,12 @@ export function renderPaymentMethodsHtml(m: PaymentMethods): string {
   }
   if (m.zelle) {
     rows.push(
-      `<div style="margin: 0 0 6px; font-size: 14px; color: #111827;"><strong>Zelle:</strong> ${esc(m.zelle.trim())}</div>`,
+      `<div style="margin: 0 0 8px;"><span style="display: inline-block; padding: 8px 14px; background: #6D1ED4; color: #fff; border-radius: 6px; font-size: 14px; font-weight: 600;"><span style="opacity: 0.8; font-size: 12px; margin-right: 6px;">Zelle</span>${esc(m.zelle.trim())}</span></div>`,
     );
   }
   if (m.otherLabel && m.otherValue) {
     rows.push(
-      `<div style="margin: 0 0 6px; font-size: 14px; color: #111827;"><strong>${esc(m.otherLabel.trim())}:</strong> ${esc(m.otherValue.trim())}</div>`,
+      `<div style="margin: 0 0 8px;"><span style="display: inline-block; padding: 8px 14px; background: #374151; color: #fff; border-radius: 6px; font-size: 14px; font-weight: 600;"><span style="opacity: 0.8; font-size: 12px; margin-right: 6px;">${esc(m.otherLabel.trim())}</span>${esc(m.otherValue.trim())}</span></div>`,
     );
   }
   return rows.join("");
