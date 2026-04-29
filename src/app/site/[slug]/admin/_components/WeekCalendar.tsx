@@ -193,10 +193,14 @@ export function WeekCalendar({
           );
         })}
 
-        {/* Booking blocks (absolute-positioned overlay per day column) */}
+        {/* Booking blocks (absolute-positioned overlay per day column).
+            Spec 5: pending bookings reserve slots, so they appear here too
+            with a yellow treatment to distinguish them from confirmed. */}
         {days.map((d, dayIdx) => {
           const dayBookings = bookings.filter(
-            (b) => b.booking_date === d.iso && b.status === "confirmed",
+            (b) =>
+              b.booking_date === d.iso &&
+              (b.status === "confirmed" || b.status === "pending"),
           );
           return (
             <div
@@ -213,6 +217,7 @@ export function WeekCalendar({
                 const startHourFloat = startMin / 60;
                 const top = (startHourFloat - firstHour) * HOUR_PX;
                 const height = ((b.duration_minutes ?? 60) / 60) * HOUR_PX - 1;
+                const isPending = b.status === "pending";
                 return (
                   <button
                     key={b.id}
@@ -222,11 +227,15 @@ export function WeekCalendar({
                     style={{
                       top,
                       height,
-                      backgroundColor: "var(--admin-primary)",
+                      backgroundColor: isPending ? "#f59e0b" : "var(--admin-primary)",
                       color: "white",
+                      borderLeft: isPending ? "3px solid #b45309" : undefined,
                     }}
                   >
-                    <div className="font-semibold truncate">{b.customer_name}</div>
+                    <div className="font-semibold truncate">
+                      {b.customer_name}
+                      {isPending && <span className="ml-1 opacity-90">⏳</span>}
+                    </div>
                     <div className="opacity-80 truncate">{b.service_name}</div>
                   </button>
                 );

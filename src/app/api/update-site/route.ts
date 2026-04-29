@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { validateDepositSettings } from "@/lib/validation/deposit-settings";
 
 export async function POST(request: Request) {
   try {
@@ -79,13 +80,27 @@ export async function POST(request: Request) {
     }
 
     // Spec 5: deposit settings live on booking_settings (not previews).
-    // Update separately if any deposit field is in the payload.
+    // Run the same validator the owner-side admin uses so the founder
+    // can't bypass field-level rules and leave the DB in a state the
+    // owner-side editor would reject on subsequent saves.
     if (
       updates.deposit_required !== undefined ||
       updates.deposit_mode !== undefined ||
       updates.deposit_value !== undefined ||
       updates.deposit_instructions !== undefined
     ) {
+      const depositResult = validateDepositSettings({
+        deposit_required: updates.deposit_required,
+        deposit_mode: updates.deposit_mode,
+        deposit_value: updates.deposit_value,
+        deposit_instructions: updates.deposit_instructions,
+      });
+      if (!depositResult.ok) {
+        return NextResponse.json(
+          { error: "Deposit validation failed", errors: depositResult.errors },
+          { status: 400 },
+        );
+      }
       const tenantRow = await supabase
         .from("tenants")
         .select("id")
@@ -96,10 +111,10 @@ export async function POST(request: Request) {
         await supabase
           .from("booking_settings")
           .update({
-            deposit_required: updates.deposit_required,
-            deposit_mode: updates.deposit_mode,
-            deposit_value: updates.deposit_value,
-            deposit_instructions: updates.deposit_instructions,
+            deposit_required: depositResult.value.deposit_required,
+            deposit_mode: depositResult.value.deposit_mode,
+            deposit_value: depositResult.value.deposit_value,
+            deposit_instructions: depositResult.value.deposit_instructions,
             updated_at: new Date().toISOString(),
           })
           .eq("tenant_id", tenantId);
