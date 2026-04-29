@@ -75,21 +75,6 @@ export function RunwayHero({
       }}
     >
       <div className="absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0,transparent_30%,transparent_70%,rgba(255,255,255,0.06)_100%)]" />
-      {heroImage && (
-        <div className="absolute inset-y-0 right-0 w-full opacity-35 lg:w-[58%] lg:opacity-45" aria-hidden>
-          <Image
-            src={heroImage}
-            alt=""
-            fill
-            className="object-cover object-center brightness-75 contrast-125 saturate-90"
-            sizes="(max-width: 1024px) 100vw, 58vw"
-            priority
-            unoptimized
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-[#030303] via-[#030303]/65 to-[#030303]/20" />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#030303] via-transparent to-[#030303]/20" />
-        </div>
-      )}
       <div className="absolute left-1/2 top-0 h-full w-px bg-white/10" />
 
       <div className="relative z-10 mx-auto grid min-h-[calc(92vh-12rem)] max-w-7xl items-center gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(320px,0.75fr)]">
