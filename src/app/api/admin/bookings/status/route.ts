@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
   const fireCustomerNotification = async () => {
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("business_name, address, phone")
+      .select("business_name, address, phone, email, preview_slug")
       .eq("id", row.tenant_id as string)
       .maybeSingle();
     const businessName = (tenant?.business_name as string) || "Business";
@@ -112,6 +112,8 @@ export async function POST(request: NextRequest) {
       customerName: row.customer_name as string,
       customerPhone: row.customer_phone as string,
       customerEmail: (row.customer_email as string) || undefined,
+      ownerEmail: (tenant?.email as string) || undefined,
+      previewSlug: (tenant?.preview_slug as string) || undefined,
     };
 
     if (fromStatus === "pending" && toStatus === "confirmed") {

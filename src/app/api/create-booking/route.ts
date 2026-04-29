@@ -227,6 +227,10 @@ export async function POST(request: Request) {
       customerPhone: customer_phone,
       customerEmail: customer_email || undefined,
       customerNotes: customer_notes || undefined,
+      ownerEmail: ownerEmail || undefined,
+      previewSlug: preview_slug,
+      status: initialStatus as "confirmed" | "pending",
+      depositAmount: depositAmount > 0 ? depositAmount : undefined,
     };
 
     // Look up owner SMS phone (falls back to tenants.phone)
