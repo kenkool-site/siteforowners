@@ -5,6 +5,7 @@ import type { ServiceItem } from "@/lib/ai/types";
 import { ServiceRow } from "../_components/ServiceRow";
 import { CategoriesPanel } from "./CategoriesPanel";
 import { BookingPoliciesEditor } from "./BookingPoliciesEditor";
+import { DepositEditor, type DepositSettingsState } from "./DepositEditor";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
@@ -29,9 +30,15 @@ interface ServicesClientProps {
   initialServices: ServiceItem[];
   initialCategories: string[];
   initialBookingPolicies: string;
+  initialDeposit: DepositSettingsState;
 }
 
-export function ServicesClient({ initialServices, initialCategories, initialBookingPolicies }: ServicesClientProps) {
+export function ServicesClient({
+  initialServices,
+  initialCategories,
+  initialBookingPolicies,
+  initialDeposit,
+}: ServicesClientProps) {
   const truncatedIndexes = new Set<number>();
   initialServices.forEach((s, i) => {
     if (
@@ -47,6 +54,7 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
   const [services, setServices] = useState<ServiceItem[]>(normalizedInitial);
   const [categories, setCategories] = useState<string[]>(initialCategories);
   const [bookingPolicies, setBookingPolicies] = useState<string>(initialBookingPolicies);
+  const [deposit, setDeposit] = useState<DepositSettingsState>(initialDeposit);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,8 +65,13 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
   // prop; the rest stay tidy after a save.
   const [collapseSignal, setCollapseSignal] = useState(0);
 
-  const initialJson = JSON.stringify({ services: normalizedInitial, categories: initialCategories, bookingPolicies: initialBookingPolicies });
-  const dirty = JSON.stringify({ services, categories, bookingPolicies }) !== initialJson;
+  const initialJson = JSON.stringify({
+    services: normalizedInitial,
+    categories: initialCategories,
+    bookingPolicies: initialBookingPolicies,
+    deposit: initialDeposit,
+  });
+  const dirty = JSON.stringify({ services, categories, bookingPolicies, deposit }) !== initialJson;
 
   // Per-category service counts for the categories panel.
   const counts = useMemo(() => {
@@ -126,7 +139,15 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
       const res = await fetch("/api/admin/services", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ services, categories, booking_policies: bookingPolicies }),
+        body: JSON.stringify({
+          services,
+          categories,
+          booking_policies: bookingPolicies,
+          deposit_required: deposit.deposit_required,
+          deposit_mode: deposit.deposit_mode,
+          deposit_value: deposit.deposit_value,
+          deposit_instructions: deposit.deposit_instructions,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -178,6 +199,8 @@ export function ServicesClient({ initialServices, initialCategories, initialBook
       />
 
       <BookingPoliciesEditor value={bookingPolicies} onChange={setBookingPolicies} />
+
+      <DepositEditor value={deposit} onChange={setDeposit} />
 
       <div className="flex items-center justify-between">
         <span className="text-xs text-gray-500">{services.length} {services.length === 1 ? "service" : "services"}</span>

@@ -125,7 +125,7 @@ export async function sendLeadConfirmation(lead: LeadData) {
   });
 }
 
-interface BookingEmailData {
+export interface BookingEmailData {
   businessName: string;
   businessPhone?: string;
   businessAddress?: string;
@@ -210,6 +210,104 @@ export async function sendBookingConfirmation(booking: BookingEmailData, icsCont
           </div>
           <p style="color: #6B7280; font-size: 13px; margin: 0 0 8px;">Calendar invite attached — open to add a reminder.</p>
           ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Need to reschedule? Call <a href="tel:${booking.businessPhone}" style="color: #2563EB;">${booking.businessPhone}</a></p>` : ""}
+        </div>
+      </div>
+    `,
+  });
+}
+
+/** Spec 5: customer email when a deposit-required booking is placed.
+ * Lead with the action and amount so the customer knows what to do next. */
+export async function sendBookingPendingDepositEmail(
+  booking: BookingEmailData,
+  deposit: { amount: number; instructions: string },
+) {
+  if (!resend) return;
+  if (!booking.customerEmail) return;
+
+  const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
+  const subject = `⏳ Pay $${deposit.amount.toFixed(2)} to secure your booking at ${booking.businessName}`;
+  await resend.emails.send({
+    from: FROM,
+    to: booking.customerEmail,
+    subject,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #f59e0b; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; color: #fff; font-size: 18px;">Almost there — pay your deposit to lock in this slot</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">Hi ${escapeHtml(firstName)},</p>
+          <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">Thanks for booking <strong>${escapeHtml(booking.serviceName)}</strong> at <strong>${escapeHtml(booking.businessName)}</strong> on <strong>${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}</strong>.</p>
+          <div style="background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 16px; margin: 16px 0;">
+            <div style="font-weight: 700; font-size: 18px; color: #78350f; margin-bottom: 8px;">Deposit due: $${deposit.amount.toFixed(2)}</div>
+            <div style="white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 14px; background: #fff; border-radius: 4px; padding: 10px; color: #451a03;">${escapeHtml(deposit.instructions)}</div>
+          </div>
+          <p style="color: #525252; font-size: 14px; margin: 0 0 6px;">We'll send a confirmation once we receive your deposit. Your slot stays held until then.</p>
+          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
+        </div>
+      </div>
+    `,
+  });
+}
+
+/** Spec 5: customer email when the owner marks the deposit received. */
+export async function sendBookingDepositReceivedEmail(
+  booking: BookingEmailData,
+  icsContent?: string,
+) {
+  if (!resend) return;
+  if (!booking.customerEmail) return;
+
+  const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
+  const subject = `✓ Deposit received — booking confirmed at ${booking.businessName}`;
+  await resend.emails.send({
+    from: FROM,
+    to: booking.customerEmail,
+    subject,
+    attachments: icsContent
+      ? [{ filename: "booking.ics", content: Buffer.from(icsContent).toString("base64") }]
+      : undefined,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #059669; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; color: #fff; font-size: 18px;">Your booking is confirmed!</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">Hi ${escapeHtml(firstName)},</p>
+          <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">We received your deposit. Your booking is locked in:</p>
+          <div style="background: #fafafa; border-radius: 8px; padding: 16px; margin: 16px 0;">
+            <div style="font-weight: 600; margin-bottom: 4px;">${escapeHtml(booking.serviceName)}</div>
+            <div style="font-size: 14px; color: #374151;">${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}</div>
+            <div style="font-size: 14px; color: #6B7280; margin-top: 4px;">${escapeHtml(booking.businessName)}${booking.businessAddress ? ` · ${escapeHtml(booking.businessAddress)}` : ""}</div>
+          </div>
+          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
+        </div>
+      </div>
+    `,
+  });
+}
+
+/** Spec 5: customer email when a booking is canceled (paid or not). */
+export async function sendBookingCanceledEmail(booking: BookingEmailData) {
+  if (!resend) return;
+  if (!booking.customerEmail) return;
+
+  const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
+  const subject = `Your booking at ${booking.businessName} has been canceled`;
+  await resend.emails.send({
+    from: FROM,
+    to: booking.customerEmail,
+    subject,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #7f1d1d; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; color: #fff; font-size: 18px;">Booking canceled</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">Hi ${escapeHtml(firstName)},</p>
+          <p style="margin: 0 0 12px; font-size: 15px; color: #111827;">Your booking for <strong>${escapeHtml(booking.serviceName)}</strong> on <strong>${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}</strong> at ${escapeHtml(booking.businessName)} has been canceled.</p>
+          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
         </div>
       </div>
     `,

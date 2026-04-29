@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateIcs, parseTime } from "@/lib/ics";
-import { sendBookingNotification, sendBookingConfirmation } from "@/lib/email";
+import { sendBookingNotification, sendBookingConfirmation, sendBookingPendingDepositEmail } from "@/lib/email";
 import { wouldExceedCapacity, parseBookingTime, formatTimeRange } from "@/lib/availability";
 import {
   sendBookingOwnerNotification,
   sendBookingCustomerConfirmation,
+  sendBookingPendingDepositCustomer,
   type BookingSmsData,
 } from "@/lib/sms";
+import { computeDeposit, parseServicePrice } from "@/lib/deposit";
 import type { AddOn } from "@/lib/ai/types";
 import { validateAddOns } from "@/lib/validation/add-ons";
 
@@ -98,22 +100,35 @@ export async function POST(request: Request) {
     const tenantId = tenant?.id;
     const ownerEmail = tenant?.email || "";
 
-    // Check for conflicts
+    // Check for conflicts + load deposit settings
+    let bookingSettings: {
+      max_per_slot?: number | null;
+      deposit_required?: boolean | null;
+      deposit_mode?: string | null;
+      deposit_value?: number | null;
+      deposit_instructions?: string | null;
+    } | null = null;
+
     if (tenantId) {
       const { data: settings } = await supabase
         .from("booking_settings")
-        .select("max_per_slot")
+        .select("max_per_slot, deposit_required, deposit_mode, deposit_value, deposit_instructions")
         .eq("tenant_id", tenantId)
         .single();
 
+      bookingSettings = settings;
+
       const maxPerSlot = settings?.max_per_slot || 1;
 
+      // Spec 5: pending bookings reserve slots too, otherwise two
+      // customers could each book the same slot while waiting on deposits.
+      // Owner cancels stale pendings to free slots.
       const { data: sameDay } = await supabase
         .from("bookings")
         .select("booking_time, duration_minutes")
         .eq("tenant_id", tenantId)
         .eq("booking_date", booking_date)
-        .eq("status", "confirmed");
+        .in("status", ["confirmed", "pending"]);
 
       const candidate = {
         startMinutes: parseBookingTime(booking_time),
@@ -131,6 +146,22 @@ export async function POST(request: Request) {
         );
       }
     }
+
+    // Spec 5: deposit calculation. If the tenant requires a deposit and the
+    // computed amount > 0, the booking enters as 'pending' and the customer
+    // gets the deposit-pending email + SMS instead of the standard confirmation.
+    const depositSettings = {
+      deposit_required: !!bookingSettings?.deposit_required,
+      deposit_mode: (bookingSettings?.deposit_mode as "fixed" | "percent" | null) ?? null,
+      deposit_value: (bookingSettings?.deposit_value as number | null) ?? null,
+    };
+    const basePrice = parseServicePrice(service_price ?? "");
+    const addOnTotal = Array.isArray(validatedAddOns)
+      ? validatedAddOns.reduce((sum: number, a: { price_delta: number }) => sum + a.price_delta, 0)
+      : 0;
+    const depositAmount = computeDeposit(depositSettings, basePrice, addOnTotal);
+    const isPending = depositSettings.deposit_required && depositAmount > 0;
+    const initialStatus = isPending ? "pending" : "confirmed";
 
     // Create the booking
     const { data: booking, error: insertError } = await supabase
@@ -150,6 +181,8 @@ export async function POST(request: Request) {
         customer_sms_opt_in: smsOptIn,
         selected_add_ons: validatedAddOns,
         add_ons_total_price: validatedAddOnsPrice,
+        status: initialStatus,
+        deposit_amount: depositAmount > 0 ? depositAmount : null,
       })
       .select("id")
       .single();
@@ -216,14 +249,31 @@ export async function POST(request: Request) {
       customerPhone: customer_phone,
       businessAddress: businessAddress || undefined,
       addOnNames: validatedAddOns?.map((a) => a.name) ?? [],
+      depositAmount: depositAmount > 0 ? depositAmount : undefined,
+      depositInstructions: bookingSettings?.deposit_instructions || undefined,
     };
 
     // Send emails + SMS in background
+    const customerEmailPromise = !customer_email
+      ? Promise.resolve()
+      : isPending
+        ? sendBookingPendingDepositEmail(emailData, {
+            amount: depositAmount,
+            instructions: bookingSettings?.deposit_instructions ?? "",
+          })
+        : sendBookingConfirmation(emailData, icsContent);
+
+    const customerSmsPromise = !smsOptIn
+      ? Promise.resolve()
+      : isPending
+        ? sendBookingPendingDepositCustomer(smsData)
+        : sendBookingCustomerConfirmation(smsData);
+
     Promise.allSettled([
       sendBookingNotification(ownerEmail, emailData, icsContent),
-      sendBookingConfirmation(emailData, icsContent),
+      customerEmailPromise,
       sendBookingOwnerNotification(ownerSmsPhone, smsData),
-      smsOptIn ? sendBookingCustomerConfirmation(smsData) : Promise.resolve(),
+      customerSmsPromise,
     ]).then((results) => {
       for (const r of results) {
         if (r.status === "rejected") {
@@ -232,7 +282,7 @@ export async function POST(request: Request) {
       }
     });
 
-    return NextResponse.json({ success: true, booking_id: booking.id });
+    return NextResponse.json({ success: true, booking_id: booking.id, status: initialStatus, deposit_amount: depositAmount > 0 ? depositAmount : null });
   } catch (error) {
     console.error("Create booking error:", error);
     return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { AddOn } from "@/lib/ai/types";
 import { formatTimeRange, formatDuration } from "@/lib/availability";
+import { computeDeposit, parseServicePrice } from "@/lib/deposit";
 
 export interface SimpleService {
   name: string;
@@ -95,6 +96,7 @@ export function CustomerBookingFlow({
   workingHours = null,
   blockedDates = [],
   bookingPolicies = "",
+  depositSettings,
 }: {
   services: SimpleService[];
   colors: ThemeColors;
@@ -105,6 +107,12 @@ export function CustomerBookingFlow({
   workingHours?: Record<string, { open: string; close: string } | null> | null;
   blockedDates?: string[];
   bookingPolicies?: string;
+  depositSettings?: {
+    deposit_required: boolean;
+    deposit_mode: "fixed" | "percent" | null;
+    deposit_value: number | null;
+    deposit_instructions: string | null;
+  };
 }) {
   const [step, setStep] = useState<"service" | "details" | "schedule" | "confirm">(
     initialService ? "details" : "service",
@@ -123,7 +131,21 @@ export function CustomerBookingFlow({
   const [error, setError] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
   const [policiesOpen, setPoliciesOpen] = useState(false);
+  const [bookedAsPending, setBookedAsPending] = useState(false);
   const policiesHeadline = bookingPolicies.split("\n").find((l) => l.trim().length > 0)?.trim() ?? "";
+
+  const depositAmount = depositSettings && selectedService
+    ? computeDeposit(
+        {
+          deposit_required: depositSettings.deposit_required,
+          deposit_mode: depositSettings.deposit_mode,
+          deposit_value: depositSettings.deposit_value,
+        },
+        parseServicePrice(selectedService.price),
+        selectedAddOns.reduce((s, a) => s + a.price_delta, 0),
+      )
+    : 0;
+  const isDepositRequired = !!(depositSettings?.deposit_required && depositAmount > 0);
 
   // Reset add-ons whenever the user picks a different service
   useEffect(() => {
@@ -226,9 +248,11 @@ export function CustomerBookingFlow({
         }),
       });
       if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Booking failed");
+        const errData = await res.json();
+        throw new Error(errData.error || "Booking failed");
       }
+      const data = await res.json().catch(() => ({}));
+      setBookedAsPending(data?.status === "pending");
       setStep("confirm");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong");
@@ -264,7 +288,7 @@ export function CustomerBookingFlow({
               {step === "service" && "Select a Service"}
               {step === "details" && "Pick a Date & Time"}
               {step === "schedule" && "Your Details"}
-              {step === "confirm" && "Booking Confirmed!"}
+              {step === "confirm" && (bookedAsPending ? "Almost there!" : "Booking Confirmed!")}
             </h3>
           </div>
           <button onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-white/10">
@@ -565,6 +589,26 @@ export function CustomerBookingFlow({
                       className="w-full resize-none rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
                   </div>
 
+                  {/* Deposit panel — only renders if deposit is required */}
+                  {isDepositRequired && (
+                    <div
+                      className="rounded-xl border-l-4 p-3"
+                      style={{ backgroundColor: "#fffbeb", borderLeftColor: "#f59e0b", color: "#451a03" }}
+                    >
+                      <div className="flex items-baseline justify-between mb-1">
+                        <span className="font-bold text-sm">${depositAmount.toFixed(2)} deposit required</span>
+                        <span className="text-xs opacity-70">non-refundable</span>
+                      </div>
+                      <div className="text-xs mb-2">Pay before your booking is confirmed:</div>
+                      <div className="bg-white rounded p-2 font-mono text-xs whitespace-pre-wrap leading-relaxed">
+                        {depositSettings!.deposit_instructions}
+                      </div>
+                      <div className="text-[10px] mt-2 opacity-70">
+                        You&apos;ll get a confirmation once we receive payment.
+                      </div>
+                    </div>
+                  )}
+
                   {/* Booking policies callout — only renders if owner set any */}
                   {policiesHeadline && (
                     <button
@@ -591,55 +635,98 @@ export function CustomerBookingFlow({
                       className="w-full py-3 rounded-lg font-semibold disabled:opacity-50"
                       style={{ backgroundColor: colors.primary, color: "white" }}
                     >
-                      {submitting ? "Booking..." : "Confirm booking"}
+                      {submitting ? "Booking..." : isDepositRequired ? "Confirm & I'll pay deposit" : "Confirm booking"}
                     </button>
                   </div>
                 </div>
               </motion.div>
             )}
 
-            {/* Step: confirm — success state (unchanged) */}
+            {/* Step: confirm — pending deposit variant or success state */}
             {step === "confirm" && (
               <motion.div key="confirm" initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
-                <div className="py-4 text-center">
-                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 12, delay: 0.1 }}
-                    className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: `${colors.primary}15` }}>
-                    <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke={colors.primary} strokeWidth={2.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
-                  </motion.div>
-                  <h4 className="mb-1 text-lg font-bold" style={{ color: colors.foreground }}>You&apos;re All Set!</h4>
-                  <p className="mb-2 text-sm opacity-60" style={{ color: colors.foreground }}>
-                    Your appointment has been booked.
-                  </p>
-                  {customerEmail && (
-                    <p className="mb-4 text-xs opacity-40" style={{ color: colors.foreground }}>
-                      A confirmation with calendar invite was sent to {customerEmail}
-                    </p>
-                  )}
-                  <div className="mb-6 rounded-xl p-4 text-left" style={{ backgroundColor: colors.muted }}>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Service</span>
-                        <span className="text-sm font-semibold" style={{ color: colors.foreground }}>{selectedService?.name}</span>
+                {bookedAsPending ? (
+                  <div className="py-4 text-center">
+                    <motion.div
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      transition={{ type: "spring", damping: 12, delay: 0.1 }}
+                      className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+                      style={{ backgroundColor: "#fefce8", border: "3px solid #f59e0b", color: "#f59e0b", fontSize: 30 }}
+                    >
+                      ⏳
+                    </motion.div>
+                    <h3 className="mb-1 text-lg font-bold">Almost there!</h3>
+                    <p className="mb-4 text-sm opacity-70">Pay your deposit to lock in this slot.</p>
+                    <div
+                      className="mb-3 rounded-xl p-4 text-left"
+                      style={{ backgroundColor: "#fffbeb", border: "1px solid #fde68a" }}
+                    >
+                      <div className="flex items-baseline justify-between mb-2">
+                        <span className="text-xs font-semibold" style={{ color: "#92400e" }}>Deposit due</span>
+                        <span className="text-lg font-bold" style={{ color: "#78350f" }}>${depositAmount.toFixed(2)}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Date</span>
-                        <span className="text-sm font-semibold" style={{ color: colors.foreground }}>
-                          {selectedDate && `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Time</span>
-                        <span className="text-sm font-semibold" style={{ color: colors.foreground }}>
-                          {selectedTime && formatTimeRange(selectedTime, selectedService?.durationMinutes ?? 60)}
-                        </span>
+                      <div className="rounded bg-white p-2 text-xs font-mono whitespace-pre-wrap" style={{ color: "#451a03" }}>
+                        {depositSettings?.deposit_instructions ?? ""}
                       </div>
                     </div>
+                    <div className="mb-3 rounded-lg bg-gray-50 p-3 text-left text-sm">
+                      <div className="text-xs text-gray-500 mb-1">Pending booking</div>
+                      <div className="font-semibold">{selectedService?.name} · {selectedDate?.toLocaleDateString()} · {selectedTime}</div>
+                    </div>
+                    <p className="mb-4 text-xs text-gray-500 leading-relaxed">
+                      We&apos;ll text and email you once your deposit is received and your booking is confirmed.
+                    </p>
+                    <Button
+                      size="lg"
+                      onClick={onClose}
+                      className="w-full rounded-xl py-3 text-sm font-bold"
+                      style={{ backgroundColor: colors.primary, color: colors.background }}
+                    >
+                      Got it
+                    </Button>
                   </div>
-                  <Button onClick={onClose} className="w-full rounded-xl py-5 text-sm font-semibold"
-                    style={{ backgroundColor: colors.primary, color: colors.background }}>Done</Button>
-                </div>
+                ) : (
+                  <div className="py-4 text-center">
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: "spring", damping: 12, delay: 0.1 }}
+                      className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full" style={{ backgroundColor: `${colors.primary}15` }}>
+                      <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke={colors.primary} strokeWidth={2.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </motion.div>
+                    <h4 className="mb-1 text-lg font-bold" style={{ color: colors.foreground }}>You&apos;re All Set!</h4>
+                    <p className="mb-2 text-sm opacity-60" style={{ color: colors.foreground }}>
+                      Your appointment has been booked.
+                    </p>
+                    {customerEmail && (
+                      <p className="mb-4 text-xs opacity-40" style={{ color: colors.foreground }}>
+                        A confirmation with calendar invite was sent to {customerEmail}
+                      </p>
+                    )}
+                    <div className="mb-6 rounded-xl p-4 text-left" style={{ backgroundColor: colors.muted }}>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Service</span>
+                          <span className="text-sm font-semibold" style={{ color: colors.foreground }}>{selectedService?.name}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Date</span>
+                          <span className="text-sm font-semibold" style={{ color: colors.foreground }}>
+                            {selectedDate && `${DAYS[selectedDate.getDay()]}, ${MONTHS[selectedDate.getMonth()]} ${selectedDate.getDate()}`}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm opacity-60" style={{ color: colors.foreground }}>Time</span>
+                          <span className="text-sm font-semibold" style={{ color: colors.foreground }}>
+                            {selectedTime && formatTimeRange(selectedTime, selectedService?.durationMinutes ?? 60)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <Button onClick={onClose} className="w-full rounded-xl py-5 text-sm font-semibold"
+                      style={{ backgroundColor: colors.primary, color: colors.background }}>Done</Button>
+                  </div>
+                )}
               </motion.div>
             )}
 

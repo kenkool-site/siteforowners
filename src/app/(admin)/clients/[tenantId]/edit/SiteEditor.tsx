@@ -12,6 +12,7 @@ import {
 import type { BusinessHours, BusinessType, ColorTheme, ServiceItem } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
 import { ServiceRow } from "@/app/site/[slug]/admin/_components/ServiceRow";
+import { DepositEditor, type DepositSettingsState } from "@/app/site/[slug]/admin/services/DepositEditor";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
@@ -19,6 +20,7 @@ import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
   preview: Record<string, unknown>;
+  initialDeposit: DepositSettingsState;
 }
 
 interface ProductItem {
@@ -41,7 +43,7 @@ function labelForSource(source: "booking" | "google" | "custom" | "default"): st
   }
 }
 
-export function SiteEditor({ tenant, preview }: SiteEditorProps) {
+export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps) {
   const slug = preview.slug as string;
   const copy = (preview.generated_copy || {}) as Record<string, unknown>;
   const enCopy = (copy.en || {}) as Record<string, unknown>;
@@ -77,6 +79,7 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
   const [bookingPolicies, setBookingPolicies] = useState<string>(
     (preview.booking_policies as string) || ""
   );
+  const [deposit, setDeposit] = useState<DepositSettingsState>(initialDeposit);
   // Bumped on Save click to fold every ServiceRow back to its compact view
   // alongside the rest of the form (mirrors owner-side ServicesClient).
   const [serviceCollapseSignal, setServiceCollapseSignal] = useState(0);
@@ -285,6 +288,10 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
             services: services.filter((s) => s.name.trim()),
             categories,
             booking_policies: bookingPolicies.trim() || null,
+            deposit_required: deposit.deposit_required,
+            deposit_mode: deposit.deposit_mode,
+            deposit_value: deposit.deposit_value,
+            deposit_instructions: deposit.deposit_instructions,
             products: products.filter((p) => p.name.trim()),
             images,
             hero_video_url: heroVideoUrl,
@@ -567,6 +574,10 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
     services: services.filter((s) => s.name.trim()),
     categories,
     booking_policies: bookingPolicies.trim() || undefined,
+    deposit_required: deposit.deposit_required,
+    deposit_mode: deposit.deposit_mode,
+    deposit_value: deposit.deposit_value,
+    deposit_instructions: deposit.deposit_instructions,
     products: products.filter((p) => p.name.trim()),
     images,
     hero_video_url: heroVideoUrl,
@@ -1188,6 +1199,11 @@ export function SiteEditor({ tenant, preview }: SiteEditorProps) {
                 rows={6}
                 className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm font-mono leading-snug"
               />
+            </div>
+
+            <div className="mt-6 border-t border-gray-100 pt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Deposit</label>
+              <DepositEditor value={deposit} onChange={setDeposit} />
             </div>
           </section>
 

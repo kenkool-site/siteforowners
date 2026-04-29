@@ -58,6 +58,12 @@ interface TemplateBookingProps {
   /** Owner-defined booking terms (deposit, lateness, reschedule rules)
    * shown on the booking modal's schedule step. Empty = no callout. */
   bookingPolicies?: string;
+  depositSettings?: {
+    deposit_required: boolean;
+    deposit_mode: "fixed" | "percent" | null;
+    deposit_value: number | null;
+    deposit_instructions: string | null;
+  };
 }
 
 // For Vagaro URLs, ensure the embed loads the /services page directly
@@ -101,6 +107,7 @@ export function TemplateBooking({
   workingHours = null,
   blockedDates = [],
   bookingPolicies = "",
+  depositSettings,
 }: TemplateBookingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
@@ -570,6 +577,7 @@ export function TemplateBooking({
               workingHours={workingHours}
               blockedDates={blockedDates}
               bookingPolicies={bookingPolicies}
+              depositSettings={depositSettings}
             />
           ) : (
             <MockBookingCalendar

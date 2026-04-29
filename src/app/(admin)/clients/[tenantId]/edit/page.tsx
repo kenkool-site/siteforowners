@@ -23,7 +23,29 @@ async function getData(tenantId: string) {
 
   if (!preview) return null;
 
-  return { tenant, preview };
+  // Spec 5: deposit settings live on booking_settings, fetched separately
+  // and passed to SiteEditor as a new prop. Returns nulls when no row.
+  const { data: bookingSettings } = await supabase
+    .from("booking_settings")
+    .select("deposit_required, deposit_mode, deposit_value, deposit_instructions")
+    .eq("tenant_id", tenantId)
+    .maybeSingle();
+
+  const deposit = bookingSettings
+    ? {
+        deposit_required: !!bookingSettings.deposit_required,
+        deposit_mode: (bookingSettings.deposit_mode as "fixed" | "percent" | null) ?? null,
+        deposit_value: bookingSettings.deposit_value as number | null,
+        deposit_instructions: (bookingSettings.deposit_instructions as string | null) ?? null,
+      }
+    : {
+        deposit_required: false,
+        deposit_mode: null as "fixed" | "percent" | null,
+        deposit_value: null as number | null,
+        deposit_instructions: null as string | null,
+      };
+
+  return { tenant, preview, deposit };
 }
 
 export const dynamic = "force-dynamic";
@@ -45,6 +67,7 @@ export default async function EditSitePage({
     <SiteEditor
       tenant={data.tenant}
       preview={data.preview}
+      initialDeposit={data.deposit}
     />
   );
 }

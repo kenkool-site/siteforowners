@@ -11,6 +11,12 @@ interface SiteClientProps {
   tenantId?: string | null;
   checkoutMode?: "mockup" | "pickup";
   bookingMode?: BookingModePolicy;
+  depositSettings?: {
+    deposit_required: boolean;
+    deposit_mode: "fixed" | "percent" | null;
+    deposit_value: number | null;
+    deposit_instructions: string | null;
+  };
 }
 
 export function SiteClient({
@@ -20,6 +26,7 @@ export function SiteClient({
   tenantId = null,
   checkoutMode = "mockup",
   bookingMode = "in_site_only",
+  depositSettings,
 }: SiteClientProps) {
   // Published site — no preview chrome, just the raw template
   return (
@@ -33,6 +40,7 @@ export function SiteClient({
         tenantId={tenantId}
         checkoutMode={checkoutMode}
         bookingMode={bookingMode}
+        depositSettings={depositSettings}
       />
     </div>
   );
