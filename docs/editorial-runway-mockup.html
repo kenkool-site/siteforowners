@@ -1,0 +1,558 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Editorial Runway Hair Template Mockup</title>
+  <style>
+    :root {
+      --black: #050505;
+      --panel: #0d0b08;
+      --gold: #d8b255;
+      --deep-gold: #8f6d22;
+      --ivory: #fff4d8;
+      --muted: rgba(255, 244, 216, 0.68);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(circle at 12% 8%, rgba(216, 178, 85, 0.18), transparent 26rem),
+        radial-gradient(circle at 90% 18%, rgba(216, 178, 85, 0.16), transparent 24rem),
+        var(--black);
+      color: var(--ivory);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .page-shell {
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .nav {
+      position: fixed;
+      top: 18px;
+      left: 18px;
+      right: 18px;
+      z-index: 30;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(18px);
+      text-transform: uppercase;
+      letter-spacing: 0.22em;
+      font-size: 11px;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 22px;
+      color: var(--muted);
+    }
+
+    .hero {
+      position: relative;
+      display: grid;
+      min-height: 100vh;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.72fr);
+      gap: 36px;
+      align-items: end;
+      padding: 120px 7vw 70px;
+    }
+
+    .eyebrow {
+      color: var(--gold);
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 24px 0 0;
+      max-width: 850px;
+      font-size: clamp(4.2rem, 11vw, 10.5rem);
+      font-weight: 950;
+      line-height: 0.78;
+      letter-spacing: -0.085em;
+      text-transform: uppercase;
+    }
+
+    h1 span {
+      display: block;
+      animation: runwayDrift 7s ease-in-out infinite;
+    }
+
+    h1 span:nth-child(2) {
+      color: var(--gold);
+      text-shadow: 0 0 42px rgba(216, 178, 85, 0.38);
+      animation-delay: 0.18s;
+    }
+
+    .intro {
+      margin-top: 26px;
+      max-width: 450px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.8;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 34px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 52px;
+      padding: 0 22px;
+      border: 1px solid rgba(255, 244, 216, 0.28);
+      color: var(--ivory);
+      text-decoration: none;
+      text-transform: uppercase;
+      letter-spacing: 0.16em;
+      font-size: 12px;
+      font-weight: 950;
+      transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+    }
+
+    .button.primary {
+      border-color: var(--gold);
+      background: var(--gold);
+      color: var(--black);
+      box-shadow: 0 0 34px rgba(216, 178, 85, 0.26);
+    }
+
+    .button:hover {
+      transform: translateY(-3px);
+      border-color: rgba(216, 178, 85, 0.8);
+      box-shadow: 0 0 42px rgba(216, 178, 85, 0.22);
+    }
+
+    .model-stack {
+      position: relative;
+      min-height: 540px;
+    }
+
+    .model-frame {
+      position: absolute;
+      inset: 0 0 0 auto;
+      width: min(100%, 390px);
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.16);
+      background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+      box-shadow: 0 34px 100px rgba(0, 0, 0, 0.72);
+    }
+
+    .model-frame::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 2;
+      background:
+        linear-gradient(180deg, rgba(0, 0, 0, 0.05), rgba(0, 0, 0, 0.52)),
+        radial-gradient(circle at 72% 15%, rgba(216, 178, 85, 0.28), transparent 16rem);
+    }
+
+    .model-frame::after {
+      content: "";
+      position: absolute;
+      z-index: 3;
+      inset: 26px;
+      border: 1px solid rgba(216, 178, 85, 0.46);
+      clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%);
+      pointer-events: none;
+    }
+
+    .model-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      filter: saturate(0.95) contrast(1.08) brightness(0.86);
+      transform: scale(1.04);
+      transition: transform 700ms ease, filter 700ms ease;
+    }
+
+    .model-frame:hover img {
+      transform: scale(1.09);
+      filter: saturate(1.05) contrast(1.14) brightness(0.96);
+    }
+
+    .proof {
+      position: absolute;
+      left: -90px;
+      bottom: 68px;
+      width: 210px;
+      padding: 18px;
+      border: 1px solid rgba(216, 178, 85, 0.28);
+      background: rgba(12, 11, 9, 0.62);
+      backdrop-filter: blur(18px);
+      box-shadow: 0 0 50px rgba(216, 178, 85, 0.15);
+    }
+
+    .proof strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 32px;
+      line-height: 1;
+    }
+
+    .marquee {
+      border-block: 1px solid rgba(216, 178, 85, 0.28);
+      background: #0a0907;
+      color: var(--gold);
+      overflow: hidden;
+      white-space: nowrap;
+      text-transform: uppercase;
+      letter-spacing: 0.28em;
+      font-size: 12px;
+    }
+
+    .marquee span {
+      display: inline-block;
+      padding: 18px 0;
+      animation: marquee 17s linear infinite;
+    }
+
+    .section {
+      padding: 86px 7vw;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .section-head {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 28px;
+      margin-bottom: 34px;
+    }
+
+    h2 {
+      margin: 0;
+      max-width: 650px;
+      font-size: clamp(2.6rem, 6vw, 5.6rem);
+      font-weight: 950;
+      line-height: 0.86;
+      letter-spacing: -0.065em;
+      text-transform: uppercase;
+    }
+
+    .section-head p {
+      max-width: 360px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .services {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .service-card,
+    .quote-card {
+      position: relative;
+      overflow: hidden;
+      min-height: 220px;
+      padding: 24px;
+      border: 1px solid rgba(216, 178, 85, 0.22);
+      background: linear-gradient(145deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025));
+      transition: transform 260ms ease, box-shadow 260ms ease, border-color 260ms ease;
+    }
+
+    .service-card::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: -110%;
+      width: 90%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      transition: left 420ms ease;
+    }
+
+    .service-card:hover,
+    .quote-card:hover {
+      transform: translateY(-7px);
+      border-color: rgba(216, 178, 85, 0.58);
+      box-shadow: 0 0 45px rgba(216, 178, 85, 0.16);
+    }
+
+    .service-card:hover::before { left: 110%; }
+
+    .service-card h3 {
+      margin: 48px 0 14px;
+      font-size: 30px;
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+      text-transform: uppercase;
+    }
+
+    .service-card p,
+    .quote-card p {
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .service-photo {
+      position: relative;
+      height: 150px;
+      margin: -24px -24px 22px;
+      overflow: hidden;
+      border-bottom: 1px solid rgba(216, 178, 85, 0.18);
+      background: #120f0b;
+    }
+
+    .service-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: grayscale(0.18) saturate(0.95) contrast(1.08) brightness(0.76);
+      transform: scale(1.04);
+      transition: transform 500ms ease, filter 500ms ease;
+    }
+
+    .service-photo::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, transparent 15%, rgba(5, 5, 5, 0.62));
+    }
+
+    .service-card:hover .service-photo img {
+      transform: scale(1.1);
+      filter: grayscale(0) saturate(1.04) contrast(1.12) brightness(0.92);
+    }
+
+    .gallery {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr 1fr;
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .tile {
+      min-height: 240px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      background:
+        linear-gradient(145deg, rgba(27,18,13,0.88), rgba(5,5,5,0.9) 48%, rgba(159,121,46,0.88)),
+        var(--panel);
+      overflow: hidden;
+      transition: transform 260ms ease, filter 260ms ease;
+    }
+
+    .tile.tall { min-height: 380px; }
+    .tile:hover { transform: scale(1.018); filter: brightness(1.15); }
+
+    .tile img {
+      width: 100%;
+      height: 100%;
+      min-height: inherit;
+      object-fit: cover;
+      filter: saturate(0.92) contrast(1.08) brightness(0.76);
+      transform: scale(1.03);
+      transition: transform 600ms ease, filter 600ms ease;
+    }
+
+    .tile:hover img {
+      transform: scale(1.09);
+      filter: saturate(1.08) contrast(1.12) brightness(0.94);
+    }
+
+    .testimonials {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .booking-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 22px;
+      padding: 44px 7vw;
+      background: linear-gradient(90deg, var(--gold), var(--deep-gold));
+      color: var(--black);
+    }
+
+    .booking-strip h2 {
+      color: var(--black);
+      max-width: 520px;
+    }
+
+    .booking-strip .button {
+      border-color: var(--black);
+      background: var(--black);
+      color: var(--ivory);
+    }
+
+    @keyframes runwayDrift {
+      0%, 100% { transform: translateX(0); opacity: 1; }
+      45% { transform: translateX(12px); opacity: 0.92; }
+    }
+
+    @keyframes marquee {
+      from { transform: translateX(0); }
+      to { transform: translateX(-50%); }
+    }
+
+    @media (max-width: 860px) {
+      .nav-links { display: none; }
+      .hero {
+        display: block;
+        padding: 112px 22px 48px;
+      }
+      .model-stack {
+        min-height: 420px;
+        margin-top: 34px;
+      }
+      .model-frame {
+        position: relative;
+        width: 100%;
+        height: 420px;
+      }
+      .proof {
+        left: 18px;
+        bottom: 18px;
+      }
+      .section {
+        padding: 64px 22px;
+      }
+      .section-head,
+      .booking-strip {
+        display: block;
+      }
+      .services,
+      .gallery,
+      .testimonials {
+        grid-template-columns: 1fr;
+      }
+      .tile,
+      .tile.tall {
+        min-height: 250px;
+      }
+      .button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="page-shell">
+    <nav class="nav">
+      <strong>Maison Locs</strong>
+      <div class="nav-links">
+        <span>Services</span>
+        <span>Gallery</span>
+        <span>Reviews</span>
+        <span>Book</span>
+      </div>
+    </nav>
+
+    <section class="hero">
+      <div>
+        <div class="eyebrow">Natural Hair Atelier</div>
+        <h1><span>Locs With</span><span>Presence</span></h1>
+        <p class="intro">A high-end digital front door for stylists specializing in locs, retwists, protective styling, natural hair care, and polished editorial looks.</p>
+        <div class="actions">
+          <a class="button primary" href="#booking">Book The Chair</a>
+          <a class="button" href="#gallery">View The Work</a>
+        </div>
+      </div>
+
+      <div class="model-stack" aria-label="Editorial model image">
+        <div class="model-frame">
+          <img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=900&q=85" alt="Editorial portrait model for luxury hair brand" />
+        </div>
+        <div class="proof">
+          <div class="eyebrow">Premium Proof</div>
+          <strong>4.9 Stars</strong>
+          <p>Trusted for texture, shape, and lasting style.</p>
+        </div>
+      </div>
+    </section>
+
+    <div class="marquee" aria-hidden="true">
+      <span>Starter Locs · Retwist · Loc Styling · Natural Hair Care · Protective Styles · Editorial Finish · Starter Locs · Retwist · Loc Styling · Natural Hair Care · Protective Styles · Editorial Finish · </span>
+    </div>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Signature Services</h2>
+        <p>Sharp-edged service cards glow on hover and will open booking with the chosen service preselected.</p>
+      </div>
+      <div class="services">
+        <article class="service-card">
+          <figure class="service-photo">
+            <img src="https://images.unsplash.com/photo-1560066984-138dadb4c035?auto=format&fit=crop&w=700&q=85" alt="Luxury salon styling service" />
+          </figure>
+          <div class="eyebrow">01</div>
+          <h3>Starter Locs</h3>
+          <p>Clean parting, intentional foundation, premium finish.</p>
+        </article>
+        <article class="service-card">
+          <figure class="service-photo">
+            <img src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=700&q=85" alt="Stylist working on natural hair" />
+          </figure>
+          <div class="eyebrow">02</div>
+          <h3>Retwist & Style</h3>
+          <p>Maintenance with shape, hold, and polish.</p>
+        </article>
+        <article class="service-card">
+          <figure class="service-photo">
+            <img src="https://images.unsplash.com/photo-1595476108010-b4d1f102b1b1?auto=format&fit=crop&w=700&q=85" alt="Natural hair care and beauty styling" />
+          </figure>
+          <div class="eyebrow">03</div>
+          <h3>Natural Hair Care</h3>
+          <p>Hydration, scalp care, and protective prep.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" id="gallery">
+      <div class="section-head">
+        <h2>Gallery After The Chair</h2>
+        <p>A dramatic bento gallery shows model imagery and service results without losing the runway mood.</p>
+      </div>
+      <div class="gallery">
+        <div class="tile tall">
+          <img src="https://images.unsplash.com/photo-1509967419530-da38b4704bc6?auto=format&fit=crop&w=900&q=85" alt="Editorial beauty portrait gallery image" />
+        </div>
+        <div class="tile">
+          <img src="https://images.unsplash.com/photo-1519699047748-de8e457a634e?auto=format&fit=crop&w=700&q=85" alt="Polished natural hair look" />
+        </div>
+        <div class="tile tall">
+          <img src="https://images.unsplash.com/photo-1531123897727-8f129e1688ce?auto=format&fit=crop&w=900&q=85" alt="High fashion portrait for hair gallery" />
+        </div>
+      </div>
+    </section>
+
+    <section class="section testimonials">
+      <div>
+        <div class="eyebrow">Client Notes</div>
+        <h2>Texture Respected. Style Elevated.</h2>
+      </div>
+      <article class="quote-card">
+        <p>“The cleanest retwist and style I’ve had. The whole experience felt luxury from booking to finish.”</p>
+        <div class="eyebrow">Google review card</div>
+      </article>
+    </section>
+
+    <section class="booking-strip" id="booking">
+      <h2>Ready for the chair?</h2>
+      <a class="button" href="#">Book Now</a>
+    </section>
+  </main>
+</body>
+</html>
