@@ -70,6 +70,10 @@ export interface BookingSmsData {
   businessAddress?: string;
   /** Spec 4: optional add-on names selected at booking time. */
   addOnNames?: string[];
+  /** Spec 5: deposit amount in dollars (snapshotted at booking time). Falsy = no deposit. */
+  depositAmount?: number;
+  /** Spec 5: free-form payment instructions to include in pending notifications. */
+  depositInstructions?: string;
 }
 
 async function send(to: string, body: string): Promise<void> {
@@ -110,5 +114,34 @@ export async function sendBookingCustomerReminder(b: BookingSmsData): Promise<vo
   await send(
     b.customerPhone,
     `Reminder: your appointment at ${b.businessName} is tomorrow (${b.date}) at ${startTime}. See you then!`,
+  );
+}
+
+/** Spec 5: customer notification when a deposit-required booking is placed.
+ * Leads with the action and amount so the customer knows what to do next. */
+export async function sendBookingPendingDepositCustomer(b: BookingSmsData): Promise<void> {
+  const amt = b.depositAmount ?? 0;
+  const instr = b.depositInstructions ?? "";
+  const firstName = b.customerName.split(" ")[0];
+  await send(
+    b.customerPhone,
+    `Hi ${firstName}! Your booking at ${b.businessName} on ${b.date} @ ${b.time} is pending. Pay $${amt.toFixed(2)} to confirm: ${instr.replace(/\n/g, " · ")}. Reply STOP to opt out.`,
+  );
+}
+
+/** Spec 5: customer notification when the owner marks the deposit received. */
+export async function sendBookingDepositReceivedCustomer(b: BookingSmsData): Promise<void> {
+  const firstName = b.customerName.split(" ")[0];
+  await send(
+    b.customerPhone,
+    `✓ Got it! Your deposit is received and your booking at ${b.businessName} is confirmed for ${b.date} @ ${b.time}. See you then!`,
+  );
+}
+
+/** Spec 5: customer notification when a booking is canceled (paid or not). */
+export async function sendBookingCanceledCustomer(b: BookingSmsData): Promise<void> {
+  await send(
+    b.customerPhone,
+    `Your booking at ${b.businessName} for ${b.date} @ ${b.time} has been canceled. Questions? Reply or call.`,
   );
 }
