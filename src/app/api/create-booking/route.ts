@@ -120,12 +120,15 @@ export async function POST(request: Request) {
 
       const maxPerSlot = settings?.max_per_slot || 1;
 
+      // Spec 5: pending bookings reserve slots too, otherwise two
+      // customers could each book the same slot while waiting on deposits.
+      // Owner cancels stale pendings to free slots.
       const { data: sameDay } = await supabase
         .from("bookings")
         .select("booking_time, duration_minutes")
         .eq("tenant_id", tenantId)
         .eq("booking_date", booking_date)
-        .eq("status", "confirmed");
+        .in("status", ["confirmed", "pending"]);
 
       const candidate = {
         startMinutes: parseBookingTime(booking_time),

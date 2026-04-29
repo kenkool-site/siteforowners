@@ -89,12 +89,15 @@ export async function GET(request: Request) {
     (settings?.working_hours as Record<string, WorkingHoursDay | null> | null) ?? null,
   );
 
+  // Spec 5: pending bookings reserve slots too, so customer-facing slot
+  // availability must hide them from new customers. Confirmed + pending
+  // both block the slot.
   const { data: bookings } = await supabase
     .from("bookings")
     .select("booking_time, duration_minutes")
     .eq("preview_slug", slug)
     .eq("booking_date", date)
-    .eq("status", "confirmed");
+    .in("status", ["confirmed", "pending"]);
 
   const existing = (bookings ?? []).map((b) => ({
     startMinutes: parseBookingTime(b.booking_time as string),
