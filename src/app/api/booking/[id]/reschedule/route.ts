@@ -262,18 +262,20 @@ export async function POST(
     previousTime: previousBookingTime,
   };
 
-  Promise.allSettled([
+  // Await the notifications: Vercel terminates the serverless function as
+  // soon as the response is sent, so fire-and-forget loses any async work
+  // that hasn't finished. Customer waits ~1s for the response.
+  const results = await Promise.allSettled([
     sendBookingRescheduledCustomer(emailData, "customer"),
     sendBookingRescheduledOwner(ownerEmail, emailData),
     booking.customer_sms_opt_in ? sendBookingRescheduledCustomerSms(smsData, "customer") : Promise.resolve(),
     sendBookingRescheduledOwnerSms(ownerSmsPhone, smsData),
-  ]).then((results) => {
-    for (const r of results) {
-      if (r.status === "rejected") {
-        console.error("Reschedule notification failed:", r.reason);
-      }
+  ]);
+  for (const r of results) {
+    if (r.status === "rejected") {
+      console.error("Reschedule notification failed:", r.reason);
     }
-  });
+  }
 
   return NextResponse.json({ success: true, booking_id: bookingId });
 }

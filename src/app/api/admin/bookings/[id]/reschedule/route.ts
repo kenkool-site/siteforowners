@@ -324,18 +324,19 @@ export async function POST(
   };
 
   // Notify customer only — the owner just performed this action themselves.
-  Promise.allSettled([
+  // Awaited because Vercel terminates the serverless function on response,
+  // and fire-and-forget loses any async work still in flight.
+  const results = await Promise.allSettled([
     sendBookingRescheduledCustomer(emailData, "owner"),
     booking.customer_sms_opt_in
       ? sendBookingRescheduledCustomerSms(smsData, "owner")
       : Promise.resolve(),
-  ]).then((results) => {
-    for (const r of results) {
-      if (r.status === "rejected") {
-        console.error("[admin/reschedule] notification failed:", r.reason);
-      }
+  ]);
+  for (const r of results) {
+    if (r.status === "rejected") {
+      console.error("[admin/reschedule] notification failed:", r.reason);
     }
-  });
+  }
 
   return NextResponse.json({ success: true, booking_id: bookingId });
 }
