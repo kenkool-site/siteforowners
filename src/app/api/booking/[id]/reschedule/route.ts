@@ -1,8 +1,8 @@
 // siteforowners/src/app/api/booking/[id]/reschedule/route.ts
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyToken, signToken, bookingStartToExpiry } from "@/lib/reschedule-token";
-import { parseBookingTime, wouldExceedCapacity, formatTimeRange } from "@/lib/availability";
+import { verifyToken } from "@/lib/reschedule-token";
+import { computeAvailableStarts, parseBookingTime, formatTimeRange, type WorkingHours } from "@/lib/availability";
 import {
   sendBookingRescheduledCustomer,
   sendBookingRescheduledOwner,
@@ -18,7 +18,6 @@ import { parseTime } from "@/lib/ics";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
 const TWENTY_FOUR_HOURS_MS = 24 * 60 * 60 * 1000;
 
 function dateStr(dateObj: Date): string {
@@ -80,7 +79,9 @@ export async function POST(
     return NextResponse.json({ error: "New slot must be in the future" }, { status: 400 });
   }
 
-  // Capacity check, excluding this booking from the conflict pool.
+  // Full slot validation via computeAvailableStarts — handles working-hour
+  // defaults, open/close window, blocked dates, duration fit, and capacity.
+  // Excludes this booking from the conflict pool so it doesn't block itself.
   const tenantId = booking.tenant_id as string | null;
   if (tenantId) {
     const { data: settings } = await supabase
@@ -89,18 +90,55 @@ export async function POST(
       .eq("tenant_id", tenantId)
       .single();
     const maxPerSlot = (settings?.max_per_slot as number | null) || 1;
+    const blockedDates: string[] = (settings?.blocked_dates as string[] | null) ?? [];
 
-    // Working-hours + blocked-date guards.
-    const blocked = (settings?.blocked_dates as string[] | null) ?? [];
-    if (blocked.includes(body.new_date)) {
-      return NextResponse.json({ error: "That day is unavailable" }, { status: 400 });
-    }
-    const workingHours = settings?.working_hours as Record<string, { open: string; close: string } | null> | null;
-    const dayName = DAYS[newStart.getDay()];
-    const dayHours = workingHours?.[dayName];
-    if (dayHours === null) {
-      return NextResponse.json({ error: "That day is unavailable" }, { status: 400 });
-    }
+    // Convert DB working_hours to the WorkingHours shape that computeAvailableStarts
+    // expects, applying project-wide defaults (Mon–Fri 10–19, Sat 10–17, Sun closed).
+    type WorkingHoursDay = { open: string; close: string };
+    const parseClockTime = (t: string): number => {
+      const amPmMatch = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+      if (amPmMatch) {
+        let h = parseInt(amPmMatch[1]);
+        const m = parseInt(amPmMatch[2]);
+        if (amPmMatch[3].toUpperCase() === "PM" && h !== 12) h += 12;
+        if (amPmMatch[3].toUpperCase() === "AM" && h === 12) h = 0;
+        return h * 60 + m;
+      }
+      const [h, m] = t.split(":").map(Number);
+      return h * 60 + (m || 0);
+    };
+    const toWorkingHours = (
+      dbHours: Record<string, WorkingHoursDay | null> | null,
+    ): WorkingHours => {
+      const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+      const defaults: Record<string, { openHour: number; closeHour: number } | null> = {
+        Sunday: null,
+        Monday: { openHour: 10, closeHour: 19 },
+        Tuesday: { openHour: 10, closeHour: 19 },
+        Wednesday: { openHour: 10, closeHour: 19 },
+        Thursday: { openHour: 10, closeHour: 19 },
+        Friday: { openHour: 10, closeHour: 19 },
+        Saturday: { openHour: 10, closeHour: 17 },
+      };
+      const out: WorkingHours = {};
+      for (const day of days) {
+        const dbDay = dbHours?.[day];
+        if (dbDay === null) {
+          out[day] = null;
+        } else if (dbDay) {
+          out[day] = {
+            openHour: Math.ceil(parseClockTime(dbDay.open) / 60),
+            closeHour: Math.floor(parseClockTime(dbDay.close) / 60),
+          };
+        } else {
+          out[day] = defaults[day];
+        }
+      }
+      return out;
+    };
+    const workingHours = toWorkingHours(
+      settings?.working_hours as Record<string, WorkingHoursDay | null> | null,
+    );
 
     const { data: sameDay } = await supabase
       .from("bookings")
@@ -110,16 +148,26 @@ export async function POST(
       .neq("id", bookingId)
       .in("status", ["confirmed", "pending"]);
 
-    const candidate = {
-      startMinutes: parseBookingTime(body.new_time),
-      durationMinutes: (booking.duration_minutes as number) ?? 60,
-    };
+    const durationMinutes = (booking.duration_minutes as number) ?? 60;
     const existing = (sameDay ?? []).map((r) => ({
       startMinutes: parseBookingTime(r.booking_time as string),
       durationMinutes: (r.duration_minutes as number) ?? 60,
     }));
-    if (wouldExceedCapacity(candidate, existing, maxPerSlot)) {
-      return NextResponse.json({ error: "That slot is no longer available" }, { status: 409 });
+
+    const availableStartHours = computeAvailableStarts({
+      date: body.new_date,
+      durationMinutes,
+      workingHours,
+      existingBookings: existing,
+      maxPerSlot,
+      blockedDates,
+    });
+
+    // new_time must land exactly on an available hourly start.
+    const requestedMinutes = parseBookingTime(body.new_time);
+    const requestedHour = requestedMinutes / 60;
+    if (!availableStartHours.includes(requestedHour)) {
+      return NextResponse.json({ error: "That slot is not available" }, { status: 409 });
     }
   }
 
@@ -143,6 +191,7 @@ export async function POST(
     .maybeSingle();
 
   if (updateError || !updated) {
+    console.error("[reschedule] update failed:", { bookingId, updateError });
     return NextResponse.json(
       { error: "Booking just changed — please refresh and try again" },
       { status: 409 },
@@ -169,12 +218,8 @@ export async function POST(
   const ownerSmsPhone = (tenant?.sms_phone as string | null) ?? (tenant?.phone as string | null) ?? "";
   const previewSlug = (tenant?.preview_slug as string | null) ?? undefined;
 
-  const newExpiry = bookingStartToExpiry(body.new_date, body.new_time);
-  const newSig = signToken({ bookingId, expiry: newExpiry });
-  const rescheduleUrl = `${APP_URL.replace(/\/$/, "")}/reschedule?b=${bookingId}&e=${newExpiry}&s=${newSig}`;
-  // Customer just used their quota — don't include the link in the next
-  // email. Spec: omit when reschedule_count >= 1 after the increment.
-  const omitRescheduleLink = true;
+  // Customer just used their one reschedule quota — omit the link from the
+  // confirmation email so they can't attempt another online reschedule.
 
   const newEnd = new Date(newStart.getTime() + durationMinutes * 60 * 1000);
   const gcalUrl = googleCalendarUrl({
@@ -202,7 +247,7 @@ export async function POST(
     googleCalendarUrl: gcalUrl,
     previousDate: dateStr(previousDateObj),
     previousTime: previousBookingTime,
-    rescheduleUrl: omitRescheduleLink ? undefined : rescheduleUrl,
+    rescheduleUrl: undefined,
   };
 
   const smsData: BookingSmsData = {
