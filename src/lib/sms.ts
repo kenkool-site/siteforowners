@@ -76,6 +76,9 @@ export interface BookingSmsData {
   /** Spec 5 follow-up: structured payment methods. The pending-deposit
    * notification renders only the rows the owner populated. */
   paymentMethods?: PaymentMethods;
+  /** Spec 6: previous date/time strings for reschedule SMS. */
+  previousDate?: string;
+  previousTime?: string;
 }
 
 async function send(to: string, body: string): Promise<void> {
@@ -147,5 +150,34 @@ export async function sendBookingCanceledCustomer(b: BookingSmsData): Promise<vo
   await send(
     b.customerPhone,
     `Your booking at ${b.businessName} for ${b.date} @ ${b.time} has been canceled. Questions? Reply or call.`,
+  );
+}
+
+/** Spec 6: customer SMS when a booking is rescheduled. */
+export async function sendBookingRescheduledCustomerSms(
+  b: BookingSmsData,
+  initiator: "customer" | "owner",
+): Promise<void> {
+  const firstName = b.customerName.split(" ")[0];
+  const prev = b.previousDate && b.previousTime ? ` (was ${b.previousDate} ${b.previousTime})` : "";
+  const lead = initiator === "owner"
+    ? `Your booking at ${b.businessName} has been moved by the business`
+    : `Your booking at ${b.businessName} has been rescheduled`;
+  await send(
+    b.customerPhone,
+    `Hi ${firstName}! ${lead} to ${b.date} @ ${b.time}${prev}. Reply STOP to opt out.`,
+  );
+}
+
+/** Spec 6: owner SMS when a customer reschedules. */
+export async function sendBookingRescheduledOwnerSms(
+  ownerPhone: string,
+  b: BookingSmsData,
+): Promise<void> {
+  if (!ownerPhone) return;
+  const prev = b.previousDate && b.previousTime ? ` (was ${b.previousDate} ${b.previousTime})` : "";
+  await send(
+    ownerPhone,
+    `🔄 ${b.customerName} rescheduled their ${b.serviceName} to ${b.date} @ ${b.time}${prev}.`,
   );
 }

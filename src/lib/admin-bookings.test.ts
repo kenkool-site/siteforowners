@@ -12,6 +12,7 @@ function b(id: string, date: string, time = "10:00 AM"): BookingRow {
     customer_phone: "555",
     service_name: "Svc",
     status: "confirmed",
+    reschedule_count: 0,
   };
 }
 

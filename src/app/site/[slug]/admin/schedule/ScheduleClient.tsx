@@ -18,6 +18,8 @@ interface ScheduleClientProps {
   workingHours: WorkingHours | null;
   blockedDates: string[];
   initialPending?: PendingBooking[];
+  /** Tenant's preview_slug — passed through to BookingActionSheet → RescheduleModal. */
+  slug: string;
 }
 
 function parseIso(iso: string): Date {
@@ -44,6 +46,7 @@ export function ScheduleClient({
   workingHours,
   blockedDates: initialBlockedDates,
   initialPending = [],
+  slug,
 }: ScheduleClientProps) {
   const [weekStart, setWeekStart] = useState<Date>(parseIso(initialWeekStart));
   const [agendaDate, setAgendaDate] = useState<Date>(new Date());
@@ -160,6 +163,7 @@ export function ScheduleClient({
       {activeBooking && (
         <BookingActionSheet
           row={activeBooking}
+          slug={slug}
           onClose={() => setActiveBooking(null)}
           onStatusChange={() => setActiveBooking(null)}
         />

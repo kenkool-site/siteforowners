@@ -174,6 +174,13 @@ export interface BookingEmailData {
   /** Pre-built Google Calendar deep-link, passed in from the route so the
    * email module doesn't need to know how to format dates. */
   googleCalendarUrl?: string;
+  /** Spec 6: previous date string ("Friday May 1") for reschedule emails. */
+  previousDate?: string;
+  /** Spec 6: previous time string ("11:00 AM") for reschedule emails. */
+  previousTime?: string;
+  /** Spec 6: signed reschedule link to render in customer-facing emails.
+   * When set, customer-facing email functions render a "Reschedule" CTA. */
+  rescheduleUrl?: string;
 }
 
 /**
@@ -311,6 +318,7 @@ export async function sendBookingConfirmation(booking: BookingEmailData) {
             ${booking.businessAddress ? `<p style="margin: 0; font-size: 14px;"><strong>Location:</strong> ${booking.businessAddress}</p>` : ""}
           </div>
           ${calendarButtons}
+          ${renderRescheduleButton(booking)}
           ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 16px 0 0;">Need to reschedule? Call <a href="tel:${booking.businessPhone}" style="color: #2563EB;">${booking.businessPhone}</a></p>` : ""}
         </div>
       </div>
@@ -330,6 +338,15 @@ function renderCalendarButtons(booking: BookingEmailData): string {
       <p style="color: #6B7280; font-size: 13px; margin: 0 0 10px;">Add to your calendar:</p>
       ${gcalUrl ? `<a href="${gcalUrl}" style="display: inline-block; margin: 0 4px 8px; padding: 9px 16px; background: #2563EB; color: #fff; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600;">Google Calendar</a>` : ""}
       ${icsUrl ? `<a href="${icsUrl}" style="display: inline-block; margin: 0 4px 8px; padding: 9px 16px; background: #111827; color: #fff; text-decoration: none; border-radius: 6px; font-size: 13px; font-weight: 600;">Apple / Outlook</a>` : ""}
+    </div>
+  `;
+}
+
+function renderRescheduleButton(booking: BookingEmailData): string {
+  if (!booking.rescheduleUrl) return "";
+  return `
+    <div style="margin: 14px 0 0; text-align: center;">
+      <a href="${booking.rescheduleUrl}" style="display: inline-block; padding: 9px 16px; background: #fff; color: #2563EB; text-decoration: none; border: 1px solid #2563EB; border-radius: 6px; font-size: 13px; font-weight: 600;">Reschedule</a>
     </div>
   `;
 }
@@ -364,6 +381,7 @@ export async function sendBookingPendingDepositEmail(
             ${methodsHtml || `<div style="font-size: 14px; color: #6b7280;">Your booking will follow up with payment instructions.</div>`}
           </div>
           <p style="color: #525252; font-size: 14px; margin: 0 0 6px;">We'll send a confirmation once we receive your deposit. Your slot stays held until then.</p>
+          ${renderRescheduleButton(booking)}
           ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
         </div>
       </div>
@@ -398,6 +416,7 @@ export async function sendBookingDepositReceivedEmail(booking: BookingEmailData)
             <div style="font-size: 14px; color: #6B7280; margin-top: 4px;">${escapeHtml(booking.businessName)}${booking.businessAddress ? ` · ${escapeHtml(booking.businessAddress)}` : ""}</div>
           </div>
           ${calendarButtons}
+          ${renderRescheduleButton(booking)}
           ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 16px 0 0;">Questions? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
         </div>
       </div>
@@ -642,6 +661,83 @@ export async function sendUpdateRequestNotification(req: {
       <p><b>Description:</b><br/>${safeDescription}</p>
       ${safeUrl ? `<p><b>Attachment:</b> <a href="${safeUrl}">${safeUrl}</a></p>` : ""}
       <p><a href="${editLink}">Open client edit page →</a></p>
+    `,
+  });
+}
+
+/** Spec 6: customer notification when a booking is rescheduled. The body
+ * leads with the new date/time and shows the previous slot for reference.
+ * Add-to-Calendar buttons reuse the hosted .ics endpoint, which always
+ * returns the current row state, so older email links auto-update. */
+export async function sendBookingRescheduledCustomer(
+  booking: BookingEmailData,
+  initiator: "customer" | "owner",
+) {
+  if (!resend) return;
+  if (!booking.customerEmail) return;
+  const firstName = (booking.customerName.split(" ")[0]) || booking.customerName;
+  const lead = initiator === "owner"
+    ? `Your appointment at <strong>${escapeHtml(booking.businessName)}</strong> has been moved by the business.`
+    : `Your appointment at <strong>${escapeHtml(booking.businessName)}</strong> has been rescheduled.`;
+  const calendarButtons = renderCalendarButtons(booking);
+  const rescheduleButton = renderRescheduleButton(booking);
+  await resend.emails.send({
+    from: tenantFrom(booking.businessName),
+    to: booking.customerEmail,
+    ...(booking.ownerEmail ? { replyTo: booking.ownerEmail } : {}),
+    subject: `Your booking at ${booking.businessName} has been moved`,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #2563EB; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+          <h2 style="margin: 0; color: #fff; font-size: 20px;">Booking moved</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <p style="color: #4B5563; font-size: 15px; margin: 0 0 16px;">Hi ${escapeHtml(firstName)}, ${lead}</p>
+          <div style="background: #EFF6FF; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+            <p style="margin: 0 0 8px; font-size: 14px;"><strong>Service:</strong> ${escapeHtml(booking.serviceName)}</p>
+            <p style="margin: 0 0 8px; font-size: 14px;"><strong>New date:</strong> ${escapeHtml(booking.date)}</p>
+            <p style="margin: 0 0 8px; font-size: 14px;"><strong>New time:</strong> ${escapeHtml(booking.time)}</p>
+            ${booking.previousDate && booking.previousTime ? `<p style="margin: 8px 0 0; font-size: 13px; color: #6B7280;">Previously: ${escapeHtml(booking.previousDate)} at ${escapeHtml(booking.previousTime)}</p>` : ""}
+            ${booking.businessAddress ? `<p style="margin: 8px 0 0; font-size: 14px;"><strong>Location:</strong> ${escapeHtml(booking.businessAddress)}</p>` : ""}
+          </div>
+          ${calendarButtons}
+          ${rescheduleButton}
+          ${booking.businessPhone ? `<p style="color: #6B7280; font-size: 13px; margin: 16px 0 0;">Need to make changes? Call <a href="tel:${escapeHtml(booking.businessPhone)}" style="color: #2563EB;">${escapeHtml(booking.businessPhone)}</a></p>` : ""}
+        </div>
+      </div>
+    `,
+  });
+}
+
+/** Spec 6: owner notification when a customer reschedules. */
+export async function sendBookingRescheduledOwner(
+  ownerEmail: string,
+  booking: BookingEmailData,
+) {
+  if (!resend) return;
+  const toEmail = ownerEmail || ADMIN_EMAIL;
+  if (!toEmail) return;
+  const adminUrl = booking.previewSlug
+    ? `${APP_URL.replace(/\/$/, "")}/site/${booking.previewSlug}/admin/schedule`
+    : "";
+  await resend.emails.send({
+    from: tenantFrom(booking.businessName),
+    to: toEmail,
+    subject: `🔄 ${booking.customerName} rescheduled — ${booking.serviceName}`,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto;">
+        <div style="background: #1f2937; padding: 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; color: #fff; font-size: 18px;">Customer rescheduled</h2>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <p style="color: #111827; font-size: 15px; margin: 0 0 16px;"><strong>${escapeHtml(booking.customerName)}</strong> moved their <strong>${escapeHtml(booking.serviceName)}</strong> booking.</p>
+          <div style="background: #f9fafb; border-radius: 8px; padding: 14px; margin-bottom: 16px;">
+            ${booking.previousDate && booking.previousTime ? `<p style="margin: 0 0 6px; font-size: 14px; color: #6B7280;">From: ${escapeHtml(booking.previousDate)} at ${escapeHtml(booking.previousTime)}</p>` : ""}
+            <p style="margin: 0; font-size: 14px;"><strong>To:</strong> ${escapeHtml(booking.date)} at ${escapeHtml(booking.time)}</p>
+          </div>
+          ${adminUrl ? `<div style="margin-top: 16px; text-align: center;"><a href="${adminUrl}" style="display: inline-block; background: #1f2937; color: #fff; padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none;">View in Admin →</a></div>` : ""}
+        </div>
+      </div>
     `,
   });
 }

@@ -13,6 +13,9 @@ import {
 import { parseTime } from "@/lib/ics";
 import { googleCalendarUrl } from "@/lib/calendar-links";
 import { formatTimeRange } from "@/lib/availability";
+import { signToken, bookingStartToExpiry } from "@/lib/reschedule-token";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ALLOWED = ["pending", "confirmed", "completed", "canceled", "no_show"];
@@ -132,7 +135,10 @@ export async function POST(request: NextRequest) {
         startDate,
         endDate,
       });
-      const customerEmailData = { ...emailData, bookingId, googleCalendarUrl: gcalUrl };
+      const rescheduleExpiry = bookingStartToExpiry(row.booking_date as string, row.booking_time as string);
+      const rescheduleSig = signToken({ bookingId, expiry: rescheduleExpiry });
+      const rescheduleUrl = `${APP_URL.replace(/\/$/, "")}/reschedule?b=${bookingId}&e=${rescheduleExpiry}&s=${rescheduleSig}`;
+      const customerEmailData = { ...emailData, bookingId, googleCalendarUrl: gcalUrl, rescheduleUrl };
 
       await Promise.allSettled([
         emailData.customerEmail ? sendBookingDepositReceivedEmail(customerEmailData) : Promise.resolve(),
