@@ -125,7 +125,7 @@ export async function sendLeadConfirmation(lead: LeadData) {
   });
 }
 
-interface BookingEmailData {
+export interface BookingEmailData {
   businessName: string;
   businessPhone?: string;
   businessAddress?: string;
