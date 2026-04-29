@@ -401,7 +401,6 @@ export function TemplateOrchestrator({
               heroImage={heroImage}
               heroVideo={heroVideo}
               colors={colors}
-              bookingUrl={data.booking_url}
               rating={data.rating}
               reviewCount={data.review_count}
               hasBooking={!!bookingSection}

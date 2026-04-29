@@ -14,7 +14,6 @@ interface RunwayHeroProps {
   heroImage?: string;
   heroVideo?: string;
   colors: ThemeColors;
-  bookingUrl?: string;
   rating?: number;
   reviewCount?: number;
   hasBooking?: boolean;
@@ -39,7 +38,6 @@ export function RunwayHero({
   heroImage,
   heroVideo,
   colors,
-  bookingUrl,
   rating,
   reviewCount,
   hasBooking = false,
