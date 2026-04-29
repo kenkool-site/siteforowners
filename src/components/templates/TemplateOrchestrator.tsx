@@ -66,6 +66,12 @@ interface TemplateOrchestratorProps {
   tenantId?: string | null;
   /** v2: booking entry policy. Defaults to in_site_only. */
   bookingMode?: BookingModePolicy;
+  depositSettings?: {
+    deposit_required: boolean;
+    deposit_mode: "fixed" | "percent" | null;
+    deposit_value: number | null;
+    deposit_instructions: string | null;
+  };
 }
 
 function getTemplateName(data: PreviewData): TemplateName {
@@ -181,6 +187,7 @@ export function TemplateOrchestrator({
   checkoutMode = "mockup",
   tenantId = null,
   bookingMode = "in_site_only",
+  depositSettings,
 }: TemplateOrchestratorProps) {
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const ss = getSectionSettings(data);
@@ -341,6 +348,7 @@ export function TemplateOrchestrator({
       workingHours={bookingHours}
       blockedDates={blockedDates}
       bookingPolicies={bookingPolicies}
+      depositSettings={depositSettings}
     />
   ) : null;
 

@@ -8,6 +8,13 @@ import { SiteClient } from "./SiteClient";
 
 type BookingHoursMap = Record<string, { open: string; close: string } | null> | null;
 
+type DepositSettings = {
+  deposit_required: boolean;
+  deposit_mode: "fixed" | "percent" | null;
+  deposit_value: number | null;
+  deposit_instructions: string | null;
+};
+
 interface SiteData {
   preview: PreviewData;
   bookingHours: BookingHoursMap;
@@ -15,6 +22,7 @@ interface SiteData {
   tenantId: string | null;
   checkoutMode: "mockup" | "pickup";
   bookingMode: BookingModePolicy;
+  depositSettings?: DepositSettings;
 }
 
 async function getSiteData(slug: string): Promise<SiteData | null> {
@@ -33,6 +41,7 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
   let tenantId: string | null = null;
   let checkoutMode: "mockup" | "pickup" = "mockup";
   let bookingMode: BookingModePolicy = "in_site_only";
+  let depositSettings: DepositSettings | undefined;
 
   const { data: tenant } = await supabase
     .from("tenants")
@@ -50,14 +59,22 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
     }
     const { data: bs } = await supabase
       .from("booking_settings")
-      .select("working_hours, blocked_dates")
+      .select("working_hours, blocked_dates, deposit_required, deposit_mode, deposit_value, deposit_instructions")
       .eq("tenant_id", tenant.id)
       .maybeSingle();
     bookingHours = (bs?.working_hours as BookingHoursMap) ?? null;
     blockedDates = (bs?.blocked_dates as string[] | null) ?? [];
+    depositSettings = bs
+      ? {
+          deposit_required: !!bs.deposit_required,
+          deposit_mode: (bs.deposit_mode as "fixed" | "percent" | null) ?? null,
+          deposit_value: bs.deposit_value as number | null,
+          deposit_instructions: (bs.deposit_instructions as string | null) ?? null,
+        }
+      : undefined;
   }
 
-  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode };
+  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode, depositSettings };
 }
 
 export async function generateMetadata({
@@ -110,6 +127,7 @@ export default async function SitePage({
         tenantId={result.tenantId}
         checkoutMode={result.checkoutMode}
         bookingMode={result.bookingMode}
+        depositSettings={result.depositSettings}
       />
     </>
   );
