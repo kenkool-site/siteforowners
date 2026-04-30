@@ -288,6 +288,10 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             services: services.filter((s) => s.name.trim()),
             categories,
             booking_policies: bookingPolicies.trim() || null,
+            // Tenant-scoped fields — server only persists these on the
+            // previews row when no tenant exists yet (pending state).
+            booking_mode: bookingMode,
+            notification_email: notificationEmail.trim() || null,
             deposit_required: deposit.deposit_required,
             deposit_mode: deposit.deposit_mode,
             deposit_value: deposit.deposit_value,

@@ -146,10 +146,10 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-gray-900">
-              Love it? Go live for $50/mo
+              Make it yours — first month free.
             </p>
             <p className="text-xs text-gray-500">
-              We handle hosting, domain, updates — everything.
+              We'll get you live today. No card needed.
             </p>
           </div>
           <div className="flex gap-2">

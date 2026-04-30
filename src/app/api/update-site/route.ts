@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { validateDepositSettings } from "@/lib/validation/deposit-settings";
+import { validateDepositSettings, type DepositSettingsValue } from "@/lib/validation/deposit-settings";
 
 export async function POST(request: Request) {
   try {
@@ -39,6 +39,24 @@ export async function POST(request: Request) {
     if (updates.hours !== undefined) allowed.hours = updates.hours;
     if (updates.imported_hours !== undefined) allowed.imported_hours = updates.imported_hours;
 
+    // Look up tenant once — used to route deposit + tenant-scoped fields
+    // to their canonical homes (booking_settings, tenants) when a tenant
+    // exists, or to the previews row (pending state) when it doesn't.
+    const tenantRow = await supabase
+      .from("tenants")
+      .select("id")
+      .eq("preview_slug", slug)
+      .maybeSingle();
+    const tenantId = tenantRow.data?.id as string | undefined;
+
+    // Tenant-scoped pending fields: only persist on the previews row when
+    // there is no tenant yet. Once a tenant exists, /api/update-tenant
+    // owns these (canonical home: tenants table).
+    if (!tenantId) {
+      if (updates.booking_mode !== undefined) allowed.booking_mode = updates.booking_mode;
+      if (updates.notification_email !== undefined) allowed.notification_email = updates.notification_email;
+    }
+
     // Handle generated_copy updates (merge, don't replace)
     if (updates.generated_copy) {
       const currentCopy = (current.generated_copy || {}) as Record<string, unknown>;
@@ -65,33 +83,21 @@ export async function POST(request: Request) {
       allowed.generated_copy = mergedCopy;
     }
 
-    if (Object.keys(allowed).length === 0) {
-      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
-    }
-
-    const { error: updateError } = await supabase
-      .from("previews")
-      .update(allowed)
-      .eq("slug", slug);
-
-    if (updateError) {
-      console.error("Update error:", updateError);
-      return NextResponse.json({ error: "Failed to save" }, { status: 500 });
-    }
-
-    // Spec 5: deposit settings live on booking_settings (not previews).
-    // Run the same validator the owner-side admin uses so the founder
-    // can't bypass field-level rules and leave the DB in a state the
-    // owner-side editor would reject on subsequent saves.
-    if (
+    // Deposit settings: canonical home is booking_settings (per-tenant). For
+    // preview-only sites with no tenant yet, the values land on the previews
+    // row as pending state and migrate on activation. The validator runs in
+    // both cases so the founder can't bypass field-level rules.
+    const depositTouched =
       updates.deposit_required !== undefined ||
       updates.deposit_mode !== undefined ||
       updates.deposit_value !== undefined ||
       updates.deposit_cashapp !== undefined ||
       updates.deposit_zelle !== undefined ||
       updates.deposit_other_label !== undefined ||
-      updates.deposit_other_value !== undefined
-    ) {
+      updates.deposit_other_value !== undefined;
+
+    let depositValue: DepositSettingsValue | undefined;
+    if (depositTouched) {
       const depositResult = validateDepositSettings({
         deposit_required: updates.deposit_required,
         deposit_mode: updates.deposit_mode,
@@ -107,27 +113,50 @@ export async function POST(request: Request) {
           { status: 400 },
         );
       }
-      const tenantRow = await supabase
-        .from("tenants")
-        .select("id")
-        .eq("preview_slug", slug)
-        .maybeSingle();
-      const tenantId = tenantRow.data?.id as string | undefined;
-      if (tenantId) {
-        await supabase
-          .from("booking_settings")
-          .update({
-            deposit_required: depositResult.value.deposit_required,
-            deposit_mode: depositResult.value.deposit_mode,
-            deposit_value: depositResult.value.deposit_value,
-            deposit_cashapp: depositResult.value.deposit_cashapp,
-            deposit_zelle: depositResult.value.deposit_zelle,
-            deposit_other_label: depositResult.value.deposit_other_label,
-            deposit_other_value: depositResult.value.deposit_other_value,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("tenant_id", tenantId);
+      depositValue = depositResult.value;
+
+      // For preview-only sites: fold deposit fields into the same previews
+      // UPDATE below. For real tenants: a separate booking_settings UPDATE
+      // runs after.
+      if (!tenantId) {
+        allowed.deposit_required = depositValue.deposit_required;
+        allowed.deposit_mode = depositValue.deposit_mode;
+        allowed.deposit_value = depositValue.deposit_value;
+        allowed.deposit_cashapp = depositValue.deposit_cashapp;
+        allowed.deposit_zelle = depositValue.deposit_zelle;
+        allowed.deposit_other_label = depositValue.deposit_other_label;
+        allowed.deposit_other_value = depositValue.deposit_other_value;
       }
+    }
+
+    if (Object.keys(allowed).length === 0) {
+      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+    }
+
+    const { error: updateError } = await supabase
+      .from("previews")
+      .update(allowed)
+      .eq("slug", slug);
+
+    if (updateError) {
+      console.error("Update error:", updateError);
+      return NextResponse.json({ error: "Failed to save" }, { status: 500 });
+    }
+
+    if (depositTouched && tenantId) {
+      await supabase
+        .from("booking_settings")
+        .update({
+          deposit_required: depositValue!.deposit_required,
+          deposit_mode: depositValue!.deposit_mode,
+          deposit_value: depositValue!.deposit_value,
+          deposit_cashapp: depositValue!.deposit_cashapp,
+          deposit_zelle: depositValue!.deposit_zelle,
+          deposit_other_label: depositValue!.deposit_other_label,
+          deposit_other_value: depositValue!.deposit_other_value,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("tenant_id", tenantId);
     }
 
     return NextResponse.json({ success: true });

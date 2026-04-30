@@ -40,6 +40,17 @@ export async function POST(request: Request) {
 
       console.log(`Checkout completed: ${meta.business_name} (${meta.lead_id})`);
 
+      // Pull the founder's pending preview-only settings so the new
+      // tenant and booking_settings rows start with the values she
+      // configured before activation. (See migration 024.)
+      const { data: previewSettings } = meta.preview_slug
+        ? await supabase
+            .from("previews")
+            .select("booking_mode, notification_email, deposit_required, deposit_mode, deposit_value, deposit_cashapp, deposit_zelle, deposit_other_label, deposit_other_value")
+            .eq("slug", meta.preview_slug)
+            .maybeSingle()
+        : { data: null };
+
       // Create tenant
       const { data: tenant, error: tenantError } = await supabase
         .from("tenants")
@@ -50,6 +61,8 @@ export async function POST(request: Request) {
           stripe_customer_id: customerId,
           stripe_subscription_id: subscriptionId,
           subscription_status: "active",
+          booking_mode: previewSettings?.booking_mode || "in_site_only",
+          email: previewSettings?.notification_email || null,
         })
         .select("id")
         .single();
@@ -57,6 +70,28 @@ export async function POST(request: Request) {
       if (tenantError) {
         console.error("Tenant creation failed:", tenantError);
         break;
+      }
+
+      // Hand off pending deposit settings to booking_settings. Upsert so
+      // we don't fight an auto-created row from any other path.
+      if (previewSettings) {
+        await supabase
+          .from("booking_settings")
+          .upsert(
+            {
+              tenant_id: tenant.id,
+              preview_slug: meta.preview_slug,
+              deposit_required: !!previewSettings.deposit_required,
+              deposit_mode: previewSettings.deposit_mode,
+              deposit_value: previewSettings.deposit_value,
+              deposit_cashapp: previewSettings.deposit_cashapp,
+              deposit_zelle: previewSettings.deposit_zelle,
+              deposit_other_label: previewSettings.deposit_other_label,
+              deposit_other_value: previewSettings.deposit_other_value,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "tenant_id" },
+          );
       }
 
       // Mark lead as converted

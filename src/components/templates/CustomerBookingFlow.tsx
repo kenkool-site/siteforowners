@@ -19,14 +19,14 @@ export interface SimpleService {
 }
 
 export const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const WEEKDAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+export const WEEKDAYS_FULL = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 export const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 // ---------------------------------------------------------------------------
 // Helper sub-components for CustomerBookingFlow
 // ---------------------------------------------------------------------------
 
-function ServiceDetailsPanel({
+export function ServiceDetailsPanel({
   service,
   colors,
 }: {
@@ -59,7 +59,7 @@ function ServiceDetailsPanel({
   );
 }
 
-function RunningTotalBar({
+export function RunningTotalBar({
   baseDuration,
   basePrice,
   addOns,

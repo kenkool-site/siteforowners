@@ -31,14 +31,21 @@ async function getData(slug: string) {
     .eq("preview_slug", slug)
     .single();
 
-  // Create a minimal tenant-like object if no tenant exists
+  // Create a minimal tenant-like object if no tenant exists. Pending
+  // tenant-scoped fields (booking_mode, notification_email) live on the
+  // previews row until activation; surface them through the synthetic
+  // tenant so SiteEditor's existing initializers pick them up unchanged.
   const tenantData = tenant || {
     id: `preview-${slug}`,
     business_name: preview.business_name,
     subdomain: null,
+    booking_mode: preview.booking_mode || "in_site_only",
+    email: preview.notification_email || null,
   };
 
-  // Spec 5: load deposit settings when a real tenant is present.
+  // Deposit settings: canonical home is booking_settings (when a tenant
+  // exists). For preview-only sites, the founder's pending values live
+  // on the previews row and migrate on activation.
   let deposit: DepositSettingsState = DEFAULT_DEPOSIT;
   if (tenant) {
     const { data: bookingSettings } = await supabase
@@ -58,6 +65,16 @@ async function getData(slug: string) {
         deposit_other_value: (bookingSettings.deposit_other_value as string | null) ?? null,
       };
     }
+  } else {
+    deposit = {
+      deposit_required: !!preview.deposit_required,
+      deposit_mode: (preview.deposit_mode as "fixed" | "percent" | null) ?? null,
+      deposit_value: preview.deposit_value as number | null,
+      deposit_cashapp: (preview.deposit_cashapp as string | null) ?? null,
+      deposit_zelle: (preview.deposit_zelle as string | null) ?? null,
+      deposit_other_label: (preview.deposit_other_label as string | null) ?? null,
+      deposit_other_value: (preview.deposit_other_value as string | null) ?? null,
+    };
   }
 
   return { tenant: tenantData, preview, deposit };
