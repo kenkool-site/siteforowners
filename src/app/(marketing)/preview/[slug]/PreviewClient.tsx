@@ -5,13 +5,15 @@ import { Button } from "@/components/ui/button";
 import { TemplateOrchestrator } from "@/components/templates";
 import { GetStartedModal } from "@/components/GetStartedModal";
 import type { PreviewData } from "@/lib/ai/types";
+import type { BookingModePolicy } from "@/lib/admin-auth";
 
 interface PreviewClientProps {
   data: PreviewData;
   slug: string;
+  bookingMode?: BookingModePolicy;
 }
 
-export function PreviewClient({ data, slug }: PreviewClientProps) {
+export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: PreviewClientProps) {
   const [locale, setLocale] = useState<"en" | "es">("en");
   const [viewMode, setViewMode] = useState<"mobile" | "desktop">("desktop");
   const [copied, setCopied] = useState(false);
@@ -136,7 +138,7 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
               viewMode === "mobile" ? "h-[700px] overflow-y-auto" : ""
             }
           >
-            <TemplateOrchestrator data={data} locale={locale} bookingMode="in_site_only" />
+            <TemplateOrchestrator data={data} locale={locale} bookingMode={bookingMode} />
           </div>
         </div>
       </div>
