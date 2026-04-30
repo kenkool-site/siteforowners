@@ -149,7 +149,7 @@ export function PreviewClient({ data, slug }: PreviewClientProps) {
               Make it yours — first month free.
             </p>
             <p className="text-xs text-gray-500">
-              We'll get you live today. No card needed.
+              We&apos;ll get you live today. No card needed.
             </p>
           </div>
           <div className="flex gap-2">
