@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         ← Back to home
       </Link>
       <h1 className="mt-6 text-4xl font-bold">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-gray-500">Last updated: April 21, 2026</p>
+      <p className="mt-2 text-sm text-gray-500">Last updated: April 30, 2026</p>
 
       <section className="mt-10 space-y-6 leading-relaxed">
         <p>
@@ -80,6 +80,10 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong>Resend</strong> — transactional email delivery
+          </li>
+          <li>
+            <strong>Twilio</strong> — transactional SMS delivery (only when
+            an end customer opts in via the booking flow)
           </li>
           <li>
             <strong>Plausible</strong> — privacy-friendly analytics
@@ -154,7 +158,32 @@ export default function PrivacyPage() {
           email or on the website at least 14 days before they take effect.
         </p>
 
-        <h2 className="text-2xl font-semibold">11. Contact</h2>
+        <h2 className="text-2xl font-semibold">11. SMS Messaging</h2>
+        <p>
+          When an end customer books an appointment on a website hosted by
+          SiteForOwners and ticks the SMS opt-in checkbox during the booking
+          flow, we collect their mobile phone number to send transactional
+          text-message notifications related to that specific booking —
+          confirmations, reminders, deposit requests, deposit receipts,
+          reschedules, and cancellations.
+        </p>
+        <p>
+          <strong>
+            Mobile phone numbers and SMS opt-in data are never sold, shared,
+            or rented to third parties for marketing or promotional purposes.
+          </strong>{" "}
+          We share phone numbers only with our SMS service provider (Twilio,
+          Inc.) solely to deliver the messages the customer opted in to
+          receive. SMS data is not used for advertising, profiling, or
+          cross-promotion of any kind.
+        </p>
+        <p>
+          Customers can opt out at any time by replying <strong>STOP</strong>{" "}
+          to any message. Opt-outs are honored immediately and persist across
+          all future messages.
+        </p>
+
+        <h2 className="text-2xl font-semibold">12. Contact</h2>
         <p>
           Questions? Email{" "}
           <a
