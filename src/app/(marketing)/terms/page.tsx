@@ -12,7 +12,7 @@ export default function TermsPage() {
         ← Back to home
       </Link>
       <h1 className="mt-6 text-4xl font-bold">Terms of Service</h1>
-      <p className="mt-2 text-sm text-gray-500">Last updated: April 21, 2026</p>
+      <p className="mt-2 text-sm text-gray-500">Last updated: April 30, 2026</p>
 
       <section className="mt-10 space-y-6 leading-relaxed">
         <p>
@@ -118,7 +118,58 @@ export default function TermsPage() {
           York.
         </p>
 
-        <h2 className="text-2xl font-semibold">12. Contact</h2>
+        <h2 className="text-2xl font-semibold">12. SMS Messaging Program</h2>
+        <p>
+          <strong>Program name:</strong> SiteForOwners Booking Notifications.
+        </p>
+        <p>
+          <strong>Description:</strong> When an end customer books an
+          appointment on a website hosted by SiteForOwners and ticks the SMS
+          opt-in checkbox during the booking flow, that customer will receive
+          transactional text messages related to their booking, including:
+          appointment confirmations, day-before reminders, deposit payment
+          requests, deposit-received confirmations, booking reschedules, and
+          booking cancellations. Messages are sent only for the customer&rsquo;s
+          own bookings. We do not send marketing or promotional SMS on this
+          program.
+        </p>
+        <p>
+          <strong>Message frequency:</strong> Frequency varies based on
+          booking activity. A typical single appointment generates one to
+          three messages across its lifecycle.
+        </p>
+        <p>
+          <strong>Costs:</strong> <strong>Msg &amp; data rates may apply.</strong>{" "}
+          SiteForOwners does not charge customers for SMS, but the customer&rsquo;s
+          wireless carrier may apply standard message and data rates per their
+          mobile plan.
+        </p>
+        <p>
+          <strong>Help:</strong> Reply <strong>HELP</strong> to any message
+          for help information, or email{" "}
+          <a
+            href="mailto:afolabi.kenneth@gmail.com"
+            className="text-blue-600 hover:underline"
+          >
+            afolabi.kenneth@gmail.com
+          </a>
+          .
+        </p>
+        <p>
+          <strong>Opt-out:</strong> Reply <strong>STOP</strong> to any
+          message to immediately unsubscribe from all future SMS messages.
+          Opt-outs are honored at the carrier level and persist across all
+          future bookings.
+        </p>
+        <p>
+          See our{" "}
+          <Link href="/privacy" className="text-blue-600 hover:underline">
+            Privacy Policy
+          </Link>{" "}
+          for how we handle phone numbers and SMS data.
+        </p>
+
+        <h2 className="text-2xl font-semibold">13. Contact</h2>
         <p>
           Questions? Contact us at{" "}
           <a
