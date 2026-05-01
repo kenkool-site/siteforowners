@@ -183,13 +183,12 @@ src/app/(marketing)/
 
 Each section component is self-contained: takes no props (the page is static), owns its motion, and is independently testable.
 
-## Assets
+## Assets And Reference Material
 
-- `public/marketing/hero/letstrylocs.png` — primary hero showcase (existing live site, captured at mobile width).
-- `public/marketing/hero/{barber,nails}.png` — preview screenshots for the hero swap. If the founder doesn't have polished previews for both, fall back to two captures from existing previews of any vertical.
-- `public/marketing/customer-view/letstrylocs.png` — full-frame customer-view screenshot.
-- `public/marketing/customer-view/{salon,barber,nails}-thumb.png` — vertical thumbnails.
-- `public/marketing/dashboard/{home,schedule,services,leads}.png` — the four tour slides. Re-use the screenshots already provided in the brainstorming thread (letstrylocs Home, Mariam's Schedule, Mariam's Services, TouchedbyDrea Leads).
+- Customer-facing screenshots are **reference-only**. Keep them in `.design-references/customer-view/`, which is ignored by git. Do not reference those files from React components and do not ship them from `public/`.
+- The `CustomerView` and Hero showcase should use rendered product/site mockups built in HTML/CSS/Framer Motion. Use the reference captures only to match real brand cues: pink buttons, bilingual toggle, service cards, booking CTAs, menu treatment, and image-led vertical personality.
+- `public/marketing/dashboard/{home,schedule,services,leads}.png` may remain as source screenshots for the dashboard tour, but Product Theater should prefer polished rendered dashboard cards where feasible. If screenshots are used temporarily, wrap them in premium frames and avoid presenting them as raw uploads.
+- The final page must not require `public/marketing/customer-view/*.png` or `public/marketing/hero/*.png` to render.
 
 ## Accessibility
 

@@ -17,14 +17,11 @@ Plan: `docs/superpowers/plans/2026-05-01-marketing-page-redesign.md` (Task 2)
 
 Recommended: ~750 × 1000 px PNG, < 400 KB each. The hero auto-cycles between these every 4 seconds.
 
-### `customer-view/` — "What customers see" section
+### `customer-view/` — rendered "What customers see" section
 
-| Path | What it should be |
-| --- | --- |
-| `customer-view/letstrylocs.png` | Full-frame mobile screenshot of letstrylocs.com (can reuse `hero/letstrylocs.png`). |
-| `customer-view/salon-thumb.png` | Square or 3:4 thumbnail representing a salon site. |
-| `customer-view/barber-thumb.png` | Same, for a barbershop site. |
-| `customer-view/nails-thumb.png` | Same, for a nail studio site. |
+Do not place customer-facing screenshots here for the redesign. Reference captures belong in
+`.design-references/customer-view/` and are ignored by git. The marketing page should render
+polished product/site previews in code instead of publishing raw uploaded screenshots.
 
 ### `dashboard/` — owner dashboard tour carousel
 
