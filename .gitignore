@@ -39,5 +39,8 @@ next-env.d.ts
 # brainstorming mockups
 .superpowers/
 
+# local-only visual references
+.design-references/
+
 # git worktrees
 .worktrees/
