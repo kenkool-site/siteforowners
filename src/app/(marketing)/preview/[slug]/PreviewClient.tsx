@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TemplateOrchestrator } from "@/components/templates";
 import { GetStartedModal } from "@/components/GetStartedModal";
@@ -102,6 +103,15 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
             >
               {copied ? "Copied!" : "Share"}
             </Button>
+
+            {/* See Your Dashboard — opens the preview admin mockup */}
+            <Link
+              href={`/preview/${slug}/admin`}
+              className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700"
+            >
+              <span aria-hidden>📊</span>
+              <span className="hidden sm:inline">See Your Dashboard</span>
+            </Link>
           </div>
         </div>
       </div>
