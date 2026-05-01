@@ -4,6 +4,7 @@ import { HowItWorks } from "./_components/HowItWorks";
 import { RightNow } from "./_components/RightNow";
 import { CustomerView } from "./_components/CustomerView";
 import { OwnerDashboardTour } from "./_components/OwnerDashboardTour";
+import { WhatsIncluded } from "./_components/WhatsIncluded";
 import { Pricing } from "./_components/Pricing";
 import { FAQ } from "./_components/FAQ";
 import { FinalCTA } from "./_components/FinalCTA";
@@ -18,6 +19,7 @@ export default function MarketingPage() {
       <RightNow />
       <CustomerView />
       <OwnerDashboardTour />
+      <WhatsIncluded />
       <Pricing />
       <FAQ />
       <FinalCTA />

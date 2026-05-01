@@ -47,7 +47,7 @@ const config: Config = {
 
         // Marketing redesign palette (siteforowners.com homepage only)
         pop: {
-          pink: "#ff2f8a",
+          pink: "#db2777",
           cream: "#fff8ee",
         },
         warm: {
