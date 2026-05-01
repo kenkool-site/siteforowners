@@ -1,5 +1,3 @@
-"use client";
-
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +8,7 @@ const NAV_LINKS = [
 
 export function Nav() {
   return (
-    <nav className="flex items-center justify-between bg-white px-6 py-4 border-b border-warm-cream1/60">
+    <nav className="flex items-center justify-between border-b border-warm-cream1/60 bg-white px-6 py-4">
       <Link href="/" className="text-xl font-bold text-warm-text">
         Site<span className="text-pop-pink">ForOwners</span>
       </Link>
@@ -29,14 +27,17 @@ export function Nav() {
         </div>
 
         <details className="relative sm:hidden">
-          <summary className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-warm-cream1 text-warm-textMuted hover:bg-warm-cream2">
+          <summary
+            aria-label="Open menu"
+            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-lg border border-warm-cream1 text-warm-textMuted hover:bg-warm-cream2"
+          >
             <svg
+              aria-hidden="true"
               className="h-5 w-5"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
               strokeWidth={2}
-              aria-label="Open menu"
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
             </svg>
@@ -54,14 +55,13 @@ export function Nav() {
           </div>
         </details>
 
-        <Link href="/preview">
-          <Button
-            size="sm"
-            className="rounded-full bg-pop-pink text-pop-cream hover:bg-pop-pink/90"
-          >
-            Build my preview
-          </Button>
-        </Link>
+        <Button
+          asChild
+          size="sm"
+          className="rounded-full bg-pop-pink text-pop-cream hover:bg-pop-pink/90"
+        >
+          <Link href="/preview">Build my preview</Link>
+        </Button>
       </div>
     </nav>
   );
