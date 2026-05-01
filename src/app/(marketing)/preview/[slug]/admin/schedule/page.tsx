@@ -39,7 +39,7 @@ export default async function PreviewAdminSchedule({
   const supabase = createAdminClient();
   const { data: preview } = await supabase
     .from("previews")
-    .select("slug, business_name, business_type, services, checkout_mode")
+    .select("slug, business_name, business_type, services")
     .eq("slug", params.slug)
     .single();
 
@@ -50,7 +50,6 @@ export default async function PreviewAdminSchedule({
     business_name: preview.business_name as string | null,
     business_type: preview.business_type as string | null,
     services: (preview.services as Array<{ name: string; price?: string; durationMinutes?: number }> | null) || [],
-    checkout_mode: preview.checkout_mode as string | null,
   });
 
   const grouped = groupByDate(mock.schedule);
