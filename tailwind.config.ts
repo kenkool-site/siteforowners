@@ -44,6 +44,21 @@ const config: Config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+
+        // Marketing redesign palette (siteforowners.com homepage only)
+        pop: {
+          pink: "#ff2f8a",
+          cream: "#fff8ee",
+        },
+        warm: {
+          cream1: "#f4e4d1",
+          cream2: "#fdf8f0",
+          text: "#3a2418",
+          textMuted: "#6b4226",
+          accent: "#c2410c",
+          eyebrow: "#a05c2c",
+          deep: "#1f1611",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
@@ -53,6 +68,7 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-geist-sans)"],
         mono: ["var(--font-geist-mono)"],
+        serif: ["var(--font-fraunces)", "Georgia", "serif"],
       },
     },
   },
