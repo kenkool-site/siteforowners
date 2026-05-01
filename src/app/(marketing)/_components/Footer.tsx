@@ -8,11 +8,17 @@ export function Footer() {
         <span aria-hidden>·</span>
         <span>Made in Brooklyn</span>
         <span aria-hidden>·</span>
-        <Link href="/privacy" className="hover:text-warm-cream2">
+        <Link
+          href="/privacy"
+          className="underline decoration-warm-cream2/40 underline-offset-4 hover:text-warm-cream2 hover:decoration-warm-cream2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-cream2"
+        >
           Privacy
         </Link>
         <span aria-hidden>·</span>
-        <Link href="/terms" className="hover:text-warm-cream2">
+        <Link
+          href="/terms"
+          className="underline decoration-warm-cream2/40 underline-offset-4 hover:text-warm-cream2 hover:decoration-warm-cream2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-cream2"
+        >
           Terms
         </Link>
         <span aria-hidden>·</span>
