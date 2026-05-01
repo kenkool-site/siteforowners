@@ -148,26 +148,19 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
         <div className="mx-auto flex max-w-2xl flex-col items-center gap-3 sm:flex-row sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-gray-900">
-              Make it yours — first month free.
+              We build your site. You get bookings. First month FREE.
             </p>
             <p className="text-xs text-gray-500">
-              We&apos;ll get you live today. No card needed.
+              Go live in 24 hours. No setup. No stress.
             </p>
           </div>
-          <div className="flex gap-2">
-            <a href="sms:6159183580?body=Hi, I saw my website preview and I'm interested!">
-              <Button variant="outline" size="sm">
-                Text Us
-              </Button>
-            </a>
-            <Button
-              size="sm"
-              className="bg-amber-600 text-white hover:bg-amber-700"
-              onClick={() => setShowGetStarted(true)}
-            >
-              Get Started
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            className="bg-amber-600 text-white hover:bg-amber-700"
+            onClick={() => setShowGetStarted(true)}
+          >
+            Start Free Setup
+          </Button>
         </div>
       </div>
 
