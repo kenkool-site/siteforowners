@@ -17,11 +17,20 @@ export default async function PreviewAdminLayout({
   const supabase = createAdminClient();
   const { data: preview } = await supabase
     .from("previews")
-    .select("slug, business_name, business_type, services, checkout_mode")
+    .select("slug, business_name, business_type, services")
     .eq("slug", params.slug)
     .single();
 
   if (!preview) notFound();
+
+  // Linked tenant (if any) is the canonical source for checkout_mode.
+  // Preview-only sites don't expose this in the editor, so default mockup.
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("checkout_mode")
+    .eq("preview_slug", preview.slug as string)
+    .maybeSingle();
+  const checkoutMode = (tenant?.checkout_mode as string | null) ?? null;
 
   const theme = await loadAdminTheme(preview.slug as string).catch(() =>
     loadAdminTheme(null),
@@ -33,7 +42,7 @@ export default async function PreviewAdminLayout({
     business_name: preview.business_name as string | null,
     business_type: preview.business_type as string | null,
     services: (preview.services as Array<{ name: string; price?: string; durationMinutes?: number }> | null) || [],
-    checkout_mode: preview.checkout_mode as string | null,
+    checkout_mode: checkoutMode,
   });
 
   const pathPrefix = `/preview/${preview.slug}/admin`;
@@ -54,7 +63,7 @@ export default async function PreviewAdminLayout({
       <PreviewAdminShell
         tenant={{
           business_name: (preview.business_name as string) || "Your Business",
-          checkout_mode: preview.checkout_mode as string | null,
+          checkout_mode: checkoutMode,
         }}
         pathPrefix={pathPrefix}
         backHref={backHref}

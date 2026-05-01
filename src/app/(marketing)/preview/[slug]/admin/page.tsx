@@ -16,22 +16,29 @@ export default async function PreviewAdminHome({
   const supabase = createAdminClient();
   const { data: preview } = await supabase
     .from("previews")
-    .select("slug, business_name, business_type, services, checkout_mode")
+    .select("slug, business_name, business_type, services")
     .eq("slug", params.slug)
     .single();
 
   if (!preview) notFound();
+
+  const { data: tenant } = await supabase
+    .from("tenants")
+    .select("checkout_mode")
+    .eq("preview_slug", preview.slug as string)
+    .maybeSingle();
+  const checkoutMode = (tenant?.checkout_mode as string | null) ?? null;
 
   const mock = buildMockAdminData({
     slug: preview.slug as string,
     business_name: preview.business_name as string | null,
     business_type: preview.business_type as string | null,
     services: (preview.services as Array<{ name: string; price?: string; durationMinutes?: number }> | null) || [],
-    checkout_mode: preview.checkout_mode as string | null,
+    checkout_mode: checkoutMode,
   });
 
   const prefix = `/preview/${preview.slug}/admin`;
-  const showOrders = preview.checkout_mode === "pickup";
+  const showOrders = checkoutMode === "pickup";
 
   const cards: { value: number | string; label: string; href?: string }[] = [];
   if (showOrders) cards.push({ value: mock.rollups.newOrders, label: "New orders", href: `${prefix}/orders` });
