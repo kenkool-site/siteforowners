@@ -97,11 +97,16 @@ export async function generateMetadata({
 
   const name = data?.business_name || "Business";
   const copy = data?.generated_copy as Record<string, unknown> | null;
-  const seoTitle = (copy?.en as Record<string, string>)?.seo_title || name;
+  const en = copy?.en as Record<string, string> | undefined;
+  const seoTitle =
+    en?.seo_title?.trim() ||
+    (en?.hero_headline?.trim() ? `${name} — ${en.hero_headline.trim()}` : name);
   const seoDesc =
-    (copy?.en as Record<string, string>)?.seo_description ||
-    `${name} — Professional services for our community.`;
+    en?.seo_description?.trim() ||
+    en?.hero_subheadline?.trim() ||
+    `${name} — book online, see services, and get in touch.`;
   const image = data?.images?.[0];
+  const imageBlock = image ? { images: [{ url: image, alt: name }] } : {};
 
   return {
     title: seoTitle,
@@ -109,7 +114,15 @@ export async function generateMetadata({
     openGraph: {
       title: seoTitle,
       description: seoDesc,
-      ...(image ? { images: [{ url: image }] } : {}),
+      type: "website",
+      siteName: name,
+      ...imageBlock,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: seoTitle,
+      description: seoDesc,
+      ...imageBlock,
     },
   };
 }
