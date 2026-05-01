@@ -47,7 +47,11 @@ export function HeroShowcase() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
-      onBlur={() => setPaused(false)}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setPaused(false);
+        }
+      }}
     >
       <div role="tablist" aria-label="Choose a vertical" className="mb-3 flex flex-wrap gap-2">
         {SITES.map((site, i) => (
@@ -72,7 +76,6 @@ export function HeroShowcase() {
       <div
         id="hero-showcase-panel"
         role="tabpanel"
-        aria-live="polite"
         className="rounded-2xl bg-black p-3 shadow-2xl"
         style={{ transform: "rotate(-1.5deg)" }}
       >
