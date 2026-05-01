@@ -15,6 +15,9 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.siteforowners.com",
+  ),
   title: "SiteForOwners — Your website, built for you",
   description:
     "Professional websites for small businesses. $50/month. No setup fee. We handle everything.",

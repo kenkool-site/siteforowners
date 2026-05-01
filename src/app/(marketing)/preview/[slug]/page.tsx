@@ -53,14 +53,18 @@ export async function generateMetadata({
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("previews")
-    .select("business_name, images")
+    .select("business_name, images, generated_copy")
     .eq("slug", params.slug)
     .single();
 
   const name = data?.business_name || "Your Business";
-  const title = `${name} — Website Preview | SiteForOwners`;
-  const description = `We created this website preview for ${name}. See how your business could look online — fully customized, ready to go live.`;
+  const enCopy = (data?.generated_copy as { en?: Record<string, string> } | null)?.en;
+  const headline = enCopy?.hero_headline?.trim();
+  const subheadline = enCopy?.hero_subheadline?.trim();
+  const title = headline ? `${name} — ${headline}` : name;
+  const description = subheadline || `${name} — book online, see services, and get in touch.`;
   const image = data?.images?.[0];
+  const imageBlock = image ? { images: [{ url: image, alt: name }] } : {};
 
   return {
     title,
@@ -68,7 +72,15 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      ...(image ? { images: [{ url: image }] } : {}),
+      type: "website",
+      siteName: name,
+      ...imageBlock,
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...imageBlock,
     },
   };
 }
