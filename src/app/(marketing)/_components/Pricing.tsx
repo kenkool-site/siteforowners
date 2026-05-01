@@ -32,7 +32,7 @@ export function Pricing() {
           transition={{ delay: 0.1 }}
           className="relative mt-10 rounded-2xl border-2 border-pop-pink bg-white p-8 text-center"
         >
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-pop-pink px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-pop-cream">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-pop-pink px-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.15em] text-pop-cream">
             Free for 1 month
           </span>
           <p className="font-sans text-5xl font-black leading-none text-warm-text">

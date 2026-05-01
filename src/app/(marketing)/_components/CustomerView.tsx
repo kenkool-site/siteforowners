@@ -33,7 +33,8 @@ export function CustomerView() {
         <motion.div
           {...fadeUp}
           transition={{ delay: 0.1 }}
-          className="mt-8 overflow-hidden rounded-2xl bg-black p-2 shadow-xl"
+          style={{ transform: "rotate(-1.5deg)" }}
+          className="mt-8 rounded-2xl bg-black p-2 shadow-xl"
         >
           <Image
             src="/marketing/customer-view/letstrylocs.png"
