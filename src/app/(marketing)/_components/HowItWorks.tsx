@@ -1,6 +1,7 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
+import { useFadeUp } from "./_motion";
 
 const STEPS = [
   {
@@ -18,27 +19,22 @@ const STEPS = [
     title: "You start getting bookings",
     desc: "Customers find you, book online, you get a text.",
   },
-];
+] as const;
 
 export function HowItWorks() {
-  const reduceMotion = useReducedMotion();
-  const initial = reduceMotion ? false : { opacity: 0, y: 12 };
+  const fadeUp = useFadeUp();
 
   return (
     <section className="bg-warm-cream1 px-6 py-16 md:py-20">
       <div className="mx-auto max-w-3xl">
         <motion.p
-          initial={initial}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
+          {...fadeUp}
           className="text-xs font-bold uppercase tracking-[0.2em] text-warm-eyebrow"
         >
           — How it works —
         </motion.p>
         <motion.h2
-          initial={initial}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-80px" }}
+          {...fadeUp}
           transition={{ delay: 0.05 }}
           className="mt-2 font-serif text-3xl font-semibold leading-tight text-warm-text md:text-4xl"
         >
@@ -49,13 +45,14 @@ export function HowItWorks() {
           {STEPS.map((step, i) => (
             <motion.li
               key={step.num}
-              initial={initial}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-80px" }}
+              {...fadeUp}
               transition={{ delay: 0.1 + i * 0.08 }}
               className="flex items-start gap-4"
             >
-              <span className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-pop-pink font-sans text-base font-extrabold text-pop-cream">
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 flex-none items-center justify-center rounded-full bg-pop-pink font-sans text-base font-extrabold text-pop-cream"
+              >
                 {step.num}
               </span>
               <div>
