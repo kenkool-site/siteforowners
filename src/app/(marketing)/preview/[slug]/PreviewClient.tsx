@@ -103,15 +103,6 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
             >
               {copied ? "Copied!" : "Share"}
             </Button>
-
-            {/* See Your Dashboard — opens the preview admin mockup */}
-            <Link
-              href={`/preview/${slug}/admin`}
-              className="inline-flex items-center gap-1.5 rounded-md bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-amber-700"
-            >
-              <span aria-hidden>📊</span>
-              <span className="hidden sm:inline">See Your Dashboard</span>
-            </Link>
           </div>
         </div>
       </div>
@@ -120,12 +111,17 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
       <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b">
         <div className="mx-auto max-w-3xl px-4 py-5 text-center">
           <p className="text-base font-semibold text-gray-900">
-            We created this website preview for{" "}
             <span className="text-amber-700">{data.business_name}</span>
+            <span className="text-gray-700"> — your future website, ready in 24 hours.</span>
           </p>
-          <p className="mt-1 text-sm text-gray-500">
-            This is a sample of how your business could look online — fully customized, ready to go live.
-          </p>
+          <Link
+            href={`/preview/${slug}/admin`}
+            className="mt-4 inline-flex items-center gap-2 rounded-full bg-amber-600 px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-amber-700"
+          >
+            <span aria-hidden>📊</span>
+            See Your Owner Dashboard
+            <span aria-hidden>→</span>
+          </Link>
         </div>
       </div>
 
