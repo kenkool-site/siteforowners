@@ -91,7 +91,7 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
               className="inline-flex min-h-12 items-center justify-center border px-6 text-[0.68rem] font-black uppercase tracking-[0.24em] transition-all hover:-translate-y-0.5"
               style={{ backgroundColor: gold, borderColor: gold, color: ctaText }}
             >
-              Book This Energy
+              Book a Look
             </a>
           </div>
         </AnimateSection>

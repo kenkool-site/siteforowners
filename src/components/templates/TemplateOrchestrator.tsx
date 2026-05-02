@@ -384,10 +384,18 @@ export function TemplateOrchestrator({
       colors={colors}
     />
   );
+  const getRunwayMarqueeLabel = (value: string) => {
+    const short = value
+      .replace(/\([^)]*\)/g, "")
+      .split(/[\/,&-]/)[0]
+      .replace(/\s+/g, " ")
+      .trim();
+    return short.length > 22 ? `${short.slice(0, 22).trim()}...` : short;
+  };
   const runwayMarqueeItems = Array.from(new Set([
     "Book Your Look",
-    ...categories.slice(0, 3),
-    ...services.slice(0, 4).map((service) => service.name),
+    ...categories.slice(0, 3).map(getRunwayMarqueeLabel),
+    ...services.slice(0, 4).map((service) => getRunwayMarqueeLabel(service.name)),
     "Fresh Finish",
     data.business_type === "barbershop" ? "Sharp Lines" : "Camera-Ready Finish",
   ].filter(Boolean))).slice(0, 8);

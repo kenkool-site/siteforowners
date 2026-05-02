@@ -12,6 +12,9 @@ import { groupServices } from "./groupServices";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
+const INITIAL_FLAT_SERVICE_LIMIT = 9;
+const INITIAL_GROUP_SERVICE_LIMIT = 6;
+
 type DisplayService = {
   name: string;
   price: string;
@@ -42,9 +45,13 @@ export function RunwayServices({
   const buttonText = ensureReadable("#050505", gold);
   const groups = groupServices(services as unknown as ServiceItem[], categories);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const toggle = (label: string) =>
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+
+  const toggleExpandedGroup = (label: string) =>
+    setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
 
   const renderService = (service: DisplayService, i: number) => {
     const m = bookingMode ?? "in_site_only";
@@ -165,13 +172,19 @@ export function RunwayServices({
         </AnimateSection>
 
         {groups.map((group) => {
+          const groupKey = group.label ?? "_flat";
           const isCollapsed = group.label ? !!collapsed[group.label] : false;
+          const serviceLimit = group.label ? INITIAL_GROUP_SERVICE_LIMIT : INITIAL_FLAT_SERVICE_LIMIT;
+          const shouldLimitGroup = group.services.length > serviceLimit && !expandedGroups[groupKey];
+          const visibleServices = shouldLimitGroup
+            ? group.services.slice(0, serviceLimit)
+            : group.services;
           const groupId = group.label
             ? `runway-services-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
             : undefined;
 
           return (
-            <div key={group.label ?? "_flat"} className="mb-10 last:mb-0">
+            <div key={groupKey} className="mb-10 last:mb-0">
               {group.label && (
                 <button
                   type="button"
@@ -196,11 +209,27 @@ export function RunwayServices({
               )}
 
               {!isCollapsed && (
-                <div id={groupId} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {(group.services as DisplayService[]).map((service, i) =>
-                    renderService(service, i),
+                <>
+                  <div id={groupId} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {(visibleServices as DisplayService[]).map((service, i) =>
+                      renderService(service, i),
+                    )}
+                  </div>
+                  {group.services.length > serviceLimit && (
+                    <div className="mt-6 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpandedGroup(groupKey)}
+                        className="border px-6 py-3 text-[0.68rem] font-black uppercase tracking-[0.24em] transition-all hover:-translate-y-0.5 hover:bg-white/10"
+                        style={{ borderColor: `${gold}66`, color: gold }}
+                      >
+                        {expandedGroups[groupKey]
+                          ? "Show featured services"
+                          : <>View all {group.services.length} services</>}
+                      </button>
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
           );
