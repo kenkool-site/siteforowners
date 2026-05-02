@@ -12,6 +12,10 @@ interface GenerateCopyParams {
   services: ServiceItem[];
   products?: ProductItem[];
   address?: string;
+  socialProof?: string;
+  bookingSummary?: string;
+  hoursSummary?: string;
+  variantCount?: number;
   instructions?: string;
 }
 
@@ -41,6 +45,10 @@ export async function generateWebsiteCopyVariants(
               services: params.services,
               products: params.products,
               address: params.address,
+              socialProof: params.socialProof,
+              bookingSummary: params.bookingSummary,
+              hoursSummary: params.hoursSummary,
+              variantCount: params.variantCount,
               instructions: params.instructions,
             }),
           },
@@ -121,7 +129,8 @@ export async function generateWebsiteCopyVariants(
     }
   }
 
-  if (!parsed.variants || parsed.variants.length < 2) {
+  const minVariants = Math.max(2, Math.min(params.variantCount ?? 2, 3));
+  if (!parsed.variants || parsed.variants.length < minVariants) {
     throw new Error("AI response missing required variants");
   }
 

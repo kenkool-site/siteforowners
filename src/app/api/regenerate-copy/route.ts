@@ -21,6 +21,51 @@ function generateGroupId(): string {
 
 const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm", "runway"] as const;
 
+function buildSocialProofSummary(
+  rating?: number | null,
+  reviewCount?: number | null,
+  reviews?: unknown,
+): string | undefined {
+  const parts: string[] = [];
+  if (rating && reviewCount) parts.push(`${rating} stars from ${reviewCount} Google reviews`);
+  else if (rating) parts.push(`${rating} star Google rating`);
+  const reviewHighlights = Array.isArray(reviews)
+    ? reviews
+        .map((review) =>
+          typeof review === "object" && review && "text" in review
+            ? String(review.text).trim()
+            : "",
+        )
+        .filter(Boolean)
+        .slice(0, 2)
+    : [];
+  if (reviewHighlights.length > 0) {
+    parts.push(`Customer notes: ${reviewHighlights.join(" / ")}`);
+  }
+  return parts.length > 0 ? parts.join(". ") : undefined;
+}
+
+function buildBookingSummary(bookingUrl?: string | null, bookingCategories?: unknown): string | undefined {
+  const parts: string[] = [];
+  if (bookingUrl) parts.push("Online booking is available");
+  if (Array.isArray(bookingCategories) && bookingCategories.length > 0) {
+    const categoryNames = bookingCategories
+      .map((category) => (typeof category === "object" && category && "name" in category ? String(category.name) : ""))
+      .filter(Boolean)
+      .slice(0, 5);
+    if (categoryNames.length > 0) parts.push(`Booking categories include ${categoryNames.join(", ")}`);
+  }
+  return parts.length > 0 ? parts.join(". ") : undefined;
+}
+
+function buildHoursSummary(hours?: unknown): string | undefined {
+  if (!hours || typeof hours !== "object") return undefined;
+  return Object.entries(hours as Record<string, { open?: string; close?: string; closed?: boolean }>)
+    .slice(0, 7)
+    .map(([day, value]) => `${day}: ${value.closed ? "Closed" : `${value.open || ""}-${value.close || ""}`}`)
+    .join("; ");
+}
+
 export async function POST(request: Request) {
   try {
     const { slug, templates, instructions, keep_colors } = await request.json();
@@ -44,17 +89,6 @@ export async function POST(request: Request) {
     const products = (preview.products || []) as { name: string; price: string }[];
     const currentCopy = (preview.generated_copy || {}) as Record<string, unknown>;
 
-    // Generate 2 fresh copy variants
-    const variants = await generateWebsiteCopyVariants({
-      businessName: preview.business_name,
-      businessType: preview.business_type as BusinessType,
-      description: "",
-      services: services.filter((s) => s.name.trim()),
-      products: products.filter((p) => p.name.trim()),
-      address: preview.address || undefined,
-      instructions: instructions || undefined,
-    });
-
     // Pick templates — use requested or pick 2 different ones
     const selectedTemplates = templates && templates.length > 0
       ? templates.filter((t: string) => ALL_TEMPLATES.includes(t as typeof ALL_TEMPLATES[number]))
@@ -64,6 +98,24 @@ export async function POST(request: Request) {
             Math.floor(Math.random() * (ALL_TEMPLATES.length - 1))
           ],
         ];
+
+    // Generate enough fresh copy variants for every selected design.
+    const variants = await generateWebsiteCopyVariants({
+      businessName: preview.business_name,
+      businessType: preview.business_type as BusinessType,
+      description:
+        typeof currentCopy.business_description === "string"
+          ? currentCopy.business_description
+          : undefined,
+      services: services.filter((s) => s.name.trim()),
+      products: products.filter((p) => p.name.trim()),
+      address: preview.address || undefined,
+      socialProof: buildSocialProofSummary(preview.rating, preview.review_count, currentCopy.google_reviews),
+      bookingSummary: buildBookingSummary(preview.booking_url, currentCopy.booking_categories),
+      hoursSummary: buildHoursSummary(preview.hours),
+      variantCount: selectedTemplates.length,
+      instructions: instructions || undefined,
+    });
 
     // Pick themes — if keep_colors, reuse the original theme for all variants
     const allThemes = [...(THEMES_BY_VERTICAL[preview.business_type as BusinessType] || [])].sort(
@@ -103,6 +155,7 @@ export async function POST(request: Request) {
           ...(currentCopy.logo ? { logo: currentCopy.logo } : {}),
           ...(currentCopy.booking_categories ? { booking_categories: currentCopy.booking_categories } : {}),
           ...(currentCopy.google_reviews ? { google_reviews: currentCopy.google_reviews } : {}),
+          ...(currentCopy.business_description ? { business_description: currentCopy.business_description } : {}),
         },
         template_variant: keep_colors ? (preview.template_variant || tmpl) : tmpl,
         group_id: groupId,

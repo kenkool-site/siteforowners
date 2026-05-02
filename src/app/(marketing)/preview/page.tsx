@@ -43,6 +43,31 @@ const TAGLINES: Record<BusinessType, string[]> = {
   ],
 };
 
+function getPreviewQualityTips({
+  description,
+  servicesCount,
+  imagesCount,
+  address,
+  rating,
+  bookingUrl,
+}: {
+  description: string;
+  servicesCount: number;
+  imagesCount: number;
+  address: string;
+  rating: number | null;
+  bookingUrl: string;
+}) {
+  const tips: string[] = [];
+  if (description.trim().length < 40) tips.push("Add a short owner story so the preview feels personal.");
+  if (servicesCount < 4) tips.push("Add at least 4 services so the services section has enough depth.");
+  if (imagesCount < 3) tips.push("Add 3+ real photos or import from Google Maps for a stronger gallery.");
+  if (!address.trim()) tips.push("Add an address or neighborhood so the copy can feel local.");
+  if (!rating) tips.push("Import Google details when possible so reviews and ratings can shape the copy.");
+  if (!bookingUrl.trim()) tips.push("Add a booking link so CTAs can point customers to action.");
+  return tips.slice(0, 4);
+}
+
 type Step = 1 | 2 | 3 | 4 | 5;
 const TOTAL_STEPS = 5;
 
@@ -129,6 +154,14 @@ function PreviewWizard() {
       return [...prev, id];
     });
   };
+  const previewQualityTips = getPreviewQualityTips({
+    description,
+    servicesCount: services.length,
+    imagesCount: uploadedImages.length,
+    address,
+    rating: mapsRating,
+    bookingUrl,
+  });
 
   // Load existing preview data for editing
   useEffect(() => {
@@ -1027,6 +1060,17 @@ function PreviewWizard() {
             <p className="mb-8 text-gray-600">
               Pick 1–3 templates. We&apos;ll generate each with unique colors and copy for {businessName || "your business"}.
             </p>
+
+            {previewQualityTips.length > 0 && (
+              <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-950">Preview quality tips</p>
+                <ul className="mt-2 space-y-1 text-sm text-amber-900">
+                  {previewQualityTips.map((tip) => (
+                    <li key={tip}>• {tip}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* Template picker */}
             <div className="mb-8 space-y-3">

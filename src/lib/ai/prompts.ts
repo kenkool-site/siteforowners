@@ -38,8 +38,13 @@ export function buildUserPrompt(params: {
   services: { name: string; price: string }[];
   products?: { name: string; price: string }[];
   address?: string;
+  socialProof?: string;
+  bookingSummary?: string;
+  hoursSummary?: string;
+  variantCount?: number;
   instructions?: string;
 }): string {
+  const variantCount = Math.max(2, Math.min(params.variantCount ?? 2, 3));
   const serviceList = params.services
     .map((s) => `- ${s.name} (${s.price})`)
     .join("\n");
@@ -48,20 +53,23 @@ export function buildUserPrompt(params: {
     ? params.products.map((p) => `- ${p.name} (${p.price})`).join("\n")
     : "";
 
-  return `Generate website copy for this business. Create 2 DISTINCT VARIANTS — each should feel like a completely different writer with a different creative vision, while still matching the business.
+  return `Generate website copy for this business. Create ${variantCount} DISTINCT VARIANTS — each should feel like a completely different writer with a different creative vision, while still matching the business.
 
 BUSINESS NAME: ${params.businessName}
 TYPE: ${params.businessType}
 ${params.description ? `BUSINESS DESCRIPTION: ${params.description}` : ""}
 ${params.tagline ? `TAGLINE PREFERENCE: ${params.tagline}` : ""}
 ${params.address ? `ADDRESS: ${params.address}` : ""}
+${params.socialProof ? `SOCIAL PROOF: ${params.socialProof}` : ""}
+${params.bookingSummary ? `BOOKING SIGNALS: ${params.bookingSummary}` : ""}
+${params.hoursSummary ? `BUSINESS HOURS: ${params.hoursSummary}` : ""}
 
 SERVICES:
 ${serviceList}
 
 ${productList ? `PRODUCTS:\n${productList}` : ""}
 
-For EACH of the 2 variants, generate in BOTH English (en) and Spanish (es):
+For EACH of the ${variantCount} variants, generate in BOTH English (en) and Spanish (es):
 
 1. hero_headline — A bold, attention-grabbing headline (under 10 words)
 2. hero_subheadline — Supporting text (1 sentence, under 20 words)
@@ -76,6 +84,7 @@ ${productList ? '5. product_descriptions — A short description for EACH produc
 VARIANT GUIDELINES:
 - Variant A: Bold, confident, energetic — makes the reader excited
 - Variant B: Warm, personal, storytelling — makes the reader feel at home
+${variantCount >= 3 ? "- Variant C: Editorial, premium, visually specific — makes the business feel established and desirable\n" : ""}${params.socialProof ? "- Work the social proof into the copy naturally; do not sound like a review widget.\n" : ""}${params.bookingSummary ? "- Make booking feel easy and immediate when the business has online booking.\n" : ""}
 ${params.instructions ? `\nSPECIAL INSTRUCTIONS FROM THE SITE OWNER (follow these closely):\n${params.instructions}\n` : ""}
 IMPORTANT: Return ONLY valid JSON matching this exact structure:
 {

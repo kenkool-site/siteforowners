@@ -17,6 +17,7 @@ const TEMPLATE_META: Record<string, { desc: string; icon: string }> = {
   elegant: { desc: "Elegant & Minimal", icon: "✨" },
   vibrant: { desc: "Fun & Energetic", icon: "🎉" },
   warm: { desc: "Warm & Personal", icon: "🤝" },
+  runway: { desc: "Editorial Runway", icon: "◆" },
 };
 
 export function CompareClient({ previews, groupId }: CompareClientProps) {
