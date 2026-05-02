@@ -384,7 +384,13 @@ export function TemplateOrchestrator({
       colors={colors}
     />
   );
-  const runwayMarqueeItems = ["Editorial Cuts", "Color Stories", "Protective Styling", "Camera-Ready Finish"];
+  const runwayMarqueeItems = Array.from(new Set([
+    "Book Your Look",
+    ...categories.slice(0, 3),
+    ...services.slice(0, 4).map((service) => service.name),
+    "Fresh Finish",
+    data.business_type === "barbershop" ? "Sharp Lines" : "Camera-Ready Finish",
+  ].filter(Boolean))).slice(0, 8);
 
   // Template-specific section rendering
   const renderTemplate = () => {
