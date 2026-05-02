@@ -3,6 +3,7 @@ export const maxDuration = 120;
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateWebsiteCopyVariants } from "@/lib/ai/generate-copy";
+import { getDefaultHeroVideoUrl } from "@/lib/templates/default-hero-videos";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import type { BusinessType } from "@/lib/ai/types";
 
@@ -148,6 +149,11 @@ export async function POST(request: Request) {
     const groupId = generateGroupId();
     const variantLabels = ["A", "B", "C"];
 
+    const storedHeroVideo =
+      typeof preview.hero_video_url === "string" ? preview.hero_video_url.trim() : "";
+    const resolvedRegenHeroVideo =
+      storedHeroVideo || getDefaultHeroVideoUrl(preview.business_type as BusinessType) || null;
+
     // Create new preview rows — keep everything except copy and template
     const previewRows = selectedTemplates.map((tmpl: TemplateName, i: number) => {
       const variant = variants[i % variants.length];
@@ -184,6 +190,7 @@ export async function POST(request: Request) {
         template_variant: tmpl,
         group_id: groupId,
         variant_label: variantLabels[i] || String.fromCharCode(65 + i),
+        hero_video_url: resolvedRegenHeroVideo,
       };
     });
 

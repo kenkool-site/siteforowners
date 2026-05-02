@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, Suspense } from "react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_SERVICES } from "@/lib/templates/default-services";
+import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import type { BusinessType, ServiceItem, ProductItem } from "@/lib/ai/types";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -138,6 +139,9 @@ function PreviewWizard() {
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [hasHeroImage, setHasHeroImage] = useState<boolean>(true);
   const [uploading, setUploading] = useState(false);
+  const [heroVideoUrl, setHeroVideoUrl] = useState("");
+  const [uploadingHeroVideo, setUploadingHeroVideo] = useState(false);
+  const [heroVideoError, setHeroVideoError] = useState<string | null>(null);
 
   // Google Maps data
   const [mapsRating, setMapsRating] = useState<number | null>(null);
@@ -206,6 +210,8 @@ function PreviewWizard() {
         if (d.booking_url) setBookingUrl(d.booking_url);
         if (d.images?.length > 0) setUploadedImages(d.images);
         if (d.logo) setLogo(d.logo);
+        if (typeof d.description === "string" && d.description) setDescription(d.description);
+        if (typeof d.hero_video_url === "string" && d.hero_video_url) setHeroVideoUrl(d.hero_video_url);
         if (d.rating) setMapsRating(d.rating);
         if (d.review_count) setMapsReviewCount(d.review_count);
         if (d.google_reviews?.length > 0) setMapsReviews(d.google_reviews);
@@ -248,6 +254,60 @@ function PreviewWizard() {
     } finally {
       setUploading(false);
     }
+  };
+
+  const MAX_HERO_VIDEO_BYTES = 20 * 1024 * 1024;
+
+  const handleHeroVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setHeroVideoError(null);
+
+    if (!["video/mp4", "video/webm"].includes(file.type)) {
+      setHeroVideoError("Use MP4 or WebM.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_HERO_VIDEO_BYTES) {
+      setHeroVideoError(
+        `File is ${(file.size / 1024 / 1024).toFixed(1)}MB. Max 20MB — compress first.`,
+      );
+      e.target.value = "";
+      return;
+    }
+
+    setUploadingHeroVideo(true);
+    try {
+      const signRes = await fetch("/api/upload-preview-hero-video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: file.type, size: file.size }),
+      });
+      if (!signRes.ok) {
+        const body = await signRes.json().catch(() => ({}));
+        throw new Error(body?.error || "Failed to prepare upload");
+      }
+      const { path, token, publicUrl } = await signRes.json();
+
+      const client = createBrowserSupabase();
+      const { error: uploadError } = await client.storage
+        .from("preview-images")
+        .uploadToSignedUrl(path, token, file, { contentType: file.type });
+
+      if (uploadError) throw uploadError;
+
+      setHeroVideoUrl(publicUrl);
+    } catch (err) {
+      setHeroVideoError(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploadingHeroVideo(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleClearHeroVideo = () => {
+    setHeroVideoUrl("");
+    setHeroVideoError(null);
   };
 
   const removeImage = (index: number) => {
@@ -474,6 +534,7 @@ function PreviewWizard() {
       hours: mapsHours || undefined,
       templates: selectedTemplates,
       keep_colors: keepColors || undefined,
+      hero_video_url: heroVideoUrl.trim() || undefined,
     };
 
     // Auto-retry up to 2 times on timeout/failure
@@ -974,6 +1035,61 @@ function PreviewWizard() {
               Upload photos of your business, or skip and we&apos;ll use
               professional stock photos.
             </p>
+            <div className="mb-8 rounded-xl border border-gray-200 bg-gray-50/80 p-4">
+              <div className="text-sm font-semibold text-gray-800">Hero video (optional)</div>
+              <p className="mt-1 text-xs text-gray-500">
+                Upload a short MP4 or WebM (under 20MB, muted loop works best), or paste a direct file URL.
+                If you skip both, we use a stock loop per business type for the preview — you can replace it anytime
+                in the site editor.
+              </p>
+              {heroVideoUrl ? (
+                <div className="mt-3 space-y-2">
+                  <video
+                    src={heroVideoUrl}
+                    autoPlay
+                    muted
+                    loop
+                    playsInline
+                    className="w-full max-w-md rounded-lg border border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleClearHeroVideo}
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Remove custom video
+                  </button>
+                </div>
+              ) : (
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm"
+                  onChange={handleHeroVideoUpload}
+                  disabled={uploadingHeroVideo}
+                  className="mt-3 block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-amber-50 file:px-4 file:py-2 file:text-sm file:font-medium file:text-amber-700 hover:file:bg-amber-100 disabled:opacity-50"
+                />
+              )}
+              {uploadingHeroVideo && (
+                <p className="mt-2 text-xs text-gray-500">Uploading…</p>
+              )}
+              {heroVideoError && (
+                <p className="mt-2 text-xs text-red-600">{heroVideoError}</p>
+              )}
+              <label htmlFor="hero-video-url" className="mt-4 block text-xs font-medium text-gray-600">
+                Or paste a direct MP4/WebM URL
+              </label>
+              <input
+                id="hero-video-url"
+                type="url"
+                value={heroVideoUrl}
+                onChange={(e) => {
+                  setHeroVideoError(null);
+                  setHeroVideoUrl(e.target.value);
+                }}
+                placeholder="https://example.com/your-hero.mp4"
+                className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+              />
+            </div>
 
             {uploadedImages.length > 0 && (
               <>

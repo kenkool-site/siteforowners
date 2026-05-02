@@ -2,6 +2,7 @@ export const maxDuration = 120;
 
 import { NextResponse } from "next/server";
 import { generateWebsiteCopyVariants } from "@/lib/ai/generate-copy";
+import { getDefaultHeroVideoUrl } from "@/lib/templates/default-hero-videos";
 import { STOCK_PHOTOS } from "@/lib/templates/stock-photos";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -287,6 +288,7 @@ export async function POST(request: Request) {
       hours,
       templates: requestedTemplates,
       keep_colors: keepColors,
+      hero_video_url,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -309,6 +311,7 @@ export async function POST(request: Request) {
       hours?: Record<string, { open: string; close: string; closed?: boolean }>;
       templates?: string[];
       keep_colors?: boolean;
+      hero_video_url?: string | null;
     };
 
     if (!business_name || !business_type) {
@@ -319,6 +322,10 @@ export async function POST(request: Request) {
     }
 
     console.log(`Generate copy: rating=${rating}, review_count=${review_count}, google_reviews=${google_reviews?.length || 0}`);
+
+    const customerHeroVideo = typeof hero_video_url === "string" ? hero_video_url.trim() : "";
+    const resolvedHeroVideo =
+      customerHeroVideo || getDefaultHeroVideoUrl(business_type) || "";
 
     // Use requested templates or auto-pick 2
     const templates: TemplateName[] = requestedTemplates && requestedTemplates.length > 0
@@ -402,6 +409,7 @@ export async function POST(request: Request) {
         template_variant: tmpl,
         group_id: groupId,
         variant_label: variantLabels[i] || String.fromCharCode(65 + i),
+        ...(resolvedHeroVideo ? { hero_video_url: resolvedHeroVideo } : {}),
       };
     });
 

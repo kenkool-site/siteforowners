@@ -61,5 +61,6 @@ export async function GET(request: Request) {
     template_variant: preview.template_variant || "",
     color_theme: preview.color_theme || "",
     custom_colors: copy?.custom_colors || null,
+    hero_video_url: preview.hero_video_url || "",
   });
 }
