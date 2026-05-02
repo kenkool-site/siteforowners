@@ -62,6 +62,7 @@ export interface GeneratedCopy {
     hero_subheadline: string;
     about_paragraphs: string[];
     service_descriptions: Record<string, string>;
+    product_descriptions?: Record<string, string>;
     seo_title: string;
     seo_description: string;
     footer_tagline: string;
@@ -73,6 +74,7 @@ export interface GeneratedCopy {
     hero_subheadline: string;
     about_paragraphs: string[];
     service_descriptions: Record<string, string>;
+    product_descriptions?: Record<string, string>;
     seo_title: string;
     seo_description: string;
     footer_tagline: string;

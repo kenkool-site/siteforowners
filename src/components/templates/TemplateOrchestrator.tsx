@@ -257,6 +257,10 @@ export function TemplateOrchestrator({
     addOns: s.add_ons,
     image: s.image,
   }));
+  const products = (data.products ?? []).map((p) => ({
+    ...p,
+    description: copy?.product_descriptions?.[p.name] ?? p.description,
+  }));
 
   const categories = (data.categories ?? []) as string[];
   const bookingPolicies = (data.booking_policies ?? "") as string;
@@ -304,7 +308,7 @@ export function TemplateOrchestrator({
   const animationsEnabled = !ss.disable_animations;
 
   // Build nav items dynamically based on what sections are visible
-  const hasProducts = showProducts && data.products && data.products.length > 0;
+  const hasProducts = showProducts && products.length > 0;
   const navItems = [
     { id: "hero", label: "Home" },
     ...(showServices ? [{ id: "services", label: "Services" }] : []),
@@ -319,7 +323,7 @@ export function TemplateOrchestrator({
   const productsSection = hasProducts ? (
     <div id="products">
       <TemplateProducts
-        products={data.products!}
+        products={products}
         colors={colors}
         checkoutMode={checkoutMode}
         tenantId={tenantId}

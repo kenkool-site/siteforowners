@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     business_type: preview.business_type,
     phone: preview.phone || "",
     address: preview.address || "",
-    description: "",
+    description: typeof copy?.business_description === "string" ? copy.business_description : "",
     services: preview.services || [],
     products: preview.products || [],
     booking_url: preview.booking_url || "",
