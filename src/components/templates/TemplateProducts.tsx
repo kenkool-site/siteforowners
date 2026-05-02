@@ -118,11 +118,11 @@ function MockCartDrawer({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
-        className="w-full max-w-md rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+        className="w-full max-w-md rounded-t-[1.75rem] bg-white shadow-[0_28px_90px_rgba(0,0,0,0.28)] sm:rounded-[1.75rem]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between border-b px-5 py-4">
+        <div className="flex items-center justify-between border-b border-gray-100 px-5 py-4">
           <h3 className="text-lg font-bold text-gray-900">
             {checkoutStep === "confirmed" ? "Order Confirmed!" : checkoutStep === "info" ? "Checkout" : "Your Cart"}
           </h3>
@@ -165,14 +165,14 @@ function MockCartDrawer({
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => onUpdateQty(item.product.name, -1)}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border text-gray-500 hover:bg-gray-100"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100"
                         >
                           −
                         </button>
                         <span className="w-5 text-center text-sm font-medium">{item.qty}</span>
                         <button
                           onClick={() => onUpdateQty(item.product.name, 1)}
-                          className="flex h-7 w-7 items-center justify-center rounded-full border text-gray-500 hover:bg-gray-100"
+                          className="flex h-7 w-7 items-center justify-center rounded-full border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100"
                         >
                           +
                         </button>
@@ -355,46 +355,46 @@ function ProductCard({
 
   return (
     <div
-      className="group overflow-hidden rounded-2xl transition-transform hover:-translate-y-1 hover:shadow-lg"
-      style={{ backgroundColor: colors.background }}
+      className="group overflow-hidden rounded-[1.5rem] border shadow-[0_18px_60px_rgba(0,0,0,0.08)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_28px_80px_rgba(0,0,0,0.14)]"
+      style={{ backgroundColor: colors.background, borderColor: `${colors.primary}1F` }}
     >
       {product.image && (
-        <div className="relative aspect-square overflow-hidden">
+        <div className="relative aspect-[4/3] overflow-hidden">
           <Image
             src={product.image}
             alt={product.name}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
             unoptimized
           />
         </div>
       )}
       <div className="p-5">
         <h3
-          className="text-lg font-semibold"
+          className="text-lg font-bold tracking-tight"
           style={{ color: colors.foreground }}
         >
           {product.name}
         </h3>
         {product.description && (
           <p
-            className="mt-1 text-sm opacity-70"
+            className="mt-2 text-sm leading-6 opacity-70"
             style={{ color: colors.foreground }}
           >
             {product.description}
           </p>
         )}
-        <div className="mt-3 flex items-center justify-between">
+        <div className="mt-5 flex items-center justify-between gap-3">
           <p
-            className="text-xl font-bold"
+            className="text-xl font-black"
             style={{ color: colors.primary }}
           >
             {product.price}
           </p>
           <button
             onClick={onAddToCart}
-            className="rounded-full px-4 py-1.5 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-md"
+            className="shrink-0 rounded-full px-4 py-2 text-xs font-semibold transition-all hover:-translate-y-0.5 hover:shadow-md"
             style={{ backgroundColor: colors.primary, color: btnText }}
           >
             Add to Cart
@@ -456,12 +456,12 @@ export function TemplateProducts({
 
   return (
     <section
-      className="px-6 py-20"
+      className="px-6 py-24"
       style={{ backgroundColor: colors.muted }}
     >
-      <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-6xl">
         <h2
-          className="mb-12 text-center text-3xl font-bold md:text-4xl"
+          className="mb-12 text-center text-3xl font-bold tracking-tight md:text-4xl"
           style={{ color: colors.foreground }}
         >
           {title}

@@ -21,6 +21,8 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
   const [open, setOpen] = useState(false);
   const textColor = ensureReadable(colors.background, colors.foreground);
   const accentColor = colors.primary;
+  const shellBackground = `${colors.background}E6`;
+  const shellBorder = `${colors.foreground}1A`;
 
   const scrollTo = (id: string) => {
     setOpen(false);
@@ -32,13 +34,11 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
 
   return (
     <>
-      {/* Top bar: hamburger left, locale right */}
-      <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-3">
-        {/* Hamburger — top left */}
+      <div className="fixed left-0 right-0 top-0 z-50 flex items-center justify-between px-4 py-4 sm:px-6">
         <button
           onClick={() => setOpen(!open)}
-          className="flex h-10 w-10 items-center justify-center rounded-full shadow-lg backdrop-blur-md transition-transform hover:scale-105"
-          style={{ backgroundColor: `${colors.foreground}CC`, color: colors.background }}
+          className="flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_18px_45px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-transform hover:scale-105"
+          style={{ backgroundColor: shellBackground, borderColor: shellBorder, color: textColor }}
           aria-label="Navigation menu"
         >
           <AnimatePresence mode="wait">
@@ -76,29 +76,30 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
           </AnimatePresence>
         </button>
 
-        {/* Language toggle — top right */}
         {onLocaleChange && (
-          <div className="flex overflow-hidden rounded-full shadow-lg backdrop-blur-md"
-            style={{ backgroundColor: `${colors.foreground}CC` }}>
+          <div
+            className="flex overflow-hidden rounded-full border p-1 shadow-[0_18px_45px_rgba(0,0,0,0.14)] backdrop-blur-xl"
+            style={{ backgroundColor: shellBackground, borderColor: shellBorder }}
+          >
             <button
               onClick={() => onLocaleChange("en")}
-              className="px-4 py-2 text-xs font-bold tracking-wide transition-colors"
+              className="rounded-full px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.18em] transition-all"
               style={{
                 backgroundColor: locale === "en" ? colors.primary : "transparent",
-                color: locale === "en" ? colors.background : `${colors.background}99`,
+                color: locale === "en" ? colors.background : textColor,
               }}
             >
-              English
+              EN
             </button>
             <button
               onClick={() => onLocaleChange("es")}
-              className="px-4 py-2 text-xs font-bold tracking-wide transition-colors"
+              className="rounded-full px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.18em] transition-all"
               style={{
                 backgroundColor: locale === "es" ? colors.primary : "transparent",
-                color: locale === "es" ? colors.background : `${colors.background}99`,
+                color: locale === "es" ? colors.background : textColor,
               }}
             >
-              Español
+              ES
             </button>
           </div>
         )}
@@ -112,20 +113,21 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+            className="fixed inset-0 z-40 bg-black/35 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           >
             <motion.nav
-              initial={{ x: "-100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "-100%" }}
+              initial={{ x: -28, opacity: 0, scale: 0.98 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: -28, opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="absolute left-0 top-0 h-full w-64 shadow-2xl"
-              style={{ backgroundColor: colors.foreground }}
+              className="absolute left-3 top-3 h-[calc(100%-1.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.25rem] border shadow-[0_30px_90px_rgba(0,0,0,0.32)] backdrop-blur-xl"
+              style={{ backgroundColor: `${colors.foreground}F2`, borderColor: `${textColor}1A` }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex h-full flex-col px-6 pt-20 pb-6">
-                <ul className="space-y-1">
+              <div className="flex h-full flex-col px-5 pb-5 pt-16">
+                <div className="mb-5 h-px w-12" style={{ backgroundColor: accentColor }} />
+                <ul className="space-y-1.5">
                   {items.map((item, i) => (
                     <motion.li
                       key={item.id}
@@ -135,7 +137,7 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
                     >
                       <button
                         onClick={() => scrollTo(item.id)}
-                        className="w-full rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors hover:bg-white/10"
+                            className="w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition-all hover:bg-white/10"
                         style={{ color: textColor }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = accentColor)}
                         onMouseLeave={(e) => (e.currentTarget.style.color = textColor)}
@@ -146,10 +148,10 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
                   ))}
                 </ul>
 
-                <div className="mt-auto border-t pt-4" style={{ borderColor: textColor + "20" }}>
+                <div className="mt-auto rounded-2xl border p-2" style={{ borderColor: textColor + "18" }}>
                   <a
                     href="/admin"
-                    className="block rounded-lg px-4 py-3 text-left text-xs opacity-60 transition-opacity hover:opacity-100"
+                    className="block rounded-xl px-4 py-3 text-left text-xs font-medium opacity-70 transition-all hover:bg-white/10 hover:opacity-100"
                     style={{ color: textColor }}
                   >
                     Owner login →
