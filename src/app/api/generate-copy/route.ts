@@ -213,6 +213,54 @@ function buildHoursSummary(
     .join("; ");
 }
 
+function servicesFromBookingCategories(bookingCategories?: unknown[]): ServiceItem[] {
+  if (!Array.isArray(bookingCategories)) return [];
+  return bookingCategories.flatMap((category) => {
+    if (!category || typeof category !== "object" || !("name" in category)) return [];
+    const categoryName = String(category.name);
+    const rawServices = "services" in category && Array.isArray(category.services) ? category.services : [];
+    return rawServices
+      .filter((service): service is Record<string, unknown> => !!service && typeof service === "object" && "name" in service)
+      .map((service) => ({
+        name: String(service.name),
+        price: typeof service.price === "string" ? service.price : "",
+        category: categoryName,
+        image: typeof service.image === "string" ? service.image : undefined,
+      }));
+  });
+}
+
+function categoriesFromBookingCategories(bookingCategories?: unknown[]): string[] {
+  if (!Array.isArray(bookingCategories)) return [];
+  return bookingCategories
+    .map((category) =>
+      category && typeof category === "object" && "name" in category ? String(category.name).trim() : "",
+    )
+    .filter(Boolean);
+}
+
+function pickThemeForTemplate<T extends { id: string; name: string }>(
+  themes: T[],
+  template: TemplateName,
+  index: number,
+): T {
+  const keywordsByTemplate: Record<TemplateName, string[]> = {
+    classic: ["gold", "navy", "sage", "mocha"],
+    bold: ["black", "noir", "midnight", "burgundy", "fire"],
+    elegant: ["rose", "champagne", "lavender", "pearl", "sage"],
+    vibrant: ["coral", "jade", "ocean", "sunset", "fire", "pink"],
+    warm: ["warm", "peach", "mocha", "terracotta", "earth", "tan"],
+    runway: ["runway", "noir", "black", "midnight"],
+  };
+  const keywords = keywordsByTemplate[template];
+  const ranked = themes.filter((theme) => {
+    const haystack = `${theme.id} ${theme.name}`.toLowerCase();
+    return keywords.some((keyword) => haystack.includes(keyword));
+  });
+  const pool = ranked.length > 0 ? ranked : themes;
+  return pool[index % pool.length];
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -231,6 +279,7 @@ export async function POST(request: Request) {
       uploaded_images,
       brand_colors,
       booking_categories,
+      categories,
       has_hero_image,
       rating,
       review_count,
@@ -253,6 +302,7 @@ export async function POST(request: Request) {
       has_hero_image?: boolean;
       brand_colors?: string[];
       booking_categories?: unknown[];
+      categories?: string[];
       rating?: number;
       review_count?: number;
       google_reviews?: { authorName: string; rating: number; text: string; relativeTime: string }[];
@@ -274,6 +324,11 @@ export async function POST(request: Request) {
     const templates: TemplateName[] = requestedTemplates && requestedTemplates.length > 0
       ? requestedTemplates.filter((t): t is TemplateName => ALL_TEMPLATES.includes(t as TemplateName))
       : [...pickTwoTemplates()];
+    const bookingServices = servicesFromBookingCategories(booking_categories);
+    const resolvedServices = bookingServices.length > 0 ? bookingServices : services.filter((s) => s.name.trim());
+    const resolvedCategories = categories && categories.length > 0
+      ? categories
+      : categoriesFromBookingCategories(booking_categories);
 
     // Generate enough AI copy variants for every selected design.
     const variants = await generateWebsiteCopyVariants({
@@ -281,7 +336,7 @@ export async function POST(request: Request) {
       businessType: business_type,
       tagline,
       description,
-      services: services.filter((s) => s.name.trim()),
+      services: resolvedServices,
       products: products?.filter((p) => p.name.trim()),
       address,
       socialProof: buildSocialProofSummary(rating, review_count, google_reviews),
@@ -317,14 +372,15 @@ export async function POST(request: Request) {
     const previewRows = templates.map((tmpl, i) => {
       const variant = variants[i % variants.length];
       // When keepColors: use the first theme for all variants (same look)
-      const theme = keepColors ? allThemes[0] : allThemes[i % allThemes.length];
+      const theme = keepColors ? allThemes[0] : pickThemeForTemplate(allThemes, tmpl, i);
       return {
         slug: generateSlug(business_name),
         business_name,
         business_type,
         phone,
         color_theme: theme.id,
-        services: services.filter((s) => s.name.trim()),
+        services: resolvedServices,
+        categories: resolvedCategories,
         products: products?.filter((p) => p.name.trim()) || [],
         booking_url,
         address,

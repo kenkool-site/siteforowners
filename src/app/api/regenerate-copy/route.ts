@@ -20,6 +20,7 @@ function generateGroupId(): string {
 }
 
 const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm", "runway"] as const;
+type TemplateName = typeof ALL_TEMPLATES[number];
 
 function buildSocialProofSummary(
   rating?: number | null,
@@ -66,6 +67,28 @@ function buildHoursSummary(hours?: unknown): string | undefined {
     .join("; ");
 }
 
+function pickThemeForTemplate<T extends { id: string; name: string }>(
+  themes: T[],
+  template: TemplateName,
+  index: number,
+): T {
+  const keywordsByTemplate: Record<TemplateName, string[]> = {
+    classic: ["gold", "navy", "sage", "mocha"],
+    bold: ["black", "noir", "midnight", "burgundy", "fire"],
+    elegant: ["rose", "champagne", "lavender", "pearl", "sage"],
+    vibrant: ["coral", "jade", "ocean", "sunset", "fire", "pink"],
+    warm: ["warm", "peach", "mocha", "terracotta", "earth", "tan"],
+    runway: ["runway", "noir", "black", "midnight"],
+  };
+  const keywords = keywordsByTemplate[template];
+  const ranked = themes.filter((theme) => {
+    const haystack = `${theme.id} ${theme.name}`.toLowerCase();
+    return keywords.some((keyword) => haystack.includes(keyword));
+  });
+  const pool = ranked.length > 0 ? ranked : themes;
+  return pool[index % pool.length];
+}
+
 export async function POST(request: Request) {
   try {
     const { slug, templates, instructions, keep_colors } = await request.json();
@@ -91,9 +114,9 @@ export async function POST(request: Request) {
 
     // Pick templates — use requested or pick 2 different ones
     const selectedTemplates = templates && templates.length > 0
-      ? templates.filter((t: string) => ALL_TEMPLATES.includes(t as typeof ALL_TEMPLATES[number]))
+      ? templates.filter((t: string): t is TemplateName => ALL_TEMPLATES.includes(t as TemplateName))
       : [
-          preview.template_variant || "classic",
+          (preview.template_variant || "classic") as TemplateName,
           ALL_TEMPLATES.filter((t) => t !== (preview.template_variant || "classic"))[
             Math.floor(Math.random() * (ALL_TEMPLATES.length - 1))
           ],
@@ -126,12 +149,12 @@ export async function POST(request: Request) {
     const variantLabels = ["A", "B", "C"];
 
     // Create new preview rows — keep everything except copy and template
-    const previewRows = selectedTemplates.map((tmpl: string, i: number) => {
+    const previewRows = selectedTemplates.map((tmpl: TemplateName, i: number) => {
       const variant = variants[i % variants.length];
       // If keep_colors, use original theme; otherwise pick random
       const theme = keep_colors
         ? allThemes.find((t) => t.id === preview.color_theme) || allThemes[0]
-        : allThemes[i % allThemes.length];
+        : pickThemeForTemplate(allThemes, tmpl, i);
       return {
         slug: generateSlug(preview.business_name),
         business_name: preview.business_name,
@@ -139,6 +162,7 @@ export async function POST(request: Request) {
         phone: preview.phone,
         color_theme: theme.id,
         services: preview.services,
+        categories: preview.categories,
         products: preview.products,
         booking_url: preview.booking_url,
         address: preview.address,
@@ -157,7 +181,7 @@ export async function POST(request: Request) {
           ...(currentCopy.google_reviews ? { google_reviews: currentCopy.google_reviews } : {}),
           ...(currentCopy.business_description ? { business_description: currentCopy.business_description } : {}),
         },
-        template_variant: keep_colors ? (preview.template_variant || tmpl) : tmpl,
+        template_variant: tmpl,
         group_id: groupId,
         variant_label: variantLabels[i] || String.fromCharCode(65 + i),
       };

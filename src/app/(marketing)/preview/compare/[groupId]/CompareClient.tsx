@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
+import { THEMES_BY_VERTICAL, type ThemeConfig } from "@/lib/templates/themes";
 import type { PreviewData } from "@/lib/ai/types";
 
 interface CompareClientProps {
@@ -19,6 +19,41 @@ const TEMPLATE_META: Record<string, { desc: string; icon: string }> = {
   warm: { desc: "Warm & Personal", icon: "🤝" },
   runway: { desc: "Editorial Runway", icon: "◆" },
 };
+
+function TemplatePreviewCard({
+  templateName,
+  theme,
+  headline,
+}: {
+  templateName: string;
+  theme?: ThemeConfig;
+  headline?: string;
+}) {
+  const colors = theme?.colors;
+  const isRunway = templateName === "runway";
+  return (
+    <div
+      className="hidden w-36 shrink-0 overflow-hidden rounded-xl border border-gray-200 sm:block"
+      style={{ backgroundColor: colors?.background || "#f9fafb" }}
+      aria-label={`${templateName} visual preview`}
+    >
+      <div
+        className="h-12 px-3 py-2"
+        style={{ backgroundColor: isRunway ? "#050505" : colors?.foreground || "#111827" }}
+      >
+        <div className="h-1.5 w-12 rounded-full" style={{ backgroundColor: colors?.primary || "#d97706" }} />
+        <div className="mt-2 h-1.5 w-20 rounded-full bg-white/70" />
+      </div>
+      <div className="space-y-2 p-3">
+        <div className="h-2 w-full rounded-full" style={{ backgroundColor: colors?.primary || "#d97706" }} />
+        <div className="h-2 w-3/4 rounded-full bg-gray-200" />
+        <p className="line-clamp-2 text-[10px] leading-4 text-gray-500">
+          {headline || "Preview headline"}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export function CompareClient({ previews, groupId }: CompareClientProps) {
   const router = useRouter();
@@ -93,6 +128,8 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
                   )}
 
                   <div className="flex flex-1 flex-col gap-4 p-5 sm:flex-row sm:items-center">
+                    <TemplatePreviewCard templateName={templateName} theme={theme} headline={headline} />
+
                     {/* Info */}
                     <div className="flex-1">
                       <div className="flex items-center gap-2">

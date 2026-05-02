@@ -68,6 +68,22 @@ function getPreviewQualityTips({
   return tips.slice(0, 4);
 }
 
+type ImportedBookingCategory = {
+  name: string;
+  services?: { name: string; price?: string; duration?: string; image?: string }[];
+};
+
+function servicesFromBookingCategories(bookingCategories: ImportedBookingCategory[]): ServiceItem[] {
+  return bookingCategories.flatMap((category) =>
+    (category.services || []).map((service) => ({
+      name: service.name,
+      price: service.price || "",
+      category: category.name,
+      image: service.image,
+    })),
+  );
+}
+
 type Step = 1 | 2 | 3 | 4 | 5;
 const TOTAL_STEPS = 5;
 
@@ -114,7 +130,8 @@ function PreviewWizard() {
   const [imported, setImported] = useState(false);
   const importedRef = useRef(false);
   const [brandColors, setBrandColors] = useState<string[]>([]);
-  const [bookingCategories, setBookingCategories] = useState<unknown[] | null>(null);
+  const [bookingCategories, setBookingCategories] = useState<ImportedBookingCategory[] | null>(null);
+  const [categories, setCategories] = useState<string[]>([]);
 
   // Step 4: Photos
   const [logo, setLogo] = useState<string>("");
@@ -257,13 +274,28 @@ function PreviewWizard() {
       if (data.address) setAddress(data.address);
       if (data.description) setDescription(data.description);
       if (data.booking_url) setBookingUrl(data.booking_url);
-      if (data.booking_categories) setBookingCategories(data.booking_categories);
+      if (data.booking_categories) {
+        setBookingCategories(data.booking_categories);
+        const importedCategories =
+          data.categories && data.categories.length > 0
+            ? data.categories
+            : data.booking_categories.map((category: ImportedBookingCategory) => category.name).filter(Boolean);
+        setCategories(importedCategories);
+      }
       if (data.services && data.services.length > 0) {
+        const categorizedServices =
+          data.booking_categories && data.booking_categories.length > 0
+            ? servicesFromBookingCategories(data.booking_categories)
+            : [];
         setServices(
-          data.services.map((s: { name: string; price: string }) => ({
-            name: s.name,
-            price: s.price || "",
-          }))
+          categorizedServices.length > 0
+            ? categorizedServices
+            : data.services.map((s: { name: string; price: string; category?: string; image?: string }) => ({
+                name: s.name,
+                price: s.price || "",
+                category: s.category,
+                image: s.image,
+              }))
         );
       }
       if (data.logo) {
@@ -435,6 +467,7 @@ function PreviewWizard() {
       has_hero_image: hasHeroImage,
       brand_colors: brandColors.length > 0 ? brandColors : undefined,
       booking_categories: bookingCategories || undefined,
+      categories: categories.length > 0 ? categories : undefined,
       rating: mapsRating || undefined,
       review_count: mapsReviewCount || undefined,
       google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,

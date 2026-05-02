@@ -56,12 +56,10 @@ function extractColorsFromHtml(html: string): string[] {
   if (acuityBgMatch) colors.push(acuityBgMatch[1]);
 
   const cssVarRegex = /--[a-z-]*color[^:]*:\s*(#[0-9a-fA-F]{6})/gi;
-  let cssVarMatch: RegExpExecArray | null;
-  while ((cssVarMatch = cssVarRegex.exec(html)) !== null) colors.push(cssVarMatch[1]);
+  for (const cssVarMatch of Array.from(html.matchAll(cssVarRegex))) colors.push(cssVarMatch[1]);
 
   const inlineStyleRegex = /style="[^"]*background(?:-color)?:\s*(#[0-9a-fA-F]{6})/gi;
-  let inlineMatch: RegExpExecArray | null;
-  while ((inlineMatch = inlineStyleRegex.exec(html)) !== null) colors.push(inlineMatch[1]);
+  for (const inlineMatch of Array.from(html.matchAll(inlineStyleRegex))) colors.push(inlineMatch[1]);
 
   const themeColorMatch = html.match(/meta[^>]*name=["']theme-color["'][^>]*content=["'](#[0-9a-fA-F]{6})/i);
   if (themeColorMatch) colors.push(themeColorMatch[1]);
@@ -292,8 +290,8 @@ function extractVagaroData(html: string, url: string): {
   // Extract og:image URLs — Vagaro has many, get up to 10
   const ogImageRegex = /property="og:image"\s+content="([^"]*)"/gi;
   const images: string[] = [];
-  let match: RegExpExecArray | null;
-  while ((match = ogImageRegex.exec(html)) !== null && images.length < 20) {
+  for (const match of Array.from(html.matchAll(ogImageRegex))) {
+    if (images.length >= 20) break;
     let imgUrl = match[1];
     // Upgrade from 340x340 thumbnails — 800x800 is the max Vagaro CDN supports
     imgUrl = imgUrl.replace(/\/340x340\//g, "/800x800/");
@@ -466,6 +464,7 @@ export async function POST(request: Request) {
         brand_colors: [],
         booking_url: vagaroData.booking_url,
         booking_categories: null,
+        categories: [],
       });
     }
 
@@ -581,6 +580,7 @@ ${html.slice(0, 40000)}`,
       brand_colors: brandColors,
       booking_url: fullUrl,
       booking_categories: acuityData?.categories || null,
+      categories: acuityData?.categories.map((category) => category.name) || [],
     });
   } catch (error: unknown) {
     console.error("Import booking error:", error);
