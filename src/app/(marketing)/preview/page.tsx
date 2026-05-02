@@ -114,6 +114,7 @@ function PreviewWizard() {
     { id: "elegant", name: "Elegant", description: "Minimalist, refined with lots of whitespace" },
     { id: "vibrant", name: "Vibrant", description: "Colorful gradient hero, energetic feel" },
     { id: "warm", name: "Warm", description: "Split layout, friendly and inviting" },
+    { id: "runway", name: "Runway", description: "Editorial dark lookbook with luxe motion and premium service cards" },
   ];
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>(["classic", "bold"]);
   const [keepColors, setKeepColors] = useState(false); // default OFF for new, ON for edit

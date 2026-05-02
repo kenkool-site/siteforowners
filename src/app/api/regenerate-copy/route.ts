@@ -19,7 +19,7 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm"] as const;
+const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm", "runway"] as const;
 
 export async function POST(request: Request) {
   try {
@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       : [
           preview.template_variant || "classic",
           ALL_TEMPLATES.filter((t) => t !== (preview.template_variant || "classic"))[
-            Math.floor(Math.random() * 4)
+            Math.floor(Math.random() * (ALL_TEMPLATES.length - 1))
           ],
         ];
 
