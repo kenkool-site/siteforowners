@@ -22,8 +22,9 @@ const TILE_CLASSES = [
 export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
   if (images.length === 0) return null;
 
-  const galleryImages = images.slice(0, 6);
+  const galleryImages = images;
   const gold = ensureReadable(colors.primary || "#D8B255", "#050505", 3);
+  const ctaText = ensureReadable("#050505", gold);
 
   return (
     <section
@@ -54,7 +55,7 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
               key={`${src}-${index}`}
               animation="scale-in"
               delay={index * 0.08}
-              className={`group relative min-h-[16rem] overflow-hidden border bg-[#0D0B08] shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_48px_rgba(216,178,85,0.18)] ${TILE_CLASSES[index]}`}
+              className={`group relative min-h-[16rem] overflow-hidden border bg-[#0D0B08] shadow-2xl transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_0_48px_rgba(216,178,85,0.18)] ${TILE_CLASSES[index % TILE_CLASSES.length]}`}
             >
               <div
                 className="absolute inset-0 z-10 border opacity-70 transition-opacity duration-300 group-hover:opacity-100"
@@ -76,6 +77,24 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
             </AnimateSection>
           ))}
         </div>
+
+        <AnimateSection>
+          <div
+            className="mt-8 flex flex-col gap-5 border p-5 md:flex-row md:items-center md:justify-between"
+            style={{ borderColor: `${gold}36`, backgroundColor: "rgba(255,255,255,0.035)" }}
+          >
+            <p className="max-w-2xl text-sm font-semibold uppercase tracking-[0.22em] text-white/70">
+              See a finish you like? Start with the look, then pick the service.
+            </p>
+            <a
+              href="#booking"
+              className="inline-flex min-h-12 items-center justify-center border px-6 text-[0.68rem] font-black uppercase tracking-[0.24em] transition-all hover:-translate-y-0.5"
+              style={{ backgroundColor: gold, borderColor: gold, color: ctaText }}
+            >
+              Book This Energy
+            </a>
+          </div>
+        </AnimateSection>
       </div>
     </section>
   );

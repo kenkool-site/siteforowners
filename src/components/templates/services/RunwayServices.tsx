@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { ServiceItem } from "@/lib/ai/types";
 import { formatDuration } from "@/lib/availability";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
@@ -77,14 +78,17 @@ export function RunwayServices({
 
           {service.image && (
             <div
-              className="-mx-6 -mt-6 mb-6 h-40 overflow-hidden border-b bg-neutral-950"
+              className="-mx-6 -mt-6 mb-6 h-44 overflow-hidden border-b bg-neutral-950"
               style={{ borderColor: `${gold}2E` }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={service.image}
                 alt={service.name}
+                width={720}
+                height={440}
+                sizes="(max-width: 768px) 100vw, 33vw"
                 className="h-full w-full scale-[1.04] object-cover brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:scale-110 group-hover:brightness-90 group-hover:saturate-100"
+                unoptimized
               />
             </div>
           )}
@@ -155,7 +159,7 @@ export function RunwayServices({
               Signature Services
             </h2>
             <p className="max-w-sm text-sm leading-7 text-white/60 md:text-base">
-              Sharp-edged service cards glow on hover and open booking with your selected look.
+              Category-led service cards, image-forward looks, and direct booking for the exact style they want.
             </p>
           </div>
         </AnimateSection>
@@ -177,8 +181,13 @@ export function RunwayServices({
                   className="mb-5 flex w-full items-center justify-between border-b pb-3 text-left"
                   style={{ borderColor: `${gold}47`, color: ivory }}
                 >
-                  <span className="text-xs font-black uppercase tracking-[0.32em]">
-                    {group.label}
+                  <span className="flex items-center gap-4">
+                    <span className="text-xs font-black uppercase tracking-[0.32em]">
+                      {group.label}
+                    </span>
+                    <span className="rounded-full border px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/50" style={{ borderColor: `${gold}2E` }}>
+                      {group.services.length} {group.services.length === 1 ? "look" : "looks"}
+                    </span>
                   </span>
                   <span className="text-sm font-black" style={{ color: gold }} aria-hidden>
                     {isCollapsed ? "+" : "-"}
