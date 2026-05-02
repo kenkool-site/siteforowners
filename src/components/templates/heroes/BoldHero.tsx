@@ -99,7 +99,7 @@ export function BoldHero({
 
       <div className="relative z-10 max-w-4xl">
         <motion.p
-          className="mb-4 text-base font-semibold uppercase tracking-[0.25em] md:text-xl"
+          className="mb-4 text-lg font-black uppercase tracking-[0.28em] md:text-2xl"
           style={{ color: accentColor }}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -108,7 +108,7 @@ export function BoldHero({
           {businessName}
         </motion.p>
         <motion.h1
-          className="mb-10 text-6xl font-black leading-[0.95] tracking-tight md:text-8xl"
+          className="mb-10 text-5xl font-black leading-[0.95] tracking-tight md:text-7xl"
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.7, ease: "easeOut" }}

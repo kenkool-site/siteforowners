@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { ServiceItem } from "@/lib/ai/types";
 import { readableColors } from "@/lib/templates/contrast";
@@ -10,6 +11,8 @@ import { formatDuration } from "@/lib/availability";
 import { groupServices } from "./groupServices";
 
 type Mode = "in_site_only" | "external_only" | "both";
+
+const INITIAL_SERVICE_LIMIT = 9;
 
 type DisplayService = {
   name: string;
@@ -32,9 +35,13 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
   const rc = readableColors(colors);
   const groups = groupServices(services as unknown as ServiceItem[], categories);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   const toggle = (label: string) =>
     setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
+
+  const toggleExpandedGroup = (label: string) =>
+    setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
 
   const renderService = (service: DisplayService, i: number) => {
     const m = bookingMode ?? "in_site_only";
@@ -68,8 +75,16 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
             : {})}
         >
           {service.image && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={service.image} alt={service.name} className="w-full h-40 object-cover rounded-md mb-3" />
+            <div className="relative mb-3 h-40 w-full overflow-hidden rounded-md">
+              <Image
+                src={service.image}
+                alt={service.name}
+                fill
+                sizes="(max-width: 768px) 80vw, 33vw"
+                className="object-cover"
+                unoptimized
+              />
+            </div>
           )}
           <div className="mb-2 flex items-start justify-between">
             <h3 className="text-lg font-bold" style={{ color: rc.textOnMuted }}>
@@ -119,9 +134,14 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
         </AnimateSection>
 
         {groups.map((group) => {
+          const groupKey = group.label ?? "_flat";
           const isCollapsed = group.label ? !!collapsed[group.label] : false;
+          const shouldLimitGroup = group.services.length > INITIAL_SERVICE_LIMIT && !expandedGroups[groupKey];
+          const visibleServices = shouldLimitGroup
+            ? group.services.slice(0, INITIAL_SERVICE_LIMIT)
+            : group.services;
           return (
-            <div key={group.label ?? "_flat"} className="mb-8">
+            <div key={groupKey} className="mb-8">
               {group.label && (
                 <button
                   type="button"
@@ -138,9 +158,25 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
                 </button>
               )}
               {!isCollapsed && (
-                <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
-                  {(group.services as DisplayService[]).map((service, i) => renderService(service, i))}
-                </div>
+                <>
+                  <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
+                    {(visibleServices as DisplayService[]).map((service, i) => renderService(service, i))}
+                  </div>
+                  {group.services.length > INITIAL_SERVICE_LIMIT && (
+                    <div className="mt-6 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={() => toggleExpandedGroup(groupKey)}
+                        className="rounded-full border px-5 py-2 text-xs font-bold uppercase tracking-wider"
+                        style={{ borderColor: colors.primary, color: rc.primaryOnFg }}
+                      >
+                        {expandedGroups[groupKey]
+                          ? "Show featured services"
+                          : <>View all {group.services.length} services</>}
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           );
