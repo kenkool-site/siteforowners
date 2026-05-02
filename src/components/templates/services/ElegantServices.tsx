@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { ServiceItem } from "@/lib/ai/types";
-import { readableColors } from "@/lib/templates/contrast";
+import { ctaOnPrimary, readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 import { formatDuration } from "@/lib/availability";
@@ -109,12 +109,12 @@ export function ElegantServices({ services, categories, colors, bookingMode }: S
               </p>
             )}
             {canBook && (
-              <div className="mt-2">
+              <div className="mt-3">
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); triggerBook(); }}
-                  className="text-xs uppercase tracking-[0.3em] font-light underline-offset-4 hover:underline"
-                  style={{ color: rc.primaryOnBg }}
+                  className="inline-flex px-4 py-2 text-[10px] font-light uppercase tracking-[0.28em] transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
                 >
                   Book →
                 </button>
@@ -148,17 +148,43 @@ export function ElegantServices({ services, categories, colors, bookingMode }: S
                 <button
                   type="button"
                   onClick={() => toggle(group.label!)}
-                  className="w-full flex items-center justify-between mb-6"
+                  aria-expanded={!isCollapsed}
+                  className="mb-6 flex w-full items-center justify-between gap-4 border-y py-4"
+                  style={{ borderColor: `${rc.textOnBg}20` }}
                 >
-                  <span
-                    className="text-[10px] uppercase font-light tracking-[0.4em]"
-                    style={{ color: rc.textOnBg }}
-                  >
-                    {group.label}
-                  </span>
-                  <span className="text-[10px] opacity-50" style={{ color: rc.textOnBg }}>
-                    {isCollapsed ? "+" : "−"}
-                  </span>
+                  <div className="min-w-0 text-left">
+                    <span
+                      className="block text-[10px] font-light uppercase tracking-[0.35em] opacity-60"
+                      style={{ color: rc.textOnBg }}
+                    >
+                      Category
+                    </span>
+                    <span
+                      className="mt-1 block text-xl font-light md:text-2xl"
+                      style={{ color: rc.textOnBg }}
+                    >
+                      {group.label}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    <span
+                      className="shrink-0 px-2 py-1.5 text-[9px] font-light uppercase tracking-[0.2em] sm:px-3 sm:text-[10px]"
+                      style={{
+                        border: `1px solid ${rc.primaryOnBg}`,
+                        color: rc.primaryOnBg,
+                      }}
+                    >
+                      {group.services.length}{" "}
+                      {group.services.length === 1 ? "service" : "services"}
+                    </span>
+                    <span
+                      className="flex h-9 w-9 items-center justify-center border text-sm font-light"
+                      style={{ borderColor: `${rc.primaryOnBg}99`, color: rc.primaryOnBg }}
+                      aria-hidden
+                    >
+                      {isCollapsed ? "+" : "−"}
+                    </span>
+                  </div>
                 </button>
               )}
               {!isCollapsed && (
