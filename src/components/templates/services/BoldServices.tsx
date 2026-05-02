@@ -46,6 +46,7 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
   const renderService = (service: DisplayService, i: number) => {
     const m = bookingMode ?? "in_site_only";
     const canBook = !(m === "external_only" && !service.bookingDeepLink);
+    const isFeatured = i === 0;
     const triggerBook = () => {
       if (m === "external_only" && service.bookingDeepLink) {
         window.open(service.bookingDeepLink, "_blank", "noopener,noreferrer");
@@ -58,8 +59,10 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
     return (
       <AnimateSection key={service.name} animation="slide-right" delay={i * 0.1}>
         <div
-          className={`min-w-[260px] snap-start rounded-xl border-l-4 p-6 md:min-w-0 ${canBook ? "cursor-pointer transition-shadow hover:shadow-md" : ""}`}
-          style={{ backgroundColor: colors.muted, borderLeftColor: colors.primary }}
+          className={`relative overflow-hidden rounded-2xl border p-6 shadow-xl transition-all hover:-translate-y-1 hover:shadow-2xl ${
+            isFeatured ? "md:col-span-2 md:grid md:grid-cols-[0.9fr_1.1fr] md:gap-6" : ""
+          } ${canBook ? "cursor-pointer" : ""}`}
+          style={{ backgroundColor: colors.muted, borderColor: `${colors.primary}40` }}
           {...(canBook
             ? {
                 role: "button",
@@ -75,50 +78,59 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
             : {})}
         >
           {service.image && (
-            <div className="relative mb-3 h-40 w-full overflow-hidden rounded-md">
+            <div className={`relative mb-4 overflow-hidden rounded-xl ${isFeatured ? "h-56 md:mb-0 md:h-full" : "h-40"}`}>
               <Image
                 src={service.image}
                 alt={service.name}
                 fill
-                sizes="(max-width: 768px) 80vw, 33vw"
-                className="object-cover"
+                sizes={isFeatured ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 100vw, 33vw"}
+                className="object-cover transition-transform duration-500 hover:scale-105"
                 unoptimized
               />
             </div>
           )}
-          <div className="mb-2 flex items-start justify-between">
-            <h3 className="text-lg font-bold" style={{ color: rc.textOnMuted }}>
-              {service.name}
-            </h3>
-            <div className="ml-3 text-right">
-              <div className="whitespace-nowrap font-bold" style={{ color: rc.primaryOnMuted }}>
-                {service.price}
+          <div className={isFeatured ? "flex h-full flex-col justify-between" : ""}>
+            <div>
+              <div className="mb-3 flex items-start justify-between gap-4">
+                <h3 className={isFeatured ? "text-2xl font-black uppercase leading-tight md:text-3xl" : "text-lg font-bold"} style={{ color: rc.textOnMuted }}>
+                  {service.name}
+                </h3>
+                <div className="text-right">
+                  <div className="whitespace-nowrap text-lg font-black" style={{ color: rc.primaryOnMuted }}>
+                    {service.price}
+                  </div>
+                  <div className="text-xs opacity-70" style={{ color: rc.primaryOnMuted }}>
+                    {formatDuration(service.durationMinutes ?? 60)}
+                  </div>
+                </div>
               </div>
-              <div className="text-xs opacity-70" style={{ color: rc.primaryOnMuted }}>
-                {formatDuration(service.durationMinutes ?? 60)}
+              {isFeatured && (
+                <p className="mb-3 text-[0.68rem] font-black uppercase tracking-[0.26em]" style={{ color: rc.primaryOnMuted }}>
+                  Featured service
+                </p>
+              )}
+              {service.description && (
+                <p
+                  className={isFeatured ? "text-sm leading-7 opacity-70 line-clamp-5" : "text-sm opacity-60 line-clamp-4"}
+                  style={{ color: rc.textOnMuted }}
+                >
+                  {service.description}
+                </p>
+              )}
+            </div>
+            {canBook && (
+              <div className="mt-5">
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); triggerBook(); }}
+                  className="w-full rounded-full px-5 py-3 text-sm font-black uppercase tracking-wider transition-transform hover:-translate-y-0.5"
+                  style={{ backgroundColor: colors.primary, color: "#fff" }}
+                >
+                  Book →
+                </button>
               </div>
+            )}
             </div>
-          </div>
-          {service.description && (
-            <p
-              className="text-sm opacity-60 line-clamp-4"
-              style={{ color: rc.textOnMuted }}
-            >
-              {service.description}
-            </p>
-          )}
-          {canBook && (
-            <div className="mt-3">
-              <button
-                type="button"
-                onClick={(e) => { e.stopPropagation(); triggerBook(); }}
-                className="w-full rounded-md px-4 py-2 text-sm font-bold uppercase tracking-wider"
-                style={{ backgroundColor: colors.primary, color: "#fff" }}
-              >
-                Book →
-              </button>
-            </div>
-          )}
         </div>
       </AnimateSection>
     );
@@ -159,7 +171,7 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
               )}
               {!isCollapsed && (
                 <>
-                  <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory md:grid md:grid-cols-3 md:overflow-visible md:pb-0">
+                  <div className="grid gap-4 md:grid-cols-3">
                     {(visibleServices as DisplayService[]).map((service, i) => renderService(service, i))}
                   </div>
                   {group.services.length > INITIAL_SERVICE_LIMIT && (
