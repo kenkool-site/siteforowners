@@ -85,9 +85,9 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b bg-white px-6 py-5">
+      <div className="border-b bg-white px-6 py-6">
         <div className="mx-auto flex max-w-3xl justify-center">
-          <MarketingBrandLogo href="/" heightClass="h-8" linkClassName="ring-offset-white" />
+          <MarketingBrandLogo href="/" heightClass="h-11 sm:h-12" linkClassName="ring-offset-white" />
         </div>
       </div>
 

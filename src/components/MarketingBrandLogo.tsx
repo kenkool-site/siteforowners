@@ -16,7 +16,7 @@ type MarketingBrandLogoProps = {
 
 export function MarketingBrandLogo({
   className,
-  heightClass = "h-9",
+  heightClass = "h-11",
   priority = false,
   href,
   linkClassName,

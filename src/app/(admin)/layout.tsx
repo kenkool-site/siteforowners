@@ -10,13 +10,13 @@ export default function AdminLayout({
     <div className="min-h-screen bg-gray-50">
       {/* Admin Header */}
       <header className="border-b bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 sm:py-5">
           <div className="flex items-center gap-6">
             <Link
               href="/prospects"
-              className="inline-flex items-center gap-2 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:ring-offset-2"
+              className="inline-flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:ring-offset-2"
             >
-              <MarketingBrandLogo heightClass="h-8" />
+              <MarketingBrandLogo heightClass="h-10 sm:h-11" />
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
                 Admin
               </span>

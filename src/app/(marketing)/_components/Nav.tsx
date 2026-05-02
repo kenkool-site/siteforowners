@@ -16,8 +16,13 @@ const ADMIN_LINKS = [
 
 export function Nav() {
   return (
-    <nav className="flex items-center justify-between border-b border-warm-cream1/60 bg-white px-6 py-4">
-      <MarketingBrandLogo href="/" priority heightClass="h-9 sm:h-10" linkClassName="ring-offset-white" />
+    <nav className="flex items-center justify-between border-b border-warm-cream1/60 bg-white px-6 py-4 sm:py-5">
+      <MarketingBrandLogo
+        href="/"
+        priority
+        heightClass="h-12 sm:h-14 md:h-[3.75rem]"
+        linkClassName="ring-offset-white"
+      />
 
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-1 md:flex">

@@ -5,10 +5,10 @@ export function Footer() {
   return (
     <footer className="bg-warm-deep px-6 py-8 text-center text-xs text-warm-cream2/70">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-2">
-        <span className="inline-flex items-center rounded-lg bg-[#f5f0e8] px-2.5 py-1.5 shadow-sm ring-1 ring-white/15">
+        <span className="inline-flex items-center rounded-xl bg-[#f5f0e8] px-3 py-2 shadow-md ring-1 ring-white/20">
           <MarketingBrandLogo
             href="/"
-            heightClass="h-7"
+            heightClass="h-10 sm:h-11"
             linkClassName="ring-offset-[#f5f0e8] focus-visible:ring-warm-deep/40"
           />
         </span>
