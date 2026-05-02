@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { motion } from "framer-motion";
 import { useFadeUp } from "./_motion";
 
@@ -12,15 +13,30 @@ const VERTICALS = [
     tint: "bg-pink-50",
     service: "Retwist & Style",
     price: "$140",
+    image: "/marketing/verticals/locs.png",
+    imageAlt: "Fresh loc retwist service in a warm salon setting",
   },
   {
-    label: "Barber",
+    label: "Braids",
+    eyebrow: "braidsbynia.com",
+    headline: "Protective styles booked without the DM chase.",
+    accent: "bg-rose-600",
+    tint: "bg-rose-50",
+    service: "Box braids",
+    price: "$220",
+    image: "/marketing/verticals/braids.png",
+    imageAlt: "Long box braids being finished in a salon",
+  },
+  {
+    label: "Haircuts",
     eyebrow: "mikescuts.com",
     headline: "Fresh cuts booked before the chair is open.",
     accent: "bg-amber-500",
     tint: "bg-amber-50",
     service: "Skin fade",
     price: "$45",
+    image: "/marketing/verticals/haircuts.png",
+    imageAlt: "Barber giving a clean fade haircut",
   },
   {
     label: "Nails",
@@ -30,6 +46,8 @@ const VERTICALS = [
     tint: "bg-fuchsia-50",
     service: "Gel set",
     price: "$75",
+    image: "/marketing/verticals/nails.png",
+    imageAlt: "Glossy pink manicure with soft salon lighting",
   },
 ] as const;
 
@@ -100,7 +118,7 @@ export function CustomerView() {
           </div>
         </motion.div>
 
-        <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <ul className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {VERTICALS.map((v, i) => (
             <motion.li
               key={v.label}
@@ -154,7 +172,16 @@ function RenderedPhonePreview({
         <h3 className="mx-auto mt-4 max-w-xs text-center font-sans text-2xl font-black leading-tight text-slate-950">
           {vertical.headline}
         </h3>
-        <div className="mx-auto mt-5 h-28 max-w-[220px] rounded-[2rem] bg-gradient-to-br from-slate-900 via-slate-700 to-slate-400 shadow-inner" />
+        <div className="relative mx-auto mt-5 h-32 max-w-[240px] overflow-hidden rounded-[2rem] shadow-inner">
+          <Image
+            src={vertical.image}
+            alt={vertical.imageAlt}
+            fill
+            sizes={featured ? "(max-width: 768px) 80vw, 280px" : "(max-width: 768px) 80vw, 180px"}
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950/35 via-transparent to-white/10" />
+        </div>
         <div className={`mx-auto mt-5 max-w-[180px] rounded-full px-5 py-3 text-center text-sm font-black text-white shadow-lg ${vertical.accent}`}>
           Book now
         </div>
