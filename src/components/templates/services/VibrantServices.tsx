@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { ServiceItem } from "@/lib/ai/types";
-import { readableColors } from "@/lib/templates/contrast";
+import { ctaOnPrimary, readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 import { formatDuration } from "@/lib/availability";
@@ -115,8 +115,11 @@ export function VibrantServices({ services, categories, colors, bookingMode }: S
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); triggerBook(); }}
-                className="w-full rounded-full px-4 py-2 text-sm font-bold shadow-md"
-                style={{ background: `linear-gradient(90deg, ${colors.primary}, ${colors.accent ?? colors.primary})`, color: "#fff" }}
+                className="w-full rounded-full px-4 py-2 text-sm font-bold shadow-md transition-opacity hover:opacity-95"
+                style={{
+                  background: `linear-gradient(90deg, ${colors.primary}, ${colors.accent ?? colors.primary})`,
+                  color: ctaOnPrimary(colors),
+                }}
               >
                 Book →
               </button>
@@ -149,16 +152,43 @@ export function VibrantServices({ services, categories, colors, bookingMode }: S
                 <button
                   type="button"
                   onClick={() => toggle(group.label!)}
-                  className="w-full flex items-center justify-between mb-6"
+                  aria-expanded={!isCollapsed}
+                  className="mb-6 flex w-full items-center gap-4 rounded-2xl border-2 p-4 text-left shadow-md transition-transform hover:scale-[1.01]"
+                  style={{
+                    background: `linear-gradient(135deg, ${colors.primary}12, ${colors.muted})`,
+                    borderColor: `${colors.primary}35`,
+                  }}
                 >
-                  <h3
-                    className="text-2xl md:text-3xl font-bold"
-                    style={{ background: `linear-gradient(90deg, ${colors.primary}, ${rc.textOnBg})`, WebkitBackgroundClip: "text", color: "transparent" }}
+                  <div className="min-w-0 flex-1">
+                    <span
+                      className="mb-0.5 block text-[0.65rem] font-bold uppercase tracking-widest"
+                      style={{ color: rc.primaryOnBg }}
+                    >
+                      Category
+                    </span>
+                    <span
+                      className="mt-1 block text-xl font-bold leading-tight md:text-2xl"
+                      style={{
+                        background: `linear-gradient(90deg, ${colors.primary}, ${rc.textOnBg})`,
+                        WebkitBackgroundClip: "text",
+                        color: "transparent",
+                      }}
+                    >
+                      {group.label}
+                    </span>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-full px-3 py-1 text-xs font-bold tabular-nums"
+                    style={{ backgroundColor: `${colors.primary}22`, color: rc.primaryOnMuted }}
                   >
-                    {group.label}
-                  </h3>
-                  <span className="text-sm opacity-60" style={{ color: rc.textOnBg }}>
-                    {isCollapsed ? "▸" : "▾"}
+                    {group.services.length}
+                  </span>
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-lg font-bold"
+                    style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
+                    aria-hidden
+                  >
+                    {isCollapsed ? "›" : "⌄"}
                   </span>
                 </button>
               )}

@@ -85,6 +85,31 @@ function servicesFromBookingCategories(bookingCategories: ImportedBookingCategor
   );
 }
 
+function collectBookingImportServiceImageUrls(data: {
+  booking_categories?: ImportedBookingCategory[];
+  services?: { image?: string }[];
+}): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const push = (raw: string | undefined) => {
+    const u = raw?.trim();
+    if (!u || !(u.startsWith("https://") || u.startsWith("http://"))) return;
+    if (u.toLowerCase().endsWith(".svg")) return;
+    if (seen.has(u)) return;
+    seen.add(u);
+    out.push(u);
+  };
+  if (data.booking_categories) {
+    for (const cat of data.booking_categories) {
+      for (const sv of cat.services || []) push(sv.image);
+    }
+  }
+  if (data.services) {
+    for (const s of data.services) push(s.image);
+  }
+  return out;
+}
+
 type Step = 1 | 2 | 3 | 4 | 5;
 const TOTAL_STEPS = 5;
 
@@ -364,14 +389,22 @@ function PreviewWizard() {
       if (data.brand_colors && data.brand_colors.length > 0) {
         setBrandColors(data.brand_colors);
       }
-      if (data.images && data.images.length > 0) {
-        const validImages = data.images.filter(
-          (img: string) => img.startsWith("https://") && !img.endsWith(".svg")
-        );
-        if (validImages.length > 0) {
-          setUploadedImages(validImages);
-        }
+      const importedVenueImages =
+        data.images?.filter(
+          (img: string) =>
+            (img.startsWith("https://") || img.startsWith("http://")) &&
+            !img.toLowerCase().endsWith(".svg"),
+        ) ?? [];
+      if (importedVenueImages.length > 0) {
+        setUploadedImages(importedVenueImages);
         setHasHeroImage(data.has_hero_image !== false);
+      } else {
+        const fromServices = collectBookingImportServiceImageUrls(data);
+        if (fromServices.length > 0) {
+          setUploadedImages(fromServices);
+          // Service thumbnails — use stock hero + these in gallery (aligned with generate-copy)
+          setHasHeroImage(false);
+        }
       }
       setImported(true);
       importedRef.current = true;

@@ -135,10 +135,9 @@ export function RunwayServices({
                 e.stopPropagation();
                 triggerBook();
               }}
-              className="mt-7 inline-flex min-h-11 items-center justify-center border px-5 text-[0.68rem] font-black uppercase tracking-[0.22em] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(216,177,90,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              className="mt-7 inline-flex min-h-11 items-center justify-center px-5 text-[0.68rem] font-black uppercase tracking-[0.22em] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(216,177,90,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               style={{
                 backgroundColor: gold,
-                borderColor: gold,
                 color: buttonText,
               }}
             >
@@ -191,20 +190,43 @@ export function RunwayServices({
                   onClick={() => toggle(group.label!)}
                   aria-expanded={!isCollapsed}
                   aria-controls={groupId}
-                  className="mb-5 flex w-full items-center justify-between border-b pb-3 text-left"
-                  style={{ borderColor: `${gold}47`, color: ivory }}
+                  className="mb-5 flex w-full items-stretch overflow-hidden rounded-lg border text-left shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                  style={{
+                    borderColor: `${gold}55`,
+                    background: `linear-gradient(105deg, ${gold}24 0%, rgba(13,11,8,0.92) 48%, rgba(13,11,8,0.98) 100%)`,
+                  }}
                 >
-                  <span className="flex items-center gap-4">
-                    <span className="text-xs font-black uppercase tracking-[0.32em]">
-                      {group.label}
-                    </span>
-                    <span className="rounded-full border px-3 py-1 text-[0.62rem] font-black uppercase tracking-[0.2em] text-white/50" style={{ borderColor: `${gold}2E` }}>
-                      {group.services.length} {group.services.length === 1 ? "look" : "looks"}
-                    </span>
-                  </span>
-                  <span className="text-sm font-black" style={{ color: gold }} aria-hidden>
-                    {isCollapsed ? "+" : "-"}
-                  </span>
+                  <span className="w-1 shrink-0 self-stretch" style={{ backgroundColor: gold }} aria-hidden />
+                  <div className="flex min-w-0 flex-1 items-center justify-between gap-4 px-4 py-4">
+                    <div className="min-w-0">
+                      <span
+                        className="text-[0.6rem] font-black uppercase tracking-[0.38em] text-white/45"
+                      >
+                        Category
+                      </span>
+                      <span
+                        className="mt-1 block text-lg font-black uppercase tracking-[0.12em] sm:text-xl"
+                        style={{ color: ivory }}
+                      >
+                        {group.label}
+                      </span>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span
+                        className="rounded-full border px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.2em]"
+                        style={{ borderColor: `${gold}55`, color: gold }}
+                      >
+                        {group.services.length} {group.services.length === 1 ? "look" : "looks"}
+                      </span>
+                      <span
+                        className="flex h-10 w-10 items-center justify-center rounded-full text-base font-black"
+                        style={{ backgroundColor: gold, color: buttonText }}
+                        aria-hidden
+                      >
+                        {isCollapsed ? "›" : "⌄"}
+                      </span>
+                    </div>
+                  </div>
                 </button>
               )}
 

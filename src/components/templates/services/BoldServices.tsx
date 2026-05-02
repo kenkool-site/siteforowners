@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { ServiceItem } from "@/lib/ai/types";
-import { readableColors } from "@/lib/templates/contrast";
+import { ctaOnPrimary, readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 import { formatDuration } from "@/lib/availability";
@@ -124,7 +124,7 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
                   type="button"
                   onClick={(e) => { e.stopPropagation(); triggerBook(); }}
                   className="w-full rounded-full px-5 py-3 text-sm font-black uppercase tracking-wider transition-transform hover:-translate-y-0.5"
-                  style={{ backgroundColor: colors.primary, color: "#fff" }}
+                  style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
                 >
                   Book →
                 </button>
@@ -158,14 +158,41 @@ export function BoldServices({ services, categories, colors, bookingMode }: Serv
                 <button
                   type="button"
                   onClick={() => toggle(group.label!)}
-                  className="w-full mb-4 pb-2 border-b-2 flex items-center justify-between"
-                  style={{ borderColor: colors.primary, color: rc.textOnFg }}
+                  aria-expanded={!isCollapsed}
+                  className="mb-4 flex w-full items-center gap-4 rounded-lg px-4 py-3 text-left"
+                  style={{
+                    backgroundColor: `${colors.primary}12`,
+                    borderLeft: `4px solid ${colors.primary}`,
+                    boxShadow: `inset 0 0 0 1px ${colors.primary}22`,
+                  }}
                 >
-                  <span className="text-xs uppercase tracking-[0.2em] font-bold">
-                    {group.label}
+                  <div className="min-w-0 flex-1">
+                    <span
+                      className="mb-0.5 block text-[0.65rem] font-black uppercase tracking-[0.24em]"
+                      style={{ color: rc.primaryOnFg }}
+                    >
+                      Category
+                    </span>
+                    <span
+                      className="text-base font-black uppercase tracking-wider md:text-lg"
+                      style={{ color: rc.textOnFg }}
+                    >
+                      {group.label}
+                    </span>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-full border-2 px-2.5 py-1 text-[0.65rem] font-black uppercase tabular-nums"
+                    style={{ borderColor: colors.primary, color: rc.primaryOnFg }}
+                  >
+                    {group.services.length}{" "}
+                    {group.services.length === 1 ? "svc" : "svcs"}
                   </span>
-                  <span className="text-xs opacity-60" aria-hidden>
-                    {isCollapsed ? "▸" : "▾"}
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-black"
+                    style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
+                    aria-hidden
+                  >
+                    {isCollapsed ? "›" : "⌄"}
                   </span>
                 </button>
               )}

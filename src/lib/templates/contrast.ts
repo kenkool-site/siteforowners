@@ -84,3 +84,8 @@ export function readableColors(colors: {
     primaryOnFg: ensureReadable(colors.primary, colors.foreground, 3),
   };
 }
+
+/** Label color for solid primary buttons (aligned with hero CTAs). */
+export function ctaOnPrimary(colors: { primary: string; background: string }): string {
+  return ensureReadable(colors.background, colors.primary, 4.5);
+}

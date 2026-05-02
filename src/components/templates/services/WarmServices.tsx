@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { ServiceItem } from "@/lib/ai/types";
-import { readableColors } from "@/lib/templates/contrast";
+import { ctaOnPrimary, readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 import { formatDuration } from "@/lib/availability";
@@ -109,8 +109,8 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); triggerBook(); }}
-                  className="rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm"
-                  style={{ backgroundColor: colors.primary, color: "#fff" }}
+                  className="rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
                 >
                   Book →
                 </button>
@@ -144,16 +144,38 @@ export function WarmServices({ services, categories, colors, bookingMode }: Serv
                 <button
                   type="button"
                   onClick={() => toggle(group.label!)}
-                  className="mb-4 inline-flex items-center gap-2"
+                  aria-expanded={!isCollapsed}
+                  className="mb-4 flex w-full items-center gap-4 rounded-xl px-4 py-3 text-left shadow-sm transition-shadow hover:shadow"
+                  style={{
+                    backgroundColor: colors.muted,
+                    borderLeft: `4px solid ${colors.primary}`,
+                    boxShadow: `0 1px 0 ${colors.primary}18`,
+                  }}
                 >
+                  <div className="min-w-0 flex-1">
+                    <span
+                      className="mb-0.5 block text-[0.65rem] font-semibold uppercase tracking-[0.18em]"
+                      style={{ color: rc.primaryOnMuted }}
+                    >
+                      Category
+                    </span>
+                    <span className="text-base font-semibold leading-tight" style={{ color: rc.textOnMuted }}>
+                      {group.label}
+                    </span>
+                  </div>
                   <span
-                    className="rounded-full px-4 py-1 text-xs font-semibold"
-                    style={{ backgroundColor: colors.primary, color: "#fff" }}
+                    className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums"
+                    style={{ backgroundColor: `${colors.primary}15`, color: rc.primaryOnMuted }}
                   >
-                    {group.label}
+                    {group.services.length}{" "}
+                    {group.services.length === 1 ? "service" : "services"}
                   </span>
-                  <span className="text-xs opacity-60" style={{ color: rc.textOnBg }}>
-                    {isCollapsed ? "▸" : "▾"}
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                    style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
+                    aria-hidden
+                  >
+                    {isCollapsed ? "›" : "⌄"}
                   </span>
                 </button>
               )}

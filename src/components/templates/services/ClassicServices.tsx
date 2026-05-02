@@ -4,7 +4,7 @@ import { useState } from "react";
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { ServiceItem } from "@/lib/ai/types";
-import { readableColors } from "@/lib/templates/contrast";
+import { ctaOnPrimary, readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 import { formatDuration } from "@/lib/availability";
@@ -113,8 +113,8 @@ export function ClassicServices({ services, categories, colors, bookingMode }: S
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); triggerBook(); }}
-                  className="rounded-full border px-4 py-1.5 text-xs font-semibold"
-                  style={{ borderColor: colors.primary, color: colors.primary }}
+                  className="rounded-full px-4 py-1.5 text-xs font-semibold shadow-sm transition-opacity hover:opacity-90"
+                  style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
                 >
                   Book →
                 </button>
@@ -148,16 +148,49 @@ export function ClassicServices({ services, categories, colors, bookingMode }: S
                 <button
                   type="button"
                   onClick={() => toggle(group.label!)}
-                  className="w-full mb-5 flex items-center gap-3"
+                  aria-expanded={!isCollapsed}
+                  className="mb-5 flex w-full items-center gap-4 rounded-xl border px-4 py-3 text-left shadow-sm transition-shadow hover:shadow-md"
+                  style={{
+                    backgroundColor: colors.muted,
+                    borderColor: `${colors.primary}30`,
+                    borderLeftWidth: 4,
+                    borderLeftColor: colors.primary,
+                  }}
                 >
-                  <span className="flex-1 border-t border-current opacity-30" aria-hidden />
-                  <span className="font-serif italic text-base" style={{ color: rc.textOnBg }}>
-                    {group.label}
+                  <div className="min-w-0 flex-1">
+                    <span
+                      className="mb-0.5 block text-[0.65rem] font-bold uppercase tracking-[0.2em]"
+                      style={{ color: rc.primaryOnMuted }}
+                    >
+                      Category
+                    </span>
+                    <span
+                      className="font-serif text-lg font-semibold italic leading-tight md:text-xl"
+                      style={{ color: rc.textOnMuted }}
+                    >
+                      {group.label}
+                    </span>
+                  </div>
+                  <span
+                    className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums"
+                    style={{
+                      backgroundColor: `${colors.primary}18`,
+                      color: rc.primaryOnMuted,
+                    }}
+                  >
+                    {group.services.length}{" "}
+                    {group.services.length === 1 ? "service" : "services"}
                   </span>
-                  <span className="text-xs opacity-60" style={{ color: rc.textOnBg }}>
-                    {isCollapsed ? "▸" : "▾"}
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-base font-bold leading-none"
+                    style={{
+                      backgroundColor: `${colors.primary}15`,
+                      color: colors.primary,
+                    }}
+                    aria-hidden
+                  >
+                    {isCollapsed ? "›" : "⌄"}
                   </span>
-                  <span className="flex-1 border-t border-current opacity-30" aria-hidden />
                 </button>
               )}
               {!isCollapsed && (

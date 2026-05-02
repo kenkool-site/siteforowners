@@ -109,6 +109,21 @@ function categoriesFromBookingCategories(bookingCategories?: unknown[]): string[
     .filter(Boolean);
 }
 
+/** Gallery URLs from per-service art (booking platforms often lack venue hero photos). */
+function uniqueServiceImageUrls(services: ServiceItem[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of services) {
+    const u = s.image?.trim();
+    if (!u || !(u.startsWith("https://") || u.startsWith("http://"))) continue;
+    if (u.toLowerCase().endsWith(".svg")) continue;
+    if (seen.has(u)) continue;
+    seen.add(u);
+    out.push(u);
+  }
+  return out;
+}
+
 function pickThemeForTemplate<T extends { id: string; name: string }>(
   themes: T[],
   template: TemplateName,
@@ -222,6 +237,7 @@ export async function POST(request: Request) {
     });
 
     const stockImages = STOCK_PHOTOS[business_type] || [];
+    const serviceGalleryUrls = uniqueServiceImageUrls(resolvedServices);
     let images: string[];
     if (uploaded_images && uploaded_images.length > 0) {
       if (has_hero_image === false && stockImages.length > 0) {
@@ -230,6 +246,14 @@ export async function POST(request: Request) {
         images = [stockImages[0], ...uploaded_images];
       } else {
         images = uploaded_images;
+      }
+    } else if (serviceGalleryUrls.length > 0) {
+      // Booking import: no venue/Gallery photos, but services often have images — use those
+      // instead of generic stock (still optionally tuck stock first when hero is low-res).
+      if (has_hero_image === false && stockImages.length > 0) {
+        images = [stockImages[0], ...serviceGalleryUrls];
+      } else {
+        images = serviceGalleryUrls;
       }
     } else {
       images = stockImages;
