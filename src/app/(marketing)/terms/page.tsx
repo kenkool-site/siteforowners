@@ -148,10 +148,10 @@ export default function TermsPage() {
           <strong>Help:</strong> Reply <strong>HELP</strong> to any message
           for help information, or email{" "}
           <a
-            href="mailto:afolabi.kenneth@gmail.com"
+            href="mailto:support@siteforowners.com"
             className="text-blue-600 hover:underline"
           >
-            afolabi.kenneth@gmail.com
+            support@siteforowners.com
           </a>
           .
         </p>
@@ -173,10 +173,10 @@ export default function TermsPage() {
         <p>
           Questions? Contact us at{" "}
           <a
-            href="mailto:afolabi.kenneth@gmail.com"
+            href="mailto:support@siteforowners.com"
             className="text-blue-600 hover:underline"
           >
-            afolabi.kenneth@gmail.com
+            support@siteforowners.com
           </a>
           .
         </p>

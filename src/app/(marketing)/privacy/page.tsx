@@ -12,7 +12,7 @@ export default function PrivacyPage() {
         ← Back to home
       </Link>
       <h1 className="mt-6 text-4xl font-bold">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-gray-500">Last updated: April 30, 2026</p>
+      <p className="mt-2 text-sm text-gray-500">Last updated: May 2, 2026</p>
 
       <section className="mt-10 space-y-6 leading-relaxed">
         <p>
@@ -82,8 +82,10 @@ export default function PrivacyPage() {
             <strong>Resend</strong> — transactional email delivery
           </li>
           <li>
-            <strong>Twilio</strong> — transactional SMS delivery (only when
-            an end customer opts in via the booking flow)
+            <strong>Twilio</strong> — SMS delivery: transactional messages
+            when an end customer opts in via the booking flow, and outreach to
+            business phone numbers from public directories as described in
+            Section 11
           </li>
           <li>
             <strong>Plausible</strong> — privacy-friendly analytics
@@ -121,10 +123,10 @@ export default function PrivacyPage() {
         <p>
           Email{" "}
           <a
-            href="mailto:afolabi.kenneth@gmail.com"
+            href="mailto:support@siteforowners.com"
             className="text-blue-600 hover:underline"
           >
-            afolabi.kenneth@gmail.com
+            support@siteforowners.com
           </a>{" "}
           with any request. We will respond within 30 days.
         </p>
@@ -182,15 +184,22 @@ export default function PrivacyPage() {
           to any message. Opt-outs are honored immediately and persist across
           all future messages.
         </p>
+        <p>
+          SiteForOwners also contacts small business owners via SMS to introduce
+          our service and share website previews. These messages are sent to
+          business phone numbers listed publicly on Google Maps or similar
+          directories. Recipients can opt out at any time by replying{" "}
+          <strong>STOP</strong> to any message.
+        </p>
 
         <h2 className="text-2xl font-semibold">12. Contact</h2>
         <p>
           Questions? Email{" "}
           <a
-            href="mailto:afolabi.kenneth@gmail.com"
+            href="mailto:support@siteforowners.com"
             className="text-blue-600 hover:underline"
           >
-            afolabi.kenneth@gmail.com
+            support@siteforowners.com
           </a>
           .
         </p>
