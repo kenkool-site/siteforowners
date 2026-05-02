@@ -21,7 +21,7 @@ interface AnimateSectionProps {
 
 const VARIANTS: Record<Animation, { hidden: Record<string, number>; visible: Record<string, number> }> = {
   "fade-up": {
-    hidden: { opacity: 0, y: 40 },
+    hidden: { opacity: 0, y: 28 },
     visible: { opacity: 1, y: 0 },
   },
   "fade-in": {
@@ -42,11 +42,13 @@ const VARIANTS: Record<Animation, { hidden: Record<string, number>; visible: Rec
   },
 };
 
+const cubicBezier: [number, number, number, number] = [0.16, 1, 0.3, 1];
+
 export function AnimateSection({
   children,
   animation = "fade-up",
   delay = 0,
-  duration = 0.6,
+  duration = 0.72,
   className,
 }: AnimateSectionProps) {
   const animationsEnabled = useContext(AnimationContext);
@@ -65,7 +67,7 @@ export function AnimateSection({
       ref={ref}
       initial={variant.hidden}
       animate={inView ? variant.visible : variant.hidden}
-      transition={{ duration, delay, ease: "easeOut" }}
+      transition={{ duration, delay, ease: cubicBezier }}
       className={className}
     >
       {children}

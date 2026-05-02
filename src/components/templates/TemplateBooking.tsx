@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
@@ -226,17 +227,23 @@ export function TemplateBooking({
   return (
     <section
       id="booking"
-      className="px-6 py-20"
+      className="px-6 py-24"
       style={{ backgroundColor: colors.foreground }}
     >
-      <div className="mx-auto max-w-3xl text-center">
+      <div
+        className="mx-auto max-w-4xl rounded-[2rem] border px-5 py-10 text-center shadow-[0_28px_90px_rgba(0,0,0,0.18)] sm:px-8 md:px-10"
+        style={{
+          backgroundColor: `${colors.background}0A`,
+          borderColor: `${colors.background}1F`,
+        }}
+      >
         <h2
-          className="mb-4 text-3xl font-bold md:text-4xl"
+          className="mb-4 text-3xl font-bold tracking-tight md:text-4xl"
           style={{ color: colors.background }}
         >
           {title}
         </h2>
-        <p className="mb-10 text-lg opacity-80" style={{ color: colors.background }}>
+        <p className="mx-auto mb-10 max-w-2xl text-lg leading-8 opacity-80" style={{ color: colors.background }}>
           {subtitle}
         </p>
 
@@ -250,8 +257,8 @@ export function TemplateBooking({
             {bookingCategories.map((category) => (
               <div
                 key={category.name}
-                className="overflow-hidden rounded-xl"
-                style={{ backgroundColor: `${colors.background}10` }}
+                className="overflow-hidden rounded-[1.5rem] border"
+                style={{ backgroundColor: `${colors.background}12`, borderColor: `${colors.background}1A` }}
               >
                 {/* Category header */}
                 <button
@@ -260,7 +267,7 @@ export function TemplateBooking({
                       expandedCategory === category.name ? null : category.name
                     )
                   }
-                  className="flex w-full items-center justify-between px-6 py-5 text-left transition-colors hover:bg-white/10"
+                  className="flex w-full items-center justify-between gap-4 px-6 py-5 text-left transition-colors hover:bg-white/10"
                 >
                   <span
                     className="text-lg font-semibold"
@@ -316,12 +323,16 @@ export function TemplateBooking({
                           >
                             <div className="flex min-w-0 flex-1 items-center gap-3">
                               {service.image && (
-                                <img
-                                  src={service.image}
-                                  alt=""
-                                  loading="lazy"
-                                  className="h-14 w-14 flex-shrink-0 rounded-lg object-cover sm:h-16 sm:w-16"
-                                />
+                                <div className="relative h-14 w-14 flex-shrink-0 overflow-hidden rounded-xl sm:h-16 sm:w-16">
+                                  <Image
+                                    src={service.image}
+                                    alt=""
+                                    fill
+                                    sizes="64px"
+                                    className="object-cover"
+                                    unoptimized
+                                  />
+                                </div>
                               )}
                               <div className="min-w-0">
                                 <p
@@ -401,7 +412,7 @@ export function TemplateBooking({
               <div className="space-y-3">
                 <Button
                   onClick={() => setShowBookingCalendar(true)}
-                  className="w-full rounded-xl py-5 text-base font-semibold"
+                    className="w-full rounded-full py-6 text-base font-semibold shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl"
                   style={{ background: colors.primary, color: colors.background }}
                 >
                   Book instantly on this website →
@@ -536,7 +547,7 @@ export function TemplateBooking({
             )}
 
             {canEmbed && showFallbackEmbed && (
-              <div className="mt-8 overflow-hidden rounded-2xl shadow-2xl" style={{ height: 800 }}>
+              <div className="mt-8 overflow-hidden rounded-[1.5rem] border shadow-2xl" style={{ height: 800, borderColor: `${colors.background}1F` }}>
                 <iframe
                   src={getEmbedUrl(bookingUrl!)}
                   title="Book an appointment"
