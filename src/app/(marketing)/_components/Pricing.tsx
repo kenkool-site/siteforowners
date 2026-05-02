@@ -49,7 +49,7 @@ export function Pricing() {
             size="lg"
             className="mt-6 rounded-full bg-pop-pink px-8 py-5 text-sm font-bold text-pop-cream hover:bg-pop-pink/90"
           >
-            <Link href="/preview">Start free month</Link>
+            <Link href="#request-site">Request my site</Link>
           </Button>
         </motion.div>
 
