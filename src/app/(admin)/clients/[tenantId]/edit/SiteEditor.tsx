@@ -785,7 +785,9 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-600">Hero background video (optional)</label>
                 <p className="mb-2 text-xs text-gray-500">
-                  MP4 or WebM, under 20MB, ~10-20 seconds. Muted auto-loop. Only applies to Classic, Bold, and Warm templates. Leave empty to use the first hero image instead.
+                  MP4 or WebM, under 20MB, ~10-20 seconds. Muted auto-loop. Applies to Classic, Bold, Warm, and
+                  Runway hero layouts. Leave empty to use the first hero image or your vertical&apos;s default loop
+                  on new previews.
                 </p>
                 {heroVideoUrl ? (
                   <div className="space-y-2">
