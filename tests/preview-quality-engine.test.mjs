@@ -52,3 +52,29 @@ test("preview compare and wizard help users choose stronger preview inputs", asy
   assert.match(wizard, /getPreviewQualityTips/, "wizard should compute preview quality guidance");
   assert.match(wizard, /Preview quality tips/, "wizard should show quality tips before generation");
 });
+
+test("booking import categories become real service categories in generated previews", async () => {
+  const importRoute = await readFile("src/app/api/import-booking/route.ts", "utf8");
+  const wizard = await readFile("src/app/(marketing)/preview/page.tsx", "utf8");
+  const generateRoute = await readFile("src/app/api/generate-copy/route.ts", "utf8");
+  const regenerateRoute = await readFile("src/app/api/regenerate-copy/route.ts", "utf8");
+
+  assert.match(importRoute, /categories:\s*acuityData\?\.categories/, "booking import should return category labels from Acuity data");
+  assert.match(wizard, /setCategories/, "wizard should keep imported category labels");
+  assert.match(wizard, /servicesFromBookingCategories/, "wizard should derive categorized services from booking categories");
+  assert.match(wizard, /categories:\s*categories\.length/, "wizard should send categories to preview generation");
+  assert.match(generateRoute, /categories:\s*resolvedCategories/, "generated preview rows should persist categories");
+  assert.match(generateRoute, /services:\s*resolvedServices/, "generated preview rows should persist categorized services");
+  assert.match(regenerateRoute, /categories:\s*preview\.categories/, "regenerate should preserve existing categories");
+});
+
+test("medium preview improvements are implemented", async () => {
+  const generateRoute = await readFile("src/app/api/generate-copy/route.ts", "utf8");
+  const regenerateRoute = await readFile("src/app/api/regenerate-copy/route.ts", "utf8");
+  const compare = await readFile("src/app/(marketing)/preview/compare/[groupId]/CompareClient.tsx", "utf8");
+
+  assert.match(generateRoute, /pickThemeForTemplate/, "create flow should pair themes with templates intentionally");
+  assert.match(regenerateRoute, /pickThemeForTemplate/, "regenerate flow should pair themes with templates intentionally");
+  assert.match(regenerateRoute, /template_variant:\s*tmpl/, "keep_colors should preserve colors without forcing all variants to one layout");
+  assert.match(compare, /TemplatePreviewCard/, "compare screen should include a visual mini preview for each template");
+});
