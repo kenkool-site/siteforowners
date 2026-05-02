@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
 import { HeroShowcase } from "./HeroShowcase";
 
@@ -9,6 +10,15 @@ export function Hero() {
     <section className="bg-pop-pink px-6 py-16 text-pop-cream md:py-24">
       <div className="mx-auto grid max-w-5xl gap-12 md:grid-cols-2 md:items-center">
         <div>
+          <div className="mb-6 md:mb-8">
+            <div className="inline-flex rounded-2xl bg-pop-cream p-4 shadow-[0_20px_50px_-12px_rgba(0,0,0,0.35)] ring-1 ring-black/10 md:p-6">
+              <MarketingBrandLogo
+                href="/"
+                heightClass="h-[4.75rem] sm:h-24 md:h-28 lg:h-32 xl:h-36"
+                linkClassName="rounded-xl ring-offset-pop-cream"
+              />
+            </div>
+          </div>
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.2em] opacity-90">
             For salons, barbers, nail shops
           </p>
