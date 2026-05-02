@@ -30,10 +30,10 @@ export function FinalCTA() {
             size="lg"
             className="rounded-full bg-black px-8 py-6 text-base font-extrabold text-pop-cream hover:bg-black/85"
           >
-            <Link href="/preview">Create My Free Preview →</Link>
+            <Link href="#request-site">Send me your details →</Link>
           </Button>
           <p className="mt-4 text-xs opacity-90">
-            5 min · No card · Free for 1 month
+            No tech setup · I build the preview · Free for 1 month
           </p>
         </motion.div>
       </div>
