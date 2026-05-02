@@ -680,9 +680,9 @@ function PreviewWizard() {
   return (
     <main className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b bg-white px-6 py-4">
+      <div className="border-b bg-white px-6 py-5">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <MarketingBrandLogo href="/" heightClass="h-8" linkClassName="ring-offset-white" />
+          <MarketingBrandLogo href="/" heightClass="h-11 sm:h-12" linkClassName="ring-offset-white" />
           <span className="text-sm text-gray-500">Step {step} of {TOTAL_STEPS}</span>
         </div>
       </div>

@@ -36,7 +36,7 @@ export default function AdminLoginPage() {
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="w-full max-w-sm">
         <div className="mb-8 flex flex-col items-center text-center">
-          <MarketingBrandLogo heightClass="h-12" />
+          <MarketingBrandLogo heightClass="h-16 sm:h-[4.5rem]" />
           <p className="mt-3 text-sm text-gray-500">Admin Access</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">

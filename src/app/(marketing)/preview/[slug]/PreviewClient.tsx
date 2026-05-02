@@ -40,10 +40,10 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
     <div className="min-h-screen bg-gray-100">
       {/* Top Bar */}
       <div className="sticky top-0 z-50 border-b bg-white shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <span className="flex items-center gap-2">
-            <MarketingBrandLogo href="/" heightClass="h-7 sm:h-8" linkClassName="ring-offset-white" />
-            <span className="text-xs text-gray-400">Preview</span>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3.5 sm:px-6 sm:py-4">
+          <span className="flex items-center gap-2.5 sm:gap-3">
+            <MarketingBrandLogo href="/" heightClass="h-10 sm:h-11" linkClassName="ring-offset-white" />
+            <span className="text-sm font-medium text-gray-500">Preview</span>
           </span>
 
           <div className="flex items-center gap-2">
