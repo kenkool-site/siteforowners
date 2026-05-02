@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
 
 const NAV_LINKS = [
@@ -16,9 +17,7 @@ const ADMIN_LINKS = [
 export function Nav() {
   return (
     <nav className="flex items-center justify-between border-b border-warm-cream1/60 bg-white px-6 py-4">
-      <Link href="/" className="text-xl font-bold text-warm-text">
-        Site<span className="text-pop-pink">ForOwners</span>
-      </Link>
+      <MarketingBrandLogo href="/" priority heightClass="h-9 sm:h-10" linkClassName="ring-offset-white" />
 
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-1 md:flex">

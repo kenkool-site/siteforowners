@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
@@ -34,11 +35,9 @@ export default function AdminLoginPage() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Site<span className="text-amber-600">ForOwners</span>
-          </h1>
-          <p className="mt-2 text-sm text-gray-500">Admin Access</p>
+        <div className="mb-8 flex flex-col items-center text-center">
+          <MarketingBrandLogo heightClass="h-12" />
+          <p className="mt-3 text-sm text-gray-500">Admin Access</p>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
           {error && (

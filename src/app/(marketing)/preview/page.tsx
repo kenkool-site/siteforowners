@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import Image from "next/image";
+import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
 import { DEFAULT_SERVICES } from "@/lib/templates/default-services";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
@@ -681,9 +682,7 @@ function PreviewWizard() {
       {/* Header */}
       <div className="border-b bg-white px-6 py-4">
         <div className="mx-auto flex max-w-2xl items-center justify-between">
-          <span className="text-lg font-bold text-gray-900">
-            Site<span className="text-amber-600">ForOwners</span>
-          </span>
+          <MarketingBrandLogo href="/" heightClass="h-8" linkClassName="ring-offset-white" />
           <span className="text-sm text-gray-500">Step {step} of {TOTAL_STEPS}</span>
         </div>
       </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
 import { THEMES_BY_VERTICAL, type ThemeConfig } from "@/lib/templates/themes";
 import type { PreviewData } from "@/lib/ai/types";
@@ -85,10 +86,8 @@ export function CompareClient({ previews, groupId }: CompareClientProps) {
     <main className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="border-b bg-white px-6 py-5">
-        <div className="mx-auto max-w-3xl text-center">
-          <span className="text-lg font-bold text-gray-900">
-            Site<span className="text-amber-600">ForOwners</span>
-          </span>
+        <div className="mx-auto flex max-w-3xl justify-center">
+          <MarketingBrandLogo href="/" heightClass="h-8" linkClassName="ring-offset-white" />
         </div>
       </div>
 
