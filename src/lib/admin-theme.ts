@@ -2,6 +2,7 @@ import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import type { BusinessType } from "@/lib/ai/types";
+import { primaryHexFromBrandColors } from "@/lib/templates/brand-palette";
 
 export type AdminTheme = {
   primary: string;        // e.g. #D8006B — the tenant's brand color
@@ -32,8 +33,8 @@ export function deriveTheme(primary: string): AdminTheme {
 
 /**
  * Load the tenant's primary color from their preview row, with the same
- * resolution priority as the public site (custom override → vertical theme
- * → default). Cached per-request.
+ * resolution priority as the public site (custom override → imported
+ * brand swatches → vertical theme → default). Cached per-request.
  */
 export const loadAdminTheme = cache(async (previewSlug: string | null): Promise<AdminTheme> => {
   if (!previewSlug) return deriveTheme(DEFAULT_PRIMARY);
@@ -49,6 +50,11 @@ export const loadAdminTheme = cache(async (previewSlug: string | null): Promise<
   const customColors = gc?.custom_colors as Record<string, unknown> | undefined;
   if (typeof customColors?.primary === "string") {
     return deriveTheme(customColors.primary);
+  }
+
+  const brandPrimary = primaryHexFromBrandColors(gc?.brand_colors);
+  if (brandPrimary) {
+    return deriveTheme(brandPrimary);
   }
 
   const businessType = data.business_type as BusinessType | undefined;

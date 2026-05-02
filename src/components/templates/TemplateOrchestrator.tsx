@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { PreviewData, GeneratedCopy } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
+import { lightPaletteFromBrandColors } from "@/lib/templates/brand-palette";
 import type { BookingModePolicy } from "@/lib/admin-auth";
 import { detectProvider } from "@/lib/admin-bookings";
 
@@ -92,9 +93,14 @@ function getTemplateName(data: PreviewData): TemplateName {
 }
 
 function getColors(data: PreviewData): ThemeColors {
-  const customColors = (data.generated_copy as unknown as Record<string, unknown>)?.custom_colors as ThemeColors | undefined;
+  const copy = data.generated_copy as unknown as Record<string, unknown> | undefined;
+  const customColors = copy?.custom_colors as ThemeColors | undefined;
   if (customColors && customColors.primary) {
     return customColors;
+  }
+  const fromBrand = lightPaletteFromBrandColors(copy?.brand_colors);
+  if (fromBrand) {
+    return fromBrand;
   }
   const themes = THEMES_BY_VERTICAL[data.business_type];
   const theme = themes?.find((t) => t.id === data.color_theme);
