@@ -39,3 +39,23 @@ test("runway moving text is generated from client services and categories", asyn
   assert.match(orchestrator, /services\.slice\(0,\s*4\)/, "Runway marquee should include client services when available");
   assert.match(orchestrator, /Book Your Look/, "Runway marquee should keep a booking-oriented CTA phrase");
 });
+
+test("runway keeps long service lists premium instead of rendering a wall", async () => {
+  const services = await readFile(files.services, "utf8");
+
+  assert.match(services, /INITIAL_FLAT_SERVICE_LIMIT\s*=\s*9/, "flat long lists should initially show a curated first set");
+  assert.match(services, /INITIAL_GROUP_SERVICE_LIMIT\s*=\s*6/, "large categories should initially show a curated first set");
+  assert.match(services, /visibleServices\s*=\s*shouldLimitGroup/, "Runway should render a capped visible service collection first");
+  assert.match(services, /View all \{group\.services\.length\} services/, "Runway should offer an explicit view-all control");
+  assert.match(services, /Show featured services/, "Runway should let users collapse back to the premium featured set");
+});
+
+test("runway marquee and gallery CTAs stay concise and booking-oriented", async () => {
+  const orchestrator = await readFile(files.orchestrator, "utf8");
+  const gallery = await readFile(files.gallery, "utf8");
+
+  assert.match(orchestrator, /getRunwayMarqueeLabel/, "Runway should shorten long service names before marquee rendering");
+  assert.match(orchestrator, /\.slice\(0,\s*22\)/, "Runway marquee labels should be capped for readability");
+  assert.doesNotMatch(gallery, /Book This Energy/, "Gallery CTA should avoid unclear slang on client sites");
+  assert.match(gallery, /Book a Look/, "Gallery CTA should clearly point to booking a look");
+});
