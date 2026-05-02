@@ -47,3 +47,18 @@ test("template polish preserves booking behavior hooks and generated-copy contra
     );
   }
 });
+
+test("site nav keeps floating controls readable across existing client themes", async () => {
+  const nav = await readFile(files.nav, "utf8");
+
+  assert.match(
+    nav,
+    /controlTextColor\s*=\s*ensureReadable\(colors\.foreground,\s*colors\.background/,
+    "floating nav controls should choose text against the light glass background",
+  );
+  assert.match(
+    nav,
+    /drawerTextColor\s*=\s*ensureReadable\(colors\.background,\s*colors\.foreground/,
+    "drawer links should keep their existing contrast against the foreground drawer",
+  );
+});

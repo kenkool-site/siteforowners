@@ -19,7 +19,9 @@ interface SiteNavProps {
 
 export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNavProps) {
   const [open, setOpen] = useState(false);
-  const textColor = ensureReadable(colors.background, colors.foreground);
+  const controlTextColor = ensureReadable(colors.foreground, colors.background);
+  const drawerTextColor = ensureReadable(colors.background, colors.foreground);
+  const selectedLocaleTextColor = ensureReadable(colors.background, colors.primary, 3);
   const accentColor = colors.primary;
   const shellBackground = `${colors.background}E6`;
   const shellBorder = `${colors.foreground}1A`;
@@ -38,7 +40,7 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
         <button
           onClick={() => setOpen(!open)}
           className="flex h-11 w-11 items-center justify-center rounded-full border shadow-[0_18px_45px_rgba(0,0,0,0.16)] backdrop-blur-xl transition-transform hover:scale-105"
-          style={{ backgroundColor: shellBackground, borderColor: shellBorder, color: textColor }}
+          style={{ backgroundColor: shellBackground, borderColor: shellBorder, color: controlTextColor }}
           aria-label="Navigation menu"
         >
           <AnimatePresence mode="wait">
@@ -86,7 +88,7 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
               className="rounded-full px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.18em] transition-all"
               style={{
                 backgroundColor: locale === "en" ? colors.primary : "transparent",
-                color: locale === "en" ? colors.background : textColor,
+                color: locale === "en" ? selectedLocaleTextColor : controlTextColor,
               }}
             >
               EN
@@ -96,7 +98,7 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
               className="rounded-full px-3.5 py-2 text-[11px] font-bold uppercase tracking-[0.18em] transition-all"
               style={{
                 backgroundColor: locale === "es" ? colors.primary : "transparent",
-                color: locale === "es" ? colors.background : textColor,
+                color: locale === "es" ? selectedLocaleTextColor : controlTextColor,
               }}
             >
               ES
@@ -122,7 +124,7 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
               exit={{ x: -28, opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
               className="absolute left-3 top-3 h-[calc(100%-1.5rem)] w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-[1.25rem] border shadow-[0_30px_90px_rgba(0,0,0,0.32)] backdrop-blur-xl"
-              style={{ backgroundColor: `${colors.foreground}F2`, borderColor: `${textColor}1A` }}
+              style={{ backgroundColor: `${colors.foreground}F2`, borderColor: `${drawerTextColor}1A` }}
               onClick={(e) => e.stopPropagation()}
             >
               <div className="flex h-full flex-col px-5 pb-5 pt-16">
@@ -138,9 +140,9 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
                       <button
                         onClick={() => scrollTo(item.id)}
                             className="w-full rounded-2xl px-4 py-3 text-left text-sm font-semibold tracking-wide transition-all hover:bg-white/10"
-                        style={{ color: textColor }}
+                        style={{ color: drawerTextColor }}
                         onMouseEnter={(e) => (e.currentTarget.style.color = accentColor)}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = textColor)}
+                        onMouseLeave={(e) => (e.currentTarget.style.color = drawerTextColor)}
                       >
                         {item.label}
                       </button>
@@ -148,11 +150,11 @@ export function SiteNav({ items, colors, locale = "en", onLocaleChange }: SiteNa
                   ))}
                 </ul>
 
-                <div className="mt-auto rounded-2xl border p-2" style={{ borderColor: textColor + "18" }}>
+                <div className="mt-auto rounded-2xl border p-2" style={{ borderColor: drawerTextColor + "18" }}>
                   <a
                     href="/admin"
                     className="block rounded-xl px-4 py-3 text-left text-xs font-medium opacity-70 transition-all hover:bg-white/10 hover:opacity-100"
-                    style={{ color: textColor }}
+                    style={{ color: drawerTextColor }}
                   >
                     Owner login →
                   </a>
