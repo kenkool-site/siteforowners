@@ -11,8 +11,14 @@ interface RunwayAboutProps {
   colors: ThemeColors;
 }
 
+function getPullQuote(text: string): string {
+  const firstSentence = text.match(/^[^.!?]+[.!?]/)?.[0]?.trim();
+  const quote = firstSentence || text.trim();
+  return quote.length > 132 ? `${quote.slice(0, 128).trim()}...` : quote;
+}
+
 export function RunwayAbout({ paragraphs, image, colors }: RunwayAboutProps) {
-  const pullQuote = paragraphs[0] || "Texture respected. Style elevated.";
+  const pullQuote = getPullQuote(paragraphs[0] || "Texture respected. Style elevated.");
   const rest = paragraphs.slice(1);
   const gold = ensureReadable(colors.primary || "#D8B255", "#050505", 3);
 
@@ -33,7 +39,7 @@ export function RunwayAbout({ paragraphs, image, colors }: RunwayAboutProps) {
           >
             Client Notes
           </p>
-          <blockquote className="max-w-3xl text-3xl font-black uppercase leading-[0.95] tracking-[-0.045em] sm:text-4xl md:text-5xl lg:text-6xl">
+          <blockquote className="max-w-3xl text-2xl font-black uppercase leading-[0.98] tracking-[-0.035em] sm:text-3xl md:text-4xl lg:text-5xl">
             &ldquo;{pullQuote}&rdquo;
           </blockquote>
         </AnimateSection>
