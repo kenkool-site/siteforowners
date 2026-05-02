@@ -83,14 +83,19 @@ export function RunwayHero({
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.75, ease: "easeOut" }}
         >
-          <p
-            className="mb-6 text-xs font-semibold uppercase tracking-[0.45em] text-white/60 md:text-sm"
-            style={{ color: `${gold}CC` }}
-          >
-            {businessName}
-          </p>
+          <div className="mb-7">
+            <p className="mb-2 text-[0.62rem] font-black uppercase tracking-[0.42em] text-white/40">
+              Now presenting
+            </p>
+            <p
+              className="text-2xl font-black uppercase leading-none tracking-[0.28em] md:text-3xl xl:text-4xl"
+              style={{ color: `${gold}E6`, textShadow: `0 0 34px ${gold}33` }}
+            >
+              {businessName}
+            </p>
+          </div>
 
-          <h1 className="max-w-3xl text-5xl font-black uppercase leading-[0.88] tracking-[-0.06em] sm:text-6xl md:text-7xl xl:text-8xl">
+          <h1 className="max-w-3xl text-4xl font-black uppercase leading-[0.9] tracking-[-0.055em] sm:text-5xl md:text-6xl lg:text-7xl xl:text-7xl">
             <span className="block">{headlineTop}</span>
             <span
               className="block"

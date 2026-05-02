@@ -4,6 +4,8 @@ import test from "node:test";
 
 const files = {
   orchestrator: "src/components/templates/TemplateOrchestrator.tsx",
+  hero: "src/components/templates/heroes/RunwayHero.tsx",
+  about: "src/components/templates/about/RunwayAbout.tsx",
   services: "src/components/templates/services/RunwayServices.tsx",
   gallery: "src/components/templates/galleries/RunwayGallery.tsx",
   cta: "src/components/templates/RunwayBookingCTA.tsx",
@@ -58,4 +60,16 @@ test("runway marquee and gallery CTAs stay concise and booking-oriented", async 
   assert.match(orchestrator, /\.slice\(0,\s*22\)/, "Runway marquee labels should be capped for readability");
   assert.doesNotMatch(gallery, /Book This Energy/, "Gallery CTA should avoid unclear slang on client sites");
   assert.match(gallery, /Book a Look/, "Gallery CTA should clearly point to booking a look");
+});
+
+test("runway typography makes the business name dominant without oversized body text", async () => {
+  const hero = await readFile(files.hero, "utf8");
+  const about = await readFile(files.about, "utf8");
+
+  assert.match(hero, /text-2xl[\s\S]*md:text-3xl[\s\S]*xl:text-4xl/, "Runway business name should be visually dominant");
+  assert.doesNotMatch(hero, /xl:text-8xl/, "Runway hero headline should not overwhelm the owner name on desktop");
+  assert.match(hero, /xl:text-7xl/, "Runway hero headline should stay editorial but controlled");
+  assert.match(about, /getPullQuote/, "Runway about should derive a shorter pull quote instead of enlarging an entire paragraph");
+  assert.match(about, /text-2xl[\s\S]*md:text-4xl[\s\S]*lg:text-5xl/, "Runway about quote should be reduced from oversized display text");
+  assert.doesNotMatch(about, /lg:text-6xl/, "Runway about quote should not render paragraph-sized copy at 6xl");
 });
