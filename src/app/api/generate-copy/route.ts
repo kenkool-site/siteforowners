@@ -152,9 +152,9 @@ function darken(hex: string, amount: number): string {
   } catch { return "#1A1A1A"; }
 }
 
-type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm';
+type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway';
 
-const ALL_TEMPLATES: TemplateName[] = ['classic', 'bold', 'elegant', 'vibrant', 'warm'];
+const ALL_TEMPLATES: TemplateName[] = ['classic', 'bold', 'elegant', 'vibrant', 'warm', 'runway'];
 
 const CONTRAST_PAIRS: Record<TemplateName, TemplateName[]> = {
   classic: ['bold', 'vibrant'],
@@ -162,6 +162,7 @@ const CONTRAST_PAIRS: Record<TemplateName, TemplateName[]> = {
   elegant: ['vibrant', 'bold'],
   vibrant: ['elegant', 'warm'],
   warm: ['bold', 'vibrant'],
+  runway: ['elegant', 'warm'],
 };
 
 function pickTwoTemplates(): [TemplateName, TemplateName] {
