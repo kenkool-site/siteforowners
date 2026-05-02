@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
 import { TemplateOrchestrator } from "@/components/templates";
 import { GetStartedModal } from "@/components/GetStartedModal";
@@ -40,9 +41,9 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
       {/* Top Bar */}
       <div className="sticky top-0 z-50 border-b bg-white shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
-          <span className="text-sm font-bold text-gray-900">
-            Site<span className="text-amber-600">ForOwners</span>
-            <span className="ml-2 text-xs text-gray-400">Preview</span>
+          <span className="flex items-center gap-2">
+            <MarketingBrandLogo href="/" heightClass="h-7 sm:h-8" linkClassName="ring-offset-white" />
+            <span className="text-xs text-gray-400">Preview</span>
           </span>
 
           <div className="flex items-center gap-2">

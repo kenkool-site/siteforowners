@@ -1,10 +1,17 @@
 import Link from "next/link";
+import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 
 export function Footer() {
   return (
     <footer className="bg-warm-deep px-6 py-8 text-center text-xs text-warm-cream2/70">
-      <div className="mx-auto max-w-3xl flex flex-wrap items-center justify-center gap-x-3 gap-y-2">
-        <span className="font-medium text-warm-cream2">SiteForOwners</span>
+      <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-center gap-x-3 gap-y-2">
+        <span className="inline-flex items-center rounded-lg bg-[#f5f0e8] px-2.5 py-1.5 shadow-sm ring-1 ring-white/15">
+          <MarketingBrandLogo
+            href="/"
+            heightClass="h-7"
+            linkClassName="ring-offset-[#f5f0e8] focus-visible:ring-warm-deep/40"
+          />
+        </span>
         <span aria-hidden>·</span>
         <span>Made in Brooklyn</span>
         <span aria-hidden>·</span>
