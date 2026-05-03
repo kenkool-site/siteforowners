@@ -11,6 +11,11 @@ import {
 } from "@/lib/defaults/businessHours";
 import type { BusinessHours, BusinessType, ColorTheme, ServiceItem } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
+import {
+  categoryNamesFromBookingCategories,
+  mergeCategorizedServicesWithFlatPayload,
+  servicesFromBookingCategories,
+} from "@/lib/booking-import-services";
 import { ServiceRow } from "@/app/site/[slug]/admin/_components/ServiceRow";
 import { DepositEditor, type DepositSettingsState } from "@/app/site/[slug]/admin/services/DepositEditor";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
@@ -28,6 +33,18 @@ interface ProductItem {
   price: string;
   description?: string;
   image?: string;
+}
+
+function uniqueCategoryOrderFromServices(services: ServiceItem[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of services) {
+    const c = s.category?.trim();
+    if (!c || seen.has(c)) continue;
+    seen.add(c);
+    out.push(c);
+  }
+  return out;
 }
 
 function labelForSource(source: "booking" | "google" | "custom" | "default"): string {
@@ -391,16 +408,36 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       });
       if (!res.ok) throw new Error("Import failed");
       const d = await res.json();
-      if (d.services?.length > 0) {
-        setServices(
-          (d.services as ServiceItem[]).map((s) => ({
-            ...s,
-            client_id: s.client_id ?? crypto.randomUUID(),
-          })),
-        );
+      const flat = (d.services as ServiceItem[]) || [];
+      let mappedServices: ServiceItem[] | null = null;
+
+      if (Array.isArray(d.booking_categories) && d.booking_categories.length > 0) {
+        const fromBooking = servicesFromBookingCategories(d.booking_categories);
+        if (fromBooking.length > 0) {
+          mappedServices = mergeCategorizedServicesWithFlatPayload(fromBooking, flat);
+          setServices(mappedServices);
+        }
       }
-      if (Array.isArray(d.categories) && d.categories.length > 0) {
-        setCategories(d.categories);
+      if (!mappedServices && flat.length > 0) {
+        mappedServices = flat.map((s) => ({
+          ...s,
+          client_id: s.client_id ?? crypto.randomUUID(),
+        }));
+        setServices(mappedServices);
+      }
+
+      const categoriesFromPayload =
+        Array.isArray(d.categories) && d.categories.length > 0 ? d.categories : [];
+      const categoriesFromBooking = categoryNamesFromBookingCategories(d.booking_categories);
+      const categoriesInferred = mappedServices ? uniqueCategoryOrderFromServices(mappedServices) : [];
+      const categoriesToApply =
+        categoriesFromPayload.length > 0
+          ? categoriesFromPayload
+          : categoriesFromBooking.length > 0
+            ? categoriesFromBooking
+            : categoriesInferred;
+      if (categoriesToApply.length > 0) {
+        setCategories(categoriesToApply);
       }
       if (d.images?.length > 0) {
         setImages((prev) => {
@@ -413,14 +450,14 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       if (d.address && !address) setAddress(d.address);
       if (d.business_name && businessName === "Unknown") setBusinessName(d.business_name);
 
-      // Persist booking_categories + previews.categories immediately — both are
-      // derived from structured Acuity data on re-import.
+      // Persist booking_categories + previews.categories immediately — derived
+      // from Acuity/HTML on re-import (categories may also be inferred per-service).
       const reimportUpdates: Record<string, unknown> = {};
       if (d.booking_categories) {
         reimportUpdates.generated_copy = { booking_categories: d.booking_categories };
       }
-      if (Array.isArray(d.categories) && d.categories.length > 0) {
-        reimportUpdates.categories = d.categories;
+      if (categoriesToApply.length > 0) {
+        reimportUpdates.categories = categoriesToApply;
       }
       if (Object.keys(reimportUpdates).length > 0) {
         const persistRes = await fetch("/api/update-site", {
