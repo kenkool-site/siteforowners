@@ -354,6 +354,43 @@ interface BookingCategory {
   directUrl: string;
 }
 
+/** Snap to 30-minute steps for previews.services.duration_minutes */
+function durationMinutesFromAcuityLabel(duration: string): number {
+  const m = duration.match(/(\d+)/);
+  const raw = m ? parseInt(m[1], 10) : 60;
+  const snapped = Math.round(raw / 30) * 30;
+  return Math.min(480, Math.max(30, snapped || 60));
+}
+
+/** Prefer structured Acuity categories so each service keeps its category (Claude only returns a flat list). */
+function servicesFromAcuityCategories(categories: BookingCategory[]): {
+  name: string;
+  price: string;
+  duration_minutes: number;
+  category: string;
+  image?: string;
+}[] {
+  const out: {
+    name: string;
+    price: string;
+    duration_minutes: number;
+    category: string;
+    image?: string;
+  }[] = [];
+  for (const cat of categories) {
+    for (const s of cat.services) {
+      out.push({
+        name: s.name,
+        price: s.price,
+        duration_minutes: durationMinutesFromAcuityLabel(s.duration),
+        category: cat.name,
+        ...(s.image ? { image: s.image } : {}),
+      });
+    }
+  }
+  return out;
+}
+
 // Acuity stores service images as protocol-relative URLs (//abs.acuitysite.net/...)
 // or scheduler-relative paths (/acuity-uploads/...). Normalize to absolute https.
 function resolveAcuityImageUrl(raw: string): string | undefined {
@@ -568,12 +605,16 @@ ${html.slice(0, 40000)}`,
     const isAcuityPage = !!acuityData;
     brandColors = brandColors.filter((c: string) => !isPlatformColor(c, isAcuityPage)).slice(0, 3);
 
+    const acuityServices =
+      acuityData?.categories?.length ? servicesFromAcuityCategories(acuityData.categories) : [];
+    const servicesPayload = acuityServices.length > 0 ? acuityServices : extracted.services || [];
+
     return NextResponse.json({
       business_name: extracted.business_name || null,
       phone: extracted.phone || null,
       address: extracted.address || null,
       description: extracted.description || null,
-      services: extracted.services || [],
+      services: servicesPayload,
       logo: finalLogo,
       images: finalImages,
       has_hero_image: hasHeroImage,
