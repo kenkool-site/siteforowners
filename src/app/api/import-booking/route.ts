@@ -354,11 +354,23 @@ interface BookingCategory {
   directUrl: string;
 }
 
-/** Snap to 30-minute steps for previews.services.duration_minutes */
-function durationMinutesFromAcuityLabel(duration: string): number {
-  const m = duration.match(/(\d+)/);
-  const raw = m ? parseInt(m[1], 10) : 60;
-  const snapped = Math.round(raw / 30) * 30;
+/** Snap to Acuity / human labels ("45 min", "8h", "3h 30m") to duration_minutes. */
+function durationMinutesFromImportLabel(duration: string): number {
+  const s = duration.trim().toLowerCase();
+  let minutes = 60;
+  const hPart = s.match(/(\d+(?:\.\d+)?)\s*h/);
+  const minPart = s.match(/(\d+)\s*(?:min|m(?![a-z]))/);
+  if (hPart) {
+    minutes = Math.round(parseFloat(hPart[1]) * 60);
+  }
+  if (minPart) {
+    minutes = hPart ? minutes + parseInt(minPart[1], 10) : parseInt(minPart[1], 10);
+  }
+  if (!hPart && !minPart) {
+    const n = s.match(/(\d+)/);
+    minutes = n ? parseInt(n[1], 10) : 60;
+  }
+  const snapped = Math.round(minutes / 30) * 30;
   return Math.min(480, Math.max(30, snapped || 60));
 }
 
@@ -382,13 +394,127 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
       out.push({
         name: s.name,
         price: s.price,
-        duration_minutes: durationMinutesFromAcuityLabel(s.duration),
+        duration_minutes: durationMinutesFromImportLabel(s.duration),
         category: cat.name,
         ...(s.image ? { image: s.image } : {}),
       });
     }
   }
   return out;
+}
+
+/** Category labels in first-seen order (for previews.categories + groupServices). */
+function orderedUniqueCategoriesFromServices(
+  services: { category?: string }[],
+): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const s of services) {
+    const c = s.category?.trim();
+    if (!c || seen.has(c)) continue;
+    seen.add(c);
+    out.push(c);
+  }
+  return out;
+}
+
+function normalizeClaudeServiceRow(raw: {
+  name: string;
+  price?: string;
+  duration?: string;
+  category?: string;
+  image?: string;
+}): {
+  name: string;
+  price: string;
+  duration_minutes: number;
+  category?: string;
+  image?: string;
+} {
+  const durationStr = typeof raw.duration === "string" && raw.duration.trim() ? raw.duration : "60 min";
+  const duration_minutes = durationMinutesFromImportLabel(durationStr);
+  const category = raw.category?.trim() || undefined;
+  return {
+    name: raw.name,
+    price: typeof raw.price === "string" ? raw.price : "",
+    duration_minutes,
+    ...(category ? { category } : {}),
+    ...(raw.image ? { image: raw.image } : {}),
+  };
+}
+
+/**
+ * `var BUSINESS = {...}` is often huge/minified; a non-greedy regex truncates the JSON.
+ * Parse by brace-matching from the first `{` (strings-safe for standard JSON).
+ */
+function sliceBalancedJsonObject(html: string, openBrace: number): string | null {
+  if (html[openBrace] !== "{") return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = openBrace; i < html.length; i++) {
+    const ch = html[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = false;
+        continue;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) return html.slice(openBrace, i + 1);
+    }
+  }
+  return null;
+}
+
+function parseAcuityBusinessJson(html: string): Record<string, unknown> | null {
+  const assignMatch = html.match(/(?:var|let|const)\s+BUSINESS\s*=\s*\{/);
+  if (!assignMatch || assignMatch.index === undefined) return null;
+  const open = html.indexOf("{", assignMatch.index);
+  if (open < 0) return null;
+  const slice = sliceBalancedJsonObject(html, open);
+  if (!slice) return null;
+  try {
+    return JSON.parse(slice) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+/** Acuity may expose appointment types as an object keyed by category or as categories[]. */
+function appointmentTypesMapFromBiz(biz: Record<string, unknown>): Record<string, unknown[]> {
+  const raw = biz.appointmentTypes;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return raw as Record<string, unknown[]>;
+  }
+  const cats = biz.categories;
+  if (Array.isArray(cats)) {
+    const out: Record<string, unknown[]> = {};
+    for (const c of cats) {
+      if (!c || typeof c !== "object") continue;
+      const row = c as { name?: string; appointmentTypes?: unknown[] };
+      const name = typeof row.name === "string" ? row.name : null;
+      const at = row.appointmentTypes;
+      if (name && Array.isArray(at)) out[name] = at as unknown[];
+    }
+    return out;
+  }
+  return {};
 }
 
 // Acuity stores service images as protocol-relative URLs (//abs.acuitysite.net/...)
@@ -408,17 +534,18 @@ function extractAcuityData(html: string): {
   ownerId: number | null;
   schedulerColor: string | null;
 } | null {
-  const businessMatch = html.match(/var\s+BUSINESS\s*=\s*(\{[\s\S]*?\});\s*(?:var|$)/);
-  if (!businessMatch) return null;
+  const biz = parseAcuityBusinessJson(html);
+  if (!biz) return null;
 
   try {
-    const biz = JSON.parse(businessMatch[1]);
-    const ownerId: number = biz.id;
-    const schedulerColor: string | null = biz.styles?.colors?.schedulerBackground || null;
-    const appointmentTypes = biz.appointmentTypes || {};
+    const ownerId = Number(biz.id);
+    const styles = biz.styles as { colors?: { schedulerBackground?: string } } | undefined;
+    const schedulerColor: string | null = styles?.colors?.schedulerBackground || null;
+    const appointmentTypes = appointmentTypesMapFromBiz(biz);
 
     const categories: BookingCategory[] = [];
     for (const [categoryName, services] of Object.entries(appointmentTypes)) {
+      if (!Array.isArray(services) || services.length === 0) continue;
       const svcList = services as Array<{
         id: number; name: string; price: string; duration: number;
         image?: string; imageUrl?: string; picture?: string;
@@ -439,7 +566,11 @@ function extractAcuityData(html: string): {
       });
     }
 
-    return { categories, ownerId, schedulerColor };
+    return {
+      categories,
+      ownerId: Number.isFinite(ownerId) ? ownerId : null,
+      schedulerColor,
+    };
   } catch {
     return null;
   }
@@ -528,7 +659,7 @@ Return ONLY valid JSON with this structure (omit fields you can't find):
   "phone": "...",
   "address": "...",
   "services": [
-    {"name": "Service Name", "price": "$XX", "duration": "XX min"}
+    {"name": "Service Name", "price": "$XX", "duration": "XX min", "category": "Category or section name"}
   ],
   "logo": "https://url-to-logo-image.jpg",
   "images": ["https://full-url-to-image.jpg"],
@@ -538,6 +669,7 @@ Return ONLY valid JSON with this structure (omit fields you can't find):
 
 Rules:
 - Include ALL services/appointment types you find
+- **category (per service):** When the HTML groups services under headings (tabs, accordions, h2/h3, "Category", Acuity category titles, Booksy sections, etc.), set "category" to that heading for EVERY service in that group. Use a short label (e.g. "Braids", "Kids"). If a service is not under any clear group, omit "category" or use null.
 - Format prices with $ sign
 - Format phone as (XXX) XXX-XXXX
 - If a price is a range, use the starting price
@@ -607,7 +739,18 @@ ${html.slice(0, 40000)}`,
 
     const acuityServices =
       acuityData?.categories?.length ? servicesFromAcuityCategories(acuityData.categories) : [];
-    const servicesPayload = acuityServices.length > 0 ? acuityServices : extracted.services || [];
+    const claudeServiceRows = Array.isArray(extracted.services)
+      ? (extracted.services as { name: string; price?: string; duration?: string; category?: string; image?: string }[])
+      : [];
+    const claudeServicesNorm = claudeServiceRows
+      .filter((s) => s && typeof s.name === "string" && s.name.trim())
+      .map((s) => normalizeClaudeServiceRow(s));
+    const servicesPayload = acuityServices.length > 0 ? acuityServices : claudeServicesNorm;
+
+    const acuityCategoryNames = acuityData?.categories?.map((c) => c.name) ?? [];
+    const derivedCategoryNames = orderedUniqueCategoriesFromServices(servicesPayload);
+    const categoriesPayload =
+      acuityCategoryNames.length > 0 ? acuityCategoryNames : derivedCategoryNames;
 
     return NextResponse.json({
       business_name: extracted.business_name || null,
@@ -621,7 +764,7 @@ ${html.slice(0, 40000)}`,
       brand_colors: brandColors,
       booking_url: fullUrl,
       booking_categories: acuityData?.categories || null,
-      categories: acuityData?.categories.map((category) => category.name) || [],
+      categories: categoriesPayload,
     });
   } catch (error: unknown) {
     console.error("Import booking error:", error);

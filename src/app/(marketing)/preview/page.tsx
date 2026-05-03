@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { DEFAULT_SERVICES } from "@/lib/templates/default-services";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import type { BusinessType, ServiceItem, ProductItem } from "@/lib/ai/types";
+import type { ImportedBookingCategory } from "@/lib/booking-import-services";
+import {
+  categoryNamesFromBookingCategories,
+  mergeCategorizedServicesWithFlatPayload,
+  servicesFromBookingCategories,
+} from "@/lib/booking-import-services";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = [
@@ -68,22 +74,6 @@ function getPreviewQualityTips({
   if (!rating) tips.push("Import Google details when possible so reviews and ratings can shape the copy.");
   if (!bookingUrl.trim()) tips.push("Add a booking link so CTAs can point customers to action.");
   return tips.slice(0, 4);
-}
-
-type ImportedBookingCategory = {
-  name: string;
-  services?: { name: string; price?: string; duration?: string; image?: string }[];
-};
-
-function servicesFromBookingCategories(bookingCategories: ImportedBookingCategory[]): ServiceItem[] {
-  return bookingCategories.flatMap((category) =>
-    (category.services || []).map((service) => ({
-      name: service.name,
-      price: service.price || "",
-      category: category.name,
-      image: service.image,
-    })),
-  );
 }
 
 function collectBookingImportServiceImageUrls(data: {
@@ -365,23 +355,24 @@ function PreviewWizard() {
         const importedCategories =
           data.categories && data.categories.length > 0
             ? data.categories
-            : data.booking_categories.map((category: ImportedBookingCategory) => category.name).filter(Boolean);
+            : categoryNamesFromBookingCategories(data.booking_categories);
         setCategories(importedCategories);
       }
       if (data.services && data.services.length > 0) {
-        const categorizedServices =
+        const fromBooking =
           data.booking_categories && data.booking_categories.length > 0
             ? servicesFromBookingCategories(data.booking_categories)
             : [];
+        const flat = data.services as ServiceItem[];
         setServices(
-          categorizedServices.length > 0
-            ? categorizedServices
-            : data.services.map((s: { name: string; price: string; category?: string; image?: string }) => ({
+          fromBooking.length > 0
+            ? mergeCategorizedServicesWithFlatPayload(fromBooking, flat)
+            : flat.map((s) => ({
                 name: s.name,
                 price: s.price || "",
                 category: s.category,
                 image: s.image,
-              }))
+              })),
         );
       }
       if (data.logo) {
