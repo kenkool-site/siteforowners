@@ -439,19 +439,27 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       if (categoriesToApply.length > 0) {
         setCategories(categoriesToApply);
       }
+      let mergedImages: string[] | null = null;
       if (d.images?.length > 0) {
-        setImages((prev) => {
-          const existing = new Set(prev);
-          const newImgs = (d.images as string[]).filter((img: string) => !existing.has(img));
-          return [...prev, ...newImgs];
-        });
+        const existing = new Set(images);
+        const newImgs = (d.images as string[]).filter((img: string) => !existing.has(img));
+        if (newImgs.length > 0) {
+          mergedImages = [...images, ...newImgs];
+          setImages(mergedImages);
+        }
       }
-      if (d.phone && !phone) setPhone(d.phone);
-      if (d.address && !address) setAddress(d.address);
-      if (d.business_name && businessName === "Unknown") setBusinessName(d.business_name);
+      const nextPhone = d.phone && !phone ? (d.phone as string) : null;
+      const nextAddress = d.address && !address ? (d.address as string) : null;
+      const nextBusinessName =
+        d.business_name && businessName === "Unknown" ? (d.business_name as string) : null;
+      if (nextPhone) setPhone(nextPhone);
+      if (nextAddress) setAddress(nextAddress);
+      if (nextBusinessName) setBusinessName(nextBusinessName);
 
-      // Persist booking_categories + previews.categories immediately — derived
-      // from Acuity/HTML on re-import (categories may also be inferred per-service).
+      // Persist everything the re-import mutated in local state so a refresh
+      // before the user clicks Save doesn't drop the fresh import — services
+      // carry the per-row category, gallery merges new images, and the basics
+      // (phone/address/name) only persist when they were previously empty.
       const reimportUpdates: Record<string, unknown> = {};
       if (d.booking_categories) {
         reimportUpdates.generated_copy = { booking_categories: d.booking_categories };
@@ -459,6 +467,15 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       if (categoriesToApply.length > 0) {
         reimportUpdates.categories = categoriesToApply;
       }
+      if (mappedServices) {
+        reimportUpdates.services = mappedServices.filter((s) => s.name.trim());
+      }
+      if (mergedImages) {
+        reimportUpdates.images = mergedImages;
+      }
+      if (nextPhone) reimportUpdates.phone = nextPhone;
+      if (nextAddress) reimportUpdates.address = nextAddress;
+      if (nextBusinessName) reimportUpdates.business_name = nextBusinessName;
       if (Object.keys(reimportUpdates).length > 0) {
         const persistRes = await fetch("/api/update-site", {
           method: "POST",
