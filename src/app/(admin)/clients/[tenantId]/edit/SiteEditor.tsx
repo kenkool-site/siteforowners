@@ -73,8 +73,8 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
   );
   // Founder admin consumes categories (used by ServiceRow dropdowns) but does
   // not have a CategoriesPanel — owners edit the list via /site/[slug]/admin.
-  const [categories] = useState<string[]>(
-    (preview.categories as string[]) || []
+  const [categories, setCategories] = useState<string[]>(
+    (preview.categories as string[]) || [],
   );
   const [bookingPolicies, setBookingPolicies] = useState<string>(
     (preview.booking_policies as string) || ""
@@ -391,7 +391,17 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       });
       if (!res.ok) throw new Error("Import failed");
       const d = await res.json();
-      if (d.services?.length > 0) setServices(d.services);
+      if (d.services?.length > 0) {
+        setServices(
+          (d.services as ServiceItem[]).map((s) => ({
+            ...s,
+            client_id: s.client_id ?? crypto.randomUUID(),
+          })),
+        );
+      }
+      if (Array.isArray(d.categories) && d.categories.length > 0) {
+        setCategories(d.categories);
+      }
       if (d.images?.length > 0) {
         setImages((prev) => {
           const existing = new Set(prev);
@@ -403,19 +413,23 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       if (d.address && !address) setAddress(d.address);
       if (d.business_name && businessName === "Unknown") setBusinessName(d.business_name);
 
-      // Persist booking_categories immediately — it's derived from Acuity, not
-      // user-editable, so no need to wait for the next Save click.
+      // Persist booking_categories + previews.categories immediately — both are
+      // derived from structured Acuity data on re-import.
+      const reimportUpdates: Record<string, unknown> = {};
       if (d.booking_categories) {
+        reimportUpdates.generated_copy = { booking_categories: d.booking_categories };
+      }
+      if (Array.isArray(d.categories) && d.categories.length > 0) {
+        reimportUpdates.categories = d.categories;
+      }
+      if (Object.keys(reimportUpdates).length > 0) {
         const persistRes = await fetch("/api/update-site", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            slug,
-            updates: { generated_copy: { booking_categories: d.booking_categories } },
-          }),
+          body: JSON.stringify({ slug, updates: reimportUpdates }),
         });
         if (!persistRes.ok) {
-          console.error("Failed to persist booking_categories after re-import");
+          console.error("Failed to persist booking import fields after re-import");
         }
       }
 
