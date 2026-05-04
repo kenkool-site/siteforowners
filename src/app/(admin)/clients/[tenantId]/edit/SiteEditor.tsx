@@ -677,6 +677,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
         about_image_url: sectionSettings.about_image_url || null,
         template_override: sectionSettings.template_override || null,
       },
+      custom_colors: customColorsEnabled ? customColors : null,
     },
   };
 
