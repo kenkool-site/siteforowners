@@ -110,10 +110,13 @@ async function fetchImageAsBase64(
     if (!res.ok) return null;
 
     const contentType = res.headers.get("content-type") || "";
-    // Only process actual images
-    if (!contentType.startsWith("image/")) return null;
+    const urlLower = imageUrl.toLowerCase();
+    // Booksy's CDN returns a bare `image` content-type with no subtype, so we
+    // accept both `image/*` and exact `image` and fall back to the URL
+    // extension for media-type detection.
+    if (!contentType.startsWith("image")) return null;
     // Skip SVGs
-    if (contentType.includes("svg")) return null;
+    if (contentType.includes("svg") || urlLower.endsWith(".svg")) return null;
 
     const buffer = await res.arrayBuffer();
     // Skip tiny images (likely icons/tracking pixels) — under 5KB
@@ -125,9 +128,9 @@ async function fetchImageAsBase64(
     const sizeKB = Math.round(buffer.byteLength / 1024);
 
     let mediaType: "image/jpeg" | "image/png" | "image/gif" | "image/webp" = "image/jpeg";
-    if (contentType.includes("png")) mediaType = "image/png";
-    else if (contentType.includes("gif")) mediaType = "image/gif";
-    else if (contentType.includes("webp")) mediaType = "image/webp";
+    if (contentType.includes("png") || urlLower.endsWith(".png")) mediaType = "image/png";
+    else if (contentType.includes("gif") || urlLower.endsWith(".gif")) mediaType = "image/gif";
+    else if (contentType.includes("webp") || urlLower.endsWith(".webp")) mediaType = "image/webp";
 
     return { base64, mediaType, sizeKB };
   } catch {
@@ -247,6 +250,198 @@ The BEST photo (highest quality) will be used as the hero/banner image on the we
     console.error("Vision classification failed, using all images:", err);
     return { photos: validImages.map((v) => v.url), logo: null, hasHeroImage: false };
   }
+}
+
+// Booksy renders services client-side, so the static HTML doesn't contain them.
+// Their public web client uses an unauthenticated customer_api endpoint that
+// returns the full business profile (services, variants with duration+price,
+// per-service photos, gallery, logo, cover) as JSON. We hit it directly.
+// The api key below is the same one Booksy ships in their public web bundle —
+// it is a client identifier, not a secret. If it ever rotates we can re-extract
+// it from a Booksy page (look for `apiKey:"web-..."`).
+const BOOKSY_WEB_API_KEY = "web-e3d812bf-d7a2-445d-ab38-55589ae6a121";
+const BOOKSY_BUSINESS_ID_RE = /booksy\.com\/[a-z]{2}-[a-z]{2}\/(\d+)_/i;
+
+interface BooksyVariant {
+  id?: number;
+  label?: string;
+  duration?: number;
+  price?: number;
+  service_price?: string;
+}
+interface BooksyService {
+  active?: boolean;
+  treatment?: { name?: string };
+  description?: string;
+  variants?: BooksyVariant[];
+  photos?: { image?: string }[];
+}
+interface BooksyApiCategory {
+  id?: number;
+  name?: string;
+  services?: BooksyService[];
+}
+interface BooksyImageEntry {
+  image?: string;
+}
+interface BooksyBusiness {
+  id?: number;
+  name?: string;
+  description?: string | null;
+  photo?: string | null;
+  thumbnail_photo?: string | null;
+  location?: { address?: string };
+  service_categories?: BooksyApiCategory[];
+  images?: {
+    cover?: BooksyImageEntry[];
+    logo?: BooksyImageEntry[];
+    biz_photo?: BooksyImageEntry[];
+    inspiration?: BooksyImageEntry[];
+  };
+}
+
+function extractBooksyBusinessId(url: string): number | null {
+  const m = url.match(BOOKSY_BUSINESS_ID_RE);
+  if (!m) return null;
+  const id = Number(m[1]);
+  return Number.isFinite(id) ? id : null;
+}
+
+async function fetchBooksyBusiness(id: number): Promise<BooksyBusiness | null> {
+  try {
+    const res = await fetch(
+      `https://us.booksy.com/api/us/2/customer_api/businesses/${id}`,
+      {
+        headers: {
+          "x-api-key": BOOKSY_WEB_API_KEY,
+          accept: "application/json",
+          "user-agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const data = (await res.json()) as { business?: BooksyBusiness };
+    return data?.business ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Convert Booksy's `service_categories` tree into the same `BookingCategory[]`
+ * shape the Acuity path emits, so downstream code (servicesFromAcuityCategories,
+ * preview wizard) can consume both uniformly.
+ *
+ * Each Booksy variant becomes one row. Naming rule:
+ *   - default to category.name (the marketing-friendly label, e.g. "MENS FADED HAIRCUT")
+ *   - if a category has multiple distinct treatments, fall back to treatment.name
+ *   - append variant.label when it disambiguates pricing tiers (e.g. "— Long")
+ */
+function booksyCategoriesToBookingCategories(
+  apiCategories: BooksyApiCategory[],
+  pageUrl: string,
+): BookingCategory[] {
+  const out: BookingCategory[] = [];
+  for (const cat of apiCategories) {
+    const catName = cat.name?.trim();
+    if (!catName) continue;
+    const services = (cat.services || []).filter((s) => s.active !== false);
+    if (services.length === 0) continue;
+
+    const treatmentNames = new Set(
+      services.map((s) => s.treatment?.name?.trim() || "").filter(Boolean),
+    );
+    const useTreatmentName = treatmentNames.size > 1;
+
+    const rows: BookingCategory["services"] = [];
+    for (const svc of services) {
+      const treatmentName = svc.treatment?.name?.trim() || "";
+      const baseName = useTreatmentName && treatmentName ? treatmentName : catName;
+      const photo = svc.photos?.find((p) => p.image)?.image;
+      const variants = Array.isArray(svc.variants) ? svc.variants : [];
+      for (const v of variants) {
+        const label = (v.label || "").trim();
+        const name = label ? `${baseName} — ${label}` : baseName;
+        const price = v.service_price?.trim()
+          ? v.service_price.trim()
+          : typeof v.price === "number"
+            ? `$${v.price.toFixed(0)}`
+            : "";
+        const durationMin = typeof v.duration === "number" && v.duration > 0 ? v.duration : 60;
+        rows.push({
+          name,
+          price,
+          duration: `${durationMin} min`,
+          id: typeof v.id === "number" ? v.id : 0,
+          ...(photo ? { image: photo } : {}),
+        });
+      }
+    }
+
+    if (rows.length > 0) {
+      out.push({ name: catName, services: rows, directUrl: pageUrl });
+    }
+  }
+  return out;
+}
+
+function collectBooksyImageUrls(arr: BooksyImageEntry[] | undefined): string[] {
+  if (!Array.isArray(arr)) return [];
+  return arr
+    .map((x) => x?.image)
+    .filter((s): s is string => typeof s === "string" && s.length > 0);
+}
+
+async function extractBooksyData(url: string): Promise<{
+  businessName: string | null;
+  description: string | null;
+  address: string | null;
+  logo: string | null;
+  images: string[];
+  categories: BookingCategory[];
+} | null> {
+  const id = extractBooksyBusinessId(url);
+  if (id === null) return null;
+  const biz = await fetchBooksyBusiness(id);
+  if (!biz) return null;
+
+  const categories = booksyCategoriesToBookingCategories(
+    biz.service_categories || [],
+    url,
+  );
+  if (categories.length === 0) return null;
+
+  const imagesObj = biz.images || {};
+  const logo = imagesObj.logo?.[0]?.image || biz.thumbnail_photo || null;
+  const cover = imagesObj.cover?.[0]?.image || biz.photo || null;
+  const galleryRaw = [
+    ...(cover ? [cover] : []),
+    ...collectBooksyImageUrls(imagesObj.cover),
+    ...collectBooksyImageUrls(imagesObj.biz_photo),
+    ...collectBooksyImageUrls(imagesObj.inspiration),
+  ];
+  const seen = new Set<string>();
+  const images: string[] = [];
+  for (const u of galleryRaw) {
+    if (u === logo) continue;
+    if (seen.has(u)) continue;
+    seen.add(u);
+    images.push(u);
+  }
+
+  // Booksy descriptions occasionally have a stray "http://" prefix (artifact of
+  // the owner pasting a URL into the bio field on signup).
+  const desc = (biz.description || "").replace(/^https?:\/\/+/i, "").trim();
+
+  return {
+    businessName: biz.name?.trim() || null,
+    description: desc || null,
+    address: biz.location?.address?.trim() || null,
+    logo,
+    images,
+    categories,
+  };
 }
 
 // Extract data from Vagaro pages using meta tags + embedded JSON
@@ -588,6 +783,42 @@ export async function POST(request: Request) {
     }
 
     const fullUrl = url.match(/^https?:\/\//) ? url : `https://${url}`;
+
+    // Booksy short-circuit: services are client-rendered, so the static HTML
+    // is useless to Claude. Hit Booksy's customer_api directly for the full
+    // structured profile (services with duration, price, per-service photos,
+    // gallery, logo). Falls through to the Claude path on API failure.
+    if (BOOKSY_BUSINESS_ID_RE.test(fullUrl)) {
+      const booksyData = await extractBooksyData(fullUrl);
+      if (booksyData && booksyData.categories.length > 0) {
+        const candidateImages = [
+          ...(booksyData.logo ? [booksyData.logo] : []),
+          ...booksyData.images,
+        ];
+        const { photos, logo: visionLogo, hasHeroImage: heroWorthy } =
+          await classifyImages(candidateImages);
+        const finalLogo = visionLogo || booksyData.logo || null;
+        const finalImages = photos.filter((p) => p !== finalLogo).map(getHighResUrl);
+
+        const services = servicesFromAcuityCategories(booksyData.categories);
+        const categoryNames = booksyData.categories.map((c) => c.name);
+
+        return NextResponse.json({
+          business_name: booksyData.businessName,
+          phone: null,
+          address: booksyData.address,
+          description: booksyData.description,
+          services,
+          logo: finalLogo,
+          images: finalImages,
+          has_hero_image: heroWorthy && finalImages.length > 0,
+          brand_colors: [],
+          booking_url: fullUrl,
+          booking_categories: booksyData.categories,
+          categories: categoryNames,
+        });
+      }
+    }
 
     const res = await fetch(fullUrl, {
       headers: {
