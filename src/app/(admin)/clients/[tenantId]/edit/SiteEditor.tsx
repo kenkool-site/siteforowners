@@ -1483,8 +1483,10 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                     </span>
                   )}
                   <button
+                    type="button"
+                    aria-label="Remove from gallery"
                     onClick={(e) => { e.stopPropagation(); setImages((prev) => prev.filter((_, j) => j !== i)); }}
-                    className="absolute right-1 top-1 hidden h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow group-hover:flex"
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow"
                   >
                     ×
                   </button>
