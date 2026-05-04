@@ -997,6 +997,9 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             {sectionSettings.show_about && sectionSettings.show_about_image && (
               <div className="mt-5">
                 <label className="mb-1 block text-sm font-medium text-gray-700">Custom About Image</label>
+                <p className="mb-2 text-xs text-gray-500">
+                  Pick from your gallery, or upload a new one. Leave empty to use the template default.
+                </p>
                 <div className="flex items-center gap-3">
                   {sectionSettings.about_image_url ? (
                     <div className="relative h-14 w-14 overflow-hidden rounded-lg border">
@@ -1005,23 +1008,50 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                         className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] text-white">×</button>
                     </div>
                   ) : (
-                    <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs text-gray-500 hover:border-amber-400 hover:text-amber-600">
-                      Upload image
-                      <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const fd = new FormData();
-                        fd.append("images", file);
-                        const res = await fetch("/api/upload-images", { method: "POST", body: fd });
-                        if (res.ok) {
-                          const d = await res.json();
-                          if (d.urls?.[0]) setSectionSettings((prev) => ({ ...prev, about_image_url: d.urls[0] }));
-                        }
-                      }} />
-                    </label>
+                    <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed text-[10px] text-gray-400">
+                      None
+                    </div>
                   )}
-                  <span className="text-xs text-gray-400">Replaces default about photo</span>
+                  <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed px-3 py-2 text-xs text-gray-500 hover:border-amber-400 hover:text-amber-600">
+                    Upload new
+                    <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const fd = new FormData();
+                      fd.append("images", file);
+                      const res = await fetch("/api/upload-images", { method: "POST", body: fd });
+                      if (res.ok) {
+                        const d = await res.json();
+                        if (d.urls?.[0]) setSectionSettings((prev) => ({ ...prev, about_image_url: d.urls[0] }));
+                      }
+                    }} />
+                  </label>
                 </div>
+                {images.length > 0 && (
+                  <div className="mt-3">
+                    <p className="mb-2 text-xs text-gray-400">Or pick from your gallery:</p>
+                    <div className="grid grid-cols-6 gap-2 sm:grid-cols-8">
+                      {images.map((img) => {
+                        const selected = sectionSettings.about_image_url === img;
+                        return (
+                          <button
+                            key={img}
+                            type="button"
+                            onClick={() => setSectionSettings((prev) => ({ ...prev, about_image_url: img }))}
+                            className={`relative aspect-square overflow-hidden rounded-md border-2 transition-all ${
+                              selected
+                                ? "border-amber-500 ring-2 ring-amber-500/30"
+                                : "border-transparent hover:border-gray-300"
+                            }`}
+                            aria-label={selected ? "Selected as About image" : "Use as About image"}
+                          >
+                            <Image src={img} alt="" fill className="object-cover" unoptimized />
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </section>
