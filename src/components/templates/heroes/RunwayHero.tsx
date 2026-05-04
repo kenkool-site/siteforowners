@@ -46,7 +46,9 @@ export function RunwayHero({
   const videoRef = useRef<HTMLVideoElement>(null);
   const runwayBackground = "#030303";
   const [headlineTop, headlineGold] = splitHeadline(headline);
-  const showProof = rating !== undefined || reviewCount !== undefined;
+  const hasRating = typeof rating === "number" && Number.isFinite(rating);
+  const hasReviewCount = typeof reviewCount === "number" && Number.isFinite(reviewCount);
+  const showProof = hasRating || hasReviewCount;
   const gold = ensureReadable(colors.primary || "#D8B15A", runwayBackground, 3);
   const primaryCtaText = ensureReadable("#0A0A0A", gold);
 
@@ -207,12 +209,12 @@ export function RunwayHero({
                 Client Proof
               </p>
               <div className="mt-2 flex items-end gap-3">
-                {rating !== undefined && (
+                {hasRating && (
                   <span className="text-4xl font-black leading-none" style={{ color: gold }}>
-                    {rating.toFixed(1)}
+                    {rating!.toFixed(1)}
                   </span>
                 )}
-                {reviewCount !== undefined && (
+                {hasReviewCount && (
                   <span className="pb-1 text-sm font-semibold uppercase tracking-[0.18em] text-white/70">
                     {reviewCount} Reviews
                   </span>
