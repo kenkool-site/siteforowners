@@ -271,10 +271,14 @@ interface BooksyVariant {
 }
 interface BooksyService {
   active?: boolean;
+  name?: string;
   treatment?: { name?: string };
   description?: string;
   variants?: BooksyVariant[];
-  photos?: { image?: string }[];
+  // Booksy returns service-level photos as `{ id, url, order }` (different
+  // shape from gallery photos which use `{ image_id, image, ... }`). Accept
+  // either field defensively.
+  photos?: { url?: string; image?: string }[];
 }
 interface BooksyApiCategory {
   id?: number;
@@ -328,15 +332,25 @@ async function fetchBooksyBusiness(id: number): Promise<BooksyBusiness | null> {
   }
 }
 
+function booksyServicePhotoUrl(svc: BooksyService): string | undefined {
+  const p = svc.photos?.find((x) => x?.url || x?.image);
+  return p?.url || p?.image || undefined;
+}
+
 /**
  * Convert Booksy's `service_categories` tree into the same `BookingCategory[]`
  * shape the Acuity path emits, so downstream code (servicesFromAcuityCategories,
  * preview wizard) can consume both uniformly.
  *
- * Each Booksy variant becomes one row. Naming rule:
- *   - default to category.name (the marketing-friendly label, e.g. "MENS FADED HAIRCUT")
- *   - if a category has multiple distinct treatments, fall back to treatment.name
- *   - append variant.label when it disambiguates pricing tiers (e.g. "— Long")
+ * Each Booksy variant becomes one row. Naming priority for the row:
+ *   1. service.name (top-level marketing label set by the owner, when present)
+ *   2. service.treatment.name (Booksy taxonomy fallback)
+ *   3. category.name (last resort)
+ * variant.label is appended when it disambiguates pricing tiers.
+ *
+ * Categories whose name is empty (some Booksy accounts use a single unnamed
+ * bucket for everything) get a "Services" fallback name so we don't drop the
+ * whole business and fall through to the Claude path.
  */
 function booksyCategoriesToBookingCategories(
   apiCategories: BooksyApiCategory[],
@@ -344,10 +358,9 @@ function booksyCategoriesToBookingCategories(
 ): BookingCategory[] {
   const out: BookingCategory[] = [];
   for (const cat of apiCategories) {
-    const catName = cat.name?.trim();
-    if (!catName) continue;
     const services = (cat.services || []).filter((s) => s.active !== false);
     if (services.length === 0) continue;
+    const catName = cat.name?.trim() || "Services";
 
     const treatmentNames = new Set(
       services.map((s) => s.treatment?.name?.trim() || "").filter(Boolean),
@@ -356,13 +369,19 @@ function booksyCategoriesToBookingCategories(
 
     const rows: BookingCategory["services"] = [];
     for (const svc of services) {
+      const ownerName = svc.name?.trim() || "";
       const treatmentName = svc.treatment?.name?.trim() || "";
-      const baseName = useTreatmentName && treatmentName ? treatmentName : catName;
-      const photo = svc.photos?.find((p) => p.image)?.image;
+      const baseName =
+        ownerName ||
+        (useTreatmentName && treatmentName ? treatmentName : "") ||
+        treatmentName ||
+        catName;
+      const photo = booksyServicePhotoUrl(svc);
       const variants = Array.isArray(svc.variants) ? svc.variants : [];
       for (const v of variants) {
         const label = (v.label || "").trim();
         const name = label ? `${baseName} — ${label}` : baseName;
+        if (!name.trim()) continue;
         const price = v.service_price?.trim()
           ? v.service_price.trim()
           : typeof v.price === "number"
@@ -381,6 +400,24 @@ function booksyCategoriesToBookingCategories(
 
     if (rows.length > 0) {
       out.push({ name: catName, services: rows, directUrl: pageUrl });
+    }
+  }
+  return out;
+}
+
+/** Pull every distinct service-photo URL across a Booksy categories tree. */
+function collectBooksyServicePhotos(apiCategories: BooksyApiCategory[]): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const cat of apiCategories) {
+    for (const svc of cat.services || []) {
+      for (const p of svc.photos || []) {
+        const url = p?.url || p?.image;
+        if (url && !seen.has(url)) {
+          seen.add(url);
+          out.push(url);
+        }
+      }
     }
   }
   return out;
@@ -415,11 +452,15 @@ async function extractBooksyData(url: string): Promise<{
   const imagesObj = biz.images || {};
   const logo = imagesObj.logo?.[0]?.image || biz.thumbnail_photo || null;
   const cover = imagesObj.cover?.[0]?.image || biz.photo || null;
+  const servicePhotos = collectBooksyServicePhotos(biz.service_categories || []);
   const galleryRaw = [
     ...(cover ? [cover] : []),
     ...collectBooksyImageUrls(imagesObj.cover),
     ...collectBooksyImageUrls(imagesObj.biz_photo),
     ...collectBooksyImageUrls(imagesObj.inspiration),
+    // Per-service photos belong in the gallery too so the user can showcase
+    // their work even when biz_photo/inspiration are sparse.
+    ...servicePhotos,
   ];
   const seen = new Set<string>();
   const images: string[] = [];
