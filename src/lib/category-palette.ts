@@ -1,6 +1,7 @@
 /**
  * Deterministic accent colors per category name (admin Services UI).
- * Full Tailwind class strings so the compiler always includes them.
+ * Full Tailwind class strings — `./src/lib/**` must be listed in `tailwind.config` `content`
+ * so JIT emits these utilities (palette is not inlined in JSX).
  */
 export const CATEGORY_PALETTE = [
   { shell: "border-rose-200 bg-rose-50", name: "text-rose-950", count: "text-rose-800/80", accentBar: "border-l-rose-500" },
