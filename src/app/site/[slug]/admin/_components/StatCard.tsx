@@ -12,14 +12,17 @@ export function StatCard({
   href?: string;
 }) {
   const className =
-    "bg-white border border-gray-200 rounded-lg p-4 " +
+    "bg-white border border-warm-cream1 rounded-[1.35rem] p-4 shadow-sm " +
     (fullWidth ? "col-span-2 md:col-span-4 " : "") +
-    (href ? "hover:border-gray-300 transition-colors cursor-pointer block" : "");
+    (href ? "hover:border-pink-200 hover:bg-pink-50/40 transition-colors cursor-pointer block" : "");
 
   const inner = (
     <>
-      <div className="text-2xl md:text-3xl font-bold text-[color:var(--admin-primary)]">{value}</div>
-      <div className="text-xs text-gray-600 mt-0.5">{label}</div>
+      <div className="text-[10px] font-black uppercase tracking-[0.16em] text-warm-textMuted">{label}</div>
+      <div className="mt-4 text-3xl font-black leading-none text-pop-pink md:text-4xl">{value}</div>
+      <div className="mt-1 text-xs font-semibold text-warm-textMuted">
+        {href ? "Tap to review" : "Updated today"}
+      </div>
     </>
   );
 
