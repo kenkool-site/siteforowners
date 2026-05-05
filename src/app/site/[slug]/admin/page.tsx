@@ -48,31 +48,66 @@ export default async function AdminHome({ params }: { params: { slug: string } }
   cards.push({ value: rollups.unreadLeads, label: "Unread leads", href: "/admin/leads" });
 
   const gridCols = cards.length === 1 ? "grid-cols-1" : "grid-cols-2 md:grid-cols-4";
+  const primaryActionHref = rollups.unreadLeads > 0 ? "/admin/leads" : showSchedule ? "/admin/schedule" : "/admin/updates";
+  const primaryActionLabel = rollups.unreadLeads > 0 ? "Review leads" : showSchedule ? "Open schedule" : "Post update";
+  const nextUpLabel = showSchedule
+    ? `${rollups.bookingsToday} ${rollups.bookingsToday === 1 ? "booking" : "bookings"} today`
+    : `${rollups.unreadLeads} unread ${rollups.unreadLeads === 1 ? "lead" : "leads"}`;
 
   return (
-    <div className="py-4 md:py-6">
-      <div className="px-4 md:px-8">
-        <div className="text-lg font-semibold">
-          <Greeting name={tenant.business_name} />
+    <div className="px-4 py-4 md:px-8 md:py-6">
+      <section className="overflow-hidden rounded-[2rem] bg-warm-deep p-6 text-pop-cream md:p-8">
+        <div className="grid gap-6 md:grid-cols-[1fr_14rem] md:items-start">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.24em] text-pop-pink">Today</p>
+            <h1 className="mt-3 font-serif text-4xl font-semibold leading-[0.95] tracking-[-0.04em] md:text-5xl">
+              <Greeting name={tenant.business_name} />
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-pop-cream/70">
+              Here is what needs attention: bookings, leads, visitors, and recent customer activity.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <a
+                href={primaryActionHref}
+                className="rounded-full bg-pop-pink px-5 py-3 text-sm font-black text-pop-cream transition hover:bg-pop-pink/90"
+              >
+                {primaryActionLabel}
+              </a>
+              <a
+                href="/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-pop-cream/20 px-5 py-3 text-sm font-black text-pop-cream transition hover:bg-pop-cream/10"
+              >
+                View site
+              </a>
+            </div>
+          </div>
+          <div className="rounded-[1.5rem] border border-pop-cream/15 bg-pop-cream/10 p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pop-pink">Next up</p>
+            <p className="mt-6 text-4xl font-black leading-none">{showSchedule ? rollups.bookingsToday : rollups.unreadLeads}</p>
+            <p className="mt-2 text-sm font-semibold text-pop-cream/70">{nextUpLabel}</p>
+          </div>
         </div>
-        <div className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening today</div>
-      </div>
+      </section>
 
-      <div className={"grid gap-2.5 px-3 md:px-8 mt-4 " + gridCols}>
+      <div className={"mt-4 grid gap-3 " + gridCols}>
         {cards.map((c) => (
           <StatCard key={c.label} value={c.value} label={c.label} fullWidth={cards.length === 1} href={c.href} />
         ))}
       </div>
 
-      <div className="md:px-8">
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
         <VisitorsStrip stats={visitStats} thisMonth={monthlyVisits} />
-      </div>
-
-      <div className="px-3 md:px-8 mt-4">
-        <div className="text-[10px] uppercase tracking-wider font-semibold text-gray-500 mb-2">
-          Recent activity
-        </div>
-        <RecentActivity entries={activity} />
+        <section>
+          <div className="mb-2 flex items-center justify-between px-1">
+            <h2 className="text-sm font-black uppercase tracking-[0.16em] text-warm-textMuted">
+              Recent activity
+            </h2>
+            <span className="text-xs font-black text-pop-pink">Live feed</span>
+          </div>
+          <RecentActivity entries={activity} />
+        </section>
       </div>
     </div>
   );

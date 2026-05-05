@@ -15,30 +15,26 @@ export function VisitorsStrip({
         Math.abs(stats.trendPct) +
         "% vs last week";
   const trendClass =
-    stats.trendPct === null ? "" : stats.trendPct >= 0 ? "text-green-700" : "text-gray-600";
+    stats.trendPct === null ? "" : stats.trendPct >= 0 ? "text-emerald-700" : "text-warm-textMuted";
 
   return (
     <div
-      className="mx-3 my-3 md:mx-0 rounded-xl border border-[color:var(--admin-primary-border)] p-4"
-      style={{
-        background:
-          "linear-gradient(135deg, var(--admin-primary-light) 0%, var(--admin-primary-hover) 100%)",
-      }}
+      className="rounded-[1.75rem] border border-warm-cream1 bg-white p-5 shadow-sm"
     >
       <div className="flex justify-between items-baseline">
-        <span className="text-xs uppercase tracking-wider font-semibold text-[color:var(--admin-primary)] opacity-70">
+        <span className="text-xs uppercase tracking-[0.18em] font-black text-warm-textMuted">
           Visitors this week
         </span>
         {trendLabel && <span className={"text-xs font-semibold " + trendClass}>{trendLabel}</span>}
       </div>
-      <div className="text-3xl font-bold text-[color:var(--admin-primary)] mt-1 leading-none">{stats.thisWeek}</div>
-      <div className="text-xs text-[color:var(--admin-primary)] opacity-70 mt-0.5">
+      <div className="mt-4 text-5xl font-black leading-none text-warm-deep">{stats.thisWeek}</div>
+      <div className="mt-1 text-sm font-semibold text-warm-textMuted">
         {stats.thisWeek === 1 ? "Person checked out your site" : "People checked out your site"}
       </div>
       <Sparkline bars={stats.sparkline} />
-      <div className="mt-3 pt-3 border-t border-[color:var(--admin-primary-border)] flex justify-between text-xs">
-        <span className="text-[color:var(--admin-primary)] opacity-70">This month</span>
-        <span className="font-semibold text-[color:var(--admin-primary)]">
+      <div className="mt-4 flex justify-between border-t border-warm-cream1 pt-4 text-xs">
+        <span className="font-bold text-warm-textMuted">This month</span>
+        <span className="font-black text-warm-deep">
           {thisMonth} {thisMonth === 1 ? "visitor" : "visitors"}
         </span>
       </div>
