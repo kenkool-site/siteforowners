@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
+import { DemoPortfolioCard } from "./DemoPortfolioCard";
 
 const PORTFOLIO_CARDS = [
   {
@@ -9,6 +10,12 @@ const PORTFOLIO_CARDS = [
     accent: "bg-pop-pink",
     tone: "from-pink-500/35 to-rose-950",
     action: "Book a gel set",
+    images: [
+      "/marketing/demo/portfolio/nails-1.jpeg",
+      "/marketing/demo/portfolio/nails-2.jpeg",
+      "/marketing/demo/portfolio/nails-3.jpeg",
+      "/marketing/demo/portfolio/nails-4.png",
+    ],
   },
   {
     category: "Locs / hair",
@@ -146,33 +153,16 @@ export function DemoShowcase() {
 
           <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {PORTFOLIO_CARDS.map((card, index) => (
-              <article
+              <DemoPortfolioCard
                 key={card.category}
-                className={`group overflow-hidden rounded-[2rem] bg-gradient-to-br ${card.tone} p-4 text-pop-cream shadow-xl ${
-                  index === 0 ? "md:col-span-2" : ""
-                }`}
-              >
-                <div className="rounded-[1.5rem] border border-white/15 bg-black/30 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <p className="text-xs font-black uppercase tracking-[0.2em] text-pop-cream/65">
-                      {card.category}
-                    </p>
-                    <span className={`h-3 w-3 rounded-full ${card.accent}`} />
-                  </div>
-                  <div className="mt-8 rounded-[1.25rem] bg-pop-cream p-3 text-warm-deep">
-                    <div className={`h-28 rounded-2xl ${card.accent}`} />
-                    <div className="mt-4 h-3 w-3/4 rounded-full bg-warm-deep/20" />
-                    <div className="mt-2 h-3 w-1/2 rounded-full bg-warm-deep/15" />
-                    <div className="mt-5 inline-flex rounded-full bg-warm-deep px-4 py-2 text-xs font-black text-pop-cream">
-                      {card.action}
-                    </div>
-                  </div>
-                  <h3 className="mt-5 text-2xl font-black leading-tight">{card.title}</h3>
-                  <p className="mt-4 inline-flex rounded-full border border-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-pop-cream/75">
-                    Owner dashboard included
-                  </p>
-                </div>
-              </article>
+                category={card.category}
+                title={card.title}
+                accent={card.accent}
+                tone={card.tone}
+                action={card.action}
+                images={"images" in card ? card.images : undefined}
+                featured={index === 0}
+              />
             ))}
           </div>
         </div>
