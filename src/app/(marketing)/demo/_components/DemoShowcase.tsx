@@ -108,7 +108,8 @@ export function DemoShowcase() {
             <div className="relative overflow-hidden rounded-[2.25rem] border border-pop-cream/15 bg-black shadow-2xl">
               <video
                 className="aspect-[4/5] w-full object-cover opacity-90 motion-reduce:hidden md:aspect-[5/4]"
-                src="/marketing/hero-defaults/nails.mp4"
+                src="/marketing/demo/demo-reel.mp4"
+                poster="/marketing/demo/demo-reel-poster.jpg"
                 autoPlay
                 muted
                 loop
