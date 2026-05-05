@@ -201,12 +201,16 @@ export function ServiceRow({
   }
 
   if (!expanded) {
+    const asymmetricPad =
+      failing || !service.category
+        ? "px-3"
+        : `border-l-4 ${catPal.accentBar} pl-2.5 pr-3`;
     return (
       <button
         ref={containerRef as unknown as React.RefObject<HTMLButtonElement>}
         type="button"
         onClick={() => setExpanded(true)}
-        className={`flex w-full items-center gap-3 rounded-[1.25rem] border border-warm-cream1 bg-white px-3 py-3 text-left transition-colors ${
+        className={`flex w-full items-center gap-3 rounded-[1.25rem] border border-warm-cream1 bg-white py-3 shadow-sm ${asymmetricPad} text-left transition-colors ${
           failing ? "border-red-500 ring-2 ring-red-200" : "hover:border-pink-200"
         }`}
       >
@@ -214,16 +218,18 @@ export function ServiceRow({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={service.image} alt="" className="h-12 w-12 rounded-md object-cover flex-shrink-0" />
         ) : (
-          <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-warm-cream2" />
+          <div className="h-12 w-12 flex-shrink-0 rounded-xl border border-warm-cream1/80 bg-warm-cream2" />
         )}
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-black text-warm-deep">{service.name || "(untitled)"}</div>
-          <div className="text-xs font-bold text-warm-textMuted">
-            {formatDuration(duration)} · {service.price || "—"}
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-warm-textMuted">
+            <span className="whitespace-nowrap">
+              {formatDuration(duration)} · {service.price || "—"}
+            </span>
             {service.category && (
               <span
                 className={
-                  "ml-2 inline-block rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider " +
+                  "max-w-[10rem] truncate rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider " +
                   catPal.tag
                 }
               >
@@ -232,7 +238,7 @@ export function ServiceRow({
             )}
           </div>
         </div>
-        <span className="text-warm-textMuted/60">›</span>
+        <span className="shrink-0 text-lg font-light leading-none text-warm-textMuted/55">›</span>
       </button>
     );
   }
