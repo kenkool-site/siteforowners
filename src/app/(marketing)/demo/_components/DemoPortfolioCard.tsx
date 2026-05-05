@@ -10,7 +10,7 @@ type DemoPortfolioCardProps = {
   accent: string;
   tone: string;
   action: string;
-  images?: string[];
+  images?: readonly string[];
   featured?: boolean;
 };
 
