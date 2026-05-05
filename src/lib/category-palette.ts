@@ -24,7 +24,11 @@ export function categoryPaletteIndex(category: string): number {
   return Math.abs(h) % CATEGORY_PALETTE.length;
 }
 
-export function getCategoryPalette(category: string | undefined | null) {
+export function getCategoryPalette(
+  category: string | undefined | null,
+  /** When provided, colors follow list order — no collisions until length exceeds palette slots. */
+  orderedCategories?: readonly string[],
+) {
   const key = (category ?? "").trim();
   if (!key) {
     return {
@@ -35,7 +39,19 @@ export function getCategoryPalette(category: string | undefined | null) {
       accentBar: "border-l-transparent",
     };
   }
-  const p = CATEGORY_PALETTE[categoryPaletteIndex(key)];
+  let paletteIndex: number;
+  if (orderedCategories && orderedCategories.length > 0) {
+    const idx = orderedCategories.indexOf(key);
+    if (idx !== -1) {
+      paletteIndex = idx % CATEGORY_PALETTE.length;
+    } else {
+      // Service tagged with a category that was removed from the list — keep a stable hue.
+      paletteIndex = categoryPaletteIndex(key);
+    }
+  } else {
+    paletteIndex = categoryPaletteIndex(key);
+  }
+  const p = CATEGORY_PALETTE[paletteIndex];
   return {
     shell: p.shell,
     name: p.name,

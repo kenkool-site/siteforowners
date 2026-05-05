@@ -154,7 +154,7 @@ export function ServiceRow({
 
   const duration = service.duration_minutes ?? 60;
   const addOns: AddOn[] = service.add_ons ?? [];
-  const catPal = getCategoryPalette(service.category);
+  const catPal = getCategoryPalette(service.category, categories);
 
   function set<K extends keyof ServiceItem>(key: K, value: ServiceItem[K]) {
     onChange({ ...service, [key]: value });

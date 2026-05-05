@@ -134,7 +134,7 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
         {categories.map((name, i) => {
           const isEditing = editingIndex === i;
           const count = counts[name] ?? 0;
-          const pal = getCategoryPalette(name);
+          const pal = getCategoryPalette(name, categories);
           return (
             <div
               key={`${name}-${i}`}
