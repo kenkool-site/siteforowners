@@ -107,7 +107,7 @@ export function DemoShowcase() {
             <div className="absolute -inset-5 rounded-[2.5rem] bg-pop-pink/20 blur-3xl" />
             <div className="relative overflow-hidden rounded-[2.25rem] border border-pop-cream/15 bg-black shadow-2xl">
               <video
-                className="aspect-[4/5] w-full object-cover opacity-90 motion-reduce:hidden md:aspect-[9/11]"
+                className="aspect-[4/5] w-full object-cover opacity-90 motion-reduce:hidden md:aspect-[3/4]"
                 src="/marketing/demo/demo-reel.mp4"
                 poster="/marketing/demo/demo-reel-poster.jpg"
                 autoPlay
@@ -118,7 +118,7 @@ export function DemoShowcase() {
               />
               <div
                 aria-hidden="true"
-                className="hidden aspect-[4/5] w-full bg-gradient-to-br from-pop-pink via-rose-900 to-black motion-reduce:block md:aspect-[9/11]"
+                className="hidden aspect-[4/5] w-full bg-gradient-to-br from-pop-pink via-rose-900 to-black motion-reduce:block md:aspect-[3/4]"
               />
               <div className="absolute left-4 top-4 max-w-[15rem] rounded-2xl border border-white/15 bg-black/55 px-4 py-3 backdrop-blur">
                 <p className="text-[10px] font-black uppercase tracking-[0.22em] text-pop-cream/65">
