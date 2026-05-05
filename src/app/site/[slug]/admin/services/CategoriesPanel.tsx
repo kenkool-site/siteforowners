@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getCategoryPalette } from "@/lib/category-palette";
 
 interface CategoriesPanelProps {
   categories: string[];
@@ -94,14 +95,14 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
 
   if (categories.length === 0 && pendingDraft === null) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 text-sm">
-        <div className="text-xs text-gray-500 mb-2">
+      <div className="rounded-[1.75rem] border border-warm-cream1 bg-white p-4 text-sm">
+        <div className="mb-2 text-xs font-bold text-warm-textMuted">
           Group your services so customers can browse them.
         </div>
         <button
           type="button"
           onClick={add}
-          className="text-sm bg-[var(--admin-primary)] text-white font-medium px-3 py-1.5 rounded-lg"
+          className="rounded-full bg-pop-pink px-4 py-2 text-sm font-black text-pop-cream transition hover:bg-pink-700"
         >
           + Add category
         </button>
@@ -110,16 +111,16 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-2">
+    <div className="space-y-2 rounded-[1.75rem] border border-warm-cream1 bg-white p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-pop-pink">
           Categories
         </span>
         <button
           type="button"
           onClick={add}
           disabled={categories.length >= MAX_ENTRIES}
-          className="text-xs bg-[var(--admin-primary)] text-white font-medium px-2 py-1 rounded disabled:opacity-50"
+          className="rounded-full bg-pop-pink px-3 py-1.5 text-xs font-black text-pop-cream disabled:opacity-50"
         >
           + Add
         </button>
@@ -133,10 +134,14 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
         {categories.map((name, i) => {
           const isEditing = editingIndex === i;
           const count = counts[name] ?? 0;
+          const pal = getCategoryPalette(name);
           return (
             <div
               key={`${name}-${i}`}
-              className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-full pl-3 pr-1 py-1 text-xs"
+              className={
+                "inline-flex items-center gap-1 rounded-full border py-1 pl-3 pr-1 text-xs " +
+                (isEditing ? "border-warm-cream1 bg-white" : pal.shell)
+              }
             >
               {isEditing ? (
                 <>
@@ -153,7 +158,7 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
                       }
                     }}
                     maxLength={MAX_LENGTH}
-                    className="bg-white border border-gray-300 rounded px-1 py-0.5 text-xs w-32"
+                    className="w-32 rounded border border-warm-cream1 bg-white px-1 py-0.5 text-xs"
                   />
                   <button
                     type="button"
@@ -186,11 +191,11 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
                       setDraftName(name);
                       setError(null);
                     }}
-                    className="font-medium hover:underline"
+                    className={"font-bold hover:underline " + (isEditing ? "text-warm-deep" : pal.name)}
                   >
                     {name}
                   </button>
-                  <span className="text-gray-500">({count})</span>
+                  <span className={isEditing ? "text-warm-textMuted" : pal.count}>({count})</span>
                   <button type="button" onClick={() => move(i, -1)} disabled={i === 0} aria-label="Move up" className="text-gray-500 disabled:opacity-30 px-1">↑</button>
                   <button type="button" onClick={() => move(i, 1)} disabled={i === categories.length - 1} aria-label="Move down" className="text-gray-500 disabled:opacity-30 px-1">↓</button>
                   <button
@@ -209,7 +214,7 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
 
         {/* Pending draft chip — explicit ✓ to commit, × to discard, Enter / Esc on keyboard. */}
         {pendingDraft !== null && (
-          <div className="inline-flex items-center gap-1 bg-gray-100 border border-gray-200 rounded-full pl-3 pr-1 py-1 text-xs">
+          <div className="inline-flex items-center gap-1 rounded-full border border-warm-cream1 bg-warm-cream2 py-1 pl-3 pr-1 text-xs">
             <input
               autoFocus
               type="text"
@@ -223,7 +228,7 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
                 if (e.key === "Escape") discardPendingDraft();
               }}
               maxLength={MAX_LENGTH}
-              className="bg-white border border-gray-300 rounded px-1 py-0.5 text-xs w-32"
+              className="w-32 rounded border border-warm-cream1 bg-white px-1 py-0.5 text-xs"
             />
             <button
               type="button"
@@ -248,7 +253,7 @@ export function CategoriesPanel({ categories, counts, onChange }: CategoriesPane
       </div>
 
       {removeTarget && (
-        <div className="bg-amber-50 border border-amber-200 rounded p-2 text-xs flex items-center gap-2">
+        <div className="flex items-center gap-2 rounded-[1.25rem] border border-orange-200 bg-orange-50 p-2 text-xs font-bold text-orange-950">
           <span className="flex-1">
             Remove &quot;<strong>{removeTarget}</strong>&quot;?
             {(counts[removeTarget] ?? 0) > 0 && (

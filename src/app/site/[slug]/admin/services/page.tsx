@@ -90,18 +90,13 @@ export default async function ServicesPage({
   );
 
   return (
-    <div className="py-4 md:py-6">
-      <div className="px-4 md:px-8">
-        <div className="text-lg font-semibold">Services</div>
-      </div>
-      <div className="px-3 md:px-8 mt-4">
-        <ServicesClient
-          initialServices={services}
-          initialCategories={categories}
-          initialBookingPolicies={bookingPolicies}
-          initialDeposit={deposit}
-        />
-      </div>
+    <div className="px-4 py-5 md:px-8 md:py-8">
+      <ServicesClient
+        initialServices={services}
+        initialCategories={categories}
+        initialBookingPolicies={bookingPolicies}
+        initialDeposit={deposit}
+      />
     </div>
   );
 }

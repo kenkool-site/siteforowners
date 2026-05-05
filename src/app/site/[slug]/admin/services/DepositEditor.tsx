@@ -37,10 +37,10 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="w-full bg-white border border-gray-200 rounded-lg p-3 text-left text-sm text-gray-600 hover:border-gray-300"
+        className="w-full rounded-[1.75rem] border border-warm-cream1 bg-white p-4 text-left text-sm font-bold text-warm-textMuted transition hover:border-pink-200"
       >
-        <span className="font-semibold text-gray-700">+ Require a deposit</span>
-        <span className="block text-xs text-gray-500 mt-0.5">
+        <span className="font-black text-warm-deep">+ Require a deposit</span>
+        <span className="mt-0.5 block text-xs text-warm-textMuted">
           Customers pay before their booking is confirmed. Off-platform (Cash App, Zelle) — you mark it received.
         </span>
       </button>
@@ -54,13 +54,13 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
       <button
         type="button"
         onClick={() => setExpanded(true)}
-        className="w-full bg-white border border-gray-200 rounded-lg p-3 text-left hover:border-gray-300"
+        className="w-full rounded-[1.75rem] border border-warm-cream1 bg-white p-4 text-left transition hover:border-pink-200"
       >
         <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Deposit</span>
-          <span className="text-xs text-[var(--admin-primary)] font-medium">Edit ▾</span>
+          <span className="text-[10px] font-black uppercase tracking-[0.18em] text-pop-pink">Deposit</span>
+          <span className="text-xs font-black text-pop-pink">Edit ▾</span>
         </div>
-        <p className="mt-1 text-sm text-gray-600">
+        <p className="mt-1 text-sm font-bold text-warm-textMuted">
           <strong>{displayValue}</strong> required ({mode === "fixed" ? "flat" : "of service total"})
           {methodCount > 0 ? ` · ${methodCount} payment method${methodCount === 1 ? "" : "s"}` : ""}
         </p>
@@ -70,14 +70,10 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
 
   // Expanded.
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-3 space-y-3">
+    <div className="space-y-3 rounded-[1.75rem] border border-warm-cream1 bg-white p-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">Deposit</span>
-        <button
-          type="button"
-          onClick={() => setExpanded(false)}
-          className="text-xs text-[var(--admin-primary)] font-medium"
-        >
+        <span className="text-[10px] font-black uppercase tracking-[0.18em] text-pop-pink">Deposit</span>
+        <button type="button" onClick={() => setExpanded(false)} className="text-xs font-black text-pop-pink">
           Done ▴
         </button>
       </div>
@@ -89,7 +85,7 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
           onChange={(e) => onChange({ ...value, deposit_required: e.target.checked })}
           className="h-4 w-4"
         />
-        <span className="font-medium text-gray-700">Require deposit</span>
+        <span className="font-bold text-warm-deep">Require deposit</span>
       </label>
 
       {required && (
@@ -116,7 +112,7 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
           <div className="flex items-center gap-2">
             {mode === "fixed" ? (
               <>
-                <span className="text-sm text-gray-500">$</span>
+                <span className="text-sm text-warm-textMuted">$</span>
                 <input
                   type="number"
                   min={1}
@@ -128,7 +124,7 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
                     onChange({ ...value, deposit_value: v === "" ? null : parseFloat(v) });
                   }}
                   placeholder="40"
-                  className="w-24 rounded border border-gray-200 px-2 py-1 text-sm"
+                  className="w-24 rounded border border-warm-cream1 px-2 py-1 text-sm"
                 />
               </>
             ) : (
@@ -145,25 +141,25 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
                     onChange({ ...value, deposit_value: v === "" ? null : parseInt(v, 10) });
                   }}
                   placeholder="20"
-                  className="w-20 rounded border border-gray-200 px-2 py-1 text-sm"
+                  className="w-20 rounded border border-warm-cream1 px-2 py-1 text-sm"
                 />
-                <span className="text-sm text-gray-500">% of service total</span>
+                <span className="text-sm text-warm-textMuted">% of service total</span>
               </>
             )}
           </div>
 
-          <div className="border-t border-gray-100 pt-3 space-y-2">
-            <div className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
+          <div className="border-t border-warm-cream1 pt-3 space-y-2">
+            <div className="text-[10px] font-black uppercase tracking-[0.16em] text-pop-pink">
               Payment methods
             </div>
-            <p className="text-xs text-gray-500">
+            <p className="text-xs text-warm-textMuted">
               Fill in only the ones you accept. Customers will see what you provide.
             </p>
 
             <label className="block">
-              <span className="block text-xs text-gray-600 mb-1">CashApp</span>
-              <div className="flex items-center rounded border border-gray-200 overflow-hidden">
-                <span className="bg-gray-50 px-2 py-1 text-sm text-gray-500 border-r border-gray-200">$</span>
+              <span className="block text-xs text-warm-textMuted mb-1">CashApp</span>
+              <div className="flex items-center rounded border border-warm-cream1 overflow-hidden">
+                <span className="border-r border-warm-cream1 bg-warm-cream2 px-2 py-1 text-sm text-warm-textMuted">$</span>
                 <input
                   type="text"
                   value={cashapp}
@@ -180,27 +176,27 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
             </label>
 
             <label className="block">
-              <span className="block text-xs text-gray-600 mb-1">Zelle (phone or email)</span>
+              <span className="block text-xs text-warm-textMuted mb-1">Zelle (phone or email)</span>
               <input
                 type="text"
                 value={zelle}
                 onChange={(e) => onChange({ ...value, deposit_zelle: e.target.value })}
                 placeholder="(555) 123-4567 or you@example.com"
-                className="w-full rounded border border-gray-200 px-2 py-1 text-sm"
+                className="w-full rounded border border-warm-cream1 px-2 py-1 text-sm"
                 autoCapitalize="off"
                 spellCheck={false}
               />
             </label>
 
             <div>
-              <span className="block text-xs text-gray-600 mb-1">Other (optional)</span>
+              <span className="block text-xs text-warm-textMuted mb-1">Other (optional)</span>
               <div className="grid grid-cols-2 gap-2">
                 <input
                   type="text"
                   value={otherLabel}
                   onChange={(e) => onChange({ ...value, deposit_other_label: e.target.value })}
                   placeholder="Venmo"
-                  className="rounded border border-gray-200 px-2 py-1 text-sm"
+                  className="rounded border border-warm-cream1 px-2 py-1 text-sm"
                   autoCapitalize="off"
                   spellCheck={false}
                 />
@@ -209,7 +205,7 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
                   value={otherValue}
                   onChange={(e) => onChange({ ...value, deposit_other_value: e.target.value })}
                   placeholder="@handle"
-                  className="rounded border border-gray-200 px-2 py-1 text-sm"
+                  className="rounded border border-warm-cream1 px-2 py-1 text-sm"
                   autoCapitalize="off"
                   spellCheck={false}
                 />

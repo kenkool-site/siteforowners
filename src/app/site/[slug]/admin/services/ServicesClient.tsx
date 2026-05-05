@@ -184,40 +184,74 @@ export function ServicesClient({
   }
 
   return (
-    <div className="space-y-3 pb-24">
-      {showTruncatedNotice && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900 flex items-start gap-2">
-          <span aria-hidden>ℹ️</span>
-          <div className="flex-1">
-            <span className="font-semibold">{truncatedIndexes.size} {truncatedIndexes.size === 1 ? "service was" : "services were"} shortened</span> to fit current limits (name ≤ {MAX_NAME}, price ≤ {MAX_PRICE}, description ≤ {MAX_DESCRIPTION} chars). Review the rows below before saving — you can edit them now.
+    <div className="space-y-4 pb-24 md:space-y-5">
+      <section className="overflow-hidden rounded-3xl bg-warm-deep text-pop-cream shadow-sm md:rounded-[2rem]">
+        <div className="grid gap-5 p-5 sm:p-6 md:grid-cols-[minmax(0,1fr)_16rem] md:p-8">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-pop-pink">Services</p>
+            <h1 className="mt-2 max-w-2xl font-serif text-3xl font-black leading-[0.95] tracking-[-0.045em] sm:text-4xl md:text-5xl">
+              What clients book on your site.
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm font-bold leading-6 text-pop-cream/70">
+              Edit offerings, categories, booking notes, and deposits. Save when you are ready — changes go live for your booking flow.
+            </p>
           </div>
-          <button type="button" onClick={() => setShowTruncatedNotice(false)} className="text-amber-700 hover:text-amber-900" aria-label="Dismiss">×</button>
+          <div className="rounded-[1.5rem] border border-pop-cream/15 bg-pop-cream/10 p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-200">At a glance</p>
+            <div className="mt-3 text-4xl font-black leading-none md:text-5xl">{services.length}</div>
+            <div className="mt-1 text-sm font-bold text-pop-cream/70">
+              {services.length === 1 ? "service" : "services"}
+              {categories.length > 0 ? ` · ${categories.length} ${categories.length === 1 ? "category" : "categories"}` : ""}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {showTruncatedNotice && (
+        <div className="flex items-start gap-2 rounded-[1.5rem] border border-orange-200 bg-orange-50 p-3 text-xs font-bold text-orange-950">
+          <span className="sr-only">Note</span>
+          <span aria-hidden className="mt-0.5 font-black text-orange-600">
+            !
+          </span>
+          <div className="flex-1">
+            <span className="font-black">
+              {truncatedIndexes.size} {truncatedIndexes.size === 1 ? "service was" : "services were"} shortened
+            </span>{" "}
+            to fit current limits (name ≤ {MAX_NAME}, price ≤ {MAX_PRICE}, description ≤ {MAX_DESCRIPTION} chars). Review the rows below
+            before saving — you can edit them now.
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowTruncatedNotice(false)}
+            className="font-black text-orange-800 hover:text-orange-950"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
         </div>
       )}
 
-      <CategoriesPanel
-        categories={categories}
-        counts={counts}
-        onChange={handleCategoriesChange}
-      />
+      <CategoriesPanel categories={categories} counts={counts} onChange={handleCategoriesChange} />
 
       <BookingPoliciesEditor value={bookingPolicies} onChange={setBookingPolicies} />
 
       <DepositEditor value={deposit} onChange={setDeposit} />
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-gray-500">{services.length} {services.length === 1 ? "service" : "services"}</span>
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs font-bold text-warm-textMuted">
+          {services.length} {services.length === 1 ? "service" : "services"}
+        </span>
         <button
           type="button"
           onClick={add}
-          className="text-sm bg-[var(--admin-primary)] text-white font-medium px-3 py-1.5 rounded-lg"
+          className="rounded-full bg-pop-pink px-4 py-2 text-xs font-black text-pop-cream transition hover:bg-pink-700"
         >
           + Add service
         </button>
       </div>
 
       {services.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-lg p-6 text-center text-sm text-gray-500">
+        <div className="rounded-[1.75rem] border border-warm-cream1 bg-white p-6 text-center text-sm font-bold text-warm-textMuted">
           No services yet. Add your first service to start taking bookings.
         </div>
       ) : (
@@ -234,19 +268,21 @@ export function ServicesClient({
         ))
       )}
 
-      <div className="fixed bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-4 inset-x-0 px-4 md:px-8 pointer-events-none">
-        <div className="max-w-3xl mx-auto flex items-center justify-end gap-3 pointer-events-auto">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 px-3 md:bottom-4 md:px-8">
+        <div className="pointer-events-auto mx-auto flex max-w-3xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
           {error && (
-            <span className="text-xs text-red-600 whitespace-pre-line max-w-md text-right">
+            <span className="max-w-full whitespace-pre-line text-right text-[11px] font-bold text-red-600 sm:max-w-md">
               {error}
             </span>
           )}
-          {savedAt && !dirty && <span className="text-xs text-green-700">✓ Saved</span>}
+          {savedAt && !dirty && (
+            <span className="text-center text-xs font-black text-green-700 sm:text-right">✓ Saved</span>
+          )}
           <button
             type="button"
             disabled={!dirty || saving}
             onClick={save}
-            className="bg-[var(--admin-primary)] text-white font-medium px-4 py-2 rounded-lg shadow-md disabled:opacity-50"
+            className="w-full rounded-full bg-pop-pink px-5 py-2.5 text-sm font-black text-pop-cream shadow-lg disabled:opacity-50 sm:w-auto"
           >
             {saving ? "Saving..." : "Save changes"}
           </button>

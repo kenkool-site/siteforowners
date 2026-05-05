@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Admin Services — mobile mock</title>
+    <style>
+      :root {
+        --warm-deep: #1f1611;
+        --pop-cream: #fff8ee;
+        --pop-pink: #db2777;
+        --warm-cream1: #f4e4d1;
+        --warm-cream2: #fdf8f0;
+        --warm-text: #3a2418;
+        --warm-muted: #6b4226;
+        --stage-outer: #c9bfb3;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: var(--stage-outer);
+        color: var(--warm-text);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      }
+      /* Wide HTML preview (Cursor / desktop browser): centered phone strip */
+      .shell {
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px 0 28px;
+      }
+      .shell-hint {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--warm-muted);
+        margin: 0 0 10px;
+        text-align: center;
+      }
+      @media (max-width: 419px) {
+        .shell-hint {
+          display: none;
+        }
+        .shell {
+          padding: 0;
+        }
+      }
+      .device {
+        width: 100%;
+        max-width: 390px;
+        margin: 0 auto;
+        min-height: min(844px, 100dvh);
+        background: var(--warm-cream2);
+        box-shadow:
+          0 24px 60px rgba(0, 0, 0, 0.18),
+          0 0 0 1px rgba(31, 22, 17, 0.08);
+        border-radius: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      @media (min-width: 420px) {
+        .device {
+          border-radius: 36px;
+          min-height: 780px;
+        }
+      }
+      /* Status / header row */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 10px 12px 8px;
+        background: var(--warm-cream2);
+        border-bottom: 1px solid rgba(31, 22, 17, 0.06);
+      }
+      .topbar-title {
+        font-size: 13px;
+        font-weight: 900;
+        letter-spacing: -0.02em;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 0;
+      }
+      .icon-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 999px;
+        border: none;
+        background: var(--warm-deep);
+        color: var(--pop-cream);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      .scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px 12px 120px;
+      }
+      .hero {
+        border-radius: 24px;
+        background: var(--warm-deep);
+        color: var(--pop-cream);
+        padding: 20px 18px 22px;
+        box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset;
+      }
+      .hero-kicker {
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: #f472b6;
+        margin: 0 0 8px;
+      }
+      .hero h1 {
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
+        font-size: 28px;
+        font-weight: 900;
+        line-height: 0.98;
+        letter-spacing: -0.045em;
+        margin: 0;
+      }
+      .hero p {
+        margin: 14px 0 0;
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.45;
+        color: rgba(255, 248, 238, 0.72);
+      }
+      .at-glance {
+        margin-top: 16px;
+        padding: 14px 16px;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 248, 238, 0.15);
+        background: rgba(255, 248, 238, 0.08);
+      }
+      .at-glance-k {
+        font-size: 10px;
+        font-weight: 900;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: #fbcfe8;
+        margin: 0 0 6px;
+      }
+      .at-glance-v {
+        font-size: 13px;
+        font-weight: 700;
+        color: rgba(255, 248, 238, 0.78);
+        margin: 0;
+      }
+      .card {
+        margin-top: 14px;
+        background: #fff;
+        border-radius: 20px;
+        border: 1px solid rgba(31, 22, 17, 0.08);
+        padding: 14px 14px 12px;
+        box-shadow: 0 8px 24px rgba(31, 22, 17, 0.04);
+      }
+      .card h2 {
+        margin: 0 0 10px;
+        font-size: 12px;
+        font-weight: 900;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--warm-text);
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .chip {
+        padding: 6px 11px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        border: 1px solid;
+      }
+      .chip.braids {
+        border-color: #fbcfe8;
+        background: #fff1f2;
+        color: #881337;
+      }
+      .chip.natural {
+        border-color: #fed7aa;
+        background: #fff7ed;
+        color: #9a3412;
+      }
+      .chip.color {
+        border-color: #e9d5ff;
+        background: #faf5ff;
+        color: #5b21b6;
+      }
+      .service-row {
+        margin-top: 10px;
+        border-radius: 16px;
+        border: 1px solid var(--warm-cream1);
+        padding: 12px;
+        background: #fffdfa;
+      }
+      .service-row .name {
+        font-size: 14px;
+        font-weight: 900;
+        color: var(--warm-deep);
+      }
+      .service-row .meta {
+        margin-top: 4px;
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--warm-muted);
+      }
+      .service-row .bar {
+        margin-top: 10px;
+        height: 3px;
+        border-radius: 99px;
+        background: linear-gradient(90deg, #f472b6, #db2777);
+        max-width: 64px;
+      }
+      /* Bottom dock */
+      .dock {
+        position: sticky;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        margin-top: auto;
+        background: rgba(253, 248, 240, 0.92);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid rgba(31, 22, 17, 0.08);
+        padding: 8px 10px 10px;
+        z-index: 20;
+      }
+      .nav-row {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        padding: 4px 0 10px;
+      }
+      .nav-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        font-size: 9px;
+        font-weight: 800;
+        color: var(--warm-muted);
+      }
+      .nav-item svg {
+        opacity: 0.75;
+      }
+      .nav-item.active {
+        color: var(--warm-deep);
+      }
+      .nav-item.active svg {
+        opacity: 1;
+      }
+      .save-panel {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 8px 4px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid rgba(31, 22, 17, 0.08);
+      }
+      .save-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 99px;
+        background: #f59e0b;
+        flex-shrink: 0;
+      }
+      .save-label {
+        font-size: 12px;
+        font-weight: 800;
+        color: var(--warm-text);
+        flex: 1;
+      }
+      .btn-ghost {
+        border: 1px solid var(--warm-cream1);
+        background: #fff;
+        border-radius: 999px;
+        padding: 8px 14px;
+        font-size: 11px;
+        font-weight: 900;
+        color: var(--warm-muted);
+      }
+      .btn-save {
+        width: 100%;
+        border: none;
+        border-radius: 999px;
+        padding: 12px 16px;
+        font-size: 13px;
+        font-weight: 900;
+        color: var(--pop-cream);
+        background: var(--pop-pink);
+        box-shadow: 0 10px 24px rgba(219, 39, 119, 0.35);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <p class="shell-hint">Mobile width — HTML preview</p>
+      <div class="device" role="presentation">
+        <header class="topbar">
+          <span class="topbar-title">Studio North</span>
+          <button type="button" class="icon-btn" aria-label="Leads">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 4h16v12H7l-3 3V4z" />
+              <path d="M8 9h8M8 13h5" />
+            </svg>
+          </button>
+        </header>
+
+        <div class="scroll">
+          <section class="hero">
+            <p class="hero-kicker">Services</p>
+            <h1>What clients book on your site.</h1>
+            <p>Edit offerings, categories, booking notes, and deposits. Save when you are ready.</p>
+            <div class="at-glance">
+              <p class="at-glance-k">At a glance</p>
+              <p class="at-glance-v">6 services · 3 categories</p>
+            </div>
+          </section>
+
+          <div class="card">
+            <h2>Categories</h2>
+            <div class="chips">
+              <span class="chip braids">Braids · 2</span>
+              <span class="chip natural">Natural · 3</span>
+              <span class="chip color">Color · 1</span>
+            </div>
+          </div>
+
+          <div class="card" style="margin-top: 12px">
+            <h2>Your services</h2>
+            <div class="service-row">
+              <div class="name">Knotless braids</div>
+              <div class="meta">$220 · 4h · Braids</div>
+              <div class="bar"></div>
+            </div>
+            <div class="service-row">
+              <div class="name">Silk press</div>
+              <div class="meta">$85 · 2h · Natural</div>
+              <div class="bar" style="background: linear-gradient(90deg, #fb923c, #ea580c)"></div>
+            </div>
+            <div class="service-row">
+              <div class="name">Root touch-up</div>
+              <div class="meta">$95 · 2h · Color</div>
+              <div class="bar" style="background: linear-gradient(90deg, #a78bfa, #7c3aed)"></div>
+            </div>
+          </div>
+        </div>
+
+        <footer class="dock">
+          <nav class="nav-row" aria-label="Admin">
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 10.5 12 3l9 7.5V21H3V10.5z" />
+              </svg>
+              Home
+            </div>
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+                <path d="M16 2v4M8 2v4M3 10h18" />
+              </svg>
+              Schedule
+            </div>
+            <div class="nav-item active">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3v3M5.6 5.6l2.1 2.1M21 12h-3M18.4 5.6l-2.1 2.1M12 18v3M18.4 18.4l-2.1-2.1M12 12h.01" />
+              </svg>
+              Services
+            </div>
+            <div class="nav-item">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M6.3 17.7l-1.4 1.4M19.1 4.9l-1.4 1.4" />
+              </svg>
+              More
+            </div>
+          </nav>
+          <div class="save-panel">
+            <div class="save-top">
+              <span class="dot" aria-hidden="true"></span>
+              <span class="save-label">Unsaved changes</span>
+              <button type="button" class="btn-ghost">Discard</button>
+            </div>
+            <button type="button" class="btn-save">Save services</button>
+          </div>
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>
