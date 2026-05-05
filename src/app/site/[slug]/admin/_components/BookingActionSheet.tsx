@@ -49,18 +49,18 @@ export function BookingActionSheet({
   return (
     <>
     <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-warm-deep/50"
       onClick={onClose}
     >
       <div
-        className="w-full md:max-w-sm bg-white rounded-t-2xl md:rounded-2xl md:mb-10 p-4"
+        className="w-full rounded-t-[2rem] bg-white p-4 md:mb-10 md:max-w-sm md:rounded-[2rem]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="w-10 h-1 bg-gray-300 rounded mx-auto mb-3 md:hidden" />
-        <div className="text-sm font-semibold mb-3">
+        <div className="mx-auto mb-3 h-1 w-10 rounded bg-warm-cream1 md:hidden" />
+        <div className="mb-3 text-sm font-black text-warm-deep">
           {row.customer_name} · {formatTimeRange(row.booking_time, row.duration_minutes)}
           {row.status === "pending" && (
-            <span className="ml-2 inline-block bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+            <span className="ml-2 inline-block rounded-full bg-orange-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
               Pending
             </span>
           )}
@@ -73,7 +73,7 @@ export function BookingActionSheet({
               type="button"
               disabled={pending}
               onClick={() => setStatus("confirmed")}
-              className="w-full bg-green-600 text-white font-medium py-3 rounded-lg disabled:opacity-50"
+              className="w-full rounded-full bg-green-600 py-3 font-black text-white disabled:opacity-50"
             >
               Mark deposit received
             </button>
@@ -83,7 +83,7 @@ export function BookingActionSheet({
                 type="button"
                 disabled={pending}
                 onClick={() => setStatus("completed")}
-                className="w-full bg-[var(--admin-primary)] text-white font-medium py-3 rounded-lg disabled:opacity-50"
+                className="w-full rounded-full bg-pop-pink py-3 font-black text-pop-cream disabled:opacity-50"
               >
                 Mark completed
               </button>
@@ -91,7 +91,7 @@ export function BookingActionSheet({
                 type="button"
                 disabled={pending}
                 onClick={() => setStatus("no_show")}
-                className="w-full bg-white border border-gray-300 text-gray-700 font-medium py-3 rounded-lg disabled:opacity-50"
+                className="w-full rounded-full border border-warm-cream1 bg-white py-3 font-black text-warm-textMuted disabled:opacity-50"
               >
                 Mark no-show
               </button>
@@ -101,7 +101,7 @@ export function BookingActionSheet({
             type="button"
             disabled={pending}
             onClick={() => setRescheduleOpen(true)}
-            className="w-full bg-white border border-blue-600 text-blue-600 font-medium py-3 rounded-lg disabled:opacity-50"
+            className="w-full rounded-full border border-warm-cream1 bg-white py-3 font-black text-warm-deep disabled:opacity-50"
           >
             Reschedule
             {row.reschedule_count >= 1 && <span className="ml-2 text-xs opacity-70">(already moved once)</span>}
@@ -110,13 +110,13 @@ export function BookingActionSheet({
             type="button"
             disabled={pending}
             onClick={() => setStatus("canceled")}
-            className="w-full bg-white border border-red-600 text-red-600 font-medium py-3 rounded-lg disabled:opacity-50"
+            className="w-full rounded-full border border-red-300 bg-white py-3 font-black text-red-600 disabled:opacity-50"
           >
             Cancel
           </button>
           <a
             href={"tel:" + row.customer_phone}
-            className="block w-full text-center bg-white border border-[color:var(--admin-primary)] text-[color:var(--admin-primary)] font-medium py-3 rounded-lg"
+            className="block w-full rounded-full border border-pink-200 bg-pink-50 py-3 text-center font-black text-pop-pink"
           >
             📞 Call customer
           </a>

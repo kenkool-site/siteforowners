@@ -114,15 +114,15 @@ export function WeekCalendar({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    <div className="overflow-hidden rounded-[1.75rem] border border-warm-cream1 bg-white">
       {/* Header pager */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <div className="flex items-center gap-1">
-          <button onClick={onPrevWeek} className="px-2 py-1 text-sm hover:bg-gray-50 rounded">‹</button>
-          <button onClick={onToday} className="px-3 py-1 text-sm hover:bg-gray-50 rounded">Today</button>
-          <button onClick={onNextWeek} className="px-2 py-1 text-sm hover:bg-gray-50 rounded">›</button>
+      <div className="flex items-center justify-between border-b border-warm-cream1 px-4 py-4">
+        <div className="flex items-center gap-1.5">
+          <button onClick={onPrevWeek} className="grid h-9 w-9 place-items-center rounded-full bg-warm-cream2 text-sm font-black text-warm-textMuted hover:bg-warm-cream1">‹</button>
+          <button onClick={onToday} className="rounded-full bg-pink-50 px-4 py-2 text-xs font-black text-pop-pink ring-1 ring-pink-100 hover:bg-pink-100">Today</button>
+          <button onClick={onNextWeek} className="grid h-9 w-9 place-items-center rounded-full bg-warm-cream2 text-sm font-black text-warm-textMuted hover:bg-warm-cream1">›</button>
         </div>
-        <div className="text-sm font-semibold text-gray-900">{monthLabel}</div>
+        <div className="text-sm font-black text-warm-deep">{monthLabel}</div>
         <div className="w-20" />
       </div>
 
@@ -134,24 +134,24 @@ export function WeekCalendar({
           const isToday = d.iso === today;
           const dayClosed = workingHours?.[d.weekdayName] === null || blockedDates.includes(d.iso);
           return (
-            <div key={d.iso} className="relative border-l border-gray-100">
+            <div key={d.iso} className="relative border-l border-warm-cream1">
               <button
                 type="button"
                 onClick={() => setPopoverDay(popoverDay === d.iso ? null : d.iso)}
-                className={`w-full px-2 py-2 text-center ${isToday ? "bg-[var(--admin-primary-light)]" : ""}`}
+                className={`w-full px-2 py-3 text-center ${isToday ? "bg-pink-50" : "bg-white"}`}
               >
-                <div className={`text-[10px] font-semibold ${isToday ? "text-[color:var(--admin-primary)]" : "text-gray-500"}`}>
+                <div className={`text-[10px] font-black ${isToday ? "text-pop-pink" : "text-warm-textMuted"}`}>
                   {d.weekdayShort} {d.date.getDate()}
                 </div>
-                {dayClosed && <div className="text-[9px] text-[color:var(--admin-primary)]">Closed</div>}
+                {dayClosed && <div className="text-[9px] font-black text-pop-pink">Closed</div>}
               </button>
               {popoverDay === d.iso && (
-                <div className="absolute z-10 left-1/2 -translate-x-1/2 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-2 text-xs w-40">
+                <div className="absolute left-1/2 top-full z-10 mt-1 w-40 -translate-x-1/2 rounded-2xl border border-warm-cream1 bg-white p-2 text-xs shadow-2xl">
                   <button
                     type="button"
                     disabled={pending}
                     onClick={() => toggleBlock(d.iso)}
-                    className="w-full text-left px-2 py-2 hover:bg-gray-50 rounded"
+                    className="w-full rounded-xl px-2 py-2 text-left font-bold text-warm-text hover:bg-warm-cream2"
                   >
                     {blockedDates.includes(d.iso) ? "Reopen this day" : "Closed this day"}
                   </button>
@@ -168,7 +168,7 @@ export function WeekCalendar({
           const h12 = h % 12 === 0 ? 12 : h % 12;
           return (
             <div key={`row-${h}`} className="contents">
-              <div className="text-[10px] text-right pr-1 text-gray-400" style={{ height: HOUR_PX, lineHeight: `${HOUR_PX}px` }}>
+              <div className="pr-1 text-right text-[10px] font-black text-warm-textMuted/60" style={{ height: HOUR_PX, lineHeight: `${HOUR_PX}px` }}>
                 {h12}{period === "AM" ? "a" : "p"}
               </div>
               {days.map((d) => {
@@ -179,11 +179,11 @@ export function WeekCalendar({
                 return (
                   <div
                     key={`${d.iso}-${h}`}
-                    className="border-l border-t border-gray-100 relative"
+                    className="relative border-l border-t border-warm-cream1"
                     style={{
                       height: HOUR_PX,
                       backgroundImage: striped
-                        ? "repeating-linear-gradient(45deg, var(--admin-primary-light, #fed7e2), var(--admin-primary-light, #fed7e2) 4px, white 4px, white 8px)"
+                        ? "repeating-linear-gradient(45deg, #fdf0f6, #fdf0f6 4px, white 4px, white 8px)"
                         : undefined,
                     }}
                   />
@@ -223,18 +223,18 @@ export function WeekCalendar({
                     key={b.id}
                     type="button"
                     onClick={() => onBookingClick(b)}
-                    className="absolute left-0.5 right-0.5 rounded text-[10px] text-left px-1 py-0.5 pointer-events-auto overflow-hidden"
+                    className="pointer-events-auto absolute left-1 right-1 overflow-hidden rounded-xl px-2 py-1 text-left text-[10px] shadow-sm"
                     style={{
                       top,
                       height,
-                      backgroundColor: isPending ? "#f59e0b" : "var(--admin-primary)",
-                      color: "white",
-                      borderLeft: isPending ? "3px solid #b45309" : undefined,
+                      backgroundColor: isPending ? "#f97316" : "#db2777",
+                      color: "#fff8ee",
+                      borderLeft: isPending ? "3px solid #c2410c" : "3px solid #9d174d",
                     }}
                   >
-                    <div className="font-semibold truncate">
+                    <div className="truncate font-black">
                       {b.customer_name}
-                      {isPending && <span className="ml-1 opacity-90">⏳</span>}
+                      {isPending && <span className="ml-1 opacity-90">Pending</span>}
                     </div>
                     <div className="opacity-80 truncate">{b.service_name}</div>
                   </button>

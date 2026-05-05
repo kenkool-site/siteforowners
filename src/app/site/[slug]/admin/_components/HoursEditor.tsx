@@ -116,54 +116,54 @@ export function HoursEditor({ initial }: { initial: WorkingHours | null }) {
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg">
-      <div className="px-4 py-3 border-b border-gray-100 flex flex-wrap items-center gap-2">
-        <span className="text-xs text-gray-500 mr-1">Quick presets:</span>
+    <div className="overflow-hidden rounded-[1.5rem] border border-warm-cream1 bg-white">
+      <div className="flex flex-wrap items-center gap-2 border-b border-warm-cream1 px-4 py-3">
+        <span className="mr-1 text-xs font-bold text-warm-textMuted">Quick presets:</span>
         {PRESETS.map((p) => (
           <button
             key={p.label}
             type="button"
             onClick={() => applyPreset(p.hours)}
-            className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50"
+            className="rounded-full border border-warm-cream1 px-3 py-1.5 text-xs font-black text-warm-textMuted hover:bg-warm-cream2"
           >
             {p.label}
           </button>
         ))}
       </div>
-      <div className="divide-y divide-gray-100">
+      <div className="divide-y divide-warm-cream1">
         {WEEKDAYS.map((day) => {
           const value = hours[day];
           const isOpen = value !== null;
           return (
-            <div key={day} className="px-4 py-3 flex items-center gap-3">
-              <div className="w-24 text-sm font-medium">{day}</div>
+            <div key={day} className="flex flex-wrap items-center gap-3 px-4 py-3">
+              <div className="w-24 text-sm font-black text-warm-deep">{day}</div>
               <button
                 type="button"
                 onClick={() => setDay(day, isOpen ? null : { open: "10:00 AM", close: "7:00 PM" })}
-                className={`text-xs px-2 py-1 rounded ${
+                className={`rounded-full px-3 py-1.5 text-xs font-black ${
                   isOpen
-                    ? "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)]"
-                    : "bg-gray-100 text-gray-500"
+                    ? "bg-pink-50 text-pop-pink ring-1 ring-pink-100"
+                    : "bg-warm-cream2 text-warm-textMuted"
                 }`}
               >
                 {isOpen ? "Open" : "Closed"}
               </button>
               {isOpen && (
-                <div className="flex-1 flex items-center gap-2 text-sm">
+                <div className="flex flex-1 items-center gap-2 text-sm">
                   <input
                     type="time"
                     step={3600}
                     value={to24h(value!.open)}
                     onChange={(e) => setDay(day, { open: to12h(e.target.value), close: value!.close })}
-                    className="rounded border border-gray-200 px-2 py-1 text-sm"
+                    className="rounded-xl border border-warm-cream1 px-2 py-1 text-sm font-bold text-warm-deep"
                   />
-                  <span className="text-gray-400">→</span>
+                  <span className="font-bold text-warm-textMuted/60">→</span>
                   <input
                     type="time"
                     step={3600}
                     value={to24h(value!.close)}
                     onChange={(e) => setDay(day, { open: value!.open, close: to12h(e.target.value) })}
-                    className="rounded border border-gray-200 px-2 py-1 text-sm"
+                    className="rounded-xl border border-warm-cream1 px-2 py-1 text-sm font-bold text-warm-deep"
                   />
                 </div>
               )}
@@ -171,15 +171,15 @@ export function HoursEditor({ initial }: { initial: WorkingHours | null }) {
           );
         })}
       </div>
-      <div className="px-4 py-3 flex items-center justify-between border-t border-gray-100">
-        <span className="text-xs text-gray-500">
+      <div className="flex items-center justify-between border-t border-warm-cream1 px-4 py-3">
+        <span className="text-xs font-bold text-warm-textMuted">
           {saved ? "✓ Saved" : saving ? "Saving..." : " "}
         </span>
         <button
           type="button"
           disabled={saving}
           onClick={save}
-          className="bg-[var(--admin-primary)] text-white font-medium px-4 py-2 rounded-lg disabled:opacity-50"
+          className="rounded-full bg-pop-pink px-5 py-2.5 font-black text-pop-cream disabled:opacity-50"
         >
           Save hours
         </button>
