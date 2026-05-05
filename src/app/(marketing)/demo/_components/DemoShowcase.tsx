@@ -37,6 +37,12 @@ const PORTFOLIO_CARDS = [
     accent: "bg-orange-400",
     tone: "from-orange-400/30 to-zinc-950",
     action: "Pick a time",
+    images: [
+      "/marketing/demo/portfolio/haircuts-1.png",
+      "/marketing/demo/portfolio/haircuts-2.png",
+      "/marketing/demo/portfolio/haircuts-3.png",
+      "/marketing/demo/portfolio/haircuts-4.png",
+    ],
   },
 ] as const;
 
