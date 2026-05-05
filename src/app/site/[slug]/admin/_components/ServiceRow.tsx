@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ServiceItem, AddOn } from "@/lib/ai/types";
 import { formatDuration } from "@/lib/availability";
+import { getCategoryPalette } from "@/lib/category-palette";
 
 interface ServiceRowProps {
   service: ServiceItem;
@@ -90,8 +91,8 @@ function DurationMinutesInput({
   }
 
   return (
-    <div className="flex items-center gap-1 rounded border border-gray-200 px-1.5 py-1 text-sm">
-      {isAddOn && <span className="text-xs text-gray-500">+</span>}
+    <div className="flex items-center gap-1 rounded-lg border border-warm-cream1 px-1.5 py-1 text-sm">
+      {isAddOn && <span className="text-xs text-warm-textMuted">+</span>}
       <select
         value={hours}
         onChange={(e) => commit(parseInt(e.target.value, 10), minutes)}
@@ -102,7 +103,7 @@ function DurationMinutesInput({
           <option key={i} value={i}>{i}</option>
         ))}
       </select>
-      <span className="text-xs text-gray-500">h</span>
+      <span className="text-xs text-warm-textMuted">h</span>
       <select
         value={minutes}
         onChange={(e) => commit(hours, parseInt(e.target.value, 10))}
@@ -113,7 +114,7 @@ function DurationMinutesInput({
           <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
         ))}
       </select>
-      <span className="text-xs text-gray-500">m</span>
+      <span className="text-xs text-warm-textMuted">m</span>
     </div>
   );
 }
@@ -153,6 +154,7 @@ export function ServiceRow({
 
   const duration = service.duration_minutes ?? 60;
   const addOns: AddOn[] = service.add_ons ?? [];
+  const catPal = getCategoryPalette(service.category);
 
   function set<K extends keyof ServiceItem>(key: K, value: ServiceItem[K]) {
     onChange({ ...service, [key]: value });
@@ -204,26 +206,33 @@ export function ServiceRow({
         ref={containerRef as unknown as React.RefObject<HTMLButtonElement>}
         type="button"
         onClick={() => setExpanded(true)}
-        className={`w-full bg-white border rounded-lg px-3 py-3 flex items-center gap-3 text-left transition-colors ${
-          failing ? "border-red-500 ring-2 ring-red-200" : "border-gray-200 hover:border-gray-300"
+        className={`flex w-full items-center gap-3 rounded-[1.25rem] border border-warm-cream1 bg-white px-3 py-3 text-left transition-colors ${
+          failing ? "border-red-500 ring-2 ring-red-200" : "hover:border-pink-200"
         }`}
       >
         {service.image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={service.image} alt="" className="h-12 w-12 rounded-md object-cover flex-shrink-0" />
         ) : (
-          <div className="h-12 w-12 rounded-md bg-gray-100 flex-shrink-0" />
+          <div className="h-12 w-12 flex-shrink-0 rounded-xl bg-warm-cream2" />
         )}
-        <div className="flex-1 min-w-0">
-          <div className="text-sm font-semibold truncate">
-            {service.name || "(untitled)"}
-          </div>
-          <div className="text-xs text-gray-500">
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-sm font-black text-warm-deep">{service.name || "(untitled)"}</div>
+          <div className="text-xs font-bold text-warm-textMuted">
             {formatDuration(duration)} · {service.price || "—"}
-            {service.category && <span className="ml-2 text-[10px] uppercase tracking-wide text-[var(--admin-primary)]">{service.category}</span>}
+            {service.category && (
+              <span
+                className={
+                  "ml-2 inline-block rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider " +
+                  catPal.tag
+                }
+              >
+                {service.category}
+              </span>
+            )}
           </div>
         </div>
-        <span className="text-gray-400">›</span>
+        <span className="text-warm-textMuted/60">›</span>
       </button>
     );
   }
@@ -231,8 +240,8 @@ export function ServiceRow({
   return (
     <div
       ref={containerRef}
-      className={`bg-white border rounded-lg p-3 space-y-3 ${
-        failing ? "border-red-500 ring-2 ring-red-200" : "border-[color:var(--admin-primary)]"
+      className={`space-y-3 rounded-[1.5rem] border bg-white p-4 ${
+        failing ? "border-red-500 ring-2 ring-red-200" : "border-pop-pink/40 ring-1 ring-pink-100"
       }`}
     >
       <div className="flex items-start gap-3">
@@ -240,8 +249,12 @@ export function ServiceRow({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading}
-          className="h-16 w-16 rounded-md flex items-center justify-center text-[10px] text-center flex-shrink-0 overflow-hidden border border-dashed border-gray-300 hover:border-gray-400"
-          style={service.image ? { backgroundImage: `url(${service.image})`, backgroundSize: "cover", backgroundPosition: "center" } : { background: "#f3e8ff", color: "var(--admin-primary)" }}
+          className="flex h-16 w-16 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl border border-dashed border-warm-cream1 text-center text-[10px] hover:border-pop-pink/50"
+          style={
+            service.image
+              ? { backgroundImage: `url(${service.image})`, backgroundSize: "cover", backgroundPosition: "center" }
+              : { background: "#fdf0f6", color: "#db2777" }
+          }
         >
           {!service.image && (uploading ? "Uploading…" : "+ Image")}
         </button>
@@ -259,7 +272,7 @@ export function ServiceRow({
             value={service.name}
             onChange={(e) => set("name", e.target.value)}
             placeholder="Service name"
-            className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm"
+            className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep"
             maxLength={80}
           />
           <div className="flex gap-2">
@@ -268,7 +281,7 @@ export function ServiceRow({
               value={service.price}
               onChange={(e) => set("price", e.target.value)}
               placeholder="$0"
-              className="flex-1 rounded border border-gray-200 px-2 py-1.5 text-sm"
+              className="flex-1 rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep"
               maxLength={30}
             />
             <DurationMinutesInput
@@ -281,18 +294,27 @@ export function ServiceRow({
 
           {/* Category dropdown — only when categories are defined */}
           {categories.length > 0 ? (
-            <select
-              value={service.category ?? ""}
-              onChange={(e) => set("category", e.target.value || undefined)}
-              className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm bg-white"
+            <div
+              className={
+                "overflow-hidden rounded-xl border border-warm-cream1 bg-white " +
+                (service.category ? `border-l-4 ${catPal.accentBar}` : "")
+              }
             >
-              <option value="">(no category)</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              <select
+                value={service.category ?? ""}
+                onChange={(e) => set("category", e.target.value || undefined)}
+                className="w-full bg-white px-2 py-1.5 text-sm font-bold text-warm-deep"
+              >
+                <option value="">(no category)</option>
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
           ) : (
-            <div className="text-[10px] text-gray-500 italic">
+            <div className="text-[10px] italic font-bold text-warm-textMuted">
               Tip: add categories above to group services
             </div>
           )}
@@ -303,22 +325,25 @@ export function ServiceRow({
         value={service.description ?? ""}
         onChange={(e) => set("description", e.target.value)}
         placeholder="Description (optional) — owners can write up to ~5 paragraphs"
-        className="w-full rounded border border-gray-200 px-2 py-1.5 text-sm"
+        className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep"
         rows={4}
         maxLength={1000}
       />
 
       {/* Add-ons editor */}
-      <div className="border-t border-gray-100 pt-2 space-y-2">
+      <div className="space-y-2 border-t border-warm-cream1 pt-2">
         <div className="flex items-center justify-between">
-          <span className="text-[10px] uppercase tracking-wider text-gray-500 font-semibold">
-            Add-ons {addOns.length > 0 && <span className="text-gray-400 font-normal">({addOns.length}/{MAX_ADD_ONS})</span>}
+          <span className="text-[10px] font-black uppercase tracking-[0.16em] text-warm-textMuted">
+            Add-ons{" "}
+            {addOns.length > 0 && (
+              <span className="font-normal text-warm-textMuted">({addOns.length}/{MAX_ADD_ONS})</span>
+            )}
           </span>
           <button
             type="button"
             onClick={addAddOn}
             disabled={addOns.length >= MAX_ADD_ONS}
-            className="text-xs text-[var(--admin-primary)] font-medium disabled:opacity-50"
+            className="text-xs font-black text-pop-pink disabled:opacity-50"
           >
             + Add add-on
           </button>
@@ -330,7 +355,7 @@ export function ServiceRow({
               value={ao.name}
               onChange={(e) => setAddOn(i, { ...ao, name: e.target.value })}
               placeholder="Add-on name"
-              className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs"
+              className="flex-1 rounded-lg border border-warm-cream1 px-2 py-1 text-xs font-bold text-warm-deep"
               maxLength={80}
             />
             <DurationMinutesInput
@@ -343,13 +368,13 @@ export function ServiceRow({
             <PriceDeltaInput
               value={ao.price_delta}
               onChange={(next) => setAddOn(i, { ...ao, price_delta: next })}
-              className="w-20 rounded border border-gray-200 px-2 py-1 text-xs"
+              className="w-20 rounded-lg border border-warm-cream1 px-2 py-1 text-xs font-bold text-warm-deep"
             />
             <button
               type="button"
               onClick={() => removeAddOn(i)}
               aria-label="Remove add-on"
-              className="text-gray-400 hover:text-red-600 px-1"
+              className="px-1 text-warm-textMuted hover:text-red-600"
             >
               ×
             </button>
@@ -362,7 +387,9 @@ export function ServiceRow({
           <div className="flex items-center gap-2 text-xs">
             <span className="text-red-600">Delete this service?</span>
             <button type="button" onClick={onDelete} className="text-red-600 font-medium underline">Confirm</button>
-            <button type="button" onClick={() => setConfirmDelete(false)} className="text-gray-500 underline">Cancel</button>
+            <button type="button" onClick={() => setConfirmDelete(false)} className="font-bold text-warm-textMuted underline">
+              Cancel
+            </button>
           </div>
         ) : (
           <button type="button" onClick={() => setConfirmDelete(true)} className="text-xs text-red-600">Delete</button>
@@ -370,7 +397,7 @@ export function ServiceRow({
         <button
           type="button"
           onClick={() => setExpanded(false)}
-          className="rounded-lg border border-[color:var(--admin-primary)] text-[color:var(--admin-primary)] bg-white text-sm font-semibold px-4 py-1.5"
+          className="rounded-full border border-pop-pink bg-pink-50 px-4 py-2 text-sm font-black text-pop-pink"
         >
           Done ▴
         </button>

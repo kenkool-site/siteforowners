@@ -42,5 +42,8 @@ next-env.d.ts
 # local-only visual references
 .design-references/
 
+# disposable HTML mocks (preview in browser locally; do not ship)
+/public/marketing/mockups/
+
 # git worktrees
 .worktrees/

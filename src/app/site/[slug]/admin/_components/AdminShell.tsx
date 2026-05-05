@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ADMIN_NAV_ICON_PATHS, getAdminNavIconName, type AdminNavIconName } from "@/lib/admin-nav-icons";
+import { getAdminNavIconName, type AdminNavIconName } from "@/lib/admin-nav-icons";
 import { SignOutButton } from "./SignOutButton";
 import { LeadsBadge } from "./LeadsBadge";
+import { AdminNavGlyph } from "./AdminNavGlyph";
 
 type Tab = { href: string; label: string; icon: AdminNavIconName };
 
@@ -19,9 +20,8 @@ function buildTabs(tenant: ShellTenant): Tab[] {
   const showOrders = tenant.checkout_mode === "pickup";
   const tabs: Tab[] = [{ href: "/admin", label: "Home", icon: getAdminNavIconName("Home") }];
   if (showSchedule) tabs.push({ href: "/admin/schedule", label: "Schedule", icon: getAdminNavIconName("Schedule") });
-  if (showOrders) tabs.push({ href: "/admin/orders", label: "Orders", icon: getAdminNavIconName("Orders") });
-  // Spec 3: Services replaces Leads in primary slots.
   if (showSchedule) tabs.push({ href: "/admin/services", label: "Services", icon: getAdminNavIconName("Services") });
+  if (showOrders) tabs.push({ href: "/admin/orders", label: "Orders", icon: getAdminNavIconName("Orders") });
   tabs.push({ href: "/admin/updates", label: "Updates", icon: getAdminNavIconName("Updates") });
   // Leads demoted to overflow (page still exists; the LeadsBadge in the
   // top bar / sidebar header is the primary entry now).
@@ -29,25 +29,6 @@ function buildTabs(tenant: ShellTenant): Tab[] {
   tabs.push({ href: "/admin/billing", label: "Billing", icon: getAdminNavIconName("Billing") });
   tabs.push({ href: "/admin/settings", label: "Settings", icon: getAdminNavIconName("Settings") });
   return tabs;
-}
-
-function AdminNavIcon({ name, className = "" }: { name: AdminNavIconName; className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      viewBox="0 0 24 24"
-      className={className}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      {ADMIN_NAV_ICON_PATHS[name].map((d) => (
-        <path key={d} d={d} />
-      ))}
-    </svg>
-  );
 }
 
 export function AdminShell({
@@ -99,7 +80,7 @@ export function AdminShell({
                 "grid h-8 w-8 place-items-center rounded-xl " +
                 (currentPath === t.href ? "bg-white text-pop-pink" : "bg-warm-cream2 text-warm-textMuted")
               }>
-                <AdminNavIcon name={t.icon} className="h-4 w-4" />
+                <AdminNavGlyph name={t.icon} className="h-4 w-4" />
               </span>
               {t.label}
             </Link>
@@ -155,7 +136,7 @@ export function AdminShell({
                 "grid h-8 w-8 place-items-center rounded-xl " +
                 (currentPath === t.href ? "bg-pink-100 text-pop-pink ring-1 ring-pink-200" : "bg-warm-cream2 text-warm-textMuted")
               }>
-                <AdminNavIcon name={t.icon} className="h-[18px] w-[18px]" />
+                <AdminNavGlyph name={t.icon} className="h-[18px] w-[18px]" />
               </span>
               <span className="mt-1 text-[11px] leading-none">{t.label}</span>
             </Link>
@@ -164,7 +145,7 @@ export function AdminShell({
             <details className="relative text-warm-textMuted">
               <summary className="flex min-h-[50px] cursor-pointer select-none flex-col items-center justify-center rounded-2xl py-1 touch-manipulation transition-colors active:bg-warm-cream2">
                 <span className="grid h-8 w-8 place-items-center rounded-xl bg-warm-cream2">
-                  <AdminNavIcon name="more" className="h-[18px] w-[18px]" />
+                  <AdminNavGlyph name="more" className="h-[18px] w-[18px]" />
                 </span>
                 <span className="mt-1 text-[11px] leading-none">More</span>
               </summary>
@@ -179,7 +160,7 @@ export function AdminShell({
                       (currentPath === t.href ? "bg-pink-50 text-pink-700" : "text-warm-textMuted")
                     }
                   >
-                    <AdminNavIcon name={t.icon} className="mr-2 inline h-4 w-4 align-[-3px]" />
+                    <AdminNavGlyph name={t.icon} className="mr-2 inline h-4 w-4 align-[-3px]" />
                     {t.label}
                   </Link>
                 ))}
