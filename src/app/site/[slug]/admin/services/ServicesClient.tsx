@@ -237,10 +237,13 @@ export function ServicesClient({
 
       <DepositEditor value={deposit} onChange={setDeposit} />
 
-      <div className="flex items-center justify-between px-1">
-        <span className="text-xs font-bold text-warm-textMuted">
-          {services.length} {services.length === 1 ? "service" : "services"}
-        </span>
+      <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-warm-muted">Your services</p>
+          <p className="mt-1 text-xs font-bold text-warm-textMuted">
+            {services.length} {services.length === 1 ? "service" : "services"}
+          </p>
+        </div>
         <button
           type="button"
           onClick={add}
