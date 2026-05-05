@@ -12,6 +12,7 @@ type DemoPortfolioCardProps = {
   action: string;
   images?: readonly string[];
   featured?: boolean;
+  proofLabel?: string;
 };
 
 const SLIDE_MS = 3200;
@@ -24,6 +25,7 @@ export function DemoPortfolioCard({
   action,
   images = [],
   featured = false,
+  proofLabel = "Customer site preview",
 }: DemoPortfolioCardProps) {
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -103,7 +105,7 @@ export function DemoPortfolioCard({
               {action}
             </span>
             <span className="inline-flex rounded-full border border-white/20 px-3 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-pop-cream/70">
-              Dashboard included
+              {proofLabel}
             </span>
           </div>
         </div>

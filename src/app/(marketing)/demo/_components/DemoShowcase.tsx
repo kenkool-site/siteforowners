@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
+import { DemoAdminShowcase } from "./DemoAdminShowcase";
 import { DemoPortfolioCard } from "./DemoPortfolioCard";
 
 const PORTFOLIO_CARDS = [
@@ -23,27 +24,19 @@ const PORTFOLIO_CARDS = [
     accent: "bg-amber-400",
     tone: "from-amber-400/30 to-stone-950",
     action: "Choose retwist",
+    images: [
+      "/marketing/demo/portfolio/locs-1.png",
+      "/marketing/demo/portfolio/locs-2.png",
+      "/marketing/demo/portfolio/locs-3.png",
+      "/marketing/demo/portfolio/locs-4.png",
+    ],
   },
   {
-    category: "Lashes / brows",
-    title: "Soft, high-trust booking flows for repeat beauty clients.",
-    accent: "bg-fuchsia-300",
-    tone: "from-fuchsia-300/30 to-neutral-950",
-    action: "Reserve refill",
-  },
-  {
-    category: "Barber / grooming",
+    category: "Haircuts",
     title: "Fast booking for cuts, fades, beard work, and packages.",
     accent: "bg-orange-400",
     tone: "from-orange-400/30 to-zinc-950",
     action: "Pick a time",
-  },
-  {
-    category: "Spa / skincare",
-    title: "Calm, editorial pages that make services easy to understand.",
-    accent: "bg-emerald-300",
-    tone: "from-emerald-300/30 to-slate-950",
-    action: "View treatments",
   },
 ] as const;
 
@@ -51,13 +44,6 @@ const JOURNEY_STEPS = [
   "Clients land on a beautiful site",
   "They choose a service and book",
   "You manage bookings and leads",
-] as const;
-
-const DASHBOARD_STATS = [
-  ["28", "visits this week"],
-  ["7", "new leads"],
-  ["4", "bookings today"],
-  ["12", "services managed"],
 ] as const;
 
 export function DemoShowcase() {
@@ -147,12 +133,12 @@ export function DemoShowcase() {
               Portfolio examples
             </p>
             <h2 className="mt-4 font-serif text-4xl font-semibold leading-none md:text-5xl">
-              A different look for every beauty brand.
+              Three customer-facing examples, then the owner view.
             </h2>
           </div>
 
           <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {PORTFOLIO_CARDS.map((card, index) => (
+            {PORTFOLIO_CARDS.map((card) => (
               <DemoPortfolioCard
                 key={card.category}
                 category={card.category}
@@ -161,7 +147,7 @@ export function DemoShowcase() {
                 tone={card.tone}
                 action={card.action}
                 images={"images" in card ? card.images : undefined}
-                featured={index === 0}
+                featured={false}
               />
             ))}
           </div>
@@ -191,18 +177,7 @@ export function DemoShowcase() {
           </div>
         </div>
 
-        <div className="mx-auto mt-12 max-w-6xl rounded-[2rem] border border-pop-cream/15 bg-pop-cream p-5 text-warm-deep md:p-7">
-          <div className="grid gap-4 md:grid-cols-4">
-            {DASHBOARD_STATS.map(([value, label]) => (
-              <div key={label} className="rounded-2xl border border-warm-cream1 bg-white p-5">
-                <p className="text-4xl font-black">{value}</p>
-                <p className="mt-2 text-xs font-bold uppercase tracking-[0.14em] text-warm-textMuted">
-                  {label}
-                </p>
-              </div>
-            ))}
-          </div>
-        </div>
+        <DemoAdminShowcase />
       </section>
     </>
   );
