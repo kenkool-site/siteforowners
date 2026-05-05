@@ -114,7 +114,7 @@ export function DemoShowcase() {
             <div className="absolute -inset-5 rounded-[2.5rem] bg-pop-pink/20 blur-3xl" />
             <div className="relative overflow-hidden rounded-[2.25rem] border border-pop-cream/15 bg-black shadow-2xl">
               <video
-                className="aspect-[4/5] w-full object-cover opacity-90 motion-reduce:hidden md:aspect-[3/4]"
+                className="aspect-[4/5] w-full object-contain opacity-90 motion-reduce:hidden md:aspect-[3/4]"
                 src="/marketing/demo/demo-reel.mp4"
                 poster="/marketing/demo/demo-reel-poster.jpg"
                 autoPlay
