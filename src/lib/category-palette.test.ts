@@ -21,3 +21,17 @@ test("getCategoryPalette uses neutral styling for empty category", () => {
 test("getCategoryPalette returns accentBar", () => {
   assert.match(getCategoryPalette("Test").accentBar, /^border-l-/);
 });
+
+test("getCategoryPalette assigns distinct shells by list order", () => {
+  const cats = ["Loc extension", "Loc Maintenance", "Repairs"];
+  const a = getCategoryPalette(cats[0], cats).shell;
+  const b = getCategoryPalette(cats[1], cats).shell;
+  const c = getCategoryPalette(cats[2], cats).shell;
+  assert.notEqual(a, b);
+  assert.notEqual(b, c);
+  assert.notEqual(a, c);
+});
+
+test("getCategoryPalette is stable without orderedCategories", () => {
+  assert.deepEqual(getCategoryPalette("Foo"), getCategoryPalette("Foo"));
+});
