@@ -39,23 +39,29 @@ export default async function SchedulePage({
   const bookingMode = await getBookingMode(tenant.preview_slug);
   if (bookingMode.mode === "external_only") {
     return (
-      <div className="py-4 md:py-6">
-        <div className="px-4 md:px-8">
-          <div className="text-lg font-semibold">Schedule</div>
+      <div className="px-4 py-5 md:px-8 md:py-8">
+        <div className="rounded-[2rem] bg-warm-deep p-6 text-pop-cream md:p-8">
+          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-pop-pink">Schedule</p>
+          <h1 className="mt-2 font-serif text-4xl font-black leading-none tracking-[-0.04em] md:text-5xl">
+            Your bookings live elsewhere.
+          </h1>
+          <div className="mt-4 max-w-xl text-sm font-bold text-pop-cream/70">
+            Open your connected booking tool to view and manage appointments.
+          </div>
         </div>
-        <div className="px-3 md:px-8 mt-4">
-          <div className="bg-white border border-gray-200 rounded-lg p-6 text-center">
-            <div className="text-sm text-gray-700">
+        <div className="mt-4">
+          <div className="rounded-[1.75rem] border border-warm-cream1 bg-white p-6 text-center">
+            <div className="text-sm text-warm-text">
               You manage bookings in <span className="font-semibold">{bookingMode.providerName}</span>.
             </div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="mt-1 text-xs text-warm-textMuted">
               Appointments don&apos;t show up here — open {bookingMode.providerName} to view your calendar.
             </div>
             <a
               href={bookingMode.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-block mt-4 bg-[var(--admin-primary)] text-white font-medium px-4 py-2 rounded-lg"
+              className="mt-4 inline-block rounded-full bg-pop-pink px-5 py-3 text-sm font-black text-pop-cream transition hover:bg-pink-700"
             >
               Open {bookingMode.providerName} ↗
             </a>
@@ -99,20 +105,15 @@ export default async function SchedulePage({
   }));
 
   return (
-    <div className="py-4 md:py-6">
-      <div className="px-4 md:px-8">
-        <div className="text-lg font-semibold">Schedule</div>
-      </div>
-      <div className="px-3 md:px-8 mt-4">
-        <ScheduleClient
-          initialWeekStart={isoDate(weekStart)}
-          bookings={bookings}
-          workingHours={settings?.working_hours ?? null}
-          blockedDates={settings?.blocked_dates ?? []}
-          initialPending={initialPending}
-          slug={tenant.preview_slug ?? params.slug}
-        />
-      </div>
+    <div className="px-4 py-5 md:px-8 md:py-8">
+      <ScheduleClient
+        initialWeekStart={isoDate(weekStart)}
+        bookings={bookings}
+        workingHours={settings?.working_hours ?? null}
+        blockedDates={settings?.blocked_dates ?? []}
+        initialPending={initialPending}
+        slug={tenant.preview_slug ?? params.slug}
+      />
     </div>
   );
 }

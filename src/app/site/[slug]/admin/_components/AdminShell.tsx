@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { ADMIN_NAV_ICON_PATHS, getAdminNavIconName, type AdminNavIconName } from "@/lib/admin-nav-icons";
 import { SignOutButton } from "./SignOutButton";
 import { LeadsBadge } from "./LeadsBadge";
 
-type Tab = { href: string; label: string; icon: string };
+type Tab = { href: string; label: string; icon: AdminNavIconName };
 
 export type ShellTenant = {
   business_name: string;
@@ -16,18 +17,37 @@ export type ShellTenant = {
 function buildTabs(tenant: ShellTenant): Tab[] {
   const showSchedule = !tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal";
   const showOrders = tenant.checkout_mode === "pickup";
-  const tabs: Tab[] = [{ href: "/admin", label: "Home", icon: "HM" }];
-  if (showSchedule) tabs.push({ href: "/admin/schedule", label: "Schedule", icon: "SC" });
-  if (showOrders) tabs.push({ href: "/admin/orders", label: "Orders", icon: "OR" });
+  const tabs: Tab[] = [{ href: "/admin", label: "Home", icon: getAdminNavIconName("Home") }];
+  if (showSchedule) tabs.push({ href: "/admin/schedule", label: "Schedule", icon: getAdminNavIconName("Schedule") });
+  if (showOrders) tabs.push({ href: "/admin/orders", label: "Orders", icon: getAdminNavIconName("Orders") });
   // Spec 3: Services replaces Leads in primary slots.
-  if (showSchedule) tabs.push({ href: "/admin/services", label: "Services", icon: "SV" });
-  tabs.push({ href: "/admin/updates", label: "Updates", icon: "UP" });
+  if (showSchedule) tabs.push({ href: "/admin/services", label: "Services", icon: getAdminNavIconName("Services") });
+  tabs.push({ href: "/admin/updates", label: "Updates", icon: getAdminNavIconName("Updates") });
   // Leads demoted to overflow (page still exists; the LeadsBadge in the
   // top bar / sidebar header is the primary entry now).
-  tabs.push({ href: "/admin/leads", label: "Leads", icon: "LD" });
-  tabs.push({ href: "/admin/billing", label: "Billing", icon: "BL" });
-  tabs.push({ href: "/admin/settings", label: "Settings", icon: "ST" });
+  tabs.push({ href: "/admin/leads", label: "Leads", icon: getAdminNavIconName("Leads") });
+  tabs.push({ href: "/admin/billing", label: "Billing", icon: getAdminNavIconName("Billing") });
+  tabs.push({ href: "/admin/settings", label: "Settings", icon: getAdminNavIconName("Settings") });
   return tabs;
+}
+
+function AdminNavIcon({ name, className = "" }: { name: AdminNavIconName; className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {ADMIN_NAV_ICON_PATHS[name].map((d) => (
+        <path key={d} d={d} />
+      ))}
+    </svg>
+  );
 }
 
 export function AdminShell({
@@ -76,10 +96,10 @@ export function AdminShell({
               }
             >
               <span className={
-                "grid h-8 w-8 place-items-center rounded-xl text-[11px] font-black " +
-                (currentPath === t.href ? "bg-white text-pink-700" : "bg-warm-cream2 text-warm-textMuted")
+                "grid h-8 w-8 place-items-center rounded-xl " +
+                (currentPath === t.href ? "bg-white text-pop-pink" : "bg-warm-cream2 text-warm-textMuted")
               }>
-                {t.icon}
+                <AdminNavIcon name={t.icon} className="h-4 w-4" />
               </span>
               {t.label}
             </Link>
@@ -131,14 +151,21 @@ export function AdminShell({
                 (currentPath === t.href ? "bg-pink-50 text-pink-700" : "text-warm-textMuted")
               }
             >
-              <span className="text-[11px] font-black leading-none">{t.icon}</span>
+              <span className={
+                "grid h-8 w-8 place-items-center rounded-xl " +
+                (currentPath === t.href ? "bg-pink-100 text-pop-pink ring-1 ring-pink-200" : "bg-warm-cream2 text-warm-textMuted")
+              }>
+                <AdminNavIcon name={t.icon} className="h-[18px] w-[18px]" />
+              </span>
               <span className="mt-1 text-[11px] leading-none">{t.label}</span>
             </Link>
           ))}
           {overflow.length > 0 && (
             <details className="relative text-warm-textMuted">
               <summary className="flex min-h-[50px] cursor-pointer select-none flex-col items-center justify-center rounded-2xl py-1 touch-manipulation transition-colors active:bg-warm-cream2">
-                <span className="text-[16px] font-black leading-none">•••</span>
+                <span className="grid h-8 w-8 place-items-center rounded-xl bg-warm-cream2">
+                  <AdminNavIcon name="more" className="h-[18px] w-[18px]" />
+                </span>
                 <span className="mt-1 text-[11px] leading-none">More</span>
               </summary>
               <div className="absolute bottom-full right-0 mb-3 min-w-44 rounded-2xl border border-warm-cream1 bg-white py-1 shadow-2xl">
@@ -152,7 +179,7 @@ export function AdminShell({
                       (currentPath === t.href ? "bg-pink-50 text-pink-700" : "text-warm-textMuted")
                     }
                   >
-                    <span className="mr-2 text-[11px] font-black">{t.icon}</span>
+                    <AdminNavIcon name={t.icon} className="mr-2 inline h-4 w-4 align-[-3px]" />
                     {t.label}
                   </Link>
                 ))}

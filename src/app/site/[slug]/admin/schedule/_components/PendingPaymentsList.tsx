@@ -37,26 +37,26 @@ export function PendingPaymentsList({ pending, onMarkReceived, onCancel }: Pendi
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}
-        className="w-full flex items-center justify-between rounded-full bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)] border border-[color:var(--admin-primary-border)] px-3 py-2 text-sm font-semibold"
+        className="flex w-full items-center justify-between rounded-[1.5rem] border border-pink-200 bg-pink-50 px-4 py-3 text-sm font-black text-pink-700 shadow-sm"
       >
-        <span>🕐 {pending.length} pending payment{pending.length === 1 ? "" : "s"}</span>
-        <span>{expanded ? "▴" : "▾"}</span>
+        <span>{pending.length} pending payment{pending.length === 1 ? "" : "s"}</span>
+        <span className="text-pop-pink">{expanded ? "▴" : "▾"}</span>
       </button>
 
       {expanded && (
-        <div className="mt-2 rounded-lg bg-amber-50 border border-amber-200 p-2 space-y-2">
+        <div className="mt-2 space-y-2 rounded-[1.5rem] border border-orange-200 bg-orange-50 p-2">
           {pending.map((b) => (
-            <div key={b.id} className="bg-white rounded border-l-4 border-amber-500 p-2 text-xs">
+            <div key={b.id} className="rounded-2xl border-l-4 border-orange-500 bg-white p-3 text-xs">
               <div className="flex items-baseline justify-between">
-                <span className="font-semibold text-gray-900">
+                <span className="font-black text-warm-deep">
                   {b.customer_name} · {new Date(b.booking_date + "T00:00:00").toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}, {b.booking_time}
                 </span>
-                <span className="text-gray-400 text-[10px]">{timeAgo(b.created_at)}</span>
+                <span className="text-[10px] font-bold text-warm-textMuted/70">{timeAgo(b.created_at)}</span>
               </div>
-              <div className="text-gray-500 mt-0.5">
-                {b.service_name} · Deposit: <span className="text-[var(--admin-primary)] font-semibold">${(b.deposit_amount ?? 0).toFixed(2)}</span>
+              <div className="mt-0.5 text-warm-textMuted">
+                {b.service_name} · Deposit: <span className="font-black text-pop-pink">${(b.deposit_amount ?? 0).toFixed(2)}</span>
               </div>
-              <div className="flex gap-2 mt-2">
+              <div className="mt-2 flex gap-2">
                 <button
                   type="button"
                   disabled={busyId === b.id}
@@ -64,7 +64,7 @@ export function PendingPaymentsList({ pending, onMarkReceived, onCancel }: Pendi
                     setBusyId(b.id);
                     try { await onMarkReceived(b.id); } finally { setBusyId(null); }
                   }}
-                  className="flex-1 rounded bg-green-600 text-white px-2 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  className="flex-1 rounded-full bg-green-600 px-2 py-2 text-xs font-black text-white disabled:opacity-50"
                 >
                   Mark deposit received
                 </button>
@@ -76,7 +76,7 @@ export function PendingPaymentsList({ pending, onMarkReceived, onCancel }: Pendi
                     setBusyId(b.id);
                     try { await onCancel(b.id); } finally { setBusyId(null); }
                   }}
-                  className="rounded bg-white border border-red-300 text-red-600 px-2 py-1.5 text-xs font-semibold disabled:opacity-50"
+                  className="rounded-full border border-red-300 bg-white px-3 py-2 text-xs font-black text-red-600 disabled:opacity-50"
                 >
                   Cancel
                 </button>

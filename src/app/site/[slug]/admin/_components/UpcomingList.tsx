@@ -72,7 +72,7 @@ export function UpcomingList({
 
   if (groups.length === 0) {
     return (
-      <div className="bg-white border border-gray-200 rounded-lg p-4 text-center text-sm text-gray-500">
+      <div className="rounded-[1.5rem] border border-warm-cream1 bg-white p-4 text-center text-sm font-bold text-warm-textMuted">
         No upcoming bookings in the next {daysAhead} days.
       </div>
     );
@@ -102,30 +102,32 @@ export function UpcomingList({
     <div className="space-y-3">
       {visibleGroups.map((g) => (
         <div key={g.iso}>
-          <div className="text-[10px] uppercase tracking-wider font-semibold text-[color:var(--admin-primary)] opacity-80 mb-2 px-1">
+          <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.18em] text-pop-pink">
             {dayLabel(g.date, todayIso, tomorrowIso)}
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 overflow-hidden">
+          <div className="overflow-hidden rounded-[1.5rem] border border-warm-cream1 bg-white">
             {g.rows.map((r) => (
               <button
                 key={r.id}
                 type="button"
                 onClick={() => onBookingClick(r)}
-                className={`w-full px-4 py-3 text-left flex items-baseline gap-3 hover:bg-[var(--admin-primary-light)]/40 transition-colors${r.status === "pending" ? " bg-amber-50 border-l-4 border-amber-500" : ""}`}
+                className={`flex w-full items-baseline gap-3 border-b border-warm-cream1 px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-pink-50/60 ${
+                  r.status === "pending" ? "border-l-4 border-l-orange-500 bg-orange-50" : ""
+                }`}
               >
-                <div className="text-xs font-medium text-[color:var(--admin-primary)] w-32 shrink-0">
+                <div className="w-32 shrink-0 text-xs font-black text-pop-pink">
                   {formatTimeRange(r.booking_time, r.duration_minutes)}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold truncate">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-black text-warm-deep">
                     {r.customer_name}
                     {r.status === "pending" && (
-                      <span className="ml-2 inline-block bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                      <span className="ml-2 inline-block rounded-full bg-orange-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
                         Pending
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-gray-500 truncate">{r.service_name}</div>
+                  <div className="truncate text-xs font-bold text-warm-textMuted">{r.service_name}</div>
                 </div>
               </button>
             ))}
@@ -137,7 +139,7 @@ export function UpcomingList({
         <button
           type="button"
           onClick={() => setShowAll((v) => !v)}
-          className="w-full text-sm text-[color:var(--admin-primary)] font-medium py-2 hover:underline"
+          className="w-full py-2 text-sm font-black text-pop-pink hover:underline"
         >
           {showAll ? "Show less" : `Show all ${totalRows} upcoming →`}
         </button>

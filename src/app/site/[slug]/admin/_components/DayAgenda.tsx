@@ -92,42 +92,42 @@ export function DayAgenda({
   }
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-        <button onClick={onPrevDay} className="px-2 py-1 text-sm hover:bg-gray-50 rounded">‹</button>
+    <div className="overflow-hidden rounded-[1.75rem] border border-warm-cream1 bg-white">
+      <div className="flex items-center justify-between border-b border-warm-cream1 px-4 py-3">
+        <button onClick={onPrevDay} className="grid h-9 w-9 place-items-center rounded-full bg-warm-cream2 text-sm font-black text-warm-textMuted hover:bg-warm-cream1">‹</button>
         <div className="flex flex-col items-center">
-          <div className="text-sm font-semibold text-gray-900">{headerLabel}</div>
-          <button onClick={onToday} className="text-xs text-[color:var(--admin-primary)] hover:underline">
+          <div className="text-sm font-black text-warm-deep">{headerLabel}</div>
+          <button onClick={onToday} className="text-xs font-black text-pop-pink hover:underline">
             Today
           </button>
         </div>
-        <button onClick={onNextDay} className="px-2 py-1 text-sm hover:bg-gray-50 rounded">›</button>
+        <button onClick={onNextDay} className="grid h-9 w-9 place-items-center rounded-full bg-warm-cream2 text-sm font-black text-warm-textMuted hover:bg-warm-cream1">›</button>
       </div>
 
       {dayClosed ? (
-        <div className="p-6 text-center text-sm text-gray-500">
+        <div className="p-6 text-center text-sm font-bold text-warm-textMuted">
           Closed on {weekdayName}s. Adjust in the working-hours editor below.
         </div>
       ) : (
         <>
-          <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
-            <span className="text-xs text-gray-500">
+          <div className="flex items-center justify-between border-b border-warm-cream1 px-4 py-3">
+            <span className="text-xs font-bold text-warm-textMuted">
               {dayBlocked ? "Day is blocked." : `${bookingsByHour.size} booking${bookingsByHour.size === 1 ? "" : "s"}`}
             </span>
             <button
               type="button"
               disabled={pending}
               onClick={toggleBlock}
-              className={`text-xs px-2 py-1 rounded ${
+              className={`rounded-full px-3 py-2 text-xs font-black ${
                 dayBlocked
-                  ? "bg-[var(--admin-primary-light)] text-[color:var(--admin-primary)]"
-                  : "border border-gray-200 text-gray-600 hover:bg-gray-50"
+                  ? "bg-pink-50 text-pop-pink ring-1 ring-pink-100"
+                  : "border border-pink-200 bg-pink-50 text-pink-700 hover:bg-pink-100"
               }`}
             >
               {dayBlocked ? "Reopen" : "Close this day"}
             </button>
           </div>
-          <div className="divide-y divide-gray-100">
+          <div className="divide-y divide-warm-cream1">
             {hourRows.map((h) => {
               const period = h >= 12 ? "PM" : "AM";
               const h12 = h % 12 === 0 ? 12 : h % 12;
@@ -136,34 +136,38 @@ export function DayAgenda({
               return (
                 <div
                   key={h}
-                  className="px-4 py-3 flex items-center gap-3 text-sm"
+                  className="flex items-center gap-3 px-4 py-3 text-sm"
                   style={{
                     backgroundImage: striped
-                      ? "repeating-linear-gradient(45deg, var(--admin-primary-light, #fed7e2), var(--admin-primary-light, #fed7e2) 4px, white 4px, white 8px)"
+                      ? "repeating-linear-gradient(45deg, #fdf0f6, #fdf0f6 4px, white 4px, white 8px)"
                       : undefined,
                   }}
                 >
-                  <div className="w-16 text-gray-500 text-xs">{`${h12}:00 ${period}`}</div>
+                  <div className="w-16 text-xs font-black text-warm-textMuted/80">{`${h12}:00 ${period}`}</div>
                   {booking ? (
                     <button
                       type="button"
                       onClick={() => onBookingClick(booking)}
-                      className={`flex-1 text-left${booking.status === "pending" ? " border-l-4 border-amber-500 pl-2 bg-amber-50 rounded" : ""}`}
+                      className={`flex-1 rounded-2xl px-3 py-2 text-left ${
+                        booking.status === "pending"
+                          ? "border-l-4 border-orange-500 bg-orange-50"
+                          : "border-l-4 border-pop-pink bg-pink-50"
+                      }`}
                     >
-                      <div className="font-semibold">
+                      <div className="font-black text-warm-deep">
                         {booking.customer_name}
                         {booking.status === "pending" && (
-                          <span className="ml-2 inline-block bg-amber-500 text-white text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded">
+                          <span className="ml-2 inline-block rounded-full bg-orange-500 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">
                             Pending
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs font-bold text-warm-textMuted">
                         {booking.service_name} · {formatTimeRange(booking.booking_time, booking.duration_minutes)}
                       </div>
                     </button>
                   ) : (
-                    <div className="flex-1 text-gray-400">Open</div>
+                    <div className="flex-1 rounded-2xl border border-dashed border-warm-cream1 px-3 py-2 font-bold text-warm-textMuted/55">Open</div>
                   )}
                 </div>
               );

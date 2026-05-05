@@ -40,6 +40,25 @@ function addDays(d: Date, n: number): Date {
   return out;
 }
 
+function todayIso(): string {
+  return formatIso(new Date());
+}
+
+function getTodayBookings(bookings: BookingRow[]): BookingRow[] {
+  const today = todayIso();
+  return bookings.filter((b) => b.booking_date === today && (b.status === "confirmed" || b.status === "pending"));
+}
+
+function getNextBooking(bookings: BookingRow[]): BookingRow | null {
+  const now = new Date();
+  const nowIso = formatIso(now);
+  return (
+    bookings
+      .filter((b) => b.booking_date >= nowIso && (b.status === "confirmed" || b.status === "pending"))
+      .sort((a, b) => `${a.booking_date} ${a.booking_time}`.localeCompare(`${b.booking_date} ${b.booking_time}`))[0] ?? null
+  );
+}
+
 export function ScheduleClient({
   initialWeekStart,
   bookings,
@@ -54,6 +73,8 @@ export function ScheduleClient({
   const [activeBooking, setActiveBooking] = useState<BookingRow | null>(null);
   const [isMobile, setIsMobile] = useState(false);
   const [pending, setPending] = useState<PendingBooking[]>(initialPending);
+  const todayBookings = getTodayBookings(bookings);
+  const nextBooking = getNextBooking(bookings);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -90,14 +111,57 @@ export function ScheduleClient({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="mb-3">
+    <div className="space-y-4 md:space-y-5">
+      <section className="overflow-hidden rounded-[2rem] bg-warm-deep text-pop-cream shadow-sm">
+        <div className="grid gap-5 p-6 md:grid-cols-[minmax(0,1fr)_18rem] md:p-8">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-pop-pink">Schedule</p>
+            <h1 className="mt-2 max-w-2xl font-serif text-4xl font-black leading-[0.95] tracking-[-0.045em] md:text-6xl">
+              Your day, clearly lined up.
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm font-bold leading-6 text-pop-cream/70">
+              Manage confirmed bookings, pending deposits, closed days, and working hours from one owner command center.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  const t = new Date();
+                  t.setDate(t.getDate() - t.getDay());
+                  t.setHours(0, 0, 0, 0);
+                  setWeekStart(t);
+                  setAgendaDate(new Date());
+                }}
+                className="rounded-full bg-pop-pink px-4 py-2 text-xs font-black text-pop-cream transition hover:bg-pink-700"
+              >
+                Today
+              </button>
+              <a
+                href="#working-hours"
+                className="rounded-full border border-pop-cream/20 px-4 py-2 text-xs font-black text-pop-cream transition hover:bg-pop-cream/10"
+              >
+                Working hours
+              </a>
+            </div>
+          </div>
+          <div className="rounded-[1.5rem] border border-pop-cream/15 bg-pop-cream/10 p-5">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-200">Bookings today</p>
+            <div className="mt-3 text-6xl font-black leading-none">{todayBookings.length}</div>
+            <div className="mt-3 text-sm font-bold text-pop-cream/70">
+              {nextBooking ? `Next: ${nextBooking.customer_name} at ${nextBooking.booking_time}` : "No upcoming booking in this window"}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div>
         <PendingPaymentsList
           pending={pending}
           onMarkReceived={(id) => handlePendingStatus(id, "confirmed")}
           onCancel={(id) => handlePendingStatus(id, "canceled")}
         />
       </div>
+
       {isMobile ? (
         <>
           <DayAgenda
@@ -112,7 +176,7 @@ export function ScheduleClient({
             onToggleDayBlock={handleToggleDayBlock}
           />
           <div>
-            <div className="text-xs uppercase tracking-wider font-bold text-[color:var(--admin-primary)] mb-2 px-1">
+            <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.2em] text-pop-pink">
               Coming up
             </div>
             <UpcomingList
@@ -145,16 +209,16 @@ export function ScheduleClient({
         />
       )}
 
-      <div>
-        <div className="text-xs uppercase tracking-wider font-bold text-[color:var(--admin-primary)] mb-2 px-1">
+      <div id="working-hours">
+        <div className="mb-2 px-1 text-[10px] font-black uppercase tracking-[0.2em] text-pop-pink">
           Working hours
         </div>
-        <details open className="bg-white border border-gray-200 rounded-lg group">
-          <summary className="px-4 py-3 cursor-pointer text-sm font-semibold flex items-center justify-between list-none">
+        <details open className="group rounded-[1.75rem] border border-warm-cream1 bg-white">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-4 py-4 text-sm font-black text-warm-deep md:px-5">
             <span>Set days &amp; hours</span>
-            <span className="text-gray-400 group-open:rotate-180 transition-transform">▾</span>
+            <span className="text-pop-pink transition-transform group-open:rotate-180">▾</span>
           </summary>
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 md:px-5">
             <HoursEditor initial={workingHours} />
           </div>
         </details>
