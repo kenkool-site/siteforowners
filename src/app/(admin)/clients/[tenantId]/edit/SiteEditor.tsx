@@ -356,7 +356,27 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
         : Promise.resolve(null);
       const [previewRes, tenantRes] = await Promise.all([previewPromise, tenantPromise]);
 
-      if (!previewRes.ok) throw new Error("Preview save failed");
+      if (!previewRes.ok) {
+        const detail = await previewRes.json().catch(() => ({})) as {
+          error?: string;
+          errors?: Array<{ field: string; reason: string }>;
+        };
+        const parts: string[] = [];
+        if (Array.isArray(detail.errors) && detail.errors.length > 0) {
+          for (const err of detail.errors.slice(0, 4)) {
+            const label =
+              err.field.startsWith("deposit_") || err.field === "deposit_payment_methods"
+                ? "Deposit"
+                : err.field.startsWith("categories")
+                  ? "Categories"
+                  : "Form";
+            parts.push(`${label}: ${err.field} — ${err.reason}`);
+          }
+          if (detail.errors.length > 4) parts.push(`…and ${detail.errors.length - 4} more`);
+        }
+        const suffix = parts.length > 0 ? ` — ${parts.join(" ")}` : "";
+        throw new Error((detail.error || "Preview save failed") + suffix);
+      }
       if (tenantRes && !tenantRes.ok) {
         const detail = await tenantRes.json().catch(() => ({}));
         throw new Error(detail?.error || "Tenant save failed");

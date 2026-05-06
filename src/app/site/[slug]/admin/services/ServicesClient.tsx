@@ -157,12 +157,19 @@ export function ServicesClient({
         const errs = (data?.errors as Array<{ index: number; field: string; reason: string }> | undefined) ?? [];
         if (errs.length > 0) {
           const lines = errs.slice(0, 3).map((e) => {
-            const rowLabel =
-              e.index >= 0 && services[e.index]?.name
-                ? `Row ${e.index + 1} (${services[e.index].name})`
-                : e.index >= 0
-                  ? `Row ${e.index + 1}`
-                  : `Categories`;
+            const rowLabel = (() => {
+              if (e.index >= 0) {
+                if (services[e.index]?.name) return `Row ${e.index + 1} (${services[e.index].name})`;
+                return `Row ${e.index + 1}`;
+              }
+              if (e.field.startsWith("deposit_") || e.field === "deposit_payment_methods") {
+                return "Deposit";
+              }
+              if (e.field === "categories" || e.field.startsWith("categories[")) {
+                return "Categories";
+              }
+              return "Form";
+            })();
             return `${rowLabel}: ${e.field} — ${e.reason}`;
           });
           if (errs.length > 3) lines.push(`…and ${errs.length - 3} more`);

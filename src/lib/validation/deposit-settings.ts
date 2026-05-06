@@ -61,12 +61,21 @@ export function validateDepositSettings(
   }
 
   const errors: DepositSettingsValidationError[] = [];
-  const mode = input.deposit_mode;
-  const value = input.deposit_value;
-
-  if (mode !== "fixed" && mode !== "percent") {
-    errors.push({ field: "deposit_mode", reason: "must be 'fixed' or 'percent'" });
+  const rawMode = input.deposit_mode;
+  let mode: "fixed" | "percent";
+  if (rawMode === "fixed" || rawMode === "percent") {
+    mode = rawMode;
+  } else if (rawMode == null || rawMode === "") {
+    // UI defaults to "fixed" when mode is unset; JSON often sends null until a radio fires.
+    mode = "fixed";
+  } else {
+    return {
+      ok: false,
+      errors: [{ field: "deposit_mode", reason: "must be 'fixed' or 'percent'" }],
+    };
   }
+
+  const value = input.deposit_value;
 
   if (typeof value !== "number" || !Number.isFinite(value)) {
     errors.push({ field: "deposit_value", reason: "required" });

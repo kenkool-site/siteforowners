@@ -34,7 +34,13 @@ async function getData(tenantId: string) {
   const deposit = bookingSettings
     ? {
         deposit_required: !!bookingSettings.deposit_required,
-        deposit_mode: (bookingSettings.deposit_mode as "fixed" | "percent" | null) ?? null,
+        deposit_mode: ((): "fixed" | "percent" | null => {
+          const dm = bookingSettings.deposit_mode as string | null;
+          const req = !!bookingSettings.deposit_required;
+          if (dm === "fixed" || dm === "percent") return dm;
+          if (req) return "fixed";
+          return null;
+        })(),
         deposit_value: bookingSettings.deposit_value as number | null,
         deposit_cashapp: (bookingSettings.deposit_cashapp as string | null) ?? null,
         deposit_zelle: (bookingSettings.deposit_zelle as string | null) ?? null,

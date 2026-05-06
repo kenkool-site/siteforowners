@@ -63,7 +63,13 @@ async function loadServices(
     if (!settings.error && settings.data) {
       deposit = {
         deposit_required: !!settings.data.deposit_required,
-        deposit_mode: (settings.data.deposit_mode as "fixed" | "percent" | null) ?? null,
+        deposit_mode: ((): "fixed" | "percent" | null => {
+          const dm = settings.data.deposit_mode as string | null;
+          const req = !!settings.data.deposit_required;
+          if (dm === "fixed" || dm === "percent") return dm;
+          if (req) return "fixed";
+          return null;
+        })(),
         deposit_value: settings.data.deposit_value as number | null,
         deposit_cashapp: (settings.data.deposit_cashapp as string | null) ?? null,
         deposit_zelle: (settings.data.deposit_zelle as string | null) ?? null,

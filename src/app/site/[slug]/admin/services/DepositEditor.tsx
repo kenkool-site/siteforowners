@@ -82,7 +82,14 @@ export function DepositEditor({ value, onChange }: DepositEditorProps) {
         <input
           type="checkbox"
           checked={required}
-          onChange={(e) => onChange({ ...value, deposit_required: e.target.checked })}
+          onChange={(e) => {
+            const checked = e.target.checked;
+            onChange({
+              ...value,
+              deposit_required: checked,
+              ...(checked ? { deposit_mode: value.deposit_mode ?? "fixed" } : {}),
+            });
+          }}
           className="h-4 w-4"
         />
         <span className="font-bold text-warm-deep">Require deposit</span>
