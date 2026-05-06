@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { validateDepositSettings, type DepositSettingsValue } from "@/lib/validation/deposit-settings";
+import { collectInvalidServiceImageErrors } from "@/lib/validation/service-image-url";
 
 export async function POST(request: Request) {
   try {
@@ -8,6 +9,16 @@ export async function POST(request: Request) {
 
     if (!slug || !updates) {
       return NextResponse.json({ error: "slug and updates required" }, { status: 400 });
+    }
+
+    if (updates.services !== undefined) {
+      const imageErrors = collectInvalidServiceImageErrors(updates.services);
+      if (imageErrors.length > 0) {
+        return NextResponse.json(
+          { error: "Validation failed", errors: imageErrors },
+          { status: 400 },
+        );
+      }
     }
 
     const supabase = createAdminClient();

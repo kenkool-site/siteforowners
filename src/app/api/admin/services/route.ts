@@ -5,22 +5,11 @@ import type { ServiceItem, AddOn } from "@/lib/ai/types";
 import { validateCategories } from "@/lib/validation/categories";
 import { validateAddOns } from "@/lib/validation/add-ons";
 import { validateDepositSettings } from "@/lib/validation/deposit-settings";
+import { isValidPersistedServiceImageUrl, PERSISTED_SERVICE_IMAGE_URL_ERROR } from "@/lib/validation/service-image-url";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
 const MAX_DESCRIPTION = 1000;
-
-function imageOriginAllowed(url: string): boolean {
-  try {
-    const u = new URL(url);
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-    if (!supabaseUrl) return false;
-    const expected = new URL(supabaseUrl);
-    return u.origin === expected.origin && u.pathname.startsWith("/storage/v1/object/public/service-images/");
-  } catch {
-    return false;
-  }
-}
 
 interface ValidationError {
   index: number;
@@ -86,8 +75,12 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
         errors.push({ index, field: "duration_minutes", reason: "must be a multiple of 5 in [5, 600] minutes" });
       }
     }
-    if (image !== undefined && image !== "" && !imageOriginAllowed(image)) {
-      errors.push({ index, field: "image", reason: "must be a service-images bucket URL" });
+    if (image !== undefined && image !== "" && !isValidPersistedServiceImageUrl(image)) {
+      errors.push({
+        index,
+        field: "image",
+        reason: PERSISTED_SERVICE_IMAGE_URL_ERROR,
+      });
     }
     if (category !== undefined && !categorySet.has(category)) {
       errors.push({ index, field: "category", reason: `not in categories list: "${category}"` });
