@@ -92,15 +92,25 @@ test("rejects when no payment method is provided", () => {
   assert.equal(r.ok, false);
 });
 
-test("rejects missing mode", () => {
+test("defaults missing deposit_mode to fixed when required", () => {
   const r = validateDepositSettings({
     deposit_required: true,
+    deposit_value: 40,
+    deposit_cashapp: "letstrylocs",
+  });
+  assert.equal(r.ok, true);
+  if (r.ok) assert.equal(r.value.deposit_mode, "fixed");
+});
+
+test("rejects unrecognized deposit_mode when provided", () => {
+  const r = validateDepositSettings({
+    deposit_required: true,
+    deposit_mode: "flat" as "fixed",
     deposit_value: 40,
     deposit_cashapp: "x",
   });
   assert.equal(r.ok, false);
 });
-
 test("rejects missing value", () => {
   const r = validateDepositSettings({
     deposit_required: true,
