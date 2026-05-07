@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { AddOn } from "@/lib/ai/types";
 import { computeAvailableStarts, formatTimeRange, formatDuration } from "@/lib/availability";
+import { parseServicePrice } from "@/lib/deposit";
 import {
   type SimpleService,
   DAYS,
@@ -33,19 +34,38 @@ export function MockBookingCalendar({
   businessName,
   onClose,
   initialService = null,
+  demoOptInMode = false,
 }: {
   services: SimpleService[];
   colors: ThemeColors;
   businessName: string;
   onClose: () => void;
   initialService?: SimpleService | null;
+  /** When true, auto-mounts on the "Your Details" step with a synthetic
+   * service/date/time so reviewers (e.g. Twilio A2P CTA verification)
+   * land on the SMS opt-in checkbox immediately. */
+  demoOptInMode?: boolean;
 }) {
+  const demoService = demoOptInMode ? services[0] ?? null : null;
+  const demoDate = (() => {
+    if (!demoOptInMode) return null;
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    // MOCK_WORKING_HOURS has Sunday closed; advance past it.
+    while (d.getDay() === 0) d.setDate(d.getDate() + 1);
+    return d;
+  })();
+
   const [step, setStep] = useState<"service" | "details" | "schedule" | "success">(
-    initialService ? "details" : "service",
+    demoOptInMode && demoService && demoDate ? "schedule" : initialService ? "details" : "service",
   );
-  const [selectedService, setSelectedService] = useState<SimpleService | null>(initialService);
-  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<SimpleService | null>(
+    demoService ?? initialService,
+  );
+  const [selectedDate, setSelectedDate] = useState<Date | null>(demoDate);
+  const [selectedTime, setSelectedTime] = useState<string | null>(
+    demoOptInMode ? "11:00 AM" : null,
+  );
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -525,7 +545,7 @@ export function MockBookingCalendar({
                           <span className="text-sm font-semibold" style={{ color: colors.foreground }}>Total</span>
                           <span className="text-sm font-bold" style={{ color: colors.primary }}>
                             {(() => {
-                              const numericPrice = parseFloat(selectedService.price.replace(/[^0-9.]/g, "")) || 0;
+                              const numericPrice = parseServicePrice(selectedService.price);
                               const total = numericPrice + selectedAddOns.reduce((sum, a) => sum + a.price_delta, 0);
                               return `$${total.toFixed(2)}`;
                             })()}

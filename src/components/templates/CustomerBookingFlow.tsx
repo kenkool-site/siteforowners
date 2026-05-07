@@ -70,7 +70,7 @@ export function RunningTotalBar({
   addOns: AddOn[];
   colors: ThemeColors;
 }) {
-  const numericPrice = parseFloat(basePrice.replace(/[^0-9.]/g, "")) || 0;
+  const numericPrice = parseServicePrice(basePrice);
   const totalDuration = baseDuration + addOns.reduce((sum, a) => sum + a.duration_delta_minutes, 0);
   const totalPrice = numericPrice + addOns.reduce((sum, a) => sum + a.price_delta, 0);
   return (

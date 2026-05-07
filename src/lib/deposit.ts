@@ -6,7 +6,11 @@
  */
 export function parseServicePrice(s: string): number {
   if (!s) return 0;
-  const cleaned = s.replace(/[^0-9.]/g, "");
+  // Range prices like "$150-250" or "$150 – 250" use the lower bound;
+  // splitting on dash variants prevents the dash from being stripped and
+  // the two numbers concatenating into "150250".
+  const firstSegment = s.split(/[-–—]/)[0];
+  const cleaned = firstSegment.replace(/[^0-9.]/g, "");
   if (!cleaned) return 0;
   const n = parseFloat(cleaned);
   return Number.isFinite(n) ? n : 0;
