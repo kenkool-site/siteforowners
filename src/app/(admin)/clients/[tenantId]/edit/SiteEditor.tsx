@@ -17,6 +17,7 @@ import {
   servicesFromBookingCategories,
 } from "@/lib/booking-import-services";
 import { ServiceRow } from "@/app/site/[slug]/admin/_components/ServiceRow";
+import { ServiceReorderRow } from "@/app/site/[slug]/admin/_components/ServiceReorderRow";
 import { DepositEditor, type DepositSettingsState } from "@/app/site/[slug]/admin/services/DepositEditor";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
@@ -389,6 +390,31 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       setSaving(false);
     }
   };
+
+  function moveService(index: number, direction: -1 | 1) {
+    setServices((prev) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+      const copy = [...prev];
+      const tmp = copy[index]!;
+      copy[index] = copy[nextIndex]!;
+      copy[nextIndex] = tmp;
+      return copy;
+    });
+    setSaved(false);
+  }
+
+  function reorderService(from: number, to: number) {
+    if (from === to) return;
+    setServices((prev) => {
+      if (from < 0 || from >= prev.length || to < 0 || to >= prev.length) return prev;
+      const copy = [...prev];
+      const [removed] = copy.splice(from, 1);
+      copy.splice(to, 0, removed);
+      return copy;
+    });
+    setSaved(false);
+  }
 
   const handleRegenerate = async () => {
     setRegenerating(true);
@@ -1307,9 +1333,22 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
           {/* Services */}
           <section className="rounded-xl border bg-white p-6">
             <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Services</h2>
+              <div>
+                <h2 className="text-lg font-semibold text-gray-900">Services</h2>
+                <p className="mt-1 text-xs text-gray-500">
+                  {categories.length > 0
+                    ? "Drag the handle or use arrows — order sets position within each category on the live site."
+                    : "Drag the handle or use arrows — order matches how services appear on the live site."}
+                </p>
+              </div>
               <button
-                onClick={() => setServices((prev) => [...prev, { name: "", price: "", duration_minutes: 60 }])}
+                type="button"
+                onClick={() =>
+                  setServices((prev) => [
+                    ...prev,
+                    { name: "", price: "", duration_minutes: 60, client_id: crypto.randomUUID() },
+                  ])
+                }
                 className="text-sm font-medium text-amber-600 hover:text-amber-700"
               >
                 + Add
@@ -1317,19 +1356,28 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             </div>
             <div className="space-y-2">
               {services.map((s, i) => (
-                <ServiceRow
+                <ServiceReorderRow
                   key={s.client_id ?? i}
-                  service={s}
-                  categories={categories}
-                  founderTenantId={tenantId}
-                  collapseSignal={serviceCollapseSignal}
-                  onChange={(next) => {
-                    const updated = [...services];
-                    updated[i] = next;
-                    setServices(updated);
-                  }}
-                  onDelete={() => setServices((prev) => prev.filter((_, j) => j !== i))}
-                />
+                  index={i}
+                  total={services.length}
+                  rowLabel={s.name || "service"}
+                  variant="editor"
+                  onMoveStep={(dir) => moveService(i, dir)}
+                  onReorder={reorderService}
+                >
+                  <ServiceRow
+                    service={s}
+                    categories={categories}
+                    founderTenantId={tenantId}
+                    collapseSignal={serviceCollapseSignal}
+                    onChange={(next) => {
+                      const updated = [...services];
+                      updated[i] = next;
+                      setServices(updated);
+                    }}
+                    onDelete={() => setServices((prev) => prev.filter((_, j) => j !== i))}
+                  />
+                </ServiceReorderRow>
               ))}
             </div>
 

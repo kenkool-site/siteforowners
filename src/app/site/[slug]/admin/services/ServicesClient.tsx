@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
 import { ServiceRow } from "../_components/ServiceRow";
+import { ServiceReorderRow } from "../_components/ServiceReorderRow";
 import { CategoriesPanel } from "./CategoriesPanel";
 import { BookingPoliciesEditor } from "./BookingPoliciesEditor";
 import { DepositEditor, type DepositSettingsState } from "./DepositEditor";
@@ -98,6 +99,33 @@ export function ServicesClient({
 
   function remove(index: number) {
     setServices((prev) => prev.filter((_, i) => i !== index));
+    setSavedAt(null);
+    setFailingIndexes(new Set());
+  }
+
+  function moveService(index: number, direction: -1 | 1) {
+    setServices((prev) => {
+      const nextIndex = index + direction;
+      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
+      const copy = [...prev];
+      const tmp = copy[index]!;
+      copy[index] = copy[nextIndex]!;
+      copy[nextIndex] = tmp;
+      return copy;
+    });
+    setSavedAt(null);
+    setFailingIndexes(new Set());
+  }
+
+  function reorderService(from: number, to: number) {
+    if (from === to) return;
+    setServices((prev) => {
+      if (from < 0 || from >= prev.length || to < 0 || to >= prev.length) return prev;
+      const copy = [...prev];
+      const [removed] = copy.splice(from, 1);
+      copy.splice(to, 0, removed);
+      return copy;
+    });
     setSavedAt(null);
     setFailingIndexes(new Set());
   }
@@ -249,6 +277,9 @@ export function ServicesClient({
           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-warm-muted">Your services</p>
           <p className="mt-1 text-xs font-bold text-warm-textMuted">
             {services.length} {services.length === 1 ? "service" : "services"}
+            {categories.length > 0
+              ? " · Drag the handle or use arrows — order sets position within each category on your site."
+              : " · Drag the handle or use arrows — order matches how services appear on your site."}
           </p>
         </div>
         <button
@@ -266,15 +297,24 @@ export function ServicesClient({
         </div>
       ) : (
         services.map((s, i) => (
-          <ServiceRow
+          <ServiceReorderRow
             key={s.client_id ?? i}
-            service={s}
-            categories={categories}
-            failing={failingIndexes.has(i)}
-            collapseSignal={collapseSignal}
-            onChange={(next) => update(i, next)}
-            onDelete={() => remove(i)}
-          />
+            index={i}
+            total={services.length}
+            rowLabel={s.name || "service"}
+            variant="owner"
+            onMoveStep={(dir) => moveService(i, dir)}
+            onReorder={reorderService}
+          >
+            <ServiceRow
+              service={s}
+              categories={categories}
+              failing={failingIndexes.has(i)}
+              collapseSignal={collapseSignal}
+              onChange={(next) => update(i, next)}
+              onDelete={() => remove(i)}
+            />
+          </ServiceReorderRow>
         ))
       )}
 
