@@ -118,15 +118,18 @@ export function TemplateBooking({
   const [showBookingCalendar, setShowBookingCalendar] = useState(false);
   // Reviewer / demo shortcut. `?demo=sms-opt-in` jumps straight to the
   // schedule step so Twilio A2P CTA verifiers land on the SMS opt-in
-  // checkbox on first paint with no clicks.
+  // checkbox on first paint with no clicks. Gated to preview surfaces —
+  // on live tenant sites the param is ignored so it can't auto-open the
+  // real booking modal.
   const [demoOptIn, setDemoOptIn] = useState(false);
   useEffect(() => {
+    if (isLive) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get("demo") === "sms-opt-in") {
       setDemoOptIn(true);
       setShowBookingCalendar(true);
     }
-  }, []);
+  }, [isLive]);
   const hasCategories = bookingCategories && bookingCategories.length > 0;
   const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
   const showInternalBooking = !bookingUrl && !hasCategories && services && services.length > 0;
