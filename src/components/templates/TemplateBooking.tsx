@@ -116,6 +116,20 @@ export function TemplateBooking({
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
   const [showBookingCalendar, setShowBookingCalendar] = useState(false);
+  // Reviewer / demo shortcut. `?demo=sms-opt-in` jumps straight to the
+  // schedule step so Twilio A2P CTA verifiers land on the SMS opt-in
+  // checkbox on first paint with no clicks. Gated to preview surfaces —
+  // on live tenant sites the param is ignored so it can't auto-open the
+  // real booking modal.
+  const [demoOptIn, setDemoOptIn] = useState(false);
+  useEffect(() => {
+    if (isLive) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "sms-opt-in") {
+      setDemoOptIn(true);
+      setShowBookingCalendar(true);
+    }
+  }, [isLive]);
   const hasCategories = bookingCategories && bookingCategories.length > 0;
   const canEmbed = bookingUrl && isEmbeddableBookingUrl(bookingUrl);
   const showInternalBooking = !bookingUrl && !hasCategories && services && services.length > 0;
@@ -606,8 +620,10 @@ export function TemplateBooking({
               onClose={() => {
                 setShowBookingCalendar(false);
                 setPendingServiceName(null);
+                setDemoOptIn(false);
               }}
               initialService={initialService}
+              demoOptInMode={demoOptIn}
             />
           )
         )}
