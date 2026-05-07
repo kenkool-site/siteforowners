@@ -180,6 +180,26 @@ export default function PrivacyPage() {
           cross-promotion of any kind.
         </p>
         <p>
+          No mobile information will be shared with third parties or
+          affiliates for marketing or promotional purposes. All categories
+          listed above exclude text messaging originator opt-in data and
+          consent; this information will not be shared with any third
+          parties.
+        </p>
+        <p>
+          <strong>How customers opt in:</strong> An end customer provides
+          consent to receive SMS by checking the unchecked SMS opt-in
+          checkbox during the booking flow on a website hosted by
+          SiteForOwners, immediately below the phone-number field. The
+          checkbox label discloses the program name, the types of messages,
+          message frequency, that message and data rates may apply, and
+          opt-out / help instructions, and links to these Terms and this
+          Privacy Policy. The checkbox is unchecked by default; the customer
+          must affirmatively check it to opt in. Submitting the booking with
+          the checkbox unchecked completes the booking without enrolling the
+          customer in SMS notifications.
+        </p>
+        <p>
           Customers can opt out at any time by replying <strong>STOP</strong>{" "}
           to any message. Opt-outs are honored immediately and persist across
           all future messages.
