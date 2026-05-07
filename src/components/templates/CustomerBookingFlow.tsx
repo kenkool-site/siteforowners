@@ -219,7 +219,7 @@ export function CustomerBookingFlow({
   const [customerPhone, setCustomerPhone] = useState(initialCustomer?.phone ?? "");
   const [customerEmail, setCustomerEmail] = useState(initialCustomer?.email ?? "");
   const [customerNotes, setCustomerNotes] = useState("");
-  const [customerSmsOptIn, setCustomerSmsOptIn] = useState(true);
+  const [customerSmsOptIn, setCustomerSmsOptIn] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<AddOn[]>([]);
@@ -706,15 +706,39 @@ export function CustomerBookingFlow({
                     <input type="tel" value={customerPhone} onChange={(e) => setCustomerPhone(e.target.value)}
                       placeholder="Phone Number *" required
                       className="w-full rounded-xl border px-4 py-3 text-sm focus:outline-none" style={{ borderColor: `${colors.foreground}20` }} />
-                    <label className="mt-2 flex items-center gap-2 text-sm">
+                    <label className="mt-2 flex items-start gap-2 text-xs leading-snug cursor-pointer">
                       <input
                         type="checkbox"
                         checked={customerSmsOptIn}
                         onChange={(e) => setCustomerSmsOptIn(e.target.checked)}
-                        className="h-4 w-4"
+                        className="h-4 w-4 mt-0.5 flex-shrink-0"
                       />
                       <span style={{ color: colors.foreground }}>
-                        Text me a confirmation and a day-before reminder. Reply STOP anytime.
+                        I agree to receive SMS messages from {businessName} about my
+                        booking — confirmations, reminders, deposit requests, and
+                        reschedule or cancellation updates. Msg frequency varies. Msg &amp;
+                        data rates may apply. Reply HELP for help, <strong>STOP</strong> to cancel.
+                        See{" "}
+                        <a
+                          href="https://siteforowners.com/terms"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                          style={{ color: colors.primary }}
+                        >
+                          Terms
+                        </a>{" "}
+                        and{" "}
+                        <a
+                          href="https://siteforowners.com/privacy"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="underline"
+                          style={{ color: colors.primary }}
+                        >
+                          Privacy Policy
+                        </a>
+                        .
                       </span>
                     </label>
                     <input type="email" value={customerEmail} onChange={(e) => setCustomerEmail(e.target.value)}
