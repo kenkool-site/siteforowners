@@ -70,11 +70,11 @@ export function ServiceReorderRow({
 
   return (
     <div
-      className={cn("flex gap-2 sm:gap-3", isDragging && "opacity-55")}
+      className={cn("flex items-start gap-2 sm:gap-3", isDragging && "opacity-55")}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      <div className="flex shrink-0 flex-col items-center justify-center gap-1 pt-6 sm:pt-8">
+      <div className="flex shrink-0 items-center gap-1 pt-2.5">
         <div
           draggable
           onDragStart={handleDragStart}
@@ -84,7 +84,7 @@ export function ServiceReorderRow({
           aria-label={`Drag to reorder ${rowLabel}`}
           title="Drag to reorder"
           className={cn(
-            "flex h-10 w-9 cursor-grab select-none items-center justify-center rounded-xl border shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-offset-2",
+            "flex h-9 w-7 cursor-grab select-none items-center justify-center rounded-lg border shadow-sm outline-none transition focus-visible:ring-2 focus-visible:ring-offset-2",
             variant === "owner" ? "focus-visible:ring-pop-pink/50" : "focus-visible:ring-amber-500/40",
             st.grip,
           )}
@@ -99,26 +99,28 @@ export function ServiceReorderRow({
             }
           }}
         >
-          <GripVertical className="h-5 w-5" aria-hidden />
+          <GripVertical className="h-4 w-4" aria-hidden />
         </div>
-        <button
-          type="button"
-          aria-label={`Move ${rowLabel} up`}
-          disabled={index === 0}
-          onClick={() => onMoveStep(-1)}
-          className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black", st.arrow)}
-        >
-          ↑
-        </button>
-        <button
-          type="button"
-          aria-label={`Move ${rowLabel} down`}
-          disabled={index === total - 1}
-          onClick={() => onMoveStep(1)}
-          className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black", st.arrow)}
-        >
-          ↓
-        </button>
+        <div className="flex flex-col gap-0.5">
+          <button
+            type="button"
+            aria-label={`Move ${rowLabel} up`}
+            disabled={index === 0}
+            onClick={() => onMoveStep(-1)}
+            className={cn("flex h-[17px] w-7 items-center justify-center rounded-md text-xs font-black", st.arrow)}
+          >
+            ↑
+          </button>
+          <button
+            type="button"
+            aria-label={`Move ${rowLabel} down`}
+            disabled={index === total - 1}
+            onClick={() => onMoveStep(1)}
+            className={cn("flex h-[17px] w-7 items-center justify-center rounded-md text-xs font-black", st.arrow)}
+          >
+            ↓
+          </button>
+        </div>
       </div>
       <div className="min-w-0 flex-1">{children}</div>
     </div>
