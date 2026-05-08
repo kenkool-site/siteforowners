@@ -61,6 +61,7 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
       typeof r.category === "string" && r.category.trim().length > 0
         ? r.category.trim()
         : undefined;
+    const is_featured = r.is_featured === true ? true : undefined;
 
     if (name.length > MAX_NAME) name = name.slice(0, MAX_NAME);
     if (price.length > MAX_PRICE) price = price.slice(0, MAX_PRICE);
@@ -103,6 +104,7 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
       client_id,
       category,
       add_ons,
+      is_featured,
     });
   });
 

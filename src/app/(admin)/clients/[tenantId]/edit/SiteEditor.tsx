@@ -18,6 +18,7 @@ import {
 } from "@/lib/booking-import-services";
 import { ServiceRow } from "@/app/site/[slug]/admin/_components/ServiceRow";
 import { ServiceReorderRow } from "@/app/site/[slug]/admin/_components/ServiceReorderRow";
+import { GalleryEditor } from "@/app/site/[slug]/admin/_components/GalleryEditor";
 import { DepositEditor, type DepositSettingsState } from "@/app/site/[slug]/admin/services/DepositEditor";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
@@ -612,21 +613,6 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       setError("AI edit failed. Try again.");
     } finally {
       setApplying(false);
-    }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    const formData = new FormData();
-    Array.from(files).forEach((f) => formData.append("images", f));
-    try {
-      const res = await fetch("/api/upload-images", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
-      const data = await res.json();
-      setImages((prev) => [...prev, ...data.urls]);
-    } catch {
-      setError("Image upload failed");
     }
   };
 
@@ -1512,57 +1498,15 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
         </section>
         )}
 
-          {/* Images */}
-          <section className="rounded-xl border bg-white p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-gray-900">Photos</h2>
-              <label className="cursor-pointer text-sm font-medium text-amber-600 hover:text-amber-700">
-                + Upload
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  className="hidden"
-                  onChange={handleImageUpload}
-                />
-              </label>
-            </div>
-            <p className="mb-2 text-xs text-gray-400">Click any image to set it as the hero background.</p>
-            <div className="grid grid-cols-3 gap-3 sm:grid-cols-4">
-              {images.map((img, i) => (
-                <div
-                  key={i}
-                  className={`group relative aspect-square cursor-pointer overflow-hidden rounded-lg border-2 transition-all ${
-                    i === 0 ? "border-amber-500 ring-2 ring-amber-500/30" : "border-transparent hover:border-gray-300"
-                  }`}
-                  onClick={() => {
-                    if (i === 0) return;
-                    setImages((prev) => {
-                      const updated = [...prev];
-                      const [selected] = updated.splice(i, 1);
-                      updated.unshift(selected);
-                      return updated;
-                    });
-                  }}
-                >
-                  <Image src={img} alt="" fill className="object-cover" unoptimized />
-                  {i === 0 && (
-                    <span className="absolute left-1.5 top-1.5 rounded bg-amber-500 px-2 py-0.5 text-[10px] font-semibold text-white shadow">
-                      Hero
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    aria-label="Remove from gallery"
-                    onClick={(e) => { e.stopPropagation(); setImages((prev) => prev.filter((_, j) => j !== i)); }}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs text-white shadow"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+          {/* Images — uses shared GalleryEditor (also rendered on the
+              owner-side /admin/photos page). enableHeroPromotion preserves
+              the founder's "click to set hero" behavior. */}
+          <GalleryEditor
+            images={images}
+            onChange={setImages}
+            variant="founder"
+            enableHeroPromotion
+          />
 
           {/* Display Hours (footer) */}
           <section className="rounded-xl border bg-white p-6 shadow-sm">
