@@ -741,3 +741,70 @@ export async function sendBookingRescheduledOwner(
     `,
   });
 }
+
+interface ContactLeadEmailData {
+  businessName: string;
+  ownerEmail: string;
+  customerName: string;
+  customerPhone: string | null;
+  customerEmail: string | null;
+  customerMessage: string;
+  sourcePage: string | null;
+  adminLeadsUrl?: string;
+}
+
+/**
+ * Notify the tenant owner when a new contact-form lead arrives via the
+ * customer-facing contact section on their website. Uses the customer's
+ * email as Reply-To when present so the owner can hit Reply directly.
+ */
+export async function sendContactLeadNotification(data: ContactLeadEmailData) {
+  if (!resend) {
+    console.log("Skipping contact lead notification — RESEND_API_KEY not set");
+    return;
+  }
+  if (!data.ownerEmail) {
+    console.error("sendContactLeadNotification called without ownerEmail");
+    return;
+  }
+  const phoneRow = data.customerPhone
+    ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Phone</td><td style="padding: 8px 0; font-size: 14px;"><a href="tel:${escapeHtml(data.customerPhone)}" style="color: #2563EB;">${escapeHtml(data.customerPhone)}</a></td></tr>`
+    : "";
+  const emailRow = data.customerEmail
+    ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Email</td><td style="padding: 8px 0; font-size: 14px;"><a href="mailto:${escapeHtml(data.customerEmail)}" style="color: #2563EB;">${escapeHtml(data.customerEmail)}</a></td></tr>`
+    : "";
+  const sourceRow = data.sourcePage
+    ? `<tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px;">Page</td><td style="padding: 8px 0; font-size: 14px; color: #6B7280;">${escapeHtml(data.sourcePage)}</td></tr>`
+    : "";
+  const adminCta = data.adminLeadsUrl
+    ? `<div style="margin-top: 16px; text-align: center;"><a href="${data.adminLeadsUrl}" style="display: inline-block; background: #1f2937; color: #fff; padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 14px; text-decoration: none;">View in Admin →</a></div>`
+    : "";
+
+  await resend.emails.send({
+    from: tenantFrom(data.businessName),
+    to: data.ownerEmail,
+    ...(data.customerEmail ? { replyTo: data.customerEmail } : {}),
+    subject: `New message from ${data.customerName} — ${data.businessName}`,
+    html: `
+      <div style="font-family: -apple-system, sans-serif; max-width: 540px; margin: 0 auto;">
+        <div style="background: #db2777; padding: 16px 24px; border-radius: 12px 12px 0 0;">
+          <h2 style="margin: 0; color: #fff; font-size: 18px;">New contact message</h2>
+          <p style="margin: 4px 0 0; color: #fce7f3; font-size: 13px;">${escapeHtml(data.businessName)}</p>
+        </div>
+        <div style="background: #fff; border: 1px solid #E5E7EB; border-top: none; padding: 24px; border-radius: 0 0 12px 12px;">
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr><td style="padding: 8px 0; color: #6B7280; font-size: 14px; width: 90px;">From</td><td style="padding: 8px 0; font-size: 14px; font-weight: 600;">${escapeHtml(data.customerName)}</td></tr>
+            ${phoneRow}
+            ${emailRow}
+            ${sourceRow}
+          </table>
+          <div style="margin-top: 16px; border-top: 1px solid #E5E7EB; padding-top: 16px;">
+            <p style="margin: 0 0 6px; color: #6B7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700;">Message</p>
+            <p style="margin: 0; font-size: 15px; line-height: 1.55; white-space: pre-wrap;">${escapeHtml(data.customerMessage)}</p>
+          </div>
+          ${adminCta}
+        </div>
+      </div>
+    `,
+  });
+}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveTenantByHost } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit, hashIp, getClientIp } from "@/lib/api-rate-limit";
+import { sendContactLeadNotification } from "@/lib/email";
 
 const CONTACT_WINDOW_SECONDS = 60 * 60; // 1 hour
 const CONTACT_MAX_REQUESTS = 10;
@@ -59,6 +60,26 @@ export async function POST(request: NextRequest) {
   if (error) {
     console.error("[api/contact] insert failed", { tenantId: tenant.id, error });
     return NextResponse.json({ error: "Could not save" }, { status: 500 });
+  }
+
+  // Fire-and-forget owner notification. `email` is the primary owner
+  // address (matches what the booking + order flows use); `admin_email`
+  // is a fallback for tenants without the primary set.
+  const ownerEmail = tenant.email ?? tenant.admin_email ?? null;
+  if (ownerEmail) {
+    sendContactLeadNotification({
+      businessName: tenant.business_name,
+      ownerEmail,
+      customerName: name,
+      customerPhone: phone,
+      customerEmail: email,
+      customerMessage: message,
+      sourcePage: source_page,
+    }).catch((err) => {
+      console.error("[api/contact] owner notification failed", { tenantId: tenant.id, err });
+    });
+  } else {
+    console.warn("[api/contact] no owner email on tenant — notification skipped", { tenantId: tenant.id });
   }
 
   return NextResponse.json({ ok: true });

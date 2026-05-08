@@ -381,7 +381,10 @@ export function TemplateOrchestrator({
     <TemplateRating rating={data.rating} reviewCount={data.review_count} colors={colors} />
   ) : null;
 
-  const contactSection = showContact ? <div id="contact"><TemplateContact colors={colors} previewMode /></div> : null;
+  // previewMode short-circuits the form submit (just shows "Thank you" inline).
+  // Live tenant sites need !previewMode so the form POSTs to /api/contact and
+  // the lead lands in contact_leads for the owner's /admin/leads page.
+  const contactSection = showContact ? <div id="contact"><TemplateContact colors={colors} previewMode={!isLive} /></div> : null;
   const mapSection = showMap ? <TemplateMap address={data.address} colors={colors} /> : null;
   const footerSection = (
     <TemplateFooter
