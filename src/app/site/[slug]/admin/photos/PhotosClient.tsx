@@ -2,19 +2,25 @@
 
 import { useState } from "react";
 import { GalleryEditor } from "../_components/GalleryEditor";
+import { AboutImagePicker } from "../_components/AboutImagePicker";
 
 interface PhotosClientProps {
   initialImages: string[];
+  initialAboutImageUrl: string | null;
 }
 
-export function PhotosClient({ initialImages }: PhotosClientProps) {
+export function PhotosClient({
+  initialImages,
+  initialAboutImageUrl,
+}: PhotosClientProps) {
   const [images, setImages] = useState<string[]>(initialImages);
+  const [aboutImageUrl, setAboutImageUrl] = useState<string | null>(initialAboutImageUrl);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const initialJson = JSON.stringify(initialImages);
-  const dirty = JSON.stringify(images) !== initialJson;
+  const initialJson = JSON.stringify({ images: initialImages, aboutImageUrl: initialAboutImageUrl });
+  const dirty = JSON.stringify({ images, aboutImageUrl }) !== initialJson;
 
   async function save() {
     setSaving(true);
@@ -23,7 +29,10 @@ export function PhotosClient({ initialImages }: PhotosClientProps) {
       const res = await fetch("/api/admin/images", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ images }),
+        body: JSON.stringify({
+          images,
+          about_image_url: aboutImageUrl,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -42,7 +51,7 @@ export function PhotosClient({ initialImages }: PhotosClientProps) {
       <header>
         <h1 className="text-xl font-black text-warm-deep">Photos</h1>
         <p className="mt-1 text-sm font-bold text-warm-textMuted">
-          Upload photos that appear on your website&apos;s gallery and hero. Save when you are ready.
+          Manage your gallery and your About Us photo. Save when you are ready.
         </p>
       </header>
 
@@ -51,6 +60,13 @@ export function PhotosClient({ initialImages }: PhotosClientProps) {
         onChange={setImages}
         variant="owner"
         enableHeroPromotion={false}
+      />
+
+      <AboutImagePicker
+        value={aboutImageUrl}
+        gallery={images}
+        onChange={setAboutImageUrl}
+        variant="owner"
       />
 
       {error && (
