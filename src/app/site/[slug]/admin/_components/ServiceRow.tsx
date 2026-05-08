@@ -249,8 +249,27 @@ export function ServiceRow({
   }
 
   return (
+    <div ref={containerRef} className="space-y-1.5">
+      {/* Featured toggle — sits OUTSIDE the editing card. Featuring is a
+          marketing/positioning decision (where the service appears on the
+          site), not a per-service content edit, so it lives above the card. */}
+      <div className="flex justify-end px-1">
+        <button
+          type="button"
+          onClick={() => set("is_featured", !service.is_featured || undefined)}
+          aria-pressed={!!service.is_featured}
+          className={
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black transition " +
+            (service.is_featured
+              ? "border-amber-300 bg-amber-50 text-amber-700"
+              : "border-warm-cream1 bg-white text-warm-textMuted hover:border-amber-200 hover:text-amber-600")
+          }
+        >
+          <span aria-hidden>{service.is_featured ? "★" : "☆"}</span>
+          {service.is_featured ? "Featured on site" : "Feature this service"}
+        </button>
+      </div>
     <div
-      ref={containerRef}
       className={`space-y-3 rounded-[1.5rem] border bg-white p-4 ${
         failing ? "border-red-500 ring-2 ring-red-200" : "border-pop-pink/40 ring-1 ring-pink-100"
       }`}
@@ -286,13 +305,13 @@ export function ServiceRow({
             className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep"
             maxLength={80}
           />
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
             <input
               type="text"
               value={service.price}
               onChange={(e) => set("price", e.target.value)}
               placeholder="$0"
-              className="flex-1 rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep"
+              className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep sm:flex-1"
               maxLength={30}
             />
             <DurationMinutesInput
@@ -330,22 +349,6 @@ export function ServiceRow({
             </div>
           )}
 
-          {/* Featured toggle — independent of categories. Pulls the service
-              into a "Featured" group at the top of the customer site. */}
-          <button
-            type="button"
-            onClick={() => set("is_featured", !service.is_featured || undefined)}
-            aria-pressed={!!service.is_featured}
-            className={
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black transition " +
-              (service.is_featured
-                ? "border-amber-300 bg-amber-50 text-amber-700"
-                : "border-warm-cream1 bg-white text-warm-textMuted hover:border-amber-200 hover:text-amber-600")
-            }
-          >
-            <span aria-hidden>{service.is_featured ? "★" : "☆"}</span>
-            {service.is_featured ? "Featured on site" : "Feature this service"}
-          </button>
         </div>
       </div>
 
@@ -430,6 +433,7 @@ export function ServiceRow({
           Done ▴
         </button>
       </div>
+    </div>
     </div>
   );
 }
