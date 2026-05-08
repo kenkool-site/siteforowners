@@ -18,6 +18,11 @@ export const ADMIN_NAV_ICON_PATHS = {
     "M19 12a7.5 7.5 0 0 0-.1-1.2l2-1.5-2-3.4-2.4 1a7.8 7.8 0 0 0-2.1-1.2L14 3h-4l-.4 2.7a7.8 7.8 0 0 0-2.1 1.2l-2.4-1-2 3.4 2 1.5A7.5 7.5 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.4-1c.6.5 1.3.9 2.1 1.2L10 21h4l.4-2.7c.8-.3 1.5-.7 2.1-1.2l2.4 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2Z",
   ],
   more: ["M6 12h.01", "M12 12h.01", "M18 12h.01"],
+  photo: [
+    "M4.5 6.5h15v11h-15Z",
+    "m5 16 4-4 3 3 3.5-4 4 5",
+    "M9 10.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
+  ],
 } as const;
 
 export type AdminNavIconName = keyof typeof ADMIN_NAV_ICON_PATHS;
@@ -39,6 +44,8 @@ export function getAdminNavIconName(label: string): AdminNavIconName {
       return "card";
     case "Settings":
       return "settings";
+    case "Photos":
+      return "photo";
     default:
       return "more";
   }

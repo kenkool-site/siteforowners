@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { getAdminNavIconName, type AdminNavIconName } from "@/lib/admin-nav-icons";
@@ -27,6 +28,7 @@ function buildTabs(tenant: ShellTenant): Tab[] {
   // top bar / sidebar header is the primary entry now).
   tabs.push({ href: "/admin/leads", label: "Leads", icon: getAdminNavIconName("Leads") });
   tabs.push({ href: "/admin/billing", label: "Billing", icon: getAdminNavIconName("Billing") });
+  tabs.push({ href: "/admin/photos", label: "Photos", icon: getAdminNavIconName("Photos") });
   tabs.push({ href: "/admin/settings", label: "Settings", icon: getAdminNavIconName("Settings") });
   return tabs;
 }
@@ -44,6 +46,36 @@ export function AdminShell({
   const tabs = buildTabs(tenant);
   const primary = tabs.slice(0, 4);
   const overflow = tabs.slice(4);
+
+  // Mobile More overflow menu — controlled state instead of native <details>
+  // so we can dismiss on outside tap and on route navigation (which native
+  // <details> doesn't do without extra wiring).
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handlePointer = (e: PointerEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMoreOpen(false);
+    };
+    // pointerdown fires before click — closes the menu BEFORE a tap on a
+    // primary tab triggers navigation, so the menu doesn't briefly stay
+    // open during the route transition.
+    document.addEventListener("pointerdown", handlePointer);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointer);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [moreOpen]);
+  // Close the menu when the route changes (i.e. user tapped one of its links).
+  useEffect(() => {
+    setMoreOpen(false);
+  }, [currentPath]);
 
   return (
     <div className="min-h-screen bg-warm-cream2 text-warm-deep md:flex">
@@ -142,30 +174,43 @@ export function AdminShell({
             </Link>
           ))}
           {overflow.length > 0 && (
-            <details className="relative text-warm-textMuted">
-              <summary className="flex min-h-[50px] cursor-pointer select-none flex-col items-center justify-center rounded-2xl py-1 touch-manipulation transition-colors active:bg-warm-cream2">
+            <div ref={moreRef} className="relative text-warm-textMuted">
+              <button
+                type="button"
+                aria-expanded={moreOpen}
+                aria-haspopup="menu"
+                onClick={() => setMoreOpen((v) => !v)}
+                className="flex min-h-[50px] w-full cursor-pointer select-none flex-col items-center justify-center rounded-2xl py-1 touch-manipulation transition-colors active:bg-warm-cream2"
+              >
                 <span className="grid h-8 w-8 place-items-center rounded-xl bg-warm-cream2">
                   <AdminNavGlyph name="more" className="h-[18px] w-[18px]" />
                 </span>
                 <span className="mt-1 text-[11px] leading-none">More</span>
-              </summary>
-              <div className="absolute bottom-full right-0 mb-3 min-w-44 rounded-2xl border border-warm-cream1 bg-white py-1 shadow-2xl">
-                {overflow.map((t) => (
-                  <Link
-                    key={t.href}
-                    href={t.href}
-                    prefetch
-                    className={
-                      "block px-4 py-3 text-sm font-bold select-none touch-manipulation transition-colors active:bg-warm-cream2 " +
-                      (currentPath === t.href ? "bg-pink-50 text-pink-700" : "text-warm-textMuted")
-                    }
-                  >
-                    <AdminNavGlyph name={t.icon} className="mr-2 inline h-4 w-4 align-[-3px]" />
-                    {t.label}
-                  </Link>
-                ))}
-              </div>
-            </details>
+              </button>
+              {moreOpen && (
+                <div
+                  role="menu"
+                  className="absolute bottom-full right-0 mb-3 min-w-44 rounded-2xl border border-warm-cream1 bg-white py-1 shadow-2xl"
+                >
+                  {overflow.map((t) => (
+                    <Link
+                      key={t.href}
+                      href={t.href}
+                      prefetch
+                      role="menuitem"
+                      onClick={() => setMoreOpen(false)}
+                      className={
+                        "block px-4 py-3 text-sm font-bold select-none touch-manipulation transition-colors active:bg-warm-cream2 " +
+                        (currentPath === t.href ? "bg-pink-50 text-pink-700" : "text-warm-textMuted")
+                      }
+                    >
+                      <AdminNavGlyph name={t.icon} className="mr-2 inline h-4 w-4 align-[-3px]" />
+                      {t.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </nav>
       </div>

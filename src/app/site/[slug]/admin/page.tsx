@@ -4,6 +4,7 @@ import { getRollups } from "@/lib/admin-rollups";
 import { getRecentVisits, shapeVisits, getMonthlyVisitCount } from "@/lib/admin-visits";
 import { getRecentActivity } from "@/lib/admin-activity";
 import { getBookingMode } from "@/lib/admin-bookings";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { StatCard } from "./_components/StatCard";
 import { VisitorsStrip } from "./_components/VisitorsStrip";
 import { RecentActivity } from "./_components/RecentActivity";
@@ -20,12 +21,23 @@ export default async function AdminHome({ params }: { params: { slug: string } }
 
   const showOrders = tenant.checkout_mode === "pickup";
 
-  const [rollups, visitRows, activity, monthlyVisits, bookingMode] = await Promise.all([
+  const [rollups, visitRows, activity, monthlyVisits, bookingMode, photoCount] = await Promise.all([
     getRollups(tenant.id),
     getRecentVisits(tenant.id),
     getRecentActivity(tenant.id),
     getMonthlyVisitCount(tenant.id),
     getBookingMode(tenant.preview_slug),
+    (async (): Promise<number> => {
+      if (!tenant.preview_slug) return 0;
+      const supabase = createAdminClient();
+      const { data } = await supabase
+        .from("previews")
+        .select("images")
+        .eq("slug", tenant.preview_slug)
+        .maybeSingle();
+      const imgs = (data?.images as string[] | null) ?? [];
+      return imgs.length;
+    })(),
   ]);
 
   // Internal booking tab visibility now driven by the actual booking URL
@@ -95,6 +107,13 @@ export default async function AdminHome({ params }: { params: { slug: string } }
         {cards.map((c) => (
           <StatCard key={c.label} value={c.value} label={c.label} fullWidth={cards.length === 1} href={c.href} />
         ))}
+      </div>
+
+      {/* Manage-your-site row — discoverable shortcut to the Photos editor.
+          Photos isn't a "needs attention" stat, so it lives in a separate
+          row below the urgency cards. */}
+      <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-2">
+        <StatCard value={photoCount} label="Photos on your site" href="/admin/photos" />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
