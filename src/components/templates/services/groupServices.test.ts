@@ -66,3 +66,56 @@ test("groupServices: Other group is last", () => {
   const out = groupServices([s("a"), s("b", "Braids")], ["Braids"]);
   assert.deepEqual(out.map((g) => g.label), ["Braids", "Other"]);
 });
+
+test("groupServices: featured services land in a Featured group at the top", () => {
+  const out = groupServices(
+    [
+      { name: "trim", price: "$20", category: "Cuts", is_featured: true },
+      { name: "color", price: "$80", category: "Color" },
+      { name: "extensions", price: "$200", category: "Cuts" },
+    ],
+    ["Cuts", "Color"],
+  );
+  assert.deepEqual(out.map((g) => g.label), ["Featured", "Cuts", "Color"]);
+  assert.equal(out[0].services.length, 1);
+  assert.equal(out[0].services[0].name, "trim");
+  // Trim must NOT also appear in Cuts
+  assert.equal(out[1].services.length, 1);
+  assert.equal(out[1].services[0].name, "extensions");
+});
+
+test("groupServices: Featured preserves order across categories", () => {
+  const out = groupServices(
+    [
+      { name: "a", price: "$1", category: "X", is_featured: true },
+      { name: "b", price: "$2", category: "Y" },
+      { name: "c", price: "$3", category: "X", is_featured: true },
+    ],
+    ["X", "Y"],
+  );
+  assert.deepEqual(out[0].services.map((s) => s.name), ["a", "c"]);
+});
+
+test("groupServices: featured uncategorized service still appears in Featured (not Other)", () => {
+  const out = groupServices(
+    [
+      { name: "a", price: "$1", is_featured: true },
+      { name: "b", price: "$2" },
+    ],
+    ["X"],
+  );
+  assert.deepEqual(out.map((g) => g.label), ["Featured", "Other"]);
+  assert.equal(out[0].services[0].name, "a");
+  assert.equal(out[1].services[0].name, "b");
+});
+
+test("groupServices: featured works with no categories defined", () => {
+  const out = groupServices(
+    [
+      { name: "a", price: "$1", is_featured: true },
+      { name: "b", price: "$2" },
+    ],
+    undefined,
+  );
+  assert.deepEqual(out.map((g) => g.label), ["Featured", null]);
+});
