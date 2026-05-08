@@ -221,7 +221,12 @@ export function ServiceRow({
           <div className="h-12 w-12 flex-shrink-0 rounded-xl border border-warm-cream1/80 bg-warm-cream2" />
         )}
         <div className="min-w-0 flex-1">
-          <div className="truncate text-sm font-black text-warm-deep">{service.name || "(untitled)"}</div>
+          <div className="flex items-center gap-1.5 truncate text-sm font-black text-warm-deep">
+            {service.is_featured && (
+              <span aria-label="Featured" title="Featured" className="text-amber-500">★</span>
+            )}
+            <span className="truncate">{service.name || "(untitled)"}</span>
+          </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-warm-textMuted">
             <span className="whitespace-nowrap">
               {formatDuration(duration)} · {service.price || "—"}
@@ -324,6 +329,23 @@ export function ServiceRow({
               Tip: add categories above to group services
             </div>
           )}
+
+          {/* Featured toggle — independent of categories. Pulls the service
+              into a "Featured" group at the top of the customer site. */}
+          <button
+            type="button"
+            onClick={() => set("is_featured", !service.is_featured || undefined)}
+            aria-pressed={!!service.is_featured}
+            className={
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-black transition " +
+              (service.is_featured
+                ? "border-amber-300 bg-amber-50 text-amber-700"
+                : "border-warm-cream1 bg-white text-warm-textMuted hover:border-amber-200 hover:text-amber-600")
+            }
+          >
+            <span aria-hidden>{service.is_featured ? "★" : "☆"}</span>
+            {service.is_featured ? "Featured on site" : "Feature this service"}
+          </button>
         </div>
       </div>
 

@@ -43,6 +43,11 @@ export interface ServiceItem {
   category?: string;
   /** v4 (Spec 4) — optional extras the customer can add at booking time. */
   add_ons?: AddOn[];
+  /** Pulls the service into a "Featured" group rendered above categories
+   * on the customer-facing site. Independent of category — a featured
+   * service is removed from its category group and appears only in
+   * Featured. Order within Featured = order in the services array. */
+  is_featured?: boolean;
 }
 
 export interface ProductItem {
