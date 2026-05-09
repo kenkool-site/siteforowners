@@ -10,7 +10,11 @@ test("TemplateGalleryVideo renders autoplaying looping video without a visible p
   assert.match(component, /muted/, "video should be muted for autoplay");
   assert.match(component, /playsInline/, "video should play inline on mobile");
   assert.doesNotMatch(component, /Pause video|Pause Video|setPaused/, "component should not render a visible pause control");
-  assert.match(component, /pt-8/, "component should reduce blank top space on mobile");
+  assert.match(component, /pt-7/, "component should reduce blank top space on mobile");
+  assert.match(component, /aspect-\[4\/5\]/, "component should use a taller mobile video frame");
+  assert.match(component, /max-w-\[92rem\]/, "component should render the video wider than the previous boxed frame");
+  assert.match(component, /rounded-none/, "video card should have flat edges, no curved corners");
+  assert.doesNotMatch(component, /rounded-\[/, "video card should not use arbitrary rounded radius");
   assert.match(component, /galleryVideoTitle/, "component should support custom title text");
 });
 

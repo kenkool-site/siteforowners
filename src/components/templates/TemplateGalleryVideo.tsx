@@ -31,13 +31,13 @@ export function TemplateGalleryVideo({ src, galleryVideoTitle, colors, template 
 
   return (
     <section
-      className="px-4 pb-14 pt-8 md:px-10 md:py-16 lg:px-16"
+      className="px-2 pb-14 pt-7 md:px-10 md:py-16 lg:px-16"
       style={{ backgroundColor: background, color: textColor }}
       aria-label="Featured gallery video"
     >
       <AnimateSection>
-        <div className="mx-auto max-w-6xl space-y-6 md:space-y-8">
-          <div>
+        <div className="mx-auto max-w-[92rem] space-y-5 md:space-y-8">
+          <div className="px-4 md:px-0">
             <p className="mb-2 text-xs font-black uppercase tracking-[0.28em] md:mb-3" style={{ color: accent }}>
               Watch
             </p>
@@ -45,7 +45,7 @@ export function TemplateGalleryVideo({ src, galleryVideoTitle, colors, template 
               {title}
             </h2>
           </div>
-          <div className="relative overflow-hidden rounded-[2rem] border shadow-2xl" style={{ borderColor: `${accent}55` }}>
+          <div className="relative overflow-hidden rounded-none border shadow-2xl" style={{ borderColor: `${accent}55` }}>
             <video
               src={src}
               autoPlay
@@ -53,7 +53,7 @@ export function TemplateGalleryVideo({ src, galleryVideoTitle, colors, template 
               muted
               playsInline
               aria-label={title}
-              className="aspect-video w-full object-cover"
+              className="aspect-[4/5] min-h-[28rem] w-full object-cover sm:aspect-[3/4] md:aspect-video md:min-h-0"
             />
             <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/45 to-transparent" />
           </div>
