@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { AddOn } from "@/lib/ai/types";
-import { formatTimeRange, formatDuration } from "@/lib/availability";
+import { formatTimeRange, formatDuration, filterSlotsToFuture } from "@/lib/availability";
 import { computeDeposit, parseServicePrice } from "@/lib/deposit";
 import { cashappUrl, normalizeCashapp, hasAnyMethod, type PaymentMethods } from "@/lib/deposit-payment-methods";
 
@@ -254,7 +254,10 @@ export function CustomerBookingFlow({
   const dates = useMemo(() => {
     const result: Date[] = [];
     const today = new Date();
-    for (let i = 1; i <= 30; i++) {
+    // Start at i=0 so today is bookable when there are still future slots in
+    // the day. filterSlotsToFuture below hides past hours; an entire day with
+    // no future slots collapses to "No availability on this day" client-side.
+    for (let i = 0; i <= 30; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       result.push(d);
@@ -272,7 +275,10 @@ export function CustomerBookingFlow({
     try {
       const res = await fetch(`/api/available-slots?slug=${previewSlug}&date=${dateStr}&duration_minutes=${dur}`);
       const data = await res.json();
-      setAvailableSlots(data.slots || []);
+      // The slot-computation API doesn't filter past hours (it has no
+      // timezone-correct view of "now"), so we drop them here using the
+      // customer's local clock.
+      setAvailableSlots(filterSlotsToFuture(data.slots || [], date));
     } catch {
       setAvailableSlots([]);
     } finally {
