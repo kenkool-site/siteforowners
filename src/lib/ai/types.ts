@@ -107,6 +107,8 @@ export interface PreviewData {
   address?: string;
   images?: string[];
   hero_video_url?: string | null;
+  gallery_video_url?: string | null;
+  gallery_video_title?: string | null;
   rating?: number;
   review_count?: number;
   generated_copy?: GeneratedCopy;

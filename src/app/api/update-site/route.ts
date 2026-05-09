@@ -1,18 +1,46 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { validateDepositSettings, type DepositSettingsValue } from "@/lib/validation/deposit-settings";
+import {
+  validateDepositSettings,
+  type DepositSettingsInput,
+  type DepositSettingsValue,
+} from "@/lib/validation/deposit-settings";
 import { collectInvalidServiceImageErrors } from "@/lib/validation/service-image-url";
+import {
+  isGalleryVideoUrl,
+  normalizeGalleryVideoTitle as normalizeGalleryVideoTitleValue,
+} from "@/lib/video/gallery-video";
 
-export async function POST(request: Request) {
+function normalizeGalleryVideoTitle(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return null;
+  const normalized = normalizeGalleryVideoTitleValue(value);
+  return normalized || null;
+}
+
+export async function POST(request: NextRequest) {
   try {
-    const { slug, updates } = await request.json();
+    const adminPassword = process.env.ADMIN_PASSWORD;
+    const sessionCookie = request.cookies.get("admin_session")?.value;
+    if (!adminPassword || sessionCookie !== adminPassword) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!slug || !updates) {
+    const body: unknown = await request.json();
+    if (!(body !== null && typeof body === "object" && !Array.isArray(body))) {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
+
+    const { slug, updates } = body as Record<string, unknown>;
+
+    if (typeof slug !== "string" || !(updates !== null && typeof updates === "object" && !Array.isArray(updates))) {
       return NextResponse.json({ error: "slug and updates required" }, { status: 400 });
     }
 
-    if (updates.services !== undefined) {
-      const imageErrors = collectInvalidServiceImageErrors(updates.services);
+    const updateFields = updates as Record<string, unknown>;
+
+    if (updateFields.services !== undefined) {
+      const imageErrors = collectInvalidServiceImageErrors(updateFields.services);
       if (imageErrors.length > 0) {
         return NextResponse.json(
           { error: "Validation failed", errors: imageErrors },
@@ -37,18 +65,33 @@ export async function POST(request: Request) {
     // Build the update object — only allow specific fields
     const allowed: Record<string, unknown> = {};
 
-    if (updates.business_name !== undefined) allowed.business_name = updates.business_name;
-    if (updates.phone !== undefined) allowed.phone = updates.phone;
-    if (updates.address !== undefined) allowed.address = updates.address;
-    if (updates.booking_url !== undefined) allowed.booking_url = updates.booking_url;
-    if (updates.services !== undefined) allowed.services = updates.services;
-    if (updates.categories !== undefined) allowed.categories = updates.categories;
-    if (updates.booking_policies !== undefined) allowed.booking_policies = updates.booking_policies;
-    if (updates.products !== undefined) allowed.products = updates.products;
-    if (updates.images !== undefined) allowed.images = updates.images;
-    if (updates.hero_video_url !== undefined) allowed.hero_video_url = updates.hero_video_url;
-    if (updates.hours !== undefined) allowed.hours = updates.hours;
-    if (updates.imported_hours !== undefined) allowed.imported_hours = updates.imported_hours;
+    if (updateFields.business_name !== undefined) allowed.business_name = updateFields.business_name;
+    if (updateFields.phone !== undefined) allowed.phone = updateFields.phone;
+    if (updateFields.address !== undefined) allowed.address = updateFields.address;
+    if (updateFields.booking_url !== undefined) allowed.booking_url = updateFields.booking_url;
+    if (updateFields.services !== undefined) allowed.services = updateFields.services;
+    if (updateFields.categories !== undefined) allowed.categories = updateFields.categories;
+    if (updateFields.booking_policies !== undefined) allowed.booking_policies = updateFields.booking_policies;
+    if (updateFields.products !== undefined) allowed.products = updateFields.products;
+    if (updateFields.images !== undefined) allowed.images = updateFields.images;
+    if (updateFields.hero_video_url !== undefined) allowed.hero_video_url = updateFields.hero_video_url;
+    if (updateFields.gallery_video_url !== undefined) {
+      if (updateFields.gallery_video_url === null || updateFields.gallery_video_url === "") {
+        allowed.gallery_video_url = null;
+      } else if (isGalleryVideoUrl(updateFields.gallery_video_url)) {
+        allowed.gallery_video_url = updateFields.gallery_video_url.trim();
+      } else {
+        return NextResponse.json(
+          { error: "Validation failed", errors: [{ field: "gallery_video_url", reason: "must be an uploaded gallery MP4 URL or null" }] },
+          { status: 400 },
+        );
+      }
+    }
+    if (updateFields.gallery_video_title !== undefined) {
+      allowed.gallery_video_title = normalizeGalleryVideoTitle(updateFields.gallery_video_title);
+    }
+    if (updateFields.hours !== undefined) allowed.hours = updateFields.hours;
+    if (updateFields.imported_hours !== undefined) allowed.imported_hours = updateFields.imported_hours;
 
     // Look up tenant once — used to route deposit + tenant-scoped fields
     // to their canonical homes (booking_settings, tenants) when a tenant
@@ -64,32 +107,33 @@ export async function POST(request: Request) {
     // there is no tenant yet. Once a tenant exists, /api/update-tenant
     // owns these (canonical home: tenants table).
     if (!tenantId) {
-      if (updates.booking_mode !== undefined) allowed.booking_mode = updates.booking_mode;
-      if (updates.notification_email !== undefined) allowed.notification_email = updates.notification_email;
+      if (updateFields.booking_mode !== undefined) allowed.booking_mode = updateFields.booking_mode;
+      if (updateFields.notification_email !== undefined) allowed.notification_email = updateFields.notification_email;
     }
 
     // Handle generated_copy updates (merge, don't replace)
-    if (updates.generated_copy) {
+    if (updateFields.generated_copy && typeof updateFields.generated_copy === "object" && !Array.isArray(updateFields.generated_copy)) {
+      const generatedCopyUpdates = updateFields.generated_copy as Record<string, unknown>;
       const currentCopy = (current.generated_copy || {}) as Record<string, unknown>;
       const mergedCopy = { ...currentCopy };
 
       // Merge EN copy
-      if (updates.generated_copy.en) {
+      if (generatedCopyUpdates.en && typeof generatedCopyUpdates.en === "object" && !Array.isArray(generatedCopyUpdates.en)) {
         const currentEn = (currentCopy.en || {}) as Record<string, unknown>;
-        mergedCopy.en = { ...currentEn, ...updates.generated_copy.en };
+        mergedCopy.en = { ...currentEn, ...(generatedCopyUpdates.en as Record<string, unknown>) };
       }
 
       // Merge ES copy
-      if (updates.generated_copy.es) {
+      if (generatedCopyUpdates.es && typeof generatedCopyUpdates.es === "object" && !Array.isArray(generatedCopyUpdates.es)) {
         const currentEs = (currentCopy.es || {}) as Record<string, unknown>;
-        mergedCopy.es = { ...currentEs, ...updates.generated_copy.es };
+        mergedCopy.es = { ...currentEs, ...(generatedCopyUpdates.es as Record<string, unknown>) };
       }
 
       // Merge top-level copy fields (logo, custom_colors, section_settings, etc)
-      if (updates.generated_copy.logo !== undefined) mergedCopy.logo = updates.generated_copy.logo;
-      if (updates.generated_copy.section_settings !== undefined) mergedCopy.section_settings = updates.generated_copy.section_settings;
-      if (updates.generated_copy.custom_colors !== undefined) mergedCopy.custom_colors = updates.generated_copy.custom_colors;
-      if (updates.generated_copy.booking_categories !== undefined) mergedCopy.booking_categories = updates.generated_copy.booking_categories;
+      if (generatedCopyUpdates.logo !== undefined) mergedCopy.logo = generatedCopyUpdates.logo;
+      if (generatedCopyUpdates.section_settings !== undefined) mergedCopy.section_settings = generatedCopyUpdates.section_settings;
+      if (generatedCopyUpdates.custom_colors !== undefined) mergedCopy.custom_colors = generatedCopyUpdates.custom_colors;
+      if (generatedCopyUpdates.booking_categories !== undefined) mergedCopy.booking_categories = generatedCopyUpdates.booking_categories;
 
       allowed.generated_copy = mergedCopy;
     }
@@ -99,25 +143,26 @@ export async function POST(request: Request) {
     // row as pending state and migrate on activation. The validator runs in
     // both cases so the founder can't bypass field-level rules.
     const depositTouched =
-      updates.deposit_required !== undefined ||
-      updates.deposit_mode !== undefined ||
-      updates.deposit_value !== undefined ||
-      updates.deposit_cashapp !== undefined ||
-      updates.deposit_zelle !== undefined ||
-      updates.deposit_other_label !== undefined ||
-      updates.deposit_other_value !== undefined;
+      updateFields.deposit_required !== undefined ||
+      updateFields.deposit_mode !== undefined ||
+      updateFields.deposit_value !== undefined ||
+      updateFields.deposit_cashapp !== undefined ||
+      updateFields.deposit_zelle !== undefined ||
+      updateFields.deposit_other_label !== undefined ||
+      updateFields.deposit_other_value !== undefined;
 
     let depositValue: DepositSettingsValue | undefined;
     if (depositTouched) {
-      const depositResult = validateDepositSettings({
-        deposit_required: updates.deposit_required,
-        deposit_mode: updates.deposit_mode,
-        deposit_value: updates.deposit_value,
-        deposit_cashapp: updates.deposit_cashapp,
-        deposit_zelle: updates.deposit_zelle,
-        deposit_other_label: updates.deposit_other_label,
-        deposit_other_value: updates.deposit_other_value,
-      });
+      const depositInput = {
+        deposit_required: updateFields.deposit_required,
+        deposit_mode: updateFields.deposit_mode,
+        deposit_value: updateFields.deposit_value,
+        deposit_cashapp: updateFields.deposit_cashapp,
+        deposit_zelle: updateFields.deposit_zelle,
+        deposit_other_label: updateFields.deposit_other_label,
+        deposit_other_value: updateFields.deposit_other_value,
+      } as DepositSettingsInput;
+      const depositResult = validateDepositSettings(depositInput);
       if (!depositResult.ok) {
         return NextResponse.json(
           { error: "Deposit validation failed", errors: depositResult.errors },
