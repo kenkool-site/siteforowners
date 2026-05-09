@@ -147,3 +147,40 @@ export function formatTimeRange(startStr: string, durationMinutes: number): stri
   const start = parseBookingTime(startStr);
   return `${formatMinutes(start)} – ${formatMinutes(start + durationMinutes)}`;
 }
+
+/**
+ * Hide slots whose start time is in the past *for today only*. No-op for
+ * any other date. Used by customer-facing booking flows when same-day
+ * booking is enabled — the slot-computation layer doesn't know about "now"
+ * since it runs server-side without timezone context, so this filter is
+ * applied client-side where local time is reliable.
+ *
+ * Compared against `now` at hour granularity (slot starts are always on the
+ * hour). A slot at 3:00 PM is hidden once the current local hour is 3 or
+ * later. If you need a buffer (e.g. "no booking within the next hour"),
+ * raise the threshold here.
+ *
+ * `slotDate` and `now` should be in the same timezone (typically the
+ * customer's local time).
+ */
+export function filterSlotsToFuture(
+  slots: string[],
+  slotDate: Date,
+  now: Date = new Date(),
+): string[] {
+  const isToday =
+    slotDate.getFullYear() === now.getFullYear() &&
+    slotDate.getMonth() === now.getMonth() &&
+    slotDate.getDate() === now.getDate();
+  if (!isToday) return slots;
+  const currentHour = now.getHours();
+  return slots.filter((slot) => {
+    const m = slot.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (!m) return true;
+    let hour = Number(m[1]);
+    const period = m[3].toUpperCase();
+    if (hour === 12) hour = 0;
+    if (period === "PM") hour += 12;
+    return hour > currentHour;
+  });
+}

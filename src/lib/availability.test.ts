@@ -331,3 +331,47 @@ test("wouldExceedCapacity: 90-min candidate fits in a 90-min gap", () => {
   ];
   assert.equal(wouldExceedCapacity(candidate, existing, 1), false);
 });
+
+import { filterSlotsToFuture } from "./availability";
+
+test("filterSlotsToFuture: non-today date returns slots unchanged", () => {
+  const slots = ["10:00 AM", "11:00 AM", "12:00 PM"];
+  const date = new Date(2026, 4, 10);
+  const now = new Date(2026, 4, 9, 14, 30);
+  assert.deepEqual(filterSlotsToFuture(slots, date, now), slots);
+});
+
+test("filterSlotsToFuture: today filters slots whose start hour is at or before now", () => {
+  const slots = ["10:00 AM", "1:00 PM", "2:00 PM", "3:00 PM", "5:00 PM"];
+  const today = new Date(2026, 4, 9);
+  const now = new Date(2026, 4, 9, 14, 30);
+  assert.deepEqual(filterSlotsToFuture(slots, today, now), ["3:00 PM", "5:00 PM"]);
+});
+
+test("filterSlotsToFuture: today early morning keeps all slots", () => {
+  const slots = ["9:00 AM", "10:00 AM", "5:00 PM"];
+  const today = new Date(2026, 4, 9);
+  const now = new Date(2026, 4, 9, 7, 0);
+  assert.deepEqual(filterSlotsToFuture(slots, today, now), slots);
+});
+
+test("filterSlotsToFuture: 12:00 PM (noon) handled correctly", () => {
+  const slots = ["11:00 AM", "12:00 PM", "1:00 PM"];
+  const today = new Date(2026, 4, 9);
+  const now = new Date(2026, 4, 9, 12, 30);
+  assert.deepEqual(filterSlotsToFuture(slots, today, now), ["1:00 PM"]);
+});
+
+test("filterSlotsToFuture: 12:00 AM (midnight) handled correctly", () => {
+  const slots = ["12:00 AM", "1:00 AM", "11:00 PM"];
+  const today = new Date(2026, 4, 9);
+  const now = new Date(2026, 4, 9, 0, 30);
+  assert.deepEqual(filterSlotsToFuture(slots, today, now), ["1:00 AM", "11:00 PM"]);
+});
+
+test("filterSlotsToFuture: empty slot list returns empty", () => {
+  assert.deepEqual(
+    filterSlotsToFuture([], new Date(2026, 4, 9), new Date(2026, 4, 9, 14, 30)),
+    [],
+  );
+});

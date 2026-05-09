@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { AddOn } from "@/lib/ai/types";
-import { computeAvailableStarts, formatTimeRange, formatDuration } from "@/lib/availability";
+import { computeAvailableStarts, formatTimeRange, formatDuration, filterSlotsToFuture } from "@/lib/availability";
 import { parseServicePrice } from "@/lib/deposit";
 import {
   type SimpleService,
@@ -75,11 +75,12 @@ export function MockBookingCalendar({
 
   const allSteps = ["service", "details", "schedule", "success"] as const;
 
-  // Generate 30 days of dates starting tomorrow (matches live window).
+  // Generate 30 days of dates starting today. filterSlotsToFuture below
+  // hides past hours when the selected day is today.
   const dates = useMemo(() => {
     const result: Date[] = [];
     const today = new Date();
-    for (let i = 1; i <= 30; i++) {
+    for (let i = 0; i <= 30; i++) {
       const d = new Date(today);
       d.setDate(today.getDate() + i);
       result.push(d);
@@ -93,18 +94,21 @@ export function MockBookingCalendar({
     + selectedAddOns.reduce((sum, a) => sum + a.duration_delta_minutes, 0);
 
   const availableSlots = selectedDate && selectedService
-    ? computeAvailableStarts({
-        date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`,
-        durationMinutes: totalDuration,
-        workingHours: MOCK_WORKING_HOURS,
-        existingBookings: [],
-        maxPerSlot: 1,
-        blockedDates: [],
-      }).map((h) => {
-        const period = h >= 12 ? "PM" : "AM";
-        const h12 = h % 12 === 0 ? 12 : h % 12;
-        return `${h12}:00 ${period}`;
-      })
+    ? filterSlotsToFuture(
+        computeAvailableStarts({
+          date: `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, "0")}-${String(selectedDate.getDate()).padStart(2, "0")}`,
+          durationMinutes: totalDuration,
+          workingHours: MOCK_WORKING_HOURS,
+          existingBookings: [],
+          maxPerSlot: 1,
+          blockedDates: [],
+        }).map((h) => {
+          const period = h >= 12 ? "PM" : "AM";
+          const h12 = h % 12 === 0 ? 12 : h % 12;
+          return `${h12}:00 ${period}`;
+        }),
+        selectedDate,
+      )
     : [];
 
   // Auto-scroll the time grid into view on date change (matches live).
