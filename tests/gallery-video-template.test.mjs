@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("TemplateGalleryVideo renders autoplaying looping video with controls", async () => {
+test("TemplateGalleryVideo renders autoplaying looping video without a visible pause button", async () => {
   const component = await readFile("src/components/templates/TemplateGalleryVideo.tsx", "utf8");
 
   assert.match(component, /autoPlay/, "video should autoplay");
   assert.match(component, /loop/, "video should loop");
   assert.match(component, /muted/, "video should be muted for autoplay");
   assert.match(component, /playsInline/, "video should play inline on mobile");
-  assert.match(component, /setPaused/, "component should provide a play/pause toggle");
+  assert.doesNotMatch(component, /Pause video|Pause Video|setPaused/, "component should not render a visible pause control");
+  assert.match(component, /pt-8/, "component should reduce blank top space on mobile");
   assert.match(component, /galleryVideoTitle/, "component should support custom title text");
 });
 
