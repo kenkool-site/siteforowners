@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerOrFounder } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  MAX_GALLERY_VIDEO_TITLE_LENGTH,
+  isGalleryVideoUrl,
+  normalizeGalleryVideoTitle,
+} from "@/lib/video/gallery-video";
 
 const MAX_IMAGES = 50;
 
@@ -8,6 +13,8 @@ interface PreviewSnapshot {
   images: string[];
   /** Currently chosen About-Us image URL, or null when using template default. */
   about_image_url: string | null;
+  gallery_video_url: string | null;
+  gallery_video_title: string | null;
 }
 
 async function getPreviewSlug(tenantId: string): Promise<string | null> {
@@ -24,7 +31,7 @@ async function loadSnapshot(slug: string): Promise<PreviewSnapshot> {
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("previews")
-    .select("images, generated_copy")
+    .select("images, generated_copy, gallery_video_url, gallery_video_title")
     .eq("slug", slug)
     .maybeSingle();
   const images = (data?.images as string[] | null) ?? [];
@@ -34,6 +41,14 @@ async function loadSnapshot(slug: string): Promise<PreviewSnapshot> {
   return {
     images,
     about_image_url: typeof about === "string" && about.length > 0 ? about : null,
+    gallery_video_url:
+      typeof data?.gallery_video_url === "string" && data.gallery_video_url.length > 0
+        ? data.gallery_video_url
+        : null,
+    gallery_video_title:
+      typeof data?.gallery_video_title === "string" && data.gallery_video_title.length > 0
+        ? data.gallery_video_title
+        : null,
   };
 }
 
@@ -43,7 +58,14 @@ export async function GET(request: NextRequest) {
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const slug = await getPreviewSlug(auth.tenantId);
-  if (!slug) return NextResponse.json({ images: [], about_image_url: null });
+  if (!slug) {
+    return NextResponse.json({
+      images: [],
+      about_image_url: null,
+      gallery_video_url: null,
+      gallery_video_title: null,
+    });
+  }
 
   try {
     const snapshot = await loadSnapshot(slug);
@@ -63,15 +85,18 @@ export async function POST(request: NextRequest) {
   try { body = await request.json(); }
   catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
 
+  if (!(body !== null && typeof body === "object" && !Array.isArray(body))) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const b = body as Record<string, unknown>;
   const fallbackTenantId =
-    typeof (body as Record<string, unknown>)?.tenant_id === "string"
-      ? ((body as Record<string, unknown>).tenant_id as string)
+    typeof b.tenant_id === "string"
+      ? b.tenant_id
       : undefined;
 
   const auth = await requireOwnerOrFounder(request, fallbackTenantId);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const b = body as Record<string, unknown>;
 
   // images — required, array of https URLs, max length cap.
   const rawImages = b.images;
@@ -118,6 +143,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const rawGalleryVideoUrl = b.gallery_video_url;
+  let galleryVideoUrl: string | null = null;
+  if (rawGalleryVideoUrl === undefined || rawGalleryVideoUrl === null || rawGalleryVideoUrl === "") {
+    galleryVideoUrl = null;
+  } else if (isGalleryVideoUrl(rawGalleryVideoUrl)) {
+    galleryVideoUrl = rawGalleryVideoUrl;
+  } else {
+    return NextResponse.json(
+      { error: "Validation failed", errors: [{ field: "gallery_video_url", reason: "must be an uploaded gallery MP4 URL or null" }] },
+      { status: 400 },
+    );
+  }
+
+  const rawGalleryVideoTitle = b.gallery_video_title;
+  let galleryVideoTitle: string | null = null;
+  if (typeof rawGalleryVideoTitle === "string") {
+    if (rawGalleryVideoTitle.length > MAX_GALLERY_VIDEO_TITLE_LENGTH) {
+      return NextResponse.json(
+        { error: "Validation failed", errors: [{ field: "gallery_video_title", reason: "max 80 characters" }] },
+        { status: 400 },
+      );
+    }
+    galleryVideoTitle = normalizeGalleryVideoTitle(rawGalleryVideoTitle);
+  }
+
   const slug = await getPreviewSlug(auth.tenantId);
   if (!slug) return NextResponse.json({ error: "Tenant has no preview_slug" }, { status: 500 });
 
@@ -139,7 +189,12 @@ export async function POST(request: NextRequest) {
     const nextCopy = { ...copy, section_settings: settings };
     const { error: copyError } = await supabase
       .from("previews")
-      .update({ images, generated_copy: nextCopy })
+      .update({
+        images,
+        generated_copy: nextCopy,
+        gallery_video_url: galleryVideoUrl,
+        gallery_video_title: galleryVideoTitle,
+      })
       .eq("slug", slug);
     if (copyError) {
       console.error("[admin/images] save failed (with about)", { tenantId: auth.tenantId, error: copyError });
@@ -148,7 +203,11 @@ export async function POST(request: NextRequest) {
   } else {
     const { error } = await supabase
       .from("previews")
-      .update({ images })
+      .update({
+        images,
+        gallery_video_url: galleryVideoUrl,
+        gallery_video_title: galleryVideoTitle,
+      })
       .eq("slug", slug);
     if (error) {
       console.error("[admin/images] save failed (images-only)", { tenantId: auth.tenantId, error });
@@ -160,5 +219,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     images,
     about_image_url: touchAbout ? aboutImageUrl : undefined,
+    gallery_video_url: galleryVideoUrl,
+    gallery_video_title: galleryVideoTitle,
   });
 }

@@ -2,27 +2,49 @@
 
 import { useState } from "react";
 import { GalleryEditor } from "../_components/GalleryEditor";
+import { GalleryVideoEditor } from "../_components/GalleryVideoEditor";
 import { AboutImagePicker } from "../_components/AboutImagePicker";
 
 interface PhotosClientProps {
   initialImages: string[];
   initialAboutImageUrl: string | null;
+  initialGalleryVideoUrl: string | null;
+  initialGalleryVideoTitle: string | null;
+}
+
+interface PhotosSnapshot {
+  images: string[];
+  aboutImageUrl: string | null;
+  galleryVideoUrl: string | null;
+  galleryVideoTitle: string;
 }
 
 export function PhotosClient({
   initialImages,
   initialAboutImageUrl,
+  initialGalleryVideoUrl,
+  initialGalleryVideoTitle,
 }: PhotosClientProps) {
   const [images, setImages] = useState<string[]>(initialImages);
   const [aboutImageUrl, setAboutImageUrl] = useState<string | null>(initialAboutImageUrl);
+  const [galleryVideoUrl, setGalleryVideoUrl] = useState<string | null>(initialGalleryVideoUrl);
+  const [galleryVideoTitle, setGalleryVideoTitle] = useState(initialGalleryVideoTitle ?? "");
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const initialJson = JSON.stringify({ images: initialImages, aboutImageUrl: initialAboutImageUrl });
-  const dirty = JSON.stringify({ images, aboutImageUrl }) !== initialJson;
+  const initialSnapshot: PhotosSnapshot = {
+    images: initialImages,
+    aboutImageUrl: initialAboutImageUrl,
+    galleryVideoUrl: initialGalleryVideoUrl,
+    galleryVideoTitle: initialGalleryVideoTitle ?? "",
+  };
+  const [persistedSnapshot, setPersistedSnapshot] = useState<PhotosSnapshot>(initialSnapshot);
+  const currentSnapshot: PhotosSnapshot = { images, aboutImageUrl, galleryVideoUrl, galleryVideoTitle };
+  const dirty = JSON.stringify(currentSnapshot) !== JSON.stringify(persistedSnapshot);
 
   async function save() {
+    const snapshotToSave = currentSnapshot;
     setSaving(true);
     setError(null);
     try {
@@ -30,14 +52,17 @@ export function PhotosClient({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          images,
-          about_image_url: aboutImageUrl,
+          images: snapshotToSave.images,
+          about_image_url: snapshotToSave.aboutImageUrl,
+          gallery_video_url: snapshotToSave.galleryVideoUrl,
+          gallery_video_title: snapshotToSave.galleryVideoTitle,
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body?.error || "Save failed");
       }
+      setPersistedSnapshot(snapshotToSave);
       setSavedAt(Date.now());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed");
@@ -60,6 +85,14 @@ export function PhotosClient({
         onChange={setImages}
         variant="owner"
         enableHeroPromotion={false}
+      />
+
+      <GalleryVideoEditor
+        value={galleryVideoUrl}
+        title={galleryVideoTitle}
+        onChange={setGalleryVideoUrl}
+        onTitleChange={setGalleryVideoTitle}
+        variant="owner"
       />
 
       <AboutImagePicker

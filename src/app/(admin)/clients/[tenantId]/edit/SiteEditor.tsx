@@ -19,6 +19,7 @@ import {
 import { ServiceRow } from "@/app/site/[slug]/admin/_components/ServiceRow";
 import { ServiceReorderRow } from "@/app/site/[slug]/admin/_components/ServiceReorderRow";
 import { GalleryEditor } from "@/app/site/[slug]/admin/_components/GalleryEditor";
+import { GalleryVideoEditor } from "@/app/site/[slug]/admin/_components/GalleryVideoEditor";
 import { AboutImagePicker } from "@/app/site/[slug]/admin/_components/AboutImagePicker";
 import { DepositEditor, type DepositSettingsState } from "@/app/site/[slug]/admin/services/DepositEditor";
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
@@ -126,6 +127,12 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
   // Hero background video (optional, replaces first image as hero bg when set)
   const [heroVideoUrl, setHeroVideoUrl] = useState<string | null>(
     (preview.hero_video_url as string | null) ?? null
+  );
+  const [galleryVideoUrl, setGalleryVideoUrl] = useState<string | null>(
+    (preview.gallery_video_url as string | null) ?? null
+  );
+  const [galleryVideoTitle, setGalleryVideoTitle] = useState<string>(
+    (preview.gallery_video_title as string | null) ?? ""
   );
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
@@ -322,6 +329,8 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             products: products.filter((p) => p.name.trim()),
             images,
             hero_video_url: heroVideoUrl,
+            gallery_video_url: galleryVideoUrl,
+            gallery_video_title: galleryVideoTitle,
             hours: displayHours,
             imported_hours: importedHours,
             generated_copy: {
@@ -692,6 +701,8 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
     products: products.filter((p) => p.name.trim()),
     images,
     hero_video_url: heroVideoUrl,
+    gallery_video_url: galleryVideoUrl,
+    gallery_video_title: galleryVideoTitle,
     hours: displayHours,
     imported_hours: importedHours,
     generated_copy: {
@@ -1462,6 +1473,14 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             onChange={setImages}
             variant="founder"
             enableHeroPromotion
+          />
+          <GalleryVideoEditor
+            value={galleryVideoUrl}
+            title={galleryVideoTitle}
+            onChange={setGalleryVideoUrl}
+            onTitleChange={setGalleryVideoTitle}
+            variant="founder"
+            tenantId={tenantId}
           />
 
           {/* Display Hours (footer) */}
