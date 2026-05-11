@@ -8,7 +8,7 @@ import { ctaOnPrimary, readableColors } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booking-events";
 import { formatDuration } from "@/lib/availability";
-import { groupServices } from "./groupServices";
+import { useServiceCategoryCollapse } from "./useServiceCategoryCollapse";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
@@ -29,16 +29,17 @@ interface ServicesProps {
   categories?: string[];
   colors: ThemeColors;
   bookingMode?: Mode;
+  defaultCategoriesCollapsed?: boolean;
 }
 
-export function ElegantServices({ services, categories, colors, bookingMode }: ServicesProps) {
+export function ElegantServices({ services, categories, colors, bookingMode, defaultCategoriesCollapsed }: ServicesProps) {
   const rc = readableColors(colors);
-  const groups = groupServices(services as unknown as ServiceItem[], categories);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const { groups, collapsed, toggle } = useServiceCategoryCollapse(
+    services as unknown as ServiceItem[],
+    categories,
+    defaultCategoriesCollapsed,
+  );
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-
-  const toggle = (label: string) =>
-    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
 
   const toggleExpandedGroup = (label: string) =>
     setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));

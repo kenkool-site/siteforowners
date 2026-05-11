@@ -17,7 +17,8 @@ test("runway template keeps service categories, service images, and booking CTAs
   const cta = await readFile(files.cta, "utf8");
 
   assert.match(orchestrator, /<RunwayServices[\s\S]*categories=\{categories\}/, "Runway services should receive existing categories data");
-  assert.match(services, /groupServices\(services as unknown as ServiceItem\[\], categories\)/, "Runway should preserve category grouping");
+  assert.match(orchestrator, /defaultCategoriesCollapsed=\{defaultCategoriesCollapsed\}/, "Runway services should receive category collapse default from section settings");
+  assert.match(services, /useServiceCategoryCollapse\(/, "Runway should preserve category grouping via shared hook");
   assert.match(services, /import Image from "next\/image"/, "service images should use Next Image instead of raw img");
   assert.doesNotMatch(services, /<img[\s>]/, "Runway service cards should not use raw img tags");
   assert.match(services, /openBookingCalendarForService/, "in-site booking CTA behavior should stay intact");

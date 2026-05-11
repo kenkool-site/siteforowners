@@ -17,7 +17,7 @@ test("non-runway service templates preserve live booking/category behavior", asy
   for (const file of serviceFiles) {
     const source = await readFile(file, "utf8");
 
-    assert.match(source, /groupServices\(services as unknown as ServiceItem\[\], categories\)/, `${file} should keep category grouping`);
+    assert.match(source, /useServiceCategoryCollapse\(/, `${file} should keep category grouping via shared hook`);
     assert.match(source, /openBookingCalendarForService/, `${file} should keep in-site booking behavior`);
     assert.match(source, /requestBookingChoice/, `${file} should keep dual booking choice behavior`);
     assert.match(source, /window\.open\(service\.bookingDeepLink/, `${file} should keep external booking behavior`);

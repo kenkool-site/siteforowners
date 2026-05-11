@@ -155,6 +155,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
     template_override: (existingSettings.template_override as string) || "",
     booking_iframe_top_clip_px: Number(existingSettings.booking_iframe_top_clip_px) || 0,
     booking_iframe_top_clip_px_mobile: Number(existingSettings.booking_iframe_top_clip_px_mobile) || 0,
+    services_categories_collapsed_default: existingSettings.services_categories_collapsed_default === true,
   });
 
   const toggleSection = (key: string) => {
@@ -1004,6 +1005,31 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 </div>
               ))}
             </div>
+
+            {sectionSettings.show_services && (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-2.5">
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-gray-800">Collapse service categories by default</span>
+                  <p className="mt-0.5 text-xs text-gray-600">
+                    When on, each category starts closed so long menus stay scannable; visitors tap to expand.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSection("services_categories_collapsed_default")}
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                    sectionSettings.services_categories_collapsed_default ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                  aria-pressed={sectionSettings.services_categories_collapsed_default}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      sectionSettings.services_categories_collapsed_default ? "translate-x-[18px]" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
             {/* Template override */}
             <div className="mt-5">
