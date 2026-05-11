@@ -2,6 +2,7 @@ export const maxDuration = 120;
 
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
+import { fetchVagaroBookingCategories } from "@/lib/vagaro-import";
 
 const anthropic = new Anthropic();
 
@@ -586,7 +587,7 @@ Rules:
 // Extract structured booking data from Acuity's embedded BUSINESS JSON
 interface BookingCategory {
   name: string;
-  services: { name: string; price: string; duration: string; id: number; image?: string }[];
+  services: { name: string; price: string; duration: string; id: number; image?: string; description?: string }[];
   directUrl: string;
 }
 
@@ -617,6 +618,7 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
   duration_minutes: number;
   category: string;
   image?: string;
+  description?: string;
 }[] {
   const out: {
     name: string;
@@ -624,6 +626,7 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
     duration_minutes: number;
     category: string;
     image?: string;
+    description?: string;
   }[] = [];
   for (const cat of categories) {
     for (const s of cat.services) {
@@ -633,6 +636,7 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
         duration_minutes: durationMinutesFromImportLabel(s.duration),
         category: cat.name,
         ...(s.image ? { image: s.image } : {}),
+        ...(s.description ? { description: s.description } : {}),
       });
     }
   }
@@ -879,16 +883,22 @@ export async function POST(request: Request) {
     const html = await res.text();
     const htmlColors = extractColorsFromHtml(html);
 
-    // Try Vagaro-specific extraction (services are client-rendered, so use meta tags + AI)
+    // Try Vagaro-specific extraction. Vagaro renders service cards client-side,
+    // but the page exposes enough runtime state to call its public regional API.
     const vagaroData = extractVagaroData(html, fullUrl);
     if (vagaroData) {
-      // For Vagaro, services are loaded client-side via JS — not in static HTML.
-      // We extract business info from meta tags and embedded JSON, then use Claude
-      // to generate realistic services based on the business name and description.
-      const [imageResult, services] = await Promise.all([
+      const [imageResult, bookingCategories] = await Promise.all([
         classifyImages(vagaroData.images),
-        generateVagaroServices(vagaroData.business_name || "Business", vagaroData.description),
+        fetchVagaroBookingCategories(html, fullUrl),
       ]);
+      const services =
+        bookingCategories.length > 0
+          ? servicesFromAcuityCategories(bookingCategories)
+          : await generateVagaroServices(vagaroData.business_name || "Business", vagaroData.description);
+      const categoryNames =
+        bookingCategories.length > 0
+          ? bookingCategories.map((category) => category.name)
+          : [];
       const { photos, logo: visionLogo, hasHeroImage: heroWorthy } = imageResult;
       const finalImages = photos.map(getHighResUrl);
 
@@ -903,8 +913,8 @@ export async function POST(request: Request) {
         has_hero_image: heroWorthy && finalImages.length > 0,
         brand_colors: [],
         booking_url: vagaroData.booking_url,
-        booking_categories: null,
-        categories: [],
+        booking_categories: bookingCategories.length > 0 ? bookingCategories : null,
+        categories: categoryNames,
       });
     }
 
