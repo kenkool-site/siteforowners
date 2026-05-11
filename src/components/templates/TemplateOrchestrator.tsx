@@ -147,6 +147,8 @@ export interface SectionSettings {
    * Acuity's mobile layout usually has a shorter intro, so this is typically
    * smaller than the desktop value. 0 = no clip. */
   booking_iframe_top_clip_px_mobile?: number;
+  /** When true, service category groups start collapsed until the visitor expands them. */
+  services_categories_collapsed_default?: boolean;
 }
 
 function getSectionSettings(data: PreviewData): SectionSettings {
@@ -207,6 +209,7 @@ export function TemplateOrchestrator({
 }: TemplateOrchestratorProps) {
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const ss = getSectionSettings(data);
+  const defaultCategoriesCollapsed = ss.services_categories_collapsed_default === true;
   const template = (ss.template_override as TemplateName) || getTemplateName(data);
   const colors = getColors(data);
   const logo = getLogo(data);
@@ -455,7 +458,7 @@ export function TemplateOrchestrator({
               hasGallery={hasGallerySection}
             />
           </div>
-          {showServices && <div id="services"><RunwayServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><RunwayServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           <div className="overflow-hidden border-y border-[#D8B255]/30 bg-black py-4 text-[#D8B255]">
             <style>{`
               @keyframes runway-marquee {
@@ -497,7 +500,7 @@ export function TemplateOrchestrator({
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="bold" enabled={animationsEnabled} />
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
           {showGallery && hasGalleryImages && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><BoldServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><BoldServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           {productsSection}
           {showAbout && <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {testimonialsSection || ratingSection}
@@ -515,7 +518,7 @@ export function TemplateOrchestrator({
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="elegant" enabled={animationsEnabled} />
           {showAbout && <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
-          {showServices && <div id="services"><ElegantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><ElegantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           {productsSection}
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
           {showGallery && hasGalleryImages && <div id="gallery"><ElegantGallery images={galleryImages} colors={colors} /></div>}
@@ -533,7 +536,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="vibrant" enabled={animationsEnabled} />
-          {showServices && <div id="services"><VibrantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><VibrantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
           {showGallery && hasGalleryImages && <div id="gallery"><VibrantGallery images={galleryImages} colors={colors} /></div>}
@@ -556,7 +559,7 @@ export function TemplateOrchestrator({
           {showAbout && <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
           {showGallery && hasGalleryImages && <div id="gallery"><WarmGallery images={galleryImages} colors={colors} /></div>}
-          {showServices && <div id="services"><WarmServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><WarmServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           {productsSection}
           {testimonialsSection || ratingSection}
           {bookingSection}
@@ -573,7 +576,7 @@ export function TemplateOrchestrator({
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="classic" enabled={animationsEnabled} />
-          {showServices && <div id="services"><ClassicServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} /></div>}
+          {showServices && <div id="services"><ClassicServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
           {showGallery && hasGalleryImages && <div id="gallery"><ClassicGallery images={galleryImages} colors={colors} /></div>}
           {productsSection}

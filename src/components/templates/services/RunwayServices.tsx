@@ -8,7 +8,7 @@ import { openBookingCalendarForService, requestBookingChoice } from "@/lib/booki
 import { ensureReadable } from "@/lib/templates/contrast";
 import type { ThemeColors } from "@/lib/templates/themes";
 import { AnimateSection } from "../shared/AnimateSection";
-import { groupServices } from "./groupServices";
+import { useServiceCategoryCollapse } from "./useServiceCategoryCollapse";
 
 type Mode = "in_site_only" | "external_only" | "both";
 
@@ -30,6 +30,7 @@ interface RunwayServicesProps {
   categories?: string[];
   colors: ThemeColors;
   bookingMode?: Mode;
+  defaultCategoriesCollapsed?: boolean;
 }
 
 export function RunwayServices({
@@ -37,18 +38,19 @@ export function RunwayServices({
   categories,
   colors,
   bookingMode,
+  defaultCategoriesCollapsed,
 }: RunwayServicesProps) {
   const runwayBackground = "#030303";
   const runwayPanel = "#0D0B08";
   const gold = ensureReadable(colors.primary || "#D8B15A", runwayBackground, 3);
   const ivory = ensureReadable("#FFF4D8", runwayBackground);
   const buttonText = ensureReadable("#050505", gold);
-  const groups = groupServices(services as unknown as ServiceItem[], categories);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const { groups, collapsed, toggle } = useServiceCategoryCollapse(
+    services as unknown as ServiceItem[],
+    categories,
+    defaultCategoriesCollapsed,
+  );
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
-
-  const toggle = (label: string) =>
-    setCollapsed((prev) => ({ ...prev, [label]: !prev[label] }));
 
   const toggleExpandedGroup = (label: string) =>
     setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
