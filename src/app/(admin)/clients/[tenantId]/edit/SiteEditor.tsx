@@ -192,6 +192,42 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
     setCustomColorsEnabled(false);
   };
 
+  const [paletteHint, setPaletteHint] = useState("");
+  const [suggestingPalette, setSuggestingPalette] = useState(false);
+
+  const handleSuggestPalette = async () => {
+    setSuggestingPalette(true);
+    setError("");
+    try {
+      const res = await fetch("/api/suggest-theme-colors", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business_name: businessName,
+          business_type: preview.business_type,
+          current_colors: customColors,
+          mood: paletteHint.trim() || undefined,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(typeof data.error === "string" ? data.error : "Could not suggest colors");
+      }
+      const next = data.colors as ThemeColors | undefined;
+      if (!next?.primary) {
+        throw new Error("Invalid response from color suggestion");
+      }
+      setCustomColors(next);
+      setCustomColorsEnabled(true);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not suggest colors");
+    } finally {
+      setSuggestingPalette(false);
+    }
+  };
+
   // Display hours (footer). Separate from booking_settings.working_hours.
   const initialDisplayHours: BusinessHours =
     (preview.hours as BusinessHours) ||
@@ -1058,7 +1094,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
 
           {/* Brand Colors */}
           <section className="rounded-xl border bg-white p-6">
-            <div className="mb-4 flex items-start justify-between gap-4">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Brand Colors</h2>
                 <p className="mt-1 text-xs text-gray-500">
@@ -1067,15 +1103,42 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                     : "Using the generated theme. Edit any color to override."}
                 </p>
               </div>
-              {customColorsEnabled && (
-                <button
-                  type="button"
-                  onClick={resetCustomColors}
-                  className="shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
-                >
-                  Reset to theme
-                </button>
-              )}
+              <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[280px]">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                  <input
+                    type="text"
+                    value={paletteHint}
+                    onChange={(e) => setPaletteHint(e.target.value)}
+                    placeholder="Optional direction (e.g. warmer, higher contrast, coastal)"
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-xs text-gray-800 placeholder:text-gray-400 focus:border-amber-500 focus:outline-none sm:max-w-xs"
+                    disabled={suggestingPalette}
+                  />
+                  <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      disabled={suggestingPalette}
+                      onClick={handleSuggestPalette}
+                    >
+                      {suggestingPalette ? "Suggesting…" : "Suggest palette (AI)"}
+                    </Button>
+                    {customColorsEnabled && (
+                      <button
+                        type="button"
+                        onClick={resetCustomColors}
+                        className="rounded-lg border px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                      >
+                        Reset to theme
+                      </button>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-400 sm:text-right">
+                  Fills all swatches at once. You can still tweak each color manually.
+                </p>
+              </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
