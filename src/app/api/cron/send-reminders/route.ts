@@ -9,6 +9,8 @@ import {
 } from "@/lib/sms";
 import { formatTimeRange } from "@/lib/availability";
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
+
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
@@ -28,7 +30,7 @@ export async function GET(request: Request) {
     .select(`
       id, booking_date, booking_time, duration_minutes, status,
       customer_name, customer_phone, customer_sms_opt_in, sms_reminder_sent,
-      service_name, tenants!inner(business_name, address)
+      service_name, reschedule_short_code, tenants!inner(business_name, address)
     `)
     .eq("booking_date", tomorrowIso)
     .eq("status", "confirmed")
@@ -55,6 +57,13 @@ export async function GET(request: Request) {
 
     const tenant = (r as { tenants?: { business_name?: string; address?: string } }).tenants;
     const dateLabel = formatDateLabel(r.booking_date as string);
+    // Short URL — the /r/<code> redirect endpoint reconstructs the
+    // signed long form on every click, so this stays stable across
+    // reschedules and saves ~80 chars vs the long signed URL.
+    const shortCode = r.reschedule_short_code as string | null;
+    const rescheduleUrl = shortCode
+      ? `${APP_URL.replace(/\/$/, "")}/r/${shortCode}`
+      : undefined;
     const smsData: BookingSmsData = {
       businessName: tenant?.business_name ?? "your appointment",
       serviceName: r.service_name as string,
@@ -63,6 +72,7 @@ export async function GET(request: Request) {
       customerName: r.customer_name as string,
       customerPhone: r.customer_phone as string,
       businessAddress: tenant?.address ?? undefined,
+      rescheduleUrl,
     };
 
     // Claim the row first (atomic flip with WHERE sms_reminder_sent = false)

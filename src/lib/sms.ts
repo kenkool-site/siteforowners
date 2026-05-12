@@ -79,6 +79,16 @@ export interface BookingSmsData {
   /** Spec 6: previous date/time strings for reschedule SMS. */
   previousDate?: string;
   previousTime?: string;
+  /** Owner admin URL (deep-linked to the schedule view). Appended to
+   * owner SMS so they can jump to the booking record in one tap. */
+  adminUrl?: string;
+  /** Tokenized customer-facing reschedule URL. Appended to customer SMS
+   * (confirmation, reminder, rescheduled) so they can change without
+   * needing to call. */
+  rescheduleUrl?: string;
+  /** Owner-facing business phone number. Appended to customer SMS as a
+   * "Call us" target. */
+  businessPhone?: string;
 }
 
 async function send(to: string, body: string): Promise<void> {
@@ -108,25 +118,30 @@ export async function sendBookingOwnerNotification(ownerPhone: string, b: Bookin
   const addOns = b.addOnNames && b.addOnNames.length > 0
     ? ` (+ ${b.addOnNames.join(", ")})`
     : "";
+  const customer = ` Call: ${b.customerPhone}.`;
+  const manage = b.adminUrl ? ` Manage: ${b.adminUrl}` : "";
   await send(
     ownerPhone,
-    `🔔 New booking: ${b.customerName}, ${b.serviceName}${addOns}, ${b.date} @ ${b.time}.`,
+    `🔔 New booking: ${b.customerName}, ${b.serviceName}${addOns}, ${b.date} @ ${b.time}.${customer}${manage}`,
   );
 }
 
 export async function sendBookingCustomerConfirmation(b: BookingSmsData): Promise<void> {
   const addr = b.businessAddress ? ` Address: ${b.businessAddress}.` : "";
+  const change = b.rescheduleUrl ? ` Need to change? ${b.rescheduleUrl}` : "";
+  const callUs = b.businessPhone ? ` Call: ${b.businessPhone}.` : "";
   await send(
     b.customerPhone,
-    `Hi ${b.customerName.split(" ")[0]}! Your appointment at ${b.businessName} is confirmed for ${b.date} @ ${b.time}.${addr} Reply STOP to opt out.`,
+    `Hi ${b.customerName.split(" ")[0]}! Your appointment at ${b.businessName} is confirmed for ${b.date} @ ${b.time}.${addr}${change}${callUs} Reply STOP to opt out.`,
   );
 }
 
 export async function sendBookingCustomerReminder(b: BookingSmsData): Promise<void> {
   const startTime = b.time.split(" – ")[0];
+  const change = b.rescheduleUrl ? ` Reschedule: ${b.rescheduleUrl}` : "";
   await send(
     b.customerPhone,
-    `Reminder: your appointment at ${b.businessName} is tomorrow (${b.date}) at ${startTime}. See you then!`,
+    `Reminder: your appointment at ${b.businessName} is tomorrow (${b.date}) at ${startTime}.${change} See you then!`,
   );
 }
 
@@ -139,9 +154,10 @@ export async function sendBookingPendingDepositCustomer(b: BookingSmsData): Prom
     : "";
   const firstName = b.customerName.split(" ")[0];
   const tail = methods ? ` Pay via ${methods}.` : "";
+  const change = b.rescheduleUrl ? ` Reschedule: ${b.rescheduleUrl}` : "";
   await send(
     b.customerPhone,
-    `Hi ${firstName}! Your booking at ${b.businessName} on ${b.date} @ ${b.time} is pending. Pay $${amt.toFixed(2)} to confirm.${tail} Reply STOP to opt out.`,
+    `Hi ${firstName}! Your booking at ${b.businessName} on ${b.date} @ ${b.time} is pending. Pay $${amt.toFixed(2)} to confirm.${tail}${change} Reply STOP to opt out.`,
   );
 }
 
@@ -171,9 +187,10 @@ export async function sendBookingRescheduledCustomerSms(
   const lead = initiator === "owner"
     ? `Your booking at ${b.businessName} has been moved by the business`
     : `Your booking at ${b.businessName} has been rescheduled`;
+  const change = b.rescheduleUrl ? ` Change again: ${b.rescheduleUrl}` : "";
   await send(
     b.customerPhone,
-    `Hi ${firstName}! ${lead} to ${b.date} @ ${b.time}${prev}. Reply STOP to opt out.`,
+    `Hi ${firstName}! ${lead} to ${b.date} @ ${b.time}${prev}.${change} Reply STOP to opt out.`,
   );
 }
 
@@ -184,8 +201,9 @@ export async function sendBookingRescheduledOwnerSms(
 ): Promise<void> {
   if (!ownerPhone) return;
   const prev = b.previousDate && b.previousTime ? ` (was ${b.previousDate} ${b.previousTime})` : "";
+  const manage = b.adminUrl ? ` Manage: ${b.adminUrl}` : "";
   await send(
     ownerPhone,
-    `🔄 ${b.customerName} rescheduled their ${b.serviceName} to ${b.date} @ ${b.time}${prev}.`,
+    `🔄 ${b.customerName} rescheduled their ${b.serviceName} to ${b.date} @ ${b.time}${prev}.${manage}`,
   );
 }

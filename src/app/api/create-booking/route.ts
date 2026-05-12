@@ -14,6 +14,7 @@ import { computeDeposit, parseServicePrice } from "@/lib/deposit";
 import type { AddOn } from "@/lib/ai/types";
 import { validateAddOns } from "@/lib/validation/add-ons";
 import { signToken, bookingStartToExpiry } from "@/lib/reschedule-token";
+import { generateShortCode } from "@/lib/short-code";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
 
@@ -170,6 +171,13 @@ export async function POST(request: Request) {
     const isPending = depositSettings.deposit_required && depositAmount > 0;
     const initialStatus = isPending ? "pending" : "confirmed";
 
+    // Pre-generate the short reschedule code so we can include it in the
+    // insert payload (column is NOT NULL after migration 026). Collisions
+    // at 62^10 ≈ 8.4×10^17 are negligible; if one ever occurs the unique
+    // index throws and the booking re-attempt at the customer level will
+    // generate a fresh code.
+    const rescheduleShortCode = generateShortCode();
+
     // Create the booking
     const { data: booking, error: insertError } = await supabase
       .from("bookings")
@@ -190,6 +198,7 @@ export async function POST(request: Request) {
         add_ons_total_price: validatedAddOnsPrice,
         status: initialStatus,
         deposit_amount: depositAmount > 0 ? depositAmount : null,
+        reschedule_short_code: rescheduleShortCode,
       })
       .select("id")
       .single();
@@ -238,6 +247,10 @@ export async function POST(request: Request) {
     const rescheduleExpiry = bookingStartToExpiry(booking_date, booking_time);
     const rescheduleSig = signToken({ bookingId: booking.id, expiry: rescheduleExpiry });
     const rescheduleUrl = `${APP_URL.replace(/\/$/, "")}/reschedule?b=${booking.id}&e=${rescheduleExpiry}&s=${rescheduleSig}`;
+    // Short URL used in SMS (the redirect endpoint at /r/<code> reconstructs
+    // the long signed URL on the fly). Keep `rescheduleUrl` (long form) for
+    // email since HTML can hyperlink the text — the long form there is fine.
+    const rescheduleShortUrl = `${APP_URL.replace(/\/$/, "")}/r/${rescheduleShortCode}`;
 
     const emailData = {
       businessName,
@@ -278,6 +291,13 @@ export async function POST(request: Request) {
       otherValue: bookingSettings?.deposit_other_value ?? null,
     };
 
+    // Admin schedule deep link — owner taps the SMS and lands directly on
+    // the booking they just got notified about. Same URL shape used in the
+    // email path. previewSlug is required to build it.
+    const adminUrl = preview_slug
+      ? `${APP_URL.replace(/\/$/, "")}/site/${preview_slug}/admin/schedule`
+      : undefined;
+
     const smsData: BookingSmsData = {
       businessName,
       serviceName: service_name,
@@ -289,6 +309,9 @@ export async function POST(request: Request) {
       addOnNames: validatedAddOns?.map((a) => a.name) ?? [],
       depositAmount: depositAmount > 0 ? depositAmount : undefined,
       paymentMethods,
+      adminUrl,
+      rescheduleUrl: rescheduleShortUrl,
+      businessPhone: businessPhone || undefined,
     };
 
     // Send emails + SMS in background

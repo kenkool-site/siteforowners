@@ -250,6 +250,14 @@ export async function POST(
     rescheduleUrl: undefined,
   };
 
+  // Owner SMS gets the admin schedule deep link. rescheduleUrl is
+  // intentionally omitted from the customer-facing fields — the
+  // customer just spent their one reschedule attempt, mirroring the
+  // email policy at line 250 above.
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
+  const adminUrl = previewSlug
+    ? `${APP_URL.replace(/\/$/, "")}/site/${previewSlug}/admin/schedule`
+    : undefined;
   const smsData: BookingSmsData = {
     businessName,
     serviceName: booking.service_name as string,
@@ -260,6 +268,7 @@ export async function POST(
     businessAddress: businessAddress || undefined,
     previousDate: dateStr(previousDateObj),
     previousTime: previousBookingTime,
+    adminUrl,
   };
 
   // Await the notifications: Vercel terminates the serverless function as
