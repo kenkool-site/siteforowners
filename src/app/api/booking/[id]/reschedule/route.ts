@@ -236,6 +236,11 @@ export async function POST(
     endDate: newEnd,
   });
 
+  // Owner-facing admin schedule deep link on the tenant's canonical host.
+  // Used by both the owner email and the owner SMS.
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
+  const adminUrl = tenantUrl(APP_URL, tenantHostFields, "/admin/schedule");
+
   const emailData: BookingEmailData = {
     businessName,
     businessPhone,
@@ -254,14 +259,12 @@ export async function POST(
     previousDate: dateStr(previousDateObj),
     previousTime: previousBookingTime,
     rescheduleUrl: undefined,
+    adminUrl,
   };
 
-  // Owner SMS gets the admin schedule deep link on the tenant's canonical
-  // host. rescheduleUrl is intentionally omitted from the customer-facing
-  // fields — the customer just spent their one reschedule attempt,
-  // mirroring the email policy at line 250 above.
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
-  const adminUrl = tenantUrl(APP_URL, tenantHostFields, "/admin/schedule");
+  // rescheduleUrl is intentionally omitted from the customer-facing fields —
+  // the customer just spent their one reschedule attempt, mirroring the
+  // email policy on the rescheduleUrl line above.
   const smsData: BookingSmsData = {
     businessName,
     serviceName: booking.service_name as string,

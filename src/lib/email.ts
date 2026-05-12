@@ -181,6 +181,11 @@ export interface BookingEmailData {
   /** Spec 6: signed reschedule link to render in customer-facing emails.
    * When set, customer-facing email functions render a "Reschedule" CTA. */
   rescheduleUrl?: string;
+  /** Owner-facing admin schedule URL on the tenant's canonical host
+   * (e.g. `https://www.letstrylocs.com/admin/schedule` or
+   * `https://testclient.siteforowners.com/admin/schedule`). Built at the
+   * route handler using `tenantUrl()` so email.ts stays tenant-agnostic. */
+  adminUrl?: string;
 }
 
 /**
@@ -197,9 +202,7 @@ export async function sendBookingNotification(
 
   const isPending = booking.status === "pending";
   const hasDeposit = !!(booking.depositAmount && booking.depositAmount > 0);
-  const adminUrl = booking.previewSlug
-    ? `https://siteforowners.com/site/${booking.previewSlug}/admin/schedule`
-    : null;
+  const adminUrl = booking.adminUrl ?? null;
 
   const subject = isPending
     ? `⏳ Pending booking: ${booking.customerName} — ${booking.serviceName} (deposit needed)`
@@ -717,9 +720,7 @@ export async function sendBookingRescheduledOwner(
   if (!resend) return;
   const toEmail = ownerEmail || ADMIN_EMAIL;
   if (!toEmail) return;
-  const adminUrl = booking.previewSlug
-    ? `${APP_URL.replace(/\/$/, "")}/site/${booking.previewSlug}/admin/schedule`
-    : "";
+  const adminUrl = booking.adminUrl ?? "";
   await resend.emails.send({
     from: tenantFrom(booking.businessName),
     to: toEmail,

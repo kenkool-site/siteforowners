@@ -86,10 +86,13 @@ export async function POST(request: Request) {
 
     const supabase = createAdminClient();
 
-    // Find the tenant for this preview
+    // Find the tenant for this preview. Loads everything the booking flow
+    // needs from `tenants` in one round-trip: business info, owner contact,
+    // SMS notification phone, and the host fields used to build canonical
+    // owner-facing URLs (`tenantUrl`).
     const { data: tenant } = await supabase
       .from("tenants")
-      .select("id, business_name, phone, email, address")
+      .select("id, business_name, phone, email, address, sms_phone, custom_domain, subdomain")
       .eq("preview_slug", preview_slug)
       .single();
 
@@ -105,6 +108,12 @@ export async function POST(request: Request) {
     const businessAddress = tenant?.address || preview?.address || "";
     const tenantId = tenant?.id;
     const ownerEmail = tenant?.email || "";
+    const ownerSmsPhone = (tenant?.sms_phone as string | null) ?? (tenant?.phone as string | null) ?? "";
+    const tenantHostFields = {
+      custom_domain: (tenant?.custom_domain as string | null) ?? null,
+      subdomain: (tenant?.subdomain as string | null) ?? null,
+      preview_slug: preview_slug ?? null,
+    };
 
     // Check for conflicts + load deposit settings
     let bookingSettings: {
@@ -252,6 +261,11 @@ export async function POST(request: Request) {
     // the long signed URL on the fly). Keep `rescheduleUrl` (long form) for
     // email since HTML can hyperlink the text — the long form there is fine.
     const rescheduleShortUrl = `${APP_URL.replace(/\/$/, "")}/r/${rescheduleShortCode}`;
+    // Admin schedule deep link on the tenant's canonical host. Owner emails +
+    // SMS both use this; falls back to the internal `/site/<slug>/admin`
+    // rewrite path when the tenant has neither a custom domain nor a
+    // subdomain (preview-only).
+    const adminUrl = tenantUrl(APP_URL, tenantHostFields, "/admin/schedule");
 
     const emailData = {
       businessName,
@@ -272,30 +286,8 @@ export async function POST(request: Request) {
       bookingId: booking.id,
       googleCalendarUrl: gcalUrl,
       rescheduleUrl,
+      adminUrl,
     };
-
-    // Look up owner SMS phone (falls back to tenants.phone) AND the host
-    // fields needed to build the owner's canonical admin URL (custom_domain
-    // when mapped, subdomain otherwise — preview_slug as last-resort fallback).
-    let ownerSmsPhone = "";
-    let tenantHostFields: { custom_domain: string | null; subdomain: string | null; preview_slug: string | null } = {
-      custom_domain: null,
-      subdomain: null,
-      preview_slug: preview_slug ?? null,
-    };
-    if (tenantId) {
-      const { data: t } = await supabase
-        .from("tenants")
-        .select("sms_phone, phone, custom_domain, subdomain, preview_slug")
-        .eq("id", tenantId)
-        .maybeSingle();
-      ownerSmsPhone = (t?.sms_phone as string | null) ?? (t?.phone as string | null) ?? "";
-      tenantHostFields = {
-        custom_domain: (t?.custom_domain as string | null) ?? null,
-        subdomain: (t?.subdomain as string | null) ?? null,
-        preview_slug: (t?.preview_slug as string | null) ?? preview_slug ?? null,
-      };
-    }
 
     const paymentMethods = {
       cashapp: bookingSettings?.deposit_cashapp ?? null,
@@ -303,12 +295,6 @@ export async function POST(request: Request) {
       otherLabel: bookingSettings?.deposit_other_label ?? null,
       otherValue: bookingSettings?.deposit_other_value ?? null,
     };
-
-    // Admin schedule deep link on the tenant's canonical host. Owners see
-    // their own brand in the SMS (`https://www.letstrylocs.com/admin/schedule`
-    // or `https://testclient.siteforowners.com/admin/schedule`) instead of
-    // the internal `/site/<slug>/admin/schedule` rewrite path.
-    const adminUrl = tenantUrl(APP_URL, tenantHostFields, "/admin/schedule");
 
     const smsData: BookingSmsData = {
       businessName,
