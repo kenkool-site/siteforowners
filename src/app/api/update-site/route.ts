@@ -215,6 +215,27 @@ export async function POST(request: NextRequest) {
         .eq("tenant_id", tenantId);
     }
 
+    // Mirror the business phone onto the tenant row so SMS notifications
+    // have a destination. `previews.phone` is the public-facing number
+    // shown on the customer site; `tenants.sms_phone` is what the booking
+    // handler reads when sending owner SMS. Sole-proprietor tenants use
+    // one number for both, so we sync them on every save.
+    if (tenantId && updateFields.phone !== undefined) {
+      const phoneValue = typeof updateFields.phone === "string" ? updateFields.phone.trim() : "";
+      const { error: tenantPhoneErr } = await supabase
+        .from("tenants")
+        .update({
+          sms_phone: phoneValue || null,
+          phone: phoneValue || null,
+        })
+        .eq("id", tenantId);
+      if (tenantPhoneErr) {
+        console.error("[update-site] tenant phone sync failed", { tenantId, err: tenantPhoneErr });
+        // Don't fail the whole save — the public site phone updated fine,
+        // owner just won't get SMS until next save. Log so we can spot it.
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Update site error:", error);

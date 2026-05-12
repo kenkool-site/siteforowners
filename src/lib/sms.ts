@@ -82,7 +82,15 @@ export interface BookingSmsData {
 }
 
 async function send(to: string, body: string): Promise<void> {
-  if (!client || !fromNumber) return;
+  if (!client || !fromNumber) {
+    console.warn("[sms] skipped — missing Twilio config", {
+      hasAccountSid: !!accountSid,
+      hasAuthToken: !!authToken,
+      hasFromNumber: !!fromNumber,
+      to,
+    });
+    return;
+  }
   const normalized = toE164(to);
   if (!normalized) {
     console.warn("[sms] could not normalize destination phone", { to });

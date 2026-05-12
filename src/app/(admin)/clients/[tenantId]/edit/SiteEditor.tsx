@@ -1234,6 +1234,9 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                   onChange={(e) => setPhone(e.target.value)}
                   className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Shown on the public site AND used for owner SMS notifications.
+                </p>
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium text-gray-600">Address</label>
