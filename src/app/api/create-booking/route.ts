@@ -307,18 +307,22 @@ export async function POST(request: Request) {
         ? sendBookingPendingDepositCustomer(smsData)
         : sendBookingCustomerConfirmation(smsData);
 
-    Promise.allSettled([
+    // Awaited (not fire-and-forget): Vercel serverless terminates the
+    // function instance once we return, and that races the unawaited
+    // HTTPS requests to Resend / Twilio. The booking row is already
+    // saved at this point, so worst case the customer waits an extra
+    // 1–2s for notifications to flush before they see "Confirmed".
+    const notificationResults = await Promise.allSettled([
       sendBookingNotification(ownerEmail, emailData, icsContent),
       customerEmailPromise,
       sendBookingOwnerNotification(ownerSmsPhone, smsData),
       customerSmsPromise,
-    ]).then((results) => {
-      for (const r of results) {
-        if (r.status === "rejected") {
-          console.error("Booking notification failed:", r.reason);
-        }
+    ]);
+    for (const r of notificationResults) {
+      if (r.status === "rejected") {
+        console.error("Booking notification failed:", r.reason);
       }
-    });
+    }
 
     return NextResponse.json({ success: true, booking_id: booking.id, status: initialStatus, deposit_amount: depositAmount > 0 ? depositAmount : null });
   } catch (error) {

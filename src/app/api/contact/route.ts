@@ -62,22 +62,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Could not save" }, { status: 500 });
   }
 
-  // Fire-and-forget owner notification. `email` is the primary owner
-  // address (matches what the booking + order flows use); `admin_email`
-  // is a fallback for tenants without the primary set.
+  // Awaited (not fire-and-forget): Vercel serverless terminates the
+  // function instance when we return, racing the unawaited HTTPS call
+  // to Resend. Lead is already saved, so worst case the customer waits
+  // an extra ~1s for the email to flush before seeing the success state.
   const ownerEmail = tenant.email ?? tenant.admin_email ?? null;
   if (ownerEmail) {
-    sendContactLeadNotification({
-      businessName: tenant.business_name,
-      ownerEmail,
-      customerName: name,
-      customerPhone: phone,
-      customerEmail: email,
-      customerMessage: message,
-      sourcePage: source_page,
-    }).catch((err) => {
+    try {
+      await sendContactLeadNotification({
+        businessName: tenant.business_name,
+        ownerEmail,
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: email,
+        customerMessage: message,
+        sourcePage: source_page,
+      });
+    } catch (err) {
       console.error("[api/contact] owner notification failed", { tenantId: tenant.id, err });
-    });
+    }
   } else {
     console.warn("[api/contact] no owner email on tenant — notification skipped", { tenantId: tenant.id });
   }
