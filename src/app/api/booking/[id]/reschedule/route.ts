@@ -15,6 +15,7 @@ import {
 } from "@/lib/sms";
 import { googleCalendarUrl } from "@/lib/calendar-links";
 import { parseTime } from "@/lib/ics";
+import { tenantUrl } from "@/lib/tenant-url";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
@@ -206,7 +207,7 @@ export async function POST(
   const tenantInfo = tenantId
     ? await supabase
         .from("tenants")
-        .select("business_name, phone, address, email, sms_phone, preview_slug")
+        .select("business_name, phone, address, email, sms_phone, preview_slug, custom_domain, subdomain")
         .eq("id", tenantId)
         .maybeSingle()
     : { data: null };
@@ -217,6 +218,11 @@ export async function POST(
   const ownerEmail = (tenant?.email as string) || "";
   const ownerSmsPhone = (tenant?.sms_phone as string | null) ?? (tenant?.phone as string | null) ?? "";
   const previewSlug = (tenant?.preview_slug as string | null) ?? undefined;
+  const tenantHostFields = {
+    custom_domain: (tenant?.custom_domain as string | null) ?? null,
+    subdomain: (tenant?.subdomain as string | null) ?? null,
+    preview_slug: previewSlug ?? null,
+  };
 
   // Customer just used their one reschedule quota — omit the link from the
   // confirmation email so they can't attempt another online reschedule.
@@ -250,14 +256,12 @@ export async function POST(
     rescheduleUrl: undefined,
   };
 
-  // Owner SMS gets the admin schedule deep link. rescheduleUrl is
-  // intentionally omitted from the customer-facing fields — the
-  // customer just spent their one reschedule attempt, mirroring the
-  // email policy at line 250 above.
+  // Owner SMS gets the admin schedule deep link on the tenant's canonical
+  // host. rescheduleUrl is intentionally omitted from the customer-facing
+  // fields — the customer just spent their one reschedule attempt,
+  // mirroring the email policy at line 250 above.
   const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
-  const adminUrl = previewSlug
-    ? `${APP_URL.replace(/\/$/, "")}/site/${previewSlug}/admin/schedule`
-    : undefined;
+  const adminUrl = tenantUrl(APP_URL, tenantHostFields, "/admin/schedule");
   const smsData: BookingSmsData = {
     businessName,
     serviceName: booking.service_name as string,

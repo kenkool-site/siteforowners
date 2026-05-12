@@ -15,6 +15,7 @@ import type { AddOn } from "@/lib/ai/types";
 import { validateAddOns } from "@/lib/validation/add-ons";
 import { signToken, bookingStartToExpiry } from "@/lib/reschedule-token";
 import { generateShortCode } from "@/lib/short-code";
+import { tenantUrl } from "@/lib/tenant-url";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
 
@@ -273,15 +274,27 @@ export async function POST(request: Request) {
       rescheduleUrl,
     };
 
-    // Look up owner SMS phone (falls back to tenants.phone)
+    // Look up owner SMS phone (falls back to tenants.phone) AND the host
+    // fields needed to build the owner's canonical admin URL (custom_domain
+    // when mapped, subdomain otherwise — preview_slug as last-resort fallback).
     let ownerSmsPhone = "";
+    let tenantHostFields: { custom_domain: string | null; subdomain: string | null; preview_slug: string | null } = {
+      custom_domain: null,
+      subdomain: null,
+      preview_slug: preview_slug ?? null,
+    };
     if (tenantId) {
       const { data: t } = await supabase
         .from("tenants")
-        .select("sms_phone, phone")
+        .select("sms_phone, phone, custom_domain, subdomain, preview_slug")
         .eq("id", tenantId)
         .maybeSingle();
       ownerSmsPhone = (t?.sms_phone as string | null) ?? (t?.phone as string | null) ?? "";
+      tenantHostFields = {
+        custom_domain: (t?.custom_domain as string | null) ?? null,
+        subdomain: (t?.subdomain as string | null) ?? null,
+        preview_slug: (t?.preview_slug as string | null) ?? preview_slug ?? null,
+      };
     }
 
     const paymentMethods = {
@@ -291,12 +304,11 @@ export async function POST(request: Request) {
       otherValue: bookingSettings?.deposit_other_value ?? null,
     };
 
-    // Admin schedule deep link — owner taps the SMS and lands directly on
-    // the booking they just got notified about. Same URL shape used in the
-    // email path. previewSlug is required to build it.
-    const adminUrl = preview_slug
-      ? `${APP_URL.replace(/\/$/, "")}/site/${preview_slug}/admin/schedule`
-      : undefined;
+    // Admin schedule deep link on the tenant's canonical host. Owners see
+    // their own brand in the SMS (`https://www.letstrylocs.com/admin/schedule`
+    // or `https://testclient.siteforowners.com/admin/schedule`) instead of
+    // the internal `/site/<slug>/admin/schedule` rewrite path.
+    const adminUrl = tenantUrl(APP_URL, tenantHostFields, "/admin/schedule");
 
     const smsData: BookingSmsData = {
       businessName,
