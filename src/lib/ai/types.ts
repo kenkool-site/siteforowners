@@ -17,7 +17,7 @@ export type ColorTheme =
   | 'braids_kente' | 'braids_royal' | 'braids_earth' | 'braids_ocean' | 'braids_sunset'
   | 'braids_midnight' | 'braids_coral' | 'braids_jade' | 'braids_runway_noir';
 
-export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway';
+export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand';
 
 /**
  * Customer-selectable extra applied to a single service. Persisted in

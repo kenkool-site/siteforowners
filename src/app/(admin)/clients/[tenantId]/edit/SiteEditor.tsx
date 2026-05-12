@@ -1046,6 +1046,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 <option value="vibrant">Vibrant</option>
                 <option value="warm">Warm</option>
                 <option value="runway">Runway</option>
+                <option value="grand">Grand</option>
               </select>
             </div>
 

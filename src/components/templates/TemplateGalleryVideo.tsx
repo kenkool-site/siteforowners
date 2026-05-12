@@ -4,7 +4,7 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import { ensureReadable } from "@/lib/templates/contrast";
 import { AnimateSection } from "./shared/AnimateSection";
 
-type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway";
+type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand";
 
 interface TemplateGalleryVideoProps {
   src: string;
@@ -20,13 +20,14 @@ const defaultTitles: Record<TemplateName, string> = {
   vibrant: "Watch The Transformation",
   warm: "A Closer Look",
   runway: "Runway In Motion",
+  grand: "Grand In Motion",
 };
 
 export function TemplateGalleryVideo({ src, galleryVideoTitle, colors, template }: TemplateGalleryVideoProps) {
-  const isRunway = template === "runway";
+  const isEditorialDark = template === "runway" || template === "grand";
   const title = galleryVideoTitle?.trim() || defaultTitles[template];
-  const background = isRunway ? "#050505" : colors.background;
-  const textColor = ensureReadable(isRunway ? "#FFFFFF" : colors.foreground, background, 4.5);
+  const background = isEditorialDark ? "#050505" : colors.background;
+  const textColor = ensureReadable(isEditorialDark ? "#FFFFFF" : colors.foreground, background, 4.5);
   const accent = ensureReadable(colors.primary || "#B8860B", background, 3);
 
   return (

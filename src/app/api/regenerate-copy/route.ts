@@ -20,7 +20,7 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm", "runway"] as const;
+const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm", "runway", "grand"] as const;
 type TemplateName = typeof ALL_TEMPLATES[number];
 
 function buildSocialProofSummary(
@@ -80,6 +80,7 @@ function pickThemeForTemplate<T extends { id: string; name: string }>(
     vibrant: ["coral", "jade", "ocean", "sunset", "fire", "pink"],
     warm: ["warm", "peach", "mocha", "terracotta", "earth", "tan"],
     runway: ["runway", "noir", "black", "midnight"],
+    grand: ["runway", "noir", "black", "midnight"],
   };
   const keywords = keywordsByTemplate[template];
   const ranked = themes.filter((theme) => {

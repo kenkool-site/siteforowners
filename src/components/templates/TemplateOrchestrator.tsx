@@ -15,6 +15,7 @@ import { ElegantHero } from "./heroes/ElegantHero";
 import { VibrantHero } from "./heroes/VibrantHero";
 import { WarmHero } from "./heroes/WarmHero";
 import { RunwayHero } from "./heroes/RunwayHero";
+import { GrandHero } from "./heroes/GrandHero";
 
 // Services
 import { ClassicServices } from "./services/ClassicServices";
@@ -61,7 +62,7 @@ import { RunwayBookingCTA } from "./RunwayBookingCTA";
 import { TemplateMotionTextBand } from "./TemplateMotionTextBand";
 import { TemplateGalleryVideo } from "./TemplateGalleryVideo";
 
-type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway";
+type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand";
 
 interface TemplateOrchestratorProps {
   data: PreviewData;
@@ -87,7 +88,7 @@ interface TemplateOrchestratorProps {
 
 function getTemplateName(data: PreviewData): TemplateName {
   const variant = data.template_variant;
-  if (variant && ["classic", "bold", "elegant", "vibrant", "warm", "runway"].includes(variant)) {
+  if (variant && ["classic", "bold", "elegant", "vibrant", "warm", "runway", "grand"].includes(variant)) {
     return variant as TemplateName;
   }
   return "classic";
@@ -441,11 +442,13 @@ export function TemplateOrchestrator({
   const renderTemplate = () => {
   switch (template) {
     case "runway":
+    case "grand": {
+      const Hero = template === "grand" ? GrandHero : RunwayHero;
       return (
         <div className="bg-black">
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero">
-            <RunwayHero
+            <Hero
               businessName={data.business_name}
               headline={headline}
               subheadline={subheadline}
@@ -491,6 +494,7 @@ export function TemplateOrchestrator({
           {footerSection}
         </div>
       );
+    }
 
     case "bold":
       return (

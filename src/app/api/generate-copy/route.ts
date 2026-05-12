@@ -22,9 +22,9 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway';
+type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand';
 
-const ALL_TEMPLATES: TemplateName[] = ['classic', 'bold', 'elegant', 'vibrant', 'warm', 'runway'];
+const ALL_TEMPLATES: TemplateName[] = ['classic', 'bold', 'elegant', 'vibrant', 'warm', 'runway', 'grand'];
 
 const CONTRAST_PAIRS: Record<TemplateName, TemplateName[]> = {
   classic: ['bold', 'vibrant'],
@@ -33,6 +33,7 @@ const CONTRAST_PAIRS: Record<TemplateName, TemplateName[]> = {
   vibrant: ['elegant', 'warm'],
   warm: ['bold', 'vibrant'],
   runway: ['elegant', 'warm'],
+  grand: ['elegant', 'warm'],
 };
 
 function pickTwoTemplates(): [TemplateName, TemplateName] {
@@ -136,6 +137,7 @@ function pickThemeForTemplate<T extends { id: string; name: string }>(
     vibrant: ["coral", "jade", "ocean", "sunset", "fire", "pink"],
     warm: ["warm", "peach", "mocha", "terracotta", "earth", "tan"],
     runway: ["runway", "noir", "black", "midnight"],
+    grand: ["runway", "noir", "black", "midnight"],
   };
   const keywords = keywordsByTemplate[template];
   const ranked = themes.filter((theme) => {

@@ -19,6 +19,7 @@ const TEMPLATE_META: Record<string, { desc: string; icon: string }> = {
   vibrant: { desc: "Fun & Energetic", icon: "🎉" },
   warm: { desc: "Warm & Personal", icon: "🤝" },
   runway: { desc: "Editorial Runway", icon: "◆" },
+  grand: { desc: "Grand Cinematic", icon: "◇" },
 };
 
 function TemplatePreviewCard({
@@ -31,7 +32,7 @@ function TemplatePreviewCard({
   headline?: string;
 }) {
   const colors = theme?.colors;
-  const isRunway = templateName === "runway";
+  const isEditorialDark = templateName === "runway" || templateName === "grand";
   return (
     <div
       className="hidden w-36 shrink-0 overflow-hidden rounded-xl border border-gray-200 sm:block"
@@ -40,7 +41,7 @@ function TemplatePreviewCard({
     >
       <div
         className="h-12 px-3 py-2"
-        style={{ backgroundColor: isRunway ? "#050505" : colors?.foreground || "#111827" }}
+        style={{ backgroundColor: isEditorialDark ? "#050505" : colors?.foreground || "#111827" }}
       >
         <div className="h-1.5 w-12 rounded-full" style={{ backgroundColor: colors?.primary || "#d97706" }} />
         <div className="mt-2 h-1.5 w-20 rounded-full bg-white/70" />
