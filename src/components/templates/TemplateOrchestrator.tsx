@@ -506,7 +506,15 @@ export function TemplateOrchestrator({
           {showGallery && hasGalleryImages && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
           {showServices && <div id="services"><BoldServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           {productsSection}
-          {showAbout && <div id="about"><BoldAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
+          {showAbout && (
+            <div id="about">
+              <BoldAbout
+                paragraphs={aboutParagraphs}
+                image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined}
+                colors={colors}
+              />
+            </div>
+          )}
           {testimonialsSection || ratingSection}
           {bookingSection}
           {contactSection}
