@@ -20,7 +20,7 @@ export function BoldAbout({ paragraphs, image, colors }: AboutProps) {
 
   const storyHeading = (
     <AnimateSection animation="fade-in">
-      <h2 className="mb-8 text-4xl font-black uppercase tracking-tight md:mb-10 md:text-5xl lg:text-6xl" style={{ color: rc.textOnFg }}>
+      <h2 className="mb-5 text-2xl font-black uppercase tracking-tight md:mb-8 md:text-3xl lg:text-4xl" style={{ color: rc.textOnFg }}>
         Our Story
       </h2>
     </AnimateSection>
@@ -30,7 +30,7 @@ export function BoldAbout({ paragraphs, image, colors }: AboutProps) {
     <>
       <AnimateSection animation="fade-in" delay={0.08}>
         <blockquote
-          className="mb-10 text-2xl font-medium italic leading-relaxed md:text-3xl"
+          className="mb-8 text-lg font-medium italic leading-relaxed md:mb-10 md:text-xl lg:text-2xl"
           style={{ color: rc.primaryOnFg }}
         >
           &ldquo;{pullQuote}&rdquo;
@@ -38,7 +38,7 @@ export function BoldAbout({ paragraphs, image, colors }: AboutProps) {
       </AnimateSection>
       {rest.map((p, i) => (
         <AnimateSection key={i} delay={0.22 + i * 0.15}>
-          <p className="mb-4 text-base leading-relaxed opacity-70 md:text-lg" style={{ color: rc.textOnFg }}>
+          <p className="mb-4 text-sm leading-relaxed opacity-70 md:text-base" style={{ color: rc.textOnFg }}>
             {p}
           </p>
         </AnimateSection>
@@ -51,7 +51,7 @@ export function BoldAbout({ paragraphs, image, colors }: AboutProps) {
       {image ? (
         <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 md:gap-14 lg:gap-16">
           <AnimateSection animation="slide-left">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-xl shadow-2xl">
+            <div className="relative aspect-video w-full overflow-hidden rounded-xl shadow-2xl md:aspect-[4/5]">
               <Image
                 src={image}
                 alt="Our story"
