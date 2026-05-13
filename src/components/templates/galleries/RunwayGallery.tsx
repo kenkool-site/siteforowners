@@ -21,9 +21,24 @@ const TILE_CLASSES = [
 ];
 
 /** Mobile carousel: time between auto-advances (ms) */
-const MOBILE_AUTO_INTERVAL_MS = 4500;
+const MOBILE_AUTO_INTERVAL_MS = 2250;
 /** After the visitor swipes or taps controls, resume auto-advance after this quiet period */
 const MOBILE_AUTO_RESUME_MS = 9000;
+
+/**
+ * Scroll only the horizontal track — never use scrollIntoView, which can scroll
+ * the page (e.g. jumping to #gallery while a booking/service modal is open).
+ */
+function scrollCarouselContainerToSlide(
+  root: HTMLDivElement,
+  slide: HTMLElement,
+  behavior: ScrollBehavior,
+) {
+  const maxScrollLeft = Math.max(0, root.scrollWidth - root.clientWidth);
+  const desiredLeft = slide.offsetLeft - (root.clientWidth - slide.offsetWidth) / 2;
+  const nextLeft = Math.max(0, Math.min(desiredLeft, maxScrollLeft));
+  root.scrollTo({ left: nextLeft, behavior });
+}
 
 export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
   const galleryImages = images;
@@ -80,12 +95,15 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
       const root = mobileScrollRef.current;
       if (!root) return;
       const slide = root.querySelector<HTMLElement>(`[data-gallery-slide="${i}"]`);
+      if (!slide) return;
+
       const smooth = !reduceMotionRef.current;
+      const behavior: ScrollBehavior = smooth ? "smooth" : "auto";
 
       if (options?.programmatic) {
         isProgrammaticScrollRef.current = true;
         ignoreScrollPauseUntilRef.current = Date.now() + (smooth ? 1200 : 80);
-        slide?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", inline: "center", block: "nearest" });
+        scrollCarouselContainerToSlide(root, slide, behavior);
         window.setTimeout(
           () => {
             isProgrammaticScrollRef.current = false;
@@ -93,7 +111,7 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
           smooth ? 850 : 0,
         );
       } else {
-        slide?.scrollIntoView({ behavior: smooth ? "smooth" : "auto", inline: "center", block: "nearest" });
+        scrollCarouselContainerToSlide(root, slide, behavior);
       }
     },
     [galleryImages.length, markUserControlsGallery],
