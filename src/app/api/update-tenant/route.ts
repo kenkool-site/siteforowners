@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { parseCustomDomainForStorage } from "@/lib/normalize-custom-domain";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -12,6 +13,7 @@ interface UpdatesBody {
     checkout_mode?: unknown;
     email?: unknown;
     booking_mode?: unknown;
+    custom_domain?: unknown;
   };
 }
 
@@ -59,6 +61,14 @@ export async function POST(request: NextRequest) {
     allowed.booking_mode = updates.booking_mode;
   }
 
+  if (updates.custom_domain !== undefined) {
+    const parsed = parseCustomDomainForStorage(updates.custom_domain);
+    if (!parsed.ok) {
+      return NextResponse.json({ error: parsed.error }, { status: 400 });
+    }
+    allowed.custom_domain = parsed.value;
+  }
+
   if (Object.keys(allowed).length === 0) {
     return NextResponse.json({ error: "No valid updates provided" }, { status: 400 });
   }
@@ -91,6 +101,14 @@ export async function POST(request: NextRequest) {
     .eq("id", tenantId);
   if (updateError) {
     console.error("update-tenant failed:", updateError);
+    const msg = String(updateError.message || "");
+    const code = (updateError as { code?: string }).code;
+    if (code === "23505" || msg.includes("unique") || msg.includes("duplicate")) {
+      return NextResponse.json(
+        { error: "That domain is already linked to another site." },
+        { status: 409 },
+      );
+    }
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 

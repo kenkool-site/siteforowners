@@ -120,6 +120,12 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
   const [bookingMode, setBookingMode] = useState<BookingModePolicy>(
     (tenant.booking_mode as BookingModePolicy | undefined) ?? "in_site_only"
   );
+  const [customDomainInput, setCustomDomainInput] = useState(() => {
+    const d = tenant.custom_domain;
+    return typeof d === "string" && d ? d : "";
+  });
+  const tenantSubdomain =
+    typeof tenant.subdomain === "string" && tenant.subdomain ? tenant.subdomain : "";
 
   // Images
   const [images, setImages] = useState<string[]>((preview.images as string[]) || []);
@@ -399,6 +405,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 checkout_mode: checkoutMode,
                 email: notificationEmail.trim() || null,
                 booking_mode: bookingMode,
+                custom_domain: customDomainInput.trim() || null,
               },
             }),
           })
@@ -427,8 +434,12 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
         throw new Error((detail.error || "Preview save failed") + suffix);
       }
       if (tenantRes && !tenantRes.ok) {
-        const detail = await tenantRes.json().catch(() => ({}));
-        throw new Error(detail?.error || "Tenant save failed");
+        const detail = (await tenantRes.json().catch(() => ({}))) as { error?: string };
+        const message =
+          tenantRes.status === 409
+            ? detail?.error || "That domain is already linked to another site."
+            : detail?.error || "Tenant save failed";
+        throw new Error(message);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
@@ -1317,6 +1328,46 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
               </div>
             </div>
           </section>
+
+          {isRealTenant && (
+            <section className="rounded-xl border bg-white p-6">
+              <h2 className="mb-1 text-lg font-semibold text-gray-900">Custom domain</h2>
+              <p className="mb-4 text-xs text-gray-500">
+                The customer-facing hostname you added in Vercel + DNS (e.g. Cloudflare). Must match
+                what visitors type after <code className="rounded bg-gray-100 px-1">www</code> is
+                removed. Your platform URL stays{" "}
+                {tenantSubdomain ? (
+                  <a
+                    className="text-amber-700 underline"
+                    href={`https://${tenantSubdomain}.siteforowners.com`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {tenantSubdomain}.siteforowners.com
+                  </a>
+                ) : (
+                  "your subdomain.siteforowners.com"
+                )}
+                .
+              </p>
+              <label className="mb-1 block text-sm font-medium text-gray-600">Domain</label>
+              <input
+                type="text"
+                value={customDomainInput}
+                onChange={(e) => setCustomDomainInput(e.target.value)}
+                placeholder="mariamhair.com"
+                className="w-full max-w-md rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <p className="mt-2 text-xs text-gray-500">
+                Leave blank if the apex name matches the subdomain (e.g.{" "}
+                <span className="whitespace-nowrap">letstrylocs.com</span> + subdomain{" "}
+                <code className="rounded bg-gray-100 px-1">letstrylocs</code>
+                ). Otherwise set the owned domain here after DNS points at Vercel.
+              </p>
+            </section>
+          )}
 
           {/* Re-import Data */}
           <section className="rounded-xl border border-dashed border-amber-300 bg-amber-50/30 p-6">
