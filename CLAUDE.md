@@ -64,3 +64,31 @@ The founder builds/maintains everything. Clients never touch code.
 - `brooklyn_hairstylists.csv` — 100 scraped Brooklyn leads (51 hot prospects)
 - Prospects have: name, address, phone, rating, review_count, website_type, all_links
 - Priority leads: 30+ businesses with 4.5+ stars, no website, have phone number
+
+## Custom domains (client-owned hostnames)
+
+Clients normally have a platform URL: `{subdomain}.siteforowners.com`. When they own a domain (e.g. from Cloudflare Registrar), that hostname must terminate on the **same Vercel project** and be linked in the database.
+
+### How routing works
+
+- **`src/middleware.ts`** resolves the tenant from `Host` (and strips `www.` for lookups):
+  1. **`tenants.custom_domain`** equals the normalized hostname (apex form, no `www`), or
+  2. First DNS label of the hostname is treated as **`tenants.subdomain`** (e.g. `letstrylocs.com` → subdomain `letstrylocs` with no `custom_domain` row).
+- If the apex domain does **not** match the tenant’s subdomain (e.g. `mariamhair.com` while subdomain is `testclient`), you **must** set **`custom_domain`**; the “first label = subdomain” rule no longer identifies the right tenant.
+
+### Founder checklist (new domain)
+
+1. **Vercel** — add the apex and/or `www` hostname to the production project; use the dashboard’s DNS instructions.
+2. **Cloudflare (client zone)** — create the records Vercel shows; use **Full (strict)** once the cert is active.
+3. **Site Editor** — `/clients/[tenantId]/edit` → **Custom domain** → enter the apex hostname (e.g. `mariamhair.com`) → **Save**. Empty field clears `custom_domain`.
+4. Do **not** point `custom_domain` at `*.siteforowners.com`; those URLs use the subdomain column only.
+
+### API and code
+
+- **Persist:** `POST /api/update-tenant` with `{ tenant_id, updates: { custom_domain: "example.com" | null, ... } }` (founder **admin_session** cookie). Duplicate domains return **409**.
+- **Normalize/validate:** `src/lib/normalize-custom-domain.ts` (`parseCustomDomainForStorage`) — lowercase, strip scheme/path/port, strip leading `www.` for storage; rejects `siteforowners.com` / `*.siteforowners.com`.
+- **UI:** `src/app/(admin)/clients/[tenantId]/edit/SiteEditor.tsx` (Custom domain section; real tenants only).
+
+### Tests
+
+- `npx tsx --test src/lib/normalize-custom-domain.test.ts`

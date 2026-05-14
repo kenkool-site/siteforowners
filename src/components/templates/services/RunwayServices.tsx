@@ -55,6 +55,11 @@ export function RunwayServices({
   const toggleExpandedGroup = (label: string) =>
     setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
 
+  const categoryPreviewImage = (groupServices: DisplayService[]) => {
+    const withUrl = groupServices.find((s) => typeof s.image === "string" && s.image.trim().length > 0);
+    return withUrl?.image?.trim();
+  };
+
   const renderService = (service: DisplayService, i: number) => {
     const m = bookingMode ?? "in_site_only";
     const canBook = !(m === "external_only" && !service.bookingDeepLink);
@@ -183,6 +188,7 @@ export function RunwayServices({
           const groupId = group.label
             ? `runway-services-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
             : undefined;
+          const thumbUrl = group.label ? categoryPreviewImage(group.services as DisplayService[]) : undefined;
 
           return (
             <div key={groupKey} className="mb-10 last:mb-0">
@@ -192,43 +198,69 @@ export function RunwayServices({
                   onClick={() => toggle(group.label!)}
                   aria-expanded={!isCollapsed}
                   aria-controls={groupId}
-                  className="mb-5 flex w-full items-stretch overflow-hidden rounded-lg border text-left shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                  className="group/cat mb-6 flex h-auto min-h-[4.75rem] w-full items-center gap-3 overflow-hidden rounded-xl border py-3 pl-0 pr-4 text-left shadow-[0_10px_36px_rgb(0,0,0,0.32),inset_0_1px_0_rgb(255,255,255,0.05)] backdrop-blur-sm transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_14px_44px_rgb(0,0,0,0.38),inset_0_1px_0_rgb(255,255,255,0.06)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/35 md:min-h-[5.25rem] md:gap-4 md:pr-5"
                   style={{
-                    borderColor: `${gold}55`,
-                    background: `linear-gradient(105deg, ${gold}24 0%, rgba(13,11,8,0.92) 48%, rgba(13,11,8,0.98) 100%)`,
+                    backgroundColor: `${gold}12`,
+                    borderColor: `${gold}44`,
                   }}
                 >
-                  <span className="w-1 shrink-0 self-stretch" style={{ backgroundColor: gold }} aria-hidden />
-                  <div className="flex min-w-0 flex-1 items-center justify-between gap-4 px-4 py-4">
-                    <div className="min-w-0">
-                      <span
-                        className="text-[0.6rem] font-black uppercase tracking-[0.38em] text-white/45"
-                      >
-                        Category
-                      </span>
-                      <span
-                        className="mt-1 block text-lg font-black uppercase tracking-[0.12em] sm:text-xl"
-                        style={{ color: ivory }}
-                      >
-                        {group.label}
-                      </span>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span
-                        className="rounded-full border px-3 py-1.5 text-[0.62rem] font-black uppercase tracking-[0.2em]"
-                        style={{ borderColor: `${gold}55`, color: gold }}
-                      >
-                        {group.services.length} {group.services.length === 1 ? "look" : "looks"}
-                      </span>
-                      <span
-                        className="flex h-10 w-10 items-center justify-center rounded-full text-base font-black"
-                        style={{ backgroundColor: gold, color: buttonText }}
+                  <div className="relative h-[4.75rem] w-[4.5rem] shrink-0 overflow-hidden rounded-l-xl md:h-[5.25rem] md:w-[5.25rem]">
+                    {thumbUrl ? (
+                      <Image
+                        src={thumbUrl}
+                        alt=""
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover/cat:scale-105"
+                        sizes="84px"
+                        unoptimized
+                      />
+                    ) : (
+                      <div
                         aria-hidden
-                      >
-                        {isCollapsed ? "›" : "⌄"}
-                      </span>
-                    </div>
+                        className="absolute inset-0"
+                        style={{
+                          background: `linear-gradient(135deg, ${gold}66 0%, rgba(13,11,8,0.95) 50%, rgb(8,7,6) 100%)`,
+                        }}
+                      />
+                    )}
                   </div>
+
+                  <div className="flex min-h-[3.75rem] min-w-0 flex-1 flex-col justify-center gap-1 pr-1">
+                    <span
+                      className="truncate text-[0.95rem] font-black uppercase leading-snug tracking-wide md:text-[1.05rem]"
+                      style={{ color: ivory }}
+                    >
+                      {group.label}
+                    </span>
+                    <span
+                      className="text-[0.8rem] font-medium leading-snug md:text-[0.85rem]"
+                      style={{ color: ivory, opacity: 0.62 }}
+                    >
+                      {group.services.length} {group.services.length === 1 ? "service" : "services"}
+                    </span>
+                  </div>
+
+                  <span
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-lg transition-transform md:h-12 md:w-12"
+                    style={{
+                      backgroundColor: gold,
+                      color: buttonText,
+                      boxShadow: `0 0 22px ${gold}99, 0 6px 18px rgb(0,0,0,0.4)`,
+                    }}
+                    aria-hidden
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`h-[1.1rem] w-[1.1rem] transition-transform duration-300 ease-out md:h-5 md:w-5 ${!isCollapsed ? "rotate-90" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
+                  </span>
                 </button>
               )}
 

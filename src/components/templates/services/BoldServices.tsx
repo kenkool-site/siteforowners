@@ -44,6 +44,11 @@ export function BoldServices({ services, categories, colors, bookingMode, defaul
   const toggleExpandedGroup = (label: string) =>
     setExpandedGroups((prev) => ({ ...prev, [label]: !prev[label] }));
 
+  const categoryPreviewImage = (groupServices: DisplayService[]) => {
+    const withUrl = groupServices.find((s) => typeof s.image === "string" && s.image.trim().length > 0);
+    return withUrl?.image?.trim();
+  };
+
   const renderService = (service: DisplayService, i: number) => {
     const m = bookingMode ?? "in_site_only";
     const canBook = !(m === "external_only" && !service.bookingDeepLink);
@@ -138,7 +143,12 @@ export function BoldServices({ services, categories, colors, bookingMode, defaul
   };
 
   return (
-    <section className="px-6 py-20" style={{ backgroundColor: colors.foreground }}>
+    <section
+      className="relative isolate px-6 py-20"
+      style={{
+        background: `radial-gradient(circle at 50% -20%, ${colors.primary}33, transparent 46%), ${colors.foreground}`,
+      }}
+    >
       <div className="mx-auto max-w-5xl">
         <AnimateSection>
           <h2 className="mb-12 text-3xl font-black uppercase tracking-wider md:text-4xl" style={{ color: rc.textOnFg }}>
@@ -153,6 +163,11 @@ export function BoldServices({ services, categories, colors, bookingMode, defaul
           const visibleServices = shouldLimitGroup
             ? group.services.slice(0, INITIAL_SERVICE_LIMIT)
             : group.services;
+          const groupId = group.label
+            ? `bold-services-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
+            : undefined;
+          const thumbUrl = group.label ? categoryPreviewImage(group.services as DisplayService[]) : undefined;
+
           return (
             <div key={groupKey} className="mb-8">
               {group.label && (
@@ -160,46 +175,75 @@ export function BoldServices({ services, categories, colors, bookingMode, defaul
                   type="button"
                   onClick={() => toggle(group.label!)}
                   aria-expanded={!isCollapsed}
-                  className="mb-4 flex w-full items-center gap-4 rounded-lg px-4 py-3 text-left"
+                  aria-controls={groupId}
+                  className="group/cat mb-4 flex min-h-[5.125rem] w-full items-center gap-3 overflow-hidden rounded-[14px] border py-3 pl-0 pr-4 text-left shadow-[0_10px_36px_rgb(0,0,0,0.35),inset_0_1px_0_rgb(255,255,255,0.05)] backdrop-blur-[4px] transition-[transform,border-color,box-shadow] hover:-translate-y-0.5 hover:shadow-[0_14px_44px_rgb(0,0,0,0.42),inset_0_1px_0_rgb(255,255,255,0.06)] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 md:min-h-[6.125rem] md:gap-4 md:pr-[1.125rem]"
                   style={{
-                    backgroundColor: `${colors.primary}12`,
-                    borderLeft: `4px solid ${colors.primary}`,
-                    boxShadow: `inset 0 0 0 1px ${colors.primary}22`,
+                    backgroundColor: `${colors.primary}10`,
+                    borderColor: `${colors.primary}44`,
                   }}
                 >
-                  <div className="min-w-0 flex-1">
+                  <div
+                    className="relative w-[clamp(4.25rem,18vw,5.35rem)] shrink-0 overflow-hidden rounded-l-[14px] rounded-r-md md:w-[clamp(5rem,17vw,5.35rem)]"
+                    style={{ height: "calc(clamp(4.25rem, 18vw, 5.35rem) + 10px)" }}
+                  >
+                    {thumbUrl ? (
+                      <Image
+                        src={thumbUrl}
+                        alt=""
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover/cat:scale-105"
+                        sizes="96px"
+                        unoptimized
+                      />
+                    ) : (
+                      <div
+                        aria-hidden
+                        className="absolute inset-0"
+                        style={{
+                          background: `linear-gradient(135deg, ${colors.primary}, rgba(26,12,26,0.96) 72%, rgb(14,11,13) 100%)`,
+                        }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="flex min-h-[3.625rem] min-w-0 flex-1 flex-col justify-center gap-1 py-1 pr-1 md:gap-1.5">
                     <span
-                      className="mb-0.5 block text-[0.65rem] font-black uppercase tracking-[0.24em]"
-                      style={{ color: rc.primaryOnFg }}
-                    >
-                      Category
-                    </span>
-                    <span
-                      className="text-base font-black uppercase tracking-wider md:text-lg"
+                      className="truncate text-base font-black uppercase leading-snug tracking-[0.04em] md:text-lg"
                       style={{ color: rc.textOnFg }}
                     >
                       {group.label}
                     </span>
+                    <span className="text-[0.8rem] font-medium leading-snug text-[#a8a8b0] md:text-[0.85rem]">
+                      {group.services.length} {group.services.length === 1 ? "service" : "services"}
+                    </span>
                   </div>
+
                   <span
-                    className="shrink-0 rounded-full border-2 px-2.5 py-1 text-[0.65rem] font-black uppercase tabular-nums"
-                    style={{ borderColor: colors.primary, color: rc.primaryOnFg }}
-                  >
-                    {group.services.length}{" "}
-                    {group.services.length === 1 ? "svc" : "svcs"}
-                  </span>
-                  <span
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg font-black"
-                    style={{ backgroundColor: colors.primary, color: ctaOnPrimary(colors) }}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full md:h-[43px] md:w-[43px]"
+                    style={{
+                      backgroundColor: colors.primary,
+                      color: "#ffffff",
+                      boxShadow: `0 0 26px ${colors.primary}B3, 0 6px 18px rgb(0,0,0,0.45)`,
+                    }}
                     aria-hidden
                   >
-                    {isCollapsed ? "›" : "⌄"}
+                    <svg
+                      viewBox="0 0 24 24"
+                      className={`h-[1.1rem] w-[1.1rem] transition-transform duration-300 ease-out md:h-5 md:w-5 ${!isCollapsed ? "rotate-90" : ""}`}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth={2.5}
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M9 6l6 6-6 6" />
+                    </svg>
                   </span>
                 </button>
               )}
               {!isCollapsed && (
                 <>
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div id={groupId} className="grid gap-4 md:grid-cols-3">
                     {(visibleServices as DisplayService[]).map((service, i) => renderService(service, i))}
                   </div>
                   {group.services.length > INITIAL_SERVICE_LIMIT && (
