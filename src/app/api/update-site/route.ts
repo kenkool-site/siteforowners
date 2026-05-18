@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
     if (updateFields.business_name !== undefined) allowed.business_name = updateFields.business_name;
     if (updateFields.phone !== undefined) allowed.phone = updateFields.phone;
     if (updateFields.address !== undefined) allowed.address = updateFields.address;
+    if (updateFields.google_review_url !== undefined) {
+      const v =
+        updateFields.google_review_url === null || updateFields.google_review_url === ""
+          ? null
+          : String(updateFields.google_review_url).trim() || null;
+      allowed.google_review_url = v;
+    }
     if (updateFields.booking_url !== undefined) allowed.booking_url = updateFields.booking_url;
     if (updateFields.services !== undefined) allowed.services = updateFields.services;
     if (updateFields.categories !== undefined) allowed.categories = updateFields.categories;

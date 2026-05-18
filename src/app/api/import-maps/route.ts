@@ -14,6 +14,10 @@ interface PlaceReview {
 
 interface PlaceResult {
   name: string | null;
+  /** Places API resource id, e.g. `places/ChIJ...` */
+  google_place_id: string | null;
+  /** Leave-a-review URL derived from google_place_id */
+  google_review_url: string | null;
   category: string | null;
   rating: number | null;
   reviewCount: number | null;
@@ -27,6 +31,28 @@ interface PlaceResult {
 }
 
 const GOOGLE_API_KEY = process.env.GOOGLE_PLACES_API_KEY;
+
+/** `places/ChIJ…` → `ChIJ…` */
+function canonicalPlaceIdFromResourceName(resourceName: string | undefined): string | null {
+  if (!resourceName?.trim()) return null;
+  const trimmed = resourceName.trim();
+  if (!trimmed.startsWith("places/")) return trimmed;
+  const id = trimmed.slice("places/".length).trim();
+  return id || null;
+}
+
+/** Google Maps "leave a review" short link shape */
+function googleReviewUrlFromPlaceId(placeId: string): string {
+  return `https://search.google.com/local/writereview?placeid=${encodeURIComponent(placeId)}`;
+}
+
+/** Last 10 digits for US/local comparison; null if too short to trust. */
+function phoneCoreDigits(raw: string | null | undefined): string | null {
+  if (!raw?.trim()) return null;
+  const d = raw.replace(/\D/g, "");
+  if (d.length >= 10) return d.slice(-10);
+  return null;
+}
 
 /**
  * Check if the returned place name matches the searched business name.
@@ -58,15 +84,21 @@ function isNameMatch(searched: string, returned: string): boolean {
 
 /**
  * Find a business on Google Maps using the Places API (New).
- * Uses Text Search to find by name + address, then fetches details + photos.
+ * Uses Text Search to find by name + address (+ optional phone hint), then fetches details + photos.
  */
 async function findBusinessOnMaps(
   businessName: string,
-  address: string
+  address: string,
+  phoneHint?: string | null,
 ): Promise<PlaceResult> {
   if (!GOOGLE_API_KEY) {
     throw new Error("GOOGLE_PLACES_API_KEY not configured");
   }
+
+  const trimmedHint = phoneHint?.trim() || "";
+  const textQuery = trimmedHint
+    ? `${businessName} ${address} ${trimmedHint}`
+    : `${businessName} ${address}`;
 
   // Step 1: Text Search to find the place
   const searchRes = await fetch(
@@ -80,7 +112,7 @@ async function findBusinessOnMaps(
           "places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.nationalPhoneNumber,places.websiteUri,places.primaryType,places.primaryTypeDisplayName,places.editorialSummary,places.currentOpeningHours,places.photos,places.reviews",
       },
       body: JSON.stringify({
-        textQuery: `${businessName} ${address}`,
+        textQuery,
         maxResultCount: 1,
       }),
     }
@@ -97,6 +129,8 @@ async function findBusinessOnMaps(
 
   const emptyResult: PlaceResult = {
     name: null,
+    google_place_id: null,
+    google_review_url: null,
     category: null,
     rating: null,
     reviewCount: null,
@@ -120,6 +154,17 @@ async function findBusinessOnMaps(
   if (!isNameMatch(searchedName, returnedName)) {
     console.log(
       `Maps name mismatch: searched "${businessName}", got "${place.displayName?.text}". Skipping.`
+    );
+    return emptyResult;
+  }
+
+  // When the user supplied a full phone number and Maps returned one, require
+  // a digit match so strip-mall / suite collisions don't attach the wrong GBP.
+  const hintCore = phoneCoreDigits(trimmedHint);
+  const returnedCore = phoneCoreDigits(place.nationalPhoneNumber as string | undefined);
+  if (hintCore && returnedCore && hintCore !== returnedCore) {
+    console.log(
+      `Maps phone mismatch: hint core ${hintCore} vs place ${returnedCore} for "${place.displayName?.text}". Skipping.`
     );
     return emptyResult;
   }
@@ -195,8 +240,13 @@ async function findBusinessOnMaps(
     }
   }
 
+  const resourceId = place.id as string | undefined;
+  const canonicalId = canonicalPlaceIdFromResourceName(resourceId);
+
   return {
     name: place.displayName?.text || null,
+    google_place_id: canonicalId,
+    google_review_url: canonicalId ? googleReviewUrlFromPlaceId(canonicalId) : null,
     category: place.primaryType || null,
     rating: place.rating || null,
     reviewCount: place.userRatingCount || null,
@@ -257,16 +307,24 @@ Use realistic NYC pricing. If reviews mention specific services, include those.`
 
 export async function POST(request: Request) {
   try {
-    const { business_name, address } = await request.json();
+    const body = await request.json();
+    const business_name = typeof body.business_name === "string" ? body.business_name : "";
+    const address = typeof body.address === "string" ? body.address : "";
+    const phone =
+      typeof body.phone === "string" && body.phone.trim() ? body.phone.trim() : undefined;
 
-    if (!business_name || !address) {
+    if (!business_name?.trim() || !address?.trim()) {
       return NextResponse.json(
         { error: "Both business_name and address are required" },
         { status: 400 }
       );
     }
 
-    const data = await findBusinessOnMaps(business_name, address);
+    const data = await findBusinessOnMaps(
+      business_name.trim(),
+      address.trim(),
+      phone,
+    );
 
     return NextResponse.json(data);
   } catch (error) {

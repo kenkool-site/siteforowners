@@ -207,3 +207,17 @@ export async function sendBookingRescheduledOwnerSms(
     `🔄 ${b.customerName} rescheduled their ${b.serviceName} to ${b.date} @ ${b.time}${prev}.${manage}`,
   );
 }
+
+/** Post-service review request — previews.google_review_url set + cron; customer opted in SMS. */
+export async function sendBookingCustomerReviewRequest(
+  customerPhone: string,
+  customerName: string,
+  businessName: string,
+  reviewUrl: string,
+): Promise<void> {
+  const firstName = customerName.split(" ")[0];
+  await send(
+    customerPhone,
+    `Hi ${firstName}! Thanks for visiting ${businessName}. We'd love your feedback — it helps locals find us: ${reviewUrl} Reply STOP to opt out.`,
+  );
+}

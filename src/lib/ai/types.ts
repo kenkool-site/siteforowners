@@ -105,6 +105,8 @@ export interface PreviewData {
   hours?: BusinessHours;
   imported_hours?: BusinessHours;
   address?: string;
+  /** Google Maps writereview (or GBP share) URL; enables post-appointment review SMS cron */
+  google_review_url?: string | null;
   images?: string[];
   hero_video_url?: string | null;
   gallery_video_url?: string | null;

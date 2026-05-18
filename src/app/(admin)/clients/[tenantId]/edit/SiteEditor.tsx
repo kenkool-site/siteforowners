@@ -73,6 +73,9 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
   const [businessName, setBusinessName] = useState(preview.business_name as string);
   const [phone, setPhone] = useState((preview.phone as string) || "");
   const [address, setAddress] = useState((preview.address as string) || "");
+  const [googleReviewUrl, setGoogleReviewUrl] = useState(
+    ((preview as { google_review_url?: string }).google_review_url as string) || "",
+  );
   const [bookingUrl, setBookingUrl] = useState((preview.booking_url as string) || "");
 
   // Copy
@@ -354,6 +357,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             business_name: businessName,
             phone,
             address,
+            google_review_url: googleReviewUrl.trim() || null,
             booking_url: bookingUrl || null,
             services: services.filter((s) => s.name.trim()),
             categories,
@@ -609,7 +613,11 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
       const res = await fetch("/api/import-maps", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business_name: businessName.trim(), address: address.trim() }),
+        body: JSON.stringify({
+          business_name: businessName.trim(),
+          address: address.trim(),
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
+        }),
       });
       if (!res.ok) throw new Error("Maps lookup failed");
       const d = await res.json();
@@ -628,6 +636,18 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
         if (Object.keys(parsed).length > 0) {
           setDisplayHours(parsed);
           setImportedHours(parsed);
+        }
+      }
+      if (typeof d.google_review_url === "string" && d.google_review_url.trim()) {
+        const url = d.google_review_url.trim();
+        setGoogleReviewUrl(url);
+        const persistReview = await fetch("/api/update-site", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ slug, updates: { google_review_url: url } }),
+        });
+        if (!persistReview.ok) {
+          console.error("Failed to persist Google review URL after Maps enrich");
         }
       }
       setSaved(true);
@@ -1283,6 +1303,21 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                   placeholder="https://..."
                   className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-600">Google review link</label>
+                <input
+                  type="url"
+                  value={googleReviewUrl}
+                  onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                  placeholder="https://search.google.com/local/writereview?placeid=…"
+                  className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Filled automatically when you use “Enrich from Google Maps” after a matched listing. Enables a
+                  one-time SMS asking happy clients for a review a few hours after their appointment ends (customers
+                  who opted in to SMS).
+                </p>
               </div>
               <div className="sm:col-span-2">
                 <div className="space-y-2">

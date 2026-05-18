@@ -441,6 +441,7 @@ function PreviewWizard() {
         body: JSON.stringify({
           business_name: businessName.trim(),
           address: address.trim(),
+          ...(phone.trim() ? { phone: phone.trim() } : {}),
         }),
       });
       if (!res.ok) throw new Error("Maps lookup failed");
