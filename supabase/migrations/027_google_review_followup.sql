@@ -1,4 +1,4 @@
--- Post-appointment Google review SMS: one send per booking, gated by previews.google_review_url
+-- Post-appointment Google review SMS: one send per booking, gated by previews.google_review_url.
 
 ALTER TABLE previews
   ADD COLUMN IF NOT EXISTS google_review_url text;
