@@ -25,6 +25,7 @@ import { DepositEditor, type DepositSettingsState } from "@/app/site/[slug]/admi
 import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
+import { buildLandingSlug } from "@/lib/seo-landing";
 
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
@@ -75,6 +76,9 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
   const [address, setAddress] = useState((preview.address as string) || "");
   const [googleReviewUrl, setGoogleReviewUrl] = useState(
     ((preview as { google_review_url?: string }).google_review_url as string) || "",
+  );
+  const [seoLocality, setSeoLocality] = useState(
+    ((preview as { seo_locality?: string | null }).seo_locality as string) || "",
   );
   const [bookingUrl, setBookingUrl] = useState((preview.booking_url as string) || "");
 
@@ -358,6 +362,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             phone,
             address,
             google_review_url: googleReviewUrl.trim() || null,
+            seo_locality: seoLocality.trim() || null,
             booking_url: bookingUrl || null,
             services: services.filter((s) => s.name.trim()),
             categories,
@@ -1317,6 +1322,29 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                   Filled automatically when you use “Enrich from Google Maps” after a matched listing. Enables a
                   one-time SMS asking happy clients for a review a few hours after their appointment ends (customers
                   who opted in to SMS).
+                </p>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-600">Local SEO area</label>
+                <input
+                  type="text"
+                  value={seoLocality}
+                  onChange={(e) => setSeoLocality(e.target.value)}
+                  placeholder="e.g. Brooklyn, NY"
+                  className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  When set, the site publishes one landing URL per saved service paired with this area (example slug:{" "}
+                  <code className="rounded bg-gray-100 px-1">
+                    {(() => {
+                      const svc = services.find((s) => s.name.trim());
+                      return svc && seoLocality.trim()
+                        ? `/l/${buildLandingSlug(svc.name.trim(), seoLocality.trim())}`
+                        : "/l/service-name-city";
+                    })()}
+                  </code>
+                  ). Save changes after editing. On the live hostname, Crawlers discover URLs via{" "}
+                  <code className="rounded bg-gray-100 px-1">/sitemap</code> (XML).
                 </p>
               </div>
               <div className="sm:col-span-2">

@@ -107,6 +107,8 @@ export interface PreviewData {
   address?: string;
   /** Google Maps writereview (or GBP share) URL; enables post-appointment review SMS cron */
   google_review_url?: string | null;
+  /** Area phrase for programmatic /l/{service}-{area} SEO pages (e.g. Brooklyn, NY) */
+  seo_locality?: string | null;
   images?: string[];
   hero_video_url?: string | null;
   gallery_video_url?: string | null;

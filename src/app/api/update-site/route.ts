@@ -68,6 +68,13 @@ export async function POST(request: NextRequest) {
     if (updateFields.business_name !== undefined) allowed.business_name = updateFields.business_name;
     if (updateFields.phone !== undefined) allowed.phone = updateFields.phone;
     if (updateFields.address !== undefined) allowed.address = updateFields.address;
+    if (updateFields.seo_locality !== undefined) {
+      const v =
+        updateFields.seo_locality === null || updateFields.seo_locality === ""
+          ? null
+          : String(updateFields.seo_locality).trim() || null;
+      allowed.seo_locality = v;
+    }
     if (updateFields.google_review_url !== undefined) {
       const v =
         updateFields.google_review_url === null || updateFields.google_review_url === ""
