@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isPublicSiteLive, isOwnerAdminReachable } from "@/lib/tenant-access";
 
 // Admin routes that require authentication
 const ADMIN_ROUTES = ["/prospects", "/clients", "/previews", "/onboard"];
@@ -82,23 +83,23 @@ export async function middleware(request: NextRequest) {
   }
 
   const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
-  const activeStatuses = ["active", "trialing"];
 
-  // Owner admin needs to work even when the site is unpublished or the
-  // subscription has lapsed — so owners can reach Billing and fix it.
-  // Public site still requires both gates.
-  const publicGated =
-    !tenant ||
-    !tenant.site_published ||
-    !tenant.preview_slug ||
-    !activeStatuses.includes(tenant.subscription_status);
+  // Gating policy lives in src/lib/tenant-access.ts (unit-tested). Owner admin
+  // stays reachable while lapsed so owners can fix billing; the public site
+  // also requires a live/grace subscription (past_due stays live during Stripe
+  // dunning — see PUBLIC_LIVE_STATUSES).
+  const gated = isAdminPath
+    ? !isOwnerAdminReachable(tenant)
+    : !isPublicSiteLive(tenant);
 
-  if (isAdminPath) {
-    if (!tenant || !tenant.preview_slug) {
-      return NextResponse.rewrite(new URL("/not-found", request.url));
-    }
-  } else if (publicGated) {
-    return NextResponse.rewrite(new URL("/not-found", request.url));
+  if (gated) {
+    // This 404 must NOT be edge-cached. Without no-store, Vercel caches the
+    // /not-found render; when the tenant later reactivates (or a blocked
+    // renewal recovers) the site would keep serving a stale 404 until a
+    // redeploy. Same reason the /admin success path sets no-store below.
+    const notFound = NextResponse.rewrite(new URL("/not-found", request.url));
+    notFound.headers.set("Cache-Control", "no-store, must-revalidate");
+    return notFound;
   }
 
   const url = new URL(
