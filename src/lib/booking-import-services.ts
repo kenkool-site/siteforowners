@@ -1,9 +1,37 @@
-import type { ServiceItem } from "@/lib/ai/types";
+import type { AddOn, ServiceItem } from "@/lib/ai/types";
 
 export type ImportedBookingCategory = {
   name: string;
-  services?: { name: string; price?: string; duration?: string; image?: string }[];
+  services?: {
+    name: string;
+    price?: string;
+    duration?: string;
+    image?: string;
+    add_ons?: AddOn[];
+  }[];
 };
+
+/** Defensive parse of imported add-ons (already normalized at extraction time). */
+function addOnsFromImportedService(service: Record<string, unknown>): AddOn[] | undefined {
+  const raw = service.add_ons;
+  if (!Array.isArray(raw)) return undefined;
+  const out: AddOn[] = raw.flatMap((a) => {
+    if (!a || typeof a !== "object") return [];
+    const r = a as Record<string, unknown>;
+    if (typeof r.name !== "string" || !r.name.trim()) return [];
+    return [
+      {
+        name: r.name,
+        price_delta: typeof r.price_delta === "number" ? r.price_delta : Number(r.price_delta) || 0,
+        duration_delta_minutes:
+          typeof r.duration_delta_minutes === "number"
+            ? r.duration_delta_minutes
+            : Number(r.duration_delta_minutes) || 0,
+      },
+    ];
+  });
+  return out.length > 0 ? out : undefined;
+}
 
 /** Defensive parse — matches preview wizard + generate-copy behavior. */
 export function servicesFromBookingCategories(bookingCategories: unknown): ServiceItem[] {
@@ -17,12 +45,16 @@ export function servicesFromBookingCategories(bookingCategories: unknown): Servi
         : [];
     return rawServices
       .filter((service): service is Record<string, unknown> => !!service && typeof service === "object" && "name" in service)
-      .map((service) => ({
-        name: String(service.name),
-        price: typeof service.price === "string" ? service.price : "",
-        category: categoryName,
-        image: typeof service.image === "string" ? service.image : undefined,
-      }));
+      .map((service) => {
+        const add_ons = addOnsFromImportedService(service);
+        return {
+          name: String(service.name),
+          price: typeof service.price === "string" ? service.price : "",
+          category: categoryName,
+          image: typeof service.image === "string" ? service.image : undefined,
+          ...(add_ons ? { add_ons } : {}),
+        };
+      });
   });
 }
 

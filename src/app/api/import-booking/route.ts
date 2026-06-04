@@ -3,6 +3,8 @@ export const maxDuration = 120;
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { fetchVagaroBookingCategories } from "@/lib/vagaro-import";
+import { buildAcuityAddonMap, acuityAddOnsForService } from "@/lib/acuity-addons";
+import type { AddOn } from "@/lib/ai/types";
 
 const anthropic = new Anthropic();
 
@@ -587,7 +589,7 @@ Rules:
 // Extract structured booking data from Acuity's embedded BUSINESS JSON
 interface BookingCategory {
   name: string;
-  services: { name: string; price: string; duration: string; id: number; image?: string; description?: string }[];
+  services: { name: string; price: string; duration: string; id: number; image?: string; description?: string; add_ons?: AddOn[] }[];
   directUrl: string;
 }
 
@@ -619,6 +621,7 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
   category: string;
   image?: string;
   description?: string;
+  add_ons?: AddOn[];
 }[] {
   const out: {
     name: string;
@@ -627,6 +630,7 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
     category: string;
     image?: string;
     description?: string;
+    add_ons?: AddOn[];
   }[] = [];
   for (const cat of categories) {
     for (const s of cat.services) {
@@ -637,6 +641,7 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
         category: cat.name,
         ...(s.image ? { image: s.image } : {}),
         ...(s.description ? { description: s.description } : {}),
+        ...(s.add_ons && s.add_ons.length > 0 ? { add_ons: s.add_ons } : {}),
       });
     }
   }
@@ -782,24 +787,29 @@ function extractAcuityData(html: string): {
     const styles = biz.styles as { colors?: { schedulerBackground?: string } } | undefined;
     const schedulerColor: string | null = styles?.colors?.schedulerBackground || null;
     const appointmentTypes = appointmentTypesMapFromBiz(biz);
+    // Acuity exposes "Add to appointment" extras as a flat BUSINESS.addons list;
+    // each appointment type references them by id via addonIDs.
+    const addonMap = buildAcuityAddonMap(biz.addons);
 
     const categories: BookingCategory[] = [];
     for (const [categoryName, services] of Object.entries(appointmentTypes)) {
       if (!Array.isArray(services) || services.length === 0) continue;
       const svcList = services as Array<{
         id: number; name: string; price: string; duration: number;
-        image?: string; imageUrl?: string; picture?: string;
+        image?: string; imageUrl?: string; picture?: string; addonIDs?: unknown;
       }>;
       categories.push({
         name: categoryName.replace(/^\d+\./, "").trim(),
         services: svcList.map((s) => {
           const image = resolveAcuityImageUrl(s.image || s.imageUrl || s.picture || "");
+          const add_ons = acuityAddOnsForService(s.addonIDs, addonMap);
           return {
             name: s.name,
             price: `$${parseFloat(s.price).toFixed(0)}`,
             duration: `${s.duration} min`,
             id: s.id,
             ...(image ? { image } : {}),
+            ...(add_ons.length > 0 ? { add_ons } : {}),
           };
         }),
         directUrl: `https://app.acuityscheduling.com/schedule.php?owner=${ownerId}&appointmentType=category:${encodeURIComponent(categoryName)}`,
