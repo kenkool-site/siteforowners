@@ -21,6 +21,7 @@ const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = 
   { value: "restaurant", label: "Restaurant", emoji: "🍽️" },
   { value: "nails", label: "Nail Salon", emoji: "💅" },
   { value: "braids", label: "Braiding Salon", emoji: "✨" },
+  { value: "locs", label: "Locs", emoji: "🌿" },
 ];
 
 const TAGLINES: Record<BusinessType, string[]> = {
@@ -48,6 +49,11 @@ const TAGLINES: Record<BusinessType, string[]> = {
     "Crown your beauty",
     "Where culture meets style",
     "Braids that make you shine",
+  ],
+  locs: [
+    "Rooted in care, styled with intention",
+    "Healthy locs, confident energy",
+    "Loc care that honors your crown",
   ],
 };
 

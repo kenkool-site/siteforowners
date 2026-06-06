@@ -11,6 +11,7 @@ const DEFAULT_HERO_VIDEO_BY_TYPE: Record<BusinessType, string> = {
   restaurant: "/marketing/hero-defaults/restaurant.mp4",
   nails: "/marketing/hero-defaults/nails.mp4",
   braids: "/marketing/hero-defaults/braids.mp4",
+  locs: "/marketing/hero-defaults/braids.mp4",
 };
 
 export function getDefaultHeroVideoUrl(businessType: BusinessType): string | null {

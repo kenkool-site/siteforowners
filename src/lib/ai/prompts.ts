@@ -11,6 +11,8 @@ const TONE_GUIDELINES: Record<BusinessType, string> = {
     "Fun, playful, glamorous, and focused on self-care. Speak like a friend who makes pampering exciting. Celebrate beauty and treating yourself.",
   braids:
     "Cultural, vibrant, proud, and empowering. Speak like a skilled artist who honors tradition. Celebrate heritage, beauty, and the art of braiding.",
+  locs:
+    "Grounded, skilled, restorative, and confident. Speak like a trusted loctician who protects healthy growth and personal expression. Celebrate patience, care, roots, and crown confidence.",
 };
 
 export function buildSystemPrompt(businessType: BusinessType): string {
