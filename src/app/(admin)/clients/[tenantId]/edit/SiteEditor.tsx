@@ -1334,7 +1334,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                     type="url"
                     value={instagramUrl}
                     onChange={(e) => setInstagramUrl(e.target.value)}
-                    placeholder="braids.by.roese or full URL"
+                    placeholder="Username or full URL"
                     className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                   />
                   <input

@@ -25,26 +25,6 @@ test("site editor can update social links", async () => {
   assert.match(route, /generatedCopyUpdates\.social_links/, "update-site should merge social links");
 });
 
-test("social link normalizer maps bare handles to platform URLs", async () => {
-  const { buildSocialLinksPayload, normalizeSocialLink } = await import("../src/lib/social-links.ts");
-
-  assert.equal(
-    normalizeSocialLink("braids.by.roese", "instagram"),
-    "https://www.instagram.com/braids.by.roese",
-  );
-  assert.equal(normalizeSocialLink("braidsbyroese", "tiktok"), "https://www.tiktok.com/@braidsbyroese");
-  assert.equal(normalizeSocialLink("BraidsByRosee", "facebook"), "https://www.facebook.com/BraidsByRosee");
-
-  const out = buildSocialLinksPayload({
-    instagram: "braids.by.roese",
-    tiktok: "@braidsbyroese",
-  });
-  assert.deepEqual(out, {
-    instagram: "https://www.instagram.com/braids.by.roese",
-    tiktok: "https://www.tiktok.com/@braidsbyroese",
-  });
-});
-
 test("template social links render only populated platforms", async () => {
   const social = await readFile("src/components/templates/TemplateSocialLinks.tsx", "utf8");
   const orchestrator = await readFile("src/components/templates/TemplateOrchestrator.tsx", "utf8");

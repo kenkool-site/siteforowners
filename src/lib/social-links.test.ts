@@ -1,47 +1,55 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildSocialLinksPayload, normalizeSocialLink } from "./social-links";
+import { buildSocialLinksPayload, normalizeSocialLink, type SocialPlatform } from "./social-links";
 
-test("normalizeSocialLink turns bare Instagram handle into profile URL", () => {
-  assert.equal(
-    normalizeSocialLink("braids.by.roese", "instagram"),
-    "https://www.instagram.com/braids.by.roese",
-  );
-  assert.equal(
-    normalizeSocialLink("@braids.by.roese", "instagram"),
-    "https://www.instagram.com/braids.by.roese",
-  );
-});
+function profileUrl(platform: SocialPlatform, handle: string): string {
+  const clean = handle.replace(/^@+/, "");
+  switch (platform) {
+    case "instagram":
+      return `https://www.instagram.com/${clean}`;
+    case "facebook":
+      return `https://www.facebook.com/${clean}`;
+    case "tiktok":
+      return `https://www.tiktok.com/@${clean}`;
+  }
+}
 
-test("normalizeSocialLink turns bare TikTok handle into profile URL", () => {
-  assert.equal(normalizeSocialLink("braidsbyroese", "tiktok"), "https://www.tiktok.com/@braidsbyroese");
-  assert.equal(normalizeSocialLink("@braidsbyroese", "tiktok"), "https://www.tiktok.com/@braidsbyroese");
-});
+test("normalizeSocialLink maps bare handles to the platform profile URL", () => {
+  const cases: Array<{ input: string; platform: SocialPlatform }> = [
+    { input: "studio.name", platform: "instagram" },
+    { input: "@studio.name", platform: "instagram" },
+    { input: "myuser", platform: "tiktok" },
+    { input: "@myuser", platform: "tiktok" },
+    { input: "MyPage", platform: "facebook" },
+  ];
 
-test("normalizeSocialLink turns bare Facebook handle into profile URL", () => {
-  assert.equal(normalizeSocialLink("BraidsByRosee", "facebook"), "https://www.facebook.com/BraidsByRosee");
+  for (const { input, platform } of cases) {
+    assert.equal(normalizeSocialLink(input, platform), profileUrl(platform, input));
+  }
 });
 
 test("normalizeSocialLink preserves full and scheme-less platform URLs", () => {
   assert.equal(
-    normalizeSocialLink("https://www.instagram.com/braids.by.roese", "instagram"),
-    "https://www.instagram.com/braids.by.roese",
+    normalizeSocialLink("https://www.instagram.com/studio.name", "instagram"),
+    "https://www.instagram.com/studio.name",
   );
   assert.equal(
-    normalizeSocialLink("instagram.com/braids.by.roese", "instagram"),
-    "https://instagram.com/braids.by.roese",
+    normalizeSocialLink("instagram.com/studio.name", "instagram"),
+    "https://instagram.com/studio.name",
   );
 });
 
 test("buildSocialLinksPayload normalizes each platform field independently", () => {
-  const out = buildSocialLinksPayload({
-    instagram: "braids.by.roese",
-    facebook: "BraidsByRosee",
-    tiktok: "braidsbyroese",
-  });
+  const input = {
+    instagram: "studio.name",
+    facebook: "MyPage",
+    tiktok: "myuser",
+  };
+
+  const out = buildSocialLinksPayload(input);
   assert.deepEqual(out, {
-    instagram: "https://www.instagram.com/braids.by.roese",
-    facebook: "https://www.facebook.com/BraidsByRosee",
-    tiktok: "https://www.tiktok.com/@braidsbyroese",
+    instagram: profileUrl("instagram", input.instagram),
+    facebook: profileUrl("facebook", input.facebook),
+    tiktok: profileUrl("tiktok", input.tiktok),
   });
 });

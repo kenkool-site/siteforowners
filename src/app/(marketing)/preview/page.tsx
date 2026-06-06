@@ -972,7 +972,7 @@ function PreviewWizard() {
                   type="url"
                   value={instagramUrl}
                   onChange={(e) => setInstagramUrl(e.target.value)}
-                  placeholder="braids.by.roese or full URL"
+                  placeholder="Username or full URL"
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
                 <input
