@@ -26,6 +26,7 @@ interface SiteData {
   checkoutMode: "mockup" | "pickup";
   bookingMode: BookingModePolicy;
   depositSettings?: DepositSettings;
+  isDemo: boolean;
 }
 
 async function getSiteData(slug: string): Promise<SiteData | null> {
@@ -45,15 +46,17 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
   let checkoutMode: "mockup" | "pickup" = "mockup";
   let bookingMode: BookingModePolicy = "in_site_only";
   let depositSettings: DepositSettings | undefined;
+  let isDemo = false;
 
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("id, checkout_mode, booking_mode")
+    .select("id, checkout_mode, booking_mode, is_demo")
     .eq("preview_slug", slug)
     .maybeSingle();
 
   if (tenant?.id) {
     tenantId = tenant.id as string;
+    isDemo = tenant.is_demo === true;
     const mode = tenant.checkout_mode as "mockup" | "pickup" | null;
     checkoutMode = mode === "pickup" ? "pickup" : "mockup";
     const rawBookingMode = tenant.booking_mode as string | null;
@@ -80,7 +83,7 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
       : undefined;
   }
 
-  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode, depositSettings };
+  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode, depositSettings, isDemo };
 }
 
 export async function generateMetadata({
@@ -94,6 +97,13 @@ export async function generateMetadata({
     .select("business_name, generated_copy, images")
     .eq("slug", params.slug)
     .single();
+
+  const { data: tenantMeta } = await supabase
+    .from("tenants")
+    .select("is_demo")
+    .eq("preview_slug", params.slug)
+    .maybeSingle();
+  const noindex = tenantMeta?.is_demo === true;
 
   const name = data?.business_name || "Business";
   const copy = data?.generated_copy as Record<string, unknown> | null;
@@ -111,6 +121,7 @@ export async function generateMetadata({
   return {
     title: seoTitle,
     description: seoDesc,
+    ...(noindex ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       title: seoTitle,
       description: seoDesc,
@@ -147,6 +158,7 @@ export default async function SitePage({
         checkoutMode={result.checkoutMode}
         bookingMode={result.bookingMode}
         depositSettings={result.depositSettings}
+        isDemo={result.isDemo}
       />
     </>
   );
