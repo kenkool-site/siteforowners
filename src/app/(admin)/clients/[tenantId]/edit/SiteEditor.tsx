@@ -1334,21 +1334,21 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                     type="url"
                     value={instagramUrl}
                     onChange={(e) => setInstagramUrl(e.target.value)}
-                    placeholder="Instagram URL"
+                    placeholder="Username or full URL"
                     className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                   />
                   <input
                     type="url"
                     value={facebookUrl}
                     onChange={(e) => setFacebookUrl(e.target.value)}
-                    placeholder="Facebook URL"
+                    placeholder="Page name or full URL"
                     className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                   />
                   <input
                     type="url"
                     value={tiktokUrl}
                     onChange={(e) => setTiktokUrl(e.target.value)}
-                    placeholder="TikTok URL"
+                    placeholder="@username or full URL"
                     className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                   />
                 </div>
