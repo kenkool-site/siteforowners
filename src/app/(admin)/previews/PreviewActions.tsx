@@ -6,11 +6,14 @@ import { useRouter } from "next/navigation";
 interface PreviewActionsProps {
   slug: string;
   groupId: string | null;
+  businessName?: string;
+  demo?: { subdomain: string | null } | null;
 }
 
-export function PreviewActions({ slug, groupId }: PreviewActionsProps) {
+export function PreviewActions({ slug, groupId, businessName, demo }: PreviewActionsProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [working, setWorking] = useState(false);
 
   const handleDelete = async () => {
     if (!confirm("Delete this preview? This cannot be undone.")) return;
@@ -31,6 +34,56 @@ export function PreviewActions({ slug, groupId }: PreviewActionsProps) {
       alert("Failed to delete");
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleGoLive = async () => {
+    const suggested = (businessName || slug)
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 40);
+    const subdomain = prompt("Subdomain for the demo site:", suggested);
+    if (subdomain === null) return;
+    setWorking(true);
+    try {
+      const res = await fetch("/api/admin/provision-demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preview_slug: slug, subdomain }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to provision");
+        return;
+      }
+      router.refresh();
+    } catch {
+      alert("Failed to provision");
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const handleRevert = async () => {
+    if (!confirm("Revert this demo to a plain preview? The demo tenant + subdomain will be removed.")) return;
+    setWorking(true);
+    try {
+      const res = await fetch("/api/admin/provision-demo", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ preview_slug: slug }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to revert");
+        return;
+      }
+      router.refresh();
+    } catch {
+      alert("Failed to revert");
+    } finally {
+      setWorking(false);
     }
   };
 
@@ -59,6 +112,35 @@ export function PreviewActions({ slug, groupId }: PreviewActionsProps) {
         >
           Compare
         </a>
+      )}
+      {demo ? (
+        <>
+          {demo.subdomain && (
+            <a
+              href={`https://${demo.subdomain}.siteforowners.com`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-lg border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100"
+            >
+              Live demo ↗
+            </a>
+          )}
+          <button
+            onClick={handleRevert}
+            disabled={working}
+            className="rounded-lg border border-amber-200 px-2.5 py-1 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+          >
+            {working ? "..." : "Revert"}
+          </button>
+        </>
+      ) : (
+        <button
+          onClick={handleGoLive}
+          disabled={working}
+          className="rounded-lg border border-green-300 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 hover:bg-green-100 disabled:opacity-50"
+        >
+          {working ? "..." : "Go live (demo)"}
+        </button>
       )}
       <button
         onClick={handleDelete}
