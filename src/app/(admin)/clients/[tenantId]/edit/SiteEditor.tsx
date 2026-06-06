@@ -26,6 +26,7 @@ import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
 import { buildLandingSlug } from "@/lib/seo-landing";
+import { buildSocialLinksPayload } from "@/lib/social-links";
 
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
@@ -81,6 +82,10 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
     ((preview as { seo_locality?: string | null }).seo_locality as string) || "",
   );
   const [bookingUrl, setBookingUrl] = useState((preview.booking_url as string) || "");
+  const savedSocialLinks = (copy.social_links || {}) as { instagram?: string; facebook?: string; tiktok?: string };
+  const [instagramUrl, setInstagramUrl] = useState(savedSocialLinks.instagram || "");
+  const [facebookUrl, setFacebookUrl] = useState(savedSocialLinks.facebook || "");
+  const [tiktokUrl, setTiktokUrl] = useState(savedSocialLinks.tiktok || "");
 
   // Copy
   const [headline, setHeadline] = useState((enCopy.hero_headline as string) || "");
@@ -400,6 +405,11 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 template_override: sectionSettings.template_override || null,
               },
               custom_colors: customColorsEnabled ? customColors : null,
+              social_links: buildSocialLinksPayload({
+                instagram: instagramUrl,
+                facebook: facebookUrl,
+                tiktok: tiktokUrl,
+              }),
             },
           },
         }),
@@ -795,6 +805,11 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
         template_override: sectionSettings.template_override || null,
       },
       custom_colors: customColorsEnabled ? customColors : null,
+      social_links: buildSocialLinksPayload({
+        instagram: instagramUrl,
+        facebook: facebookUrl,
+        tiktok: tiktokUrl,
+      }),
     },
   };
 
@@ -1308,6 +1323,35 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                   placeholder="https://..."
                   className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-gray-600">Social links</label>
+                <p className="mb-2 text-xs text-gray-500">
+                  Add only the customer&apos;s active platforms. The site shows icons only for saved links.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <input
+                    type="url"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    placeholder="Instagram URL"
+                    className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                  <input
+                    type="url"
+                    value={facebookUrl}
+                    onChange={(e) => setFacebookUrl(e.target.value)}
+                    placeholder="Facebook URL"
+                    className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                  <input
+                    type="url"
+                    value={tiktokUrl}
+                    onChange={(e) => setTiktokUrl(e.target.value)}
+                    placeholder="TikTok URL"
+                    className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                  />
+                </div>
               </div>
               <div className="sm:col-span-2">
                 <label className="mb-1 block text-sm font-medium text-gray-600">Google review link</label>

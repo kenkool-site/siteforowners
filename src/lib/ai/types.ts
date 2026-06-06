@@ -63,6 +63,12 @@ export interface BusinessHours {
   [day: string]: { open: string; close: string; closed?: boolean };
 }
 
+export interface SocialLinks {
+  instagram?: string;
+  facebook?: string;
+  tiktok?: string;
+}
+
 export interface GeneratedCopy {
   en: {
     hero_headline: string;
@@ -88,6 +94,7 @@ export interface GeneratedCopy {
     google_business_description: string;
     booking_intro?: string;
   };
+  social_links?: SocialLinks | null;
 }
 
 export interface PreviewData {
