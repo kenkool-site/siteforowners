@@ -26,3 +26,16 @@ test("braids and locs fallback service lists are image-backed and capped", async
     assert.equal(imageCount, serviceCount, `${vertical} services should each include a default image`);
   }
 });
+
+test("braids and locs fallback service images do not repeat", async () => {
+  const stockPhotos = await readFile("src/lib/templates/stock-photos.ts", "utf8");
+
+  for (const vertical of ["braids", "locs"]) {
+    const match = stockPhotos.match(new RegExp(`${vertical}:\\s*\\[([\\s\\S]*?)\\n\\s*\\]`, "m"));
+    assert.ok(match, `missing ${vertical} stock photos`);
+
+    const photoIds = [...match[1].matchAll(/pexels\((\d+)\)/g)].map((m) => m[1]);
+    assert.equal(photoIds.length, 10, `${vertical} should have 10 stock photos for 10 fallback services`);
+    assert.equal(new Set(photoIds).size, photoIds.length, `${vertical} stock photos should be unique`);
+  }
+});
