@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isPublicSiteLive, isOwnerAdminReachable } from "./tenant-access";
+import { isPublicSiteLive, isOwnerAdminReachable, canTeardownDemo } from "./tenant-access";
 
 const live = {
   preview_slug: "letstrylocs-bvnuou",
@@ -44,4 +44,18 @@ test("isOwnerAdminReachable: reachable while lapsed so owners can fix billing", 
 test("isOwnerAdminReachable: needs a real tenant with a rendered site", () => {
   assert.equal(isOwnerAdminReachable(null), false);
   assert.equal(isOwnerAdminReachable({ ...live, preview_slug: null }), false);
+});
+
+test("canTeardownDemo: true only for is_demo tenants", () => {
+  assert.equal(canTeardownDemo({ is_demo: true }), true);
+  assert.equal(canTeardownDemo({ is_demo: false }), false);
+  assert.equal(canTeardownDemo({ is_demo: null }), false);
+  assert.equal(canTeardownDemo(null), false);
+});
+
+test("isPublicSiteLive: trialing demo with published site + preview is live", () => {
+  assert.equal(
+    isPublicSiteLive({ preview_slug: "s", site_published: true, subscription_status: "trialing" }),
+    true,
+  );
 });

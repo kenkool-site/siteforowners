@@ -46,3 +46,14 @@ export function isPublicSiteLive(tenant: TenantAccessRow): boolean {
 export function isOwnerAdminReachable(tenant: TenantAccessRow): boolean {
   return !!tenant && !!tenant.preview_slug;
 }
+
+/**
+ * A demo tenant (founder-provisioned, unpaid) may be torn down and reverted to a
+ * plain preview. A real/paying tenant (`is_demo` false) must never be deleted
+ * through that path — this guards the teardown endpoint.
+ */
+export function canTeardownDemo(
+  tenant: { is_demo?: boolean | null } | null,
+): boolean {
+  return !!tenant && tenant.is_demo === true;
+}
