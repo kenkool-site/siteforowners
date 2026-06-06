@@ -36,7 +36,7 @@ export function SiteClient({
 }: SiteClientProps) {
   // Published site — no preview chrome, just the raw template
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen w-full overflow-x-hidden">
       {isDemo && (
         <DemoCtaBanner activateUrl={`https://siteforowners.com/preview/${data.slug ?? ""}`} />
       )}
