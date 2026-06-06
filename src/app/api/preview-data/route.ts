@@ -55,6 +55,7 @@ export async function GET(request: Request) {
     rating: preview.rating || null,
     review_count: preview.review_count || null,
     logo: copy?.logo || "",
+    social_links: copy?.social_links || null,
     brand_colors: (copy?.brand_colors as string[]) || [],
     booking_categories: copy?.booking_categories || null,
     google_reviews: copy?.google_reviews || [],

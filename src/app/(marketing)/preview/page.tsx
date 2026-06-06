@@ -13,6 +13,7 @@ import {
   mergeCategorizedServicesWithFlatPayload,
   servicesFromBookingCategories,
 } from "@/lib/booking-import-services";
+import { buildSocialLinksPayload } from "@/lib/social-links";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = [
@@ -145,6 +146,9 @@ function PreviewWizard() {
   // Step 3: Products & booking
   const [products, setProducts] = useState<ProductItem[]>([]);
   const [bookingUrl, setBookingUrl] = useState("");
+  const [instagramUrl, setInstagramUrl] = useState("");
+  const [facebookUrl, setFacebookUrl] = useState("");
+  const [tiktokUrl, setTiktokUrl] = useState("");
   const [hasProducts, setHasProducts] = useState(false);
 
   // Smart import
@@ -237,6 +241,12 @@ function PreviewWizard() {
         if (d.booking_url) setBookingUrl(d.booking_url);
         if (d.images?.length > 0) setUploadedImages(d.images);
         if (d.logo) setLogo(d.logo);
+        if (d.social_links && typeof d.social_links === "object") {
+          const links = d.social_links as { instagram?: string; facebook?: string; tiktok?: string };
+          setInstagramUrl(links.instagram || "");
+          setFacebookUrl(links.facebook || "");
+          setTiktokUrl(links.tiktok || "");
+        }
         if (typeof d.description === "string" && d.description) setDescription(d.description);
         if (typeof d.hero_video_url === "string" && d.hero_video_url) setHeroVideoUrl(d.hero_video_url);
         if (d.rating) setMapsRating(d.rating);
@@ -572,6 +582,11 @@ function PreviewWizard() {
       templates: selectedTemplates,
       keep_colors: keepColors || undefined,
       hero_video_url: heroVideoUrl.trim() || undefined,
+      social_links: buildSocialLinksPayload({
+        instagram: instagramUrl,
+        facebook: facebookUrl,
+        tiktok: tiktokUrl,
+      }) || undefined,
     };
 
     // Auto-retry up to 2 times on timeout/failure
@@ -945,6 +960,36 @@ function PreviewWizard() {
               <p className="mt-1 text-xs text-gray-400">
                 We&apos;ll add a &quot;Book Online&quot; button to your website. Supported platforms get embedded directly.
               </p>
+            </div>
+
+            <div className="mb-8 rounded-xl border border-gray-200 p-5">
+              <h3 className="text-sm font-medium text-gray-900">Social links</h3>
+              <p className="mt-1 text-xs text-gray-500">
+                Add only the platforms you use. We&apos;ll show icons for the links provided.
+              </p>
+              <div className="mt-4 space-y-3">
+                <input
+                  type="url"
+                  value={instagramUrl}
+                  onChange={(e) => setInstagramUrl(e.target.value)}
+                  placeholder="Instagram URL"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+                <input
+                  type="url"
+                  value={facebookUrl}
+                  onChange={(e) => setFacebookUrl(e.target.value)}
+                  placeholder="Facebook URL"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+                <input
+                  type="url"
+                  value={tiktokUrl}
+                  onChange={(e) => setTiktokUrl(e.target.value)}
+                  placeholder="TikTok URL"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                />
+              </div>
             </div>
 
             {/* Products toggle */}

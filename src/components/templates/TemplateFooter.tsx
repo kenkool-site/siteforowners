@@ -1,7 +1,8 @@
 import type { ThemeColors } from "@/lib/templates/themes";
-import type { BusinessHours } from "@/lib/ai/types";
+import type { BusinessHours, SocialLinks } from "@/lib/ai/types";
 import { readableColors } from "@/lib/templates/contrast";
 import { resolveDisplayHours } from "@/lib/defaults/businessHours";
+import { TemplateSocialLinks } from "./TemplateSocialLinks";
 
 interface TemplateFooterProps {
   businessName: string;
@@ -11,6 +12,7 @@ interface TemplateFooterProps {
   hours?: BusinessHours;
   bookingHours?: Record<string, { open: string; close: string } | null> | null;
   showHours?: boolean;
+  socialLinks?: SocialLinks | null;
   colors: ThemeColors;
 }
 
@@ -32,6 +34,7 @@ export function TemplateFooter({
   hours,
   bookingHours = null,
   showHours = true,
+  socialLinks = null,
   colors,
 }: TemplateFooterProps) {
   const rc = readableColors(colors);
@@ -63,6 +66,9 @@ export function TemplateFooter({
               {tagline}
             </p>
           )}
+          <div className="mt-5">
+            <TemplateSocialLinks links={socialLinks} colors={colors} variant="footer" />
+          </div>
         </div>
 
         {/* Contact */}

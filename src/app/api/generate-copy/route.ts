@@ -8,6 +8,7 @@ import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { BusinessType, ServiceItem, ProductItem } from "@/lib/ai/types";
 import { buildCustomPalettes } from "@/lib/templates/brand-palette";
+import { buildSocialLinksPayload } from "@/lib/social-links";
 
 function generateSlug(businessName: string): string {
   const base = businessName
@@ -175,6 +176,7 @@ export async function POST(request: Request) {
       templates: requestedTemplates,
       keep_colors: keepColors,
       hero_video_url,
+      social_links,
     } = body as {
       business_name: string;
       business_type: BusinessType;
@@ -198,6 +200,7 @@ export async function POST(request: Request) {
       templates?: string[];
       keep_colors?: boolean;
       hero_video_url?: string | null;
+      social_links?: unknown;
     };
 
     if (!business_name || !business_type) {
@@ -212,6 +215,7 @@ export async function POST(request: Request) {
     const customerHeroVideo = typeof hero_video_url === "string" ? hero_video_url.trim() : "";
     const resolvedHeroVideo =
       customerHeroVideo || getDefaultHeroVideoUrl(business_type) || "";
+    const resolvedSocialLinks = buildSocialLinksPayload(social_links);
 
     // Use requested templates or auto-pick 2
     const templates: TemplateName[] = requestedTemplates && requestedTemplates.length > 0
@@ -297,6 +301,7 @@ export async function POST(request: Request) {
           ...(customPalettes ? { custom_colors: customPalettes[i % customPalettes.length] } : {}),
           ...(brand_colors && brand_colors.length > 0 ? { brand_colors } : {}),
           ...(logo ? { logo } : {}),
+          ...(resolvedSocialLinks ? { social_links: resolvedSocialLinks } : {}),
           ...(booking_categories ? { booking_categories } : {}),
           ...(google_reviews && google_reviews.length > 0 ? { google_reviews } : {}),
           ...(description ? { business_description: description } : {}),

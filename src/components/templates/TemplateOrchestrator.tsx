@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { PreviewData, GeneratedCopy } from "@/lib/ai/types";
+import type { PreviewData, GeneratedCopy, SocialLinks } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { lightPaletteFromBrandColors } from "@/lib/templates/brand-palette";
@@ -61,6 +61,7 @@ import { ServiceBookingModal } from "./ServiceBookingModal";
 import { RunwayBookingCTA } from "./RunwayBookingCTA";
 import { TemplateMotionTextBand } from "./TemplateMotionTextBand";
 import { TemplateGalleryVideo } from "./TemplateGalleryVideo";
+import { TemplateSocialLinks } from "./TemplateSocialLinks";
 
 type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand";
 
@@ -118,6 +119,13 @@ function getColors(data: PreviewData): ThemeColors {
 
 function getLogo(data: PreviewData): string | undefined {
   return (data.generated_copy as unknown as Record<string, unknown>)?.logo as string | undefined;
+}
+
+function getSocialLinks(data: PreviewData): SocialLinks | null {
+  const raw = (data.generated_copy as unknown as Record<string, unknown>)?.social_links;
+  if (!raw || typeof raw !== "object") return null;
+  const links = raw as SocialLinks;
+  return links.instagram || links.facebook || links.tiktok ? links : null;
 }
 
 function getCopy(data: PreviewData, locale: "en" | "es"): GeneratedCopy["en"] | null {
@@ -214,6 +222,7 @@ export function TemplateOrchestrator({
   const template = (ss.template_override as TemplateName) || getTemplateName(data);
   const colors = getColors(data);
   const logo = getLogo(data);
+  const socialLinks = getSocialLinks(data);
   const copy = getCopy(data, locale);
 
   const rawBookingCategories = (data.generated_copy as unknown as Record<string, unknown>)?.booking_categories as
@@ -412,9 +421,15 @@ export function TemplateOrchestrator({
       hours={data.hours}
       bookingHours={bookingHours}
       showHours={showHours}
+      socialLinks={socialLinks}
       colors={colors}
     />
   );
+  const heroSocialSection = socialLinks ? (
+    <div className="flex justify-center px-6 py-5" style={{ backgroundColor: colors.background }}>
+      <TemplateSocialLinks links={socialLinks} colors={colors} />
+    </div>
+  ) : null;
   const getRunwayMarqueeLabel = (value: string) => {
     const short = value
       .replace(/\([^)]*\)/g, "")
@@ -461,6 +476,7 @@ export function TemplateOrchestrator({
               hasGallery={hasGallerySection}
             />
           </div>
+          {heroSocialSection}
           {showServices && <div id="services"><RunwayServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           <div className="overflow-hidden border-y border-[#D8B255]/30 bg-black py-4 text-[#D8B255]">
             <style>{`
@@ -501,6 +517,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><BoldHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          {heroSocialSection}
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="bold" enabled={animationsEnabled} />
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
           {showGallery && hasGalleryImages && <div id="gallery"><BoldGallery images={galleryImages} colors={colors} /></div>}
@@ -528,6 +545,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ElegantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          {heroSocialSection}
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="elegant" enabled={animationsEnabled} />
           {showAbout && <div id="about"><ElegantAbout paragraphs={aboutParagraphs} colors={colors} /></div>}
           {showServices && <div id="services"><ElegantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
@@ -547,6 +565,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><VibrantHero businessName={data.business_name} headline={headline} subheadline={subheadline} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          {heroSocialSection}
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="vibrant" enabled={animationsEnabled} />
           {showServices && <div id="services"><VibrantServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           <VibrantStats serviceCount={services.length} address={data.address} colors={colors} rating={data.rating} reviewCount={data.review_count} />
@@ -567,6 +586,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><WarmHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          {heroSocialSection}
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="warm" enabled={animationsEnabled} />
           {showAbout && <div id="about"><WarmAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
@@ -587,6 +607,7 @@ export function TemplateOrchestrator({
         <div>
           <SiteNav items={navItems} colors={colors} locale={locale} onLocaleChange={setLocale} />
           <div id="hero"><ClassicHero businessName={data.business_name} headline={headline} subheadline={subheadline} heroImage={heroImage} heroVideo={heroVideo} logo={logo} colors={colors} bookingUrl={data.booking_url} phone={data.phone} /></div>
+          {heroSocialSection}
           <TemplateMotionTextBand items={motionTextItems} colors={colors} template="classic" enabled={animationsEnabled} />
           {showServices && <div id="services"><ClassicServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}

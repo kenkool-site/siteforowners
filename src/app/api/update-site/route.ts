@@ -148,6 +148,7 @@ export async function POST(request: NextRequest) {
       if (generatedCopyUpdates.section_settings !== undefined) mergedCopy.section_settings = generatedCopyUpdates.section_settings;
       if (generatedCopyUpdates.custom_colors !== undefined) mergedCopy.custom_colors = generatedCopyUpdates.custom_colors;
       if (generatedCopyUpdates.booking_categories !== undefined) mergedCopy.booking_categories = generatedCopyUpdates.booking_categories;
+      if (generatedCopyUpdates.social_links !== undefined) mergedCopy.social_links = generatedCopyUpdates.social_links;
 
       allowed.generated_copy = mergedCopy;
     }
