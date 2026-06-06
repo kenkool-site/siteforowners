@@ -40,19 +40,27 @@ export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
     pexels(5871915),  // Beautiful manicured nails
   ],
   braids: [
-    pexels(13212603), // Person braiding a woman's hair
-    pexels(10810251), // Close up of woman with braided hair
-    pexels(7607802),  // Close-up of woman with braided hairstyle
+    pexels(19803587), // Black woman with braided hair, warm studio portrait
+    pexels(20644320), // Portrait of woman with braid
+    pexels(20653016), // Model with braided hair
+    pexels(10919399), // Black woman with braided hair lifestyle portrait
+    pexels(10810251), // Close-up braided hairstyle
+    pexels(7607802),  // Braided hairstyle close-up
     pexels(10283310), // Woman with braided hair
-    pexels(7190007),  // Side profile of woman with braided hair
-    pexels(4671331),  // Braids hairstyle
+    pexels(7190007),  // Side profile with braids
+    pexels(13212603), // Braiding service in progress
+    pexels(4671331),  // Protective hairstyle portrait
   ],
   locs: [
+    pexels(4603683),  // Woman wearing dreadlocks with hair flying
+    pexels(6593509),  // Woman with dreadlocks in studio lighting
+    pexels(8689920),  // Woman with dreadlocks portrait
     pexels(4671331),  // Textured protective hairstyle
-    pexels(7190007),  // Side profile natural hair portrait
-    pexels(10810251), // Close up of braided natural hair
-    pexels(7607802),  // Protective style close-up
-    pexels(13212603), // Stylist working with textured hair
+    pexels(7190007),  // Natural hair side profile
     pexels(10283310), // Natural hair portrait
+    pexels(10810251), // Protective style close-up
+    pexels(7607802),  // Textured hairstyle close-up
+    pexels(19803587), // Black woman with braided hair portrait
+    pexels(20644320), // Woman with braid portrait
   ],
 };
