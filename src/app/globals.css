@@ -55,6 +55,8 @@
   }
   html {
     scroll-behavior: smooth;
+    width: 100%;
+    overflow-x: hidden;
   }
   @media (prefers-reduced-motion: reduce) {
     html {
@@ -63,6 +65,10 @@
   }
   body {
     @apply bg-background text-foreground;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
   }
 }
 

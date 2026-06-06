@@ -200,7 +200,7 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
           </p>
           <div
             ref={mobileScrollRef}
-            className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 pl-1 pr-6 pt-1 [-webkit-overflow-scrolling:touch]"
+            className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain pb-2 pl-1 pr-6 pt-1 [-webkit-overflow-scrolling:touch]"
             style={{ scrollbarGutter: "stable" }}
             role="region"
             aria-roledescription="carousel"

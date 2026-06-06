@@ -56,7 +56,7 @@ export function TemplateMotionTextBand({
 
   return (
     <div
-      className="overflow-hidden border-y py-3"
+      className="relative w-full max-w-full overflow-hidden border-y py-3"
       style={{ backgroundColor: background, borderColor, color: textColor }}
     >
       <style>{`

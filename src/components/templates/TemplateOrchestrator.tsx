@@ -478,7 +478,7 @@ export function TemplateOrchestrator({
           </div>
           {heroSocialSection}
           {showServices && <div id="services"><RunwayServices services={services} categories={categories} colors={colors} bookingMode={bookingMode} defaultCategoriesCollapsed={defaultCategoriesCollapsed} /></div>}
-          <div className="overflow-hidden border-y border-[#D8B255]/30 bg-black py-4 text-[#D8B255]">
+          <div className="relative w-full max-w-full overflow-hidden border-y border-[#D8B255]/30 bg-black py-4 text-[#D8B255]">
             <style>{`
               @keyframes runway-marquee {
                 from { transform: translateX(0); }
@@ -626,7 +626,7 @@ export function TemplateOrchestrator({
 
   return (
     <AnimationProvider enabled={animationsEnabled}>
-      {renderTemplate()}
+      <div className="w-full overflow-x-hidden">{renderTemplate()}</div>
       {canOpenBookingModal && (
         <ServiceBookingModal
           open={selectedBookingDeepLink !== null}
