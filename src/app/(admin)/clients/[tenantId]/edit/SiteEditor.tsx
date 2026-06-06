@@ -26,7 +26,7 @@ import { THEMES_BY_VERTICAL, type ThemeColors } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
 import { buildLandingSlug } from "@/lib/seo-landing";
-import { buildSocialLinksPayload } from "@/lib/social-links";
+import { buildSocialLinksPayload, socialLinkToDisplayValue } from "@/lib/social-links";
 
 interface SiteEditorProps {
   tenant: Record<string, unknown>;
@@ -83,9 +83,13 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
   );
   const [bookingUrl, setBookingUrl] = useState((preview.booking_url as string) || "");
   const savedSocialLinks = (copy.social_links || {}) as { instagram?: string; facebook?: string; tiktok?: string };
-  const [instagramUrl, setInstagramUrl] = useState(savedSocialLinks.instagram || "");
-  const [facebookUrl, setFacebookUrl] = useState(savedSocialLinks.facebook || "");
-  const [tiktokUrl, setTiktokUrl] = useState(savedSocialLinks.tiktok || "");
+  const [instagramUrl, setInstagramUrl] = useState(
+    socialLinkToDisplayValue(savedSocialLinks.instagram, "instagram"),
+  );
+  const [facebookUrl, setFacebookUrl] = useState(
+    socialLinkToDisplayValue(savedSocialLinks.facebook, "facebook"),
+  );
+  const [tiktokUrl, setTiktokUrl] = useState(socialLinkToDisplayValue(savedSocialLinks.tiktok, "tiktok"));
 
   // Copy
   const [headline, setHeadline] = useState((enCopy.hero_headline as string) || "");
@@ -1324,33 +1328,42 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                   className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                 />
               </div>
-              <div className="sm:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-gray-600">Social links</label>
-                <p className="mb-2 text-xs text-gray-500">
-                  Add only the customer&apos;s active platforms. The site shows icons only for saved links.
+              <div className="sm:col-span-2 rounded-lg border border-gray-200 bg-gray-50/60 p-4">
+                <h3 className="text-sm font-medium text-gray-900">Social links</h3>
+                <p className="mt-1 text-xs text-gray-500">
+                  Username or full URL per platform. Icons appear on the site only for filled fields.
                 </p>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <input
-                    type="url"
-                    value={instagramUrl}
-                    onChange={(e) => setInstagramUrl(e.target.value)}
-                    placeholder="Username or full URL"
-                    className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                  <input
-                    type="url"
-                    value={facebookUrl}
-                    onChange={(e) => setFacebookUrl(e.target.value)}
-                    placeholder="Page name or full URL"
-                    className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
-                  />
-                  <input
-                    type="url"
-                    value={tiktokUrl}
-                    onChange={(e) => setTiktokUrl(e.target.value)}
-                    placeholder="@username or full URL"
-                    className="w-full rounded-lg border px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
-                  />
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-600">Instagram</label>
+                    <input
+                      type="text"
+                      value={instagramUrl}
+                      onChange={(e) => setInstagramUrl(e.target.value)}
+                      placeholder="e.g. studio.name"
+                      className="w-full rounded-lg border bg-white px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-600">Facebook</label>
+                    <input
+                      type="text"
+                      value={facebookUrl}
+                      onChange={(e) => setFacebookUrl(e.target.value)}
+                      placeholder="e.g. MyPage"
+                      className="w-full rounded-lg border bg-white px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-600">TikTok</label>
+                    <input
+                      type="text"
+                      value={tiktokUrl}
+                      onChange={(e) => setTiktokUrl(e.target.value)}
+                      placeholder="e.g. @myuser"
+                      className="w-full rounded-lg border bg-white px-4 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
               <div className="sm:col-span-2">

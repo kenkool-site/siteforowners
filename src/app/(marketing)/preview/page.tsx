@@ -13,7 +13,7 @@ import {
   mergeCategorizedServicesWithFlatPayload,
   servicesFromBookingCategories,
 } from "@/lib/booking-import-services";
-import { buildSocialLinksPayload } from "@/lib/social-links";
+import { buildSocialLinksPayload, socialLinkToDisplayValue } from "@/lib/social-links";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = [
@@ -243,9 +243,9 @@ function PreviewWizard() {
         if (d.logo) setLogo(d.logo);
         if (d.social_links && typeof d.social_links === "object") {
           const links = d.social_links as { instagram?: string; facebook?: string; tiktok?: string };
-          setInstagramUrl(links.instagram || "");
-          setFacebookUrl(links.facebook || "");
-          setTiktokUrl(links.tiktok || "");
+          setInstagramUrl(socialLinkToDisplayValue(links.instagram, "instagram"));
+          setFacebookUrl(socialLinkToDisplayValue(links.facebook, "facebook"));
+          setTiktokUrl(socialLinkToDisplayValue(links.tiktok, "tiktok"));
         }
         if (typeof d.description === "string" && d.description) setDescription(d.description);
         if (typeof d.hero_video_url === "string" && d.hero_video_url) setHeroVideoUrl(d.hero_video_url);
@@ -968,27 +968,36 @@ function PreviewWizard() {
                 Add only the platforms you use. We&apos;ll show icons for the links provided.
               </p>
               <div className="mt-4 space-y-3">
-                <input
-                  type="url"
-                  value={instagramUrl}
-                  onChange={(e) => setInstagramUrl(e.target.value)}
-                  placeholder="Username or full URL"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
-                <input
-                  type="url"
-                  value={facebookUrl}
-                  onChange={(e) => setFacebookUrl(e.target.value)}
-                  placeholder="Page name or full URL"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
-                <input
-                  type="url"
-                  value={tiktokUrl}
-                  onChange={(e) => setTiktokUrl(e.target.value)}
-                  placeholder="@username or full URL"
-                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
-                />
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Instagram</label>
+                  <input
+                    type="text"
+                    value={instagramUrl}
+                    onChange={(e) => setInstagramUrl(e.target.value)}
+                    placeholder="e.g. studio.name"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">Facebook</label>
+                  <input
+                    type="text"
+                    value={facebookUrl}
+                    onChange={(e) => setFacebookUrl(e.target.value)}
+                    placeholder="e.g. MyPage"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">TikTok</label>
+                  <input
+                    type="text"
+                    value={tiktokUrl}
+                    onChange={(e) => setTiktokUrl(e.target.value)}
+                    placeholder="e.g. @myuser"
+                    className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+                  />
+                </div>
               </div>
             </div>
 
