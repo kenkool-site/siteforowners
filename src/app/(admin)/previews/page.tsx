@@ -17,10 +17,26 @@ async function getPreviews() {
   return data || [];
 }
 
+async function getDemoTenantsBySlug(slugs: string[]): Promise<Record<string, { subdomain: string | null }>> {
+  if (slugs.length === 0) return {};
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from("tenants")
+    .select("preview_slug, subdomain, is_demo")
+    .in("preview_slug", slugs)
+    .eq("is_demo", true);
+  const map: Record<string, { subdomain: string | null }> = {};
+  for (const t of data || []) {
+    if (t.preview_slug) map[t.preview_slug as string] = { subdomain: (t.subdomain as string | null) ?? null };
+  }
+  return map;
+}
+
 export const revalidate = 0;
 
 export default async function PreviewsPage() {
   const previews = await getPreviews();
+  const demoBySlug = await getDemoTenantsBySlug(previews.map((p) => p.slug));
   const businesses = new Set(previews.map((p) => p.business_name));
   const totalViews = previews.reduce((sum, p) => sum + (p.view_count || 0), 0);
 
@@ -56,7 +72,7 @@ export default async function PreviewsPage() {
           <p className="text-gray-400">No previews generated yet.</p>
         </div>
       ) : (
-        <PreviewsTable previews={previews} />
+        <PreviewsTable previews={previews} demoBySlug={demoBySlug} />
       )}
     </div>
   );

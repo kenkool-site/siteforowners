@@ -39,7 +39,13 @@ function timeAgo(dateStr: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export function PreviewsTable({ previews }: { previews: Preview[] }) {
+export function PreviewsTable({
+  previews,
+  demoBySlug = {},
+}: {
+  previews: Preview[];
+  demoBySlug?: Record<string, { subdomain: string | null }>;
+}) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const toggleSelect = (slug: string) => {
@@ -132,7 +138,13 @@ export function PreviewsTable({ previews }: { previews: Preview[] }) {
                   {timeAgo(p.created_at)}
                 </td>
                 <td className="px-3 py-3">
-                  <PreviewActions slug={p.slug} groupId={p.group_id} />
+                  <PreviewActions
+                    slug={p.slug}
+                    groupId={p.group_id}
+                    businessName={p.business_name}
+                    demo={demoBySlug[p.slug] ?? null}
+                    converted={p.converted}
+                  />
                 </td>
               </tr>
             ))}

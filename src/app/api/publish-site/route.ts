@@ -1,13 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-
-function generateSubdomain(businessName: string): string {
-  return businessName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 40);
-}
+import { generateSubdomain } from "@/lib/subdomain";
 
 export async function POST(request: Request) {
   try {

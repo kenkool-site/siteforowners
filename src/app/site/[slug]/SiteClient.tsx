@@ -3,12 +3,14 @@
 import { TemplateOrchestrator } from "@/components/templates";
 import type { PreviewData } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
+import { DemoCtaBanner } from "./DemoCtaBanner";
 
 interface SiteClientProps {
   data: PreviewData;
   bookingHours?: Record<string, { open: string; close: string } | null> | null;
   blockedDates?: string[];
   tenantId?: string | null;
+  isDemo?: boolean;
   checkoutMode?: "mockup" | "pickup";
   bookingMode?: BookingModePolicy;
   depositSettings?: {
@@ -27,6 +29,7 @@ export function SiteClient({
   bookingHours = null,
   blockedDates = [],
   tenantId = null,
+  isDemo = false,
   checkoutMode = "mockup",
   bookingMode = "in_site_only",
   depositSettings,
@@ -34,6 +37,9 @@ export function SiteClient({
   // Published site — no preview chrome, just the raw template
   return (
     <div className="min-h-screen">
+      {isDemo && (
+        <DemoCtaBanner activateUrl={`https://siteforowners.com/preview/${data.slug ?? ""}`} />
+      )}
       <TemplateOrchestrator
         data={data}
         locale="en"
