@@ -33,6 +33,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Preview not found" }, { status: 404 });
   }
 
+  // Never overwrite a real paying client. If a tenant already exists for this
+  // preview and it is not a demo, refuse.
+  const { data: existingTenant } = await supabase
+    .from("tenants")
+    .select("id, is_demo")
+    .eq("preview_slug", preview_slug)
+    .maybeSingle();
+  if (existingTenant && existingTenant.is_demo !== true) {
+    return NextResponse.json(
+      { error: "This preview is already a live client" },
+      { status: 409 },
+    );
+  }
+
   try {
     // Resolve a free subdomain. Honor a founder-supplied one (slugified); else
     // derive from the business name. Dedupe against existing tenants.
@@ -99,8 +113,13 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  await supabase.from("booking_settings").delete().eq("tenant_id", tenant.id as string);
-  const { error } = await supabase.from("tenants").delete().eq("id", tenant.id as string);
+  const tenantId = tenant.id as string;
+  // Clear child rows that do NOT cascade on tenant delete:
+  // demo bookings are throwaway → delete; leads stay in the funnel → detach.
+  await supabase.from("bookings").delete().eq("tenant_id", tenantId);
+  await supabase.from("interested_leads").update({ tenant_id: null }).eq("tenant_id", tenantId);
+  // booking_settings, orders, and owner-admin tables cascade automatically.
+  const { error } = await supabase.from("tenants").delete().eq("id", tenantId);
   if (error) {
     console.error("revert-to-preview failed:", error);
     return NextResponse.json({ error: "Teardown failed" }, { status: 500 });

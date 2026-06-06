@@ -2,15 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { generateSubdomain } from "@/lib/subdomain";
 
 interface PreviewActionsProps {
   slug: string;
   groupId: string | null;
   businessName?: string;
   demo?: { subdomain: string | null } | null;
+  converted?: boolean;
 }
 
-export function PreviewActions({ slug, groupId, businessName, demo }: PreviewActionsProps) {
+export function PreviewActions({ slug, groupId, businessName, demo, converted }: PreviewActionsProps) {
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
   const [working, setWorking] = useState(false);
@@ -38,11 +40,7 @@ export function PreviewActions({ slug, groupId, businessName, demo }: PreviewAct
   };
 
   const handleGoLive = async () => {
-    const suggested = (businessName || slug)
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "")
-      .slice(0, 40);
+    const suggested = generateSubdomain(businessName || slug);
     const subdomain = prompt("Subdomain for the demo site:", suggested);
     if (subdomain === null) return;
     setWorking(true);
@@ -133,7 +131,7 @@ export function PreviewActions({ slug, groupId, businessName, demo }: PreviewAct
             {working ? "..." : "Revert"}
           </button>
         </>
-      ) : (
+      ) : converted ? null : (
         <button
           onClick={handleGoLive}
           disabled={working}

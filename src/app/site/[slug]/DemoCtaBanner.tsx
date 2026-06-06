@@ -4,9 +4,11 @@ import { useState } from "react";
 
 /**
  * Slim, dismissible banner shown only on unpaid demo sites. Deliberately
- * lighter than the onboarding preview's dominant bottom CTA bar.
+ * lighter than the onboarding preview's dominant bottom CTA bar. The CTA points
+ * at the absolute onboarding URL on the main domain (a relative "/preview" would
+ * be rewritten to /site/{slug}/preview on the demo subdomain → 404).
  */
-export function DemoCtaBanner() {
+export function DemoCtaBanner({ activateUrl }: { activateUrl: string }) {
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
 
@@ -14,7 +16,7 @@ export function DemoCtaBanner() {
     <div className="fixed inset-x-0 top-0 z-50 flex items-center justify-center gap-3 bg-gray-900/90 px-4 py-2 text-center text-sm text-white backdrop-blur">
       <span>This is a live preview of your site.</span>
       <a
-        href="/preview"
+        href={activateUrl}
         className="rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-gray-900 hover:bg-amber-400"
       >
         Activate to publish

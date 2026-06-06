@@ -143,6 +143,7 @@ export function PreviewsTable({
                     groupId={p.group_id}
                     businessName={p.business_name}
                     demo={demoBySlug[p.slug] ?? null}
+                    converted={p.converted}
                   />
                 </td>
               </tr>

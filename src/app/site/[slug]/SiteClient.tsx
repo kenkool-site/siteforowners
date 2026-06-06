@@ -37,7 +37,9 @@ export function SiteClient({
   // Published site — no preview chrome, just the raw template
   return (
     <div className="min-h-screen">
-      {isDemo && <DemoCtaBanner />}
+      {isDemo && (
+        <DemoCtaBanner activateUrl={`https://siteforowners.com/preview/${data.slug ?? ""}`} />
+      )}
       <TemplateOrchestrator
         data={data}
         locale="en"
