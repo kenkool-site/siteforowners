@@ -41,7 +41,7 @@ interface GalleryEditorProps {
 /**
  * Shared photo-gallery editor used by both the owner admin (`/admin/photos`)
  * and the founder edit page (`SiteEditor`). Lite scope: upload + delete +
- * (optional) one-tap promote-to-hero. No drag reorder.
+ * move controls + (optional) one-tap promote-to-hero.
  *
  * Uploads go to `/api/upload-images`; the parent owns the `images` array
  * and persists it (different endpoints per surface).
@@ -85,6 +85,14 @@ export function GalleryEditor({
     onChange(images.filter((_, i) => i !== index));
   }
 
+  function moveImage(index: number, direction: -1 | 1) {
+    const target = index + direction;
+    if (target < 0 || target >= images.length) return;
+    const next = [...images];
+    [next[index], next[target]] = [next[target], next[index]];
+    onChange(next);
+  }
+
   function promoteToHero(index: number) {
     if (!enableHeroPromotion || index === 0) return;
     const next = [...images];
@@ -94,8 +102,8 @@ export function GalleryEditor({
   }
 
   const hint = enableHeroPromotion
-    ? "Click any image to set it as the hero background."
-    : "First photo uploaded becomes the hero. Ask us if you want a different hero.";
+    ? "Use arrows to rearrange. The first image is the hero background; clicking an image also promotes it to hero."
+    : "Use arrows to rearrange the gallery. First photo uploaded becomes the hero.";
 
   return (
     <section className={st.container}>
@@ -139,6 +147,32 @@ export function GalleryEditor({
                 onClick={() => promoteToHero(i)}
               >
                 <Image src={img} alt="" fill className="object-cover" unoptimized />
+                <div className="absolute bottom-1 left-1 right-1 flex justify-between gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                  <button
+                    type="button"
+                    aria-label={`Move photo ${i + 1} earlier`}
+                    disabled={i === 0}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveImage(i, -1);
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-xs font-bold text-white shadow disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    ←
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Move photo ${i + 1} later`}
+                    disabled={i === images.length - 1}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      moveImage(i, 1);
+                    }}
+                    className="flex h-7 w-7 items-center justify-center rounded-full bg-black/65 text-xs font-bold text-white shadow disabled:cursor-not-allowed disabled:opacity-35"
+                  >
+                    →
+                  </button>
+                </div>
                 {isHero && (
                   <span
                     className={
