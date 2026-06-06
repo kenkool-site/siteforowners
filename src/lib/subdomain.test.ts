@@ -23,3 +23,12 @@ test("pickAvailableSubdomain appends incrementing suffix when taken", () => {
 test("pickAvailableSubdomain falls back to 'site' for empty base", () => {
   assert.equal(pickAvailableSubdomain("", () => false), "site");
 });
+
+test("pickAvailableSubdomain stays distinct and ≤40 chars for a 40-char taken base (no infinite loop)", () => {
+  const root = "a".repeat(40);
+  const taken = new Set([root]);
+  const result = pickAvailableSubdomain(root, (c) => taken.has(c));
+  assert.notEqual(result, root);
+  assert.ok(result.length <= 40, `length ${result.length} should be <= 40`);
+  assert.ok(!taken.has(result));
+});
