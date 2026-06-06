@@ -1,4 +1,4 @@
-export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'braids';
+export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'braids' | 'locs';
 
 export type ColorTheme =
   // Salon
@@ -15,7 +15,9 @@ export type ColorTheme =
   | 'nails_seafoam' | 'nails_lilac' | 'nails_champagne'
   // Braids
   | 'braids_kente' | 'braids_royal' | 'braids_earth' | 'braids_ocean' | 'braids_sunset'
-  | 'braids_midnight' | 'braids_coral' | 'braids_jade' | 'braids_runway_noir';
+  | 'braids_midnight' | 'braids_coral' | 'braids_jade' | 'braids_runway_noir'
+  // Locs
+  | 'locs_gold' | 'locs_earth' | 'locs_sage' | 'locs_copper' | 'locs_noir';
 
 export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand';
 

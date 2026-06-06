@@ -47,4 +47,12 @@ export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
     pexels(7190007),  // Side profile of woman with braided hair
     pexels(4671331),  // Braids hairstyle
   ],
+  locs: [
+    pexels(4671331),  // Textured protective hairstyle
+    pexels(7190007),  // Side profile natural hair portrait
+    pexels(10810251), // Close up of braided natural hair
+    pexels(7607802),  // Protective style close-up
+    pexels(13212603), // Stylist working with textured hair
+    pexels(10283310), // Natural hair portrait
+  ],
 };
