@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildSocialLinksPayload, normalizeSocialLink, type SocialPlatform } from "./social-links";
+import {
+  buildSocialLinksPayload,
+  normalizeSocialLink,
+  socialLinkToDisplayValue,
+  type SocialPlatform,
+} from "./social-links";
 
 function profileUrl(platform: SocialPlatform, handle: string): string {
   const clean = handle.replace(/^@+/, "");
@@ -37,6 +42,15 @@ test("normalizeSocialLink preserves full and scheme-less platform URLs", () => {
     normalizeSocialLink("instagram.com/studio.name", "instagram"),
     "https://instagram.com/studio.name",
   );
+});
+
+test("socialLinkToDisplayValue shows handles instead of stored profile URLs", () => {
+  assert.equal(
+    socialLinkToDisplayValue("https://www.instagram.com/studio.name", "instagram"),
+    "studio.name",
+  );
+  assert.equal(socialLinkToDisplayValue("https://www.tiktok.com/@myuser", "tiktok"), "@myuser");
+  assert.equal(socialLinkToDisplayValue("studio.name", "instagram"), "studio.name");
 });
 
 test("buildSocialLinksPayload normalizes each platform field independently", () => {
