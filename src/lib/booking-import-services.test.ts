@@ -1,6 +1,31 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { servicesFromBookingCategories } from "./booking-import-services";
+import {
+  servicesFromBookingCategories,
+  durationMinutesFromImportLabel,
+} from "./booking-import-services";
+
+test("durationMinutesFromImportLabel snaps human labels to 30-min steps", () => {
+  assert.equal(durationMinutesFromImportLabel("45 min"), 60);
+  assert.equal(durationMinutesFromImportLabel("1h 30m"), 90);
+  assert.equal(durationMinutesFromImportLabel("90 min"), 90);
+});
+
+test("durationMinutesFromImportLabel caps at 480 by default (unchanged for existing callers)", () => {
+  assert.equal(durationMinutesFromImportLabel("570 min"), 480);
+  assert.equal(durationMinutesFromImportLabel("9h"), 480);
+});
+
+test("durationMinutesFromImportLabel respects a relaxed cap for Square's real durations", () => {
+  assert.equal(durationMinutesFromImportLabel("570 min", 720), 570);
+  assert.equal(durationMinutesFromImportLabel("510 min", 720), 510);
+  // still snaps and still enforces the relaxed ceiling
+  assert.equal(durationMinutesFromImportLabel("800 min", 720), 720);
+});
+
+test("durationMinutesFromImportLabel keeps the 30-min floor regardless of cap", () => {
+  assert.equal(durationMinutesFromImportLabel("20 min", 720), 30);
+});
 
 test("servicesFromBookingCategories carries imported add_ons onto the service", () => {
   const result = servicesFromBookingCategories([

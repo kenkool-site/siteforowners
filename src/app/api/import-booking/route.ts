@@ -3,6 +3,8 @@ export const maxDuration = 120;
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { fetchVagaroBookingCategories } from "@/lib/vagaro-import";
+import { durationMinutesFromImportLabel } from "@/lib/booking-import-services";
+import { extractSquareData, SQUARE_HOST_RE } from "@/lib/square-import";
 import { buildAcuityAddonMap, acuityAddOnsForService } from "@/lib/acuity-addons";
 import type { AddOn } from "@/lib/ai/types";
 
@@ -593,28 +595,11 @@ interface BookingCategory {
   directUrl: string;
 }
 
-/** Snap to Acuity / human labels ("45 min", "8h", "3h 30m") to duration_minutes. */
-function durationMinutesFromImportLabel(duration: string): number {
-  const s = duration.trim().toLowerCase();
-  let minutes = 60;
-  const hPart = s.match(/(\d+(?:\.\d+)?)\s*h/);
-  const minPart = s.match(/(\d+)\s*(?:min|m(?![a-z]))/);
-  if (hPart) {
-    minutes = Math.round(parseFloat(hPart[1]) * 60);
-  }
-  if (minPart) {
-    minutes = hPart ? minutes + parseInt(minPart[1], 10) : parseInt(minPart[1], 10);
-  }
-  if (!hPart && !minPart) {
-    const n = s.match(/(\d+)/);
-    minutes = n ? parseInt(n[1], 10) : 60;
-  }
-  const snapped = Math.round(minutes / 30) * 30;
-  return Math.min(480, Math.max(30, snapped || 60));
-}
-
 /** Prefer structured Acuity categories so each service keeps its category (Claude only returns a flat list). */
-function servicesFromAcuityCategories(categories: BookingCategory[]): {
+function servicesFromAcuityCategories(
+  categories: BookingCategory[],
+  maxMinutes = 480,
+): {
   name: string;
   price: string;
   duration_minutes: number;
@@ -637,7 +622,7 @@ function servicesFromAcuityCategories(categories: BookingCategory[]): {
       out.push({
         name: s.name,
         price: s.price,
-        duration_minutes: durationMinutesFromImportLabel(s.duration),
+        duration_minutes: durationMinutesFromImportLabel(s.duration, maxMinutes),
         category: cat.name,
         ...(s.image ? { image: s.image } : {}),
         ...(s.description ? { description: s.description } : {}),
@@ -926,6 +911,37 @@ export async function POST(request: Request) {
         booking_categories: bookingCategories.length > 0 ? bookingCategories : null,
         categories: categoryNames,
       });
+    }
+
+    // Square Online sites client-render their catalog, so the static HTML is
+    // empty to Claude. Scrape the published-site identifiers and call Square's
+    // public services API directly. Falls through on any failure. Square's
+    // durations are exact and authoritative, so use a relaxed 720-min cap
+    // (vs. the default 480) — full-day braiding appointments must survive.
+    if (SQUARE_HOST_RE.test(fullUrl)) {
+      const squareData = await extractSquareData(html, fullUrl);
+      if (squareData) {
+        const { photos, logo: visionLogo, hasHeroImage: heroWorthy } =
+          await classifyImages(squareData.images);
+        const finalImages = photos.map(getHighResUrl);
+        const services = servicesFromAcuityCategories(squareData.categories, 720);
+        const categoryNames = squareData.categories.map((c) => c.name);
+
+        return NextResponse.json({
+          business_name: squareData.businessName,
+          phone: null,
+          address: null,
+          description: null,
+          services,
+          logo: visionLogo || null,
+          images: finalImages,
+          has_hero_image: heroWorthy && finalImages.length > 0,
+          brand_colors: [],
+          booking_url: squareData.bookingUrl,
+          booking_categories: squareData.categories,
+          categories: categoryNames,
+        });
+      }
     }
 
     // Try to extract structured Acuity data directly from HTML

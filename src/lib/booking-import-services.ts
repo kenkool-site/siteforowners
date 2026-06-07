@@ -11,6 +11,34 @@ export type ImportedBookingCategory = {
   }[];
 };
 
+/**
+ * Snap Acuity / human duration labels ("45 min", "8h", "3h 30m") to duration_minutes.
+ * Snaps to 30-min steps with a 30-min floor. `maxMinutes` caps the result — defaults
+ * to 480 (8h) for the scraped/guessed values most platforms emit; the Square importer
+ * passes a relaxed ceiling so its exact, authoritative long durations survive.
+ */
+export function durationMinutesFromImportLabel(
+  duration: string,
+  maxMinutes = 480,
+): number {
+  const s = duration.trim().toLowerCase();
+  let minutes = 60;
+  const hPart = s.match(/(\d+(?:\.\d+)?)\s*h/);
+  const minPart = s.match(/(\d+)\s*(?:min|m(?![a-z]))/);
+  if (hPart) {
+    minutes = Math.round(parseFloat(hPart[1]) * 60);
+  }
+  if (minPart) {
+    minutes = hPart ? minutes + parseInt(minPart[1], 10) : parseInt(minPart[1], 10);
+  }
+  if (!hPart && !minPart) {
+    const n = s.match(/(\d+)/);
+    minutes = n ? parseInt(n[1], 10) : 60;
+  }
+  const snapped = Math.round(minutes / 30) * 30;
+  return Math.min(maxMinutes, Math.max(30, snapped || 60));
+}
+
 /** Defensive parse of imported add-ons (already normalized at extraction time). */
 function addOnsFromImportedService(service: Record<string, unknown>): AddOn[] | undefined {
   const raw = service.add_ons;
