@@ -29,6 +29,12 @@ export default function AdminLayout({
                 Prospects
               </Link>
               <Link
+                href="/requests"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                Requests
+              </Link>
+              <Link
                 href="/clients"
                 className="text-sm font-medium text-gray-600 hover:text-gray-900"
               >
