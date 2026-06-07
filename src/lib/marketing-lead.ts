@@ -14,13 +14,32 @@ export const BUSINESS_TYPES = [
 export type BusinessType = (typeof BUSINESS_TYPES)[number];
 export type LeadSource = "homepage" | "demo";
 
+export type MarketingLeadStatus = "new" | "contacted" | "archived";
+
+export interface MarketingLeadRow {
+  id: string;
+  business_name: string;
+  email: string;
+  phone: string;
+  business_address: string | null;
+  business_type: string;
+  booking_url: string | null;
+  instagram_url: string | null;
+  notes: string | null;
+  source: string;
+  status: MarketingLeadStatus;
+  preview_group_id: string | null;
+  created_at: string;
+}
+
 export type MarketingLead = {
   businessName: string;
   email: string;
   phone: string;
   businessAddress: string;
   businessType: BusinessType;
-  businessLink: string;
+  bookingUrl: string;
+  instagramUrl: string;
   notes: string;
   source: LeadSource;
 };
@@ -87,7 +106,8 @@ export function buildWizardPrefillUrl(lead: {
   business_type: string;
   phone: string;
   business_address?: string | null;
-  business_link?: string | null;
+  booking_url?: string | null;
+  instagram_url?: string | null;
   notes?: string | null;
 }): string {
   const params = new URLSearchParams();
@@ -97,7 +117,8 @@ export function buildWizardPrefillUrl(lead: {
   if (wizardType) params.set("type", wizardType);
   if (lead.phone) params.set("phone", lead.phone);
   if (lead.business_address) params.set("address", lead.business_address);
-  if (lead.business_link) params.set("link", lead.business_link);
+  if (lead.booking_url) params.set("link", lead.booking_url);
+  if (lead.instagram_url) params.set("instagram", lead.instagram_url);
   if (lead.notes) params.set("desc", lead.notes);
   return `/preview?${params.toString()}`;
 }
@@ -109,7 +130,8 @@ export function parseMarketingLead(body: unknown): ParseResult {
   const phone = cleanString(data.phone);
   const businessAddress = cleanString(data.businessAddress);
   const businessType = cleanString(data.businessType);
-  const businessLink = cleanString(data.businessLink, 500);
+  const bookingUrl = cleanString(data.bookingUrl, 500);
+  const instagramUrl = cleanString(data.instagramUrl, 500);
   const notes = cleanString(data.notes, 1200);
   const source = parseSource(cleanString(data.source, 40));
 
@@ -128,7 +150,8 @@ export function parseMarketingLead(body: unknown): ParseResult {
       phone,
       businessAddress,
       businessType,
-      businessLink,
+      bookingUrl,
+      instagramUrl,
       notes,
       source,
     },

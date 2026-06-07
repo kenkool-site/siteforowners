@@ -41,7 +41,8 @@ test("parseMarketingLead accepts the /demo portfolio payload", () => {
     email: "lash@example.com",
     phone: "555-444-3333",
     businessType: "Lashes / brows",
-    businessLink: "https://instagram.com/velvetlash",
+    bookingUrl: "https://booksy.com/x",
+    instagramUrl: "velvetlash",
     notes: "I want something premium like the demo.",
     source: "demo",
   });
@@ -49,7 +50,8 @@ test("parseMarketingLead accepts the /demo portfolio payload", () => {
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.value.source, "demo");
-  assert.equal(result.value.businessLink, "https://instagram.com/velvetlash");
+  assert.equal(result.value.bookingUrl, "https://booksy.com/x");
+  assert.equal(result.value.instagramUrl, "velvetlash");
   assert.equal(result.value.notes, "I want something premium like the demo.");
 });
 
@@ -122,7 +124,8 @@ test("buildWizardPrefillUrl includes mapped type and url-encodes fields", () => 
     business_type: "Nails",
     phone: "555-1234",
     business_address: "1 Main St, Brooklyn",
-    business_link: "https://booksy.com/x",
+    booking_url: "https://booksy.com/x",
+    instagram_url: "velvetlash",
     notes: "loved the demo",
   });
   assert.ok(url.startsWith("/preview?"));
@@ -133,6 +136,7 @@ test("buildWizardPrefillUrl includes mapped type and url-encodes fields", () => 
   assert.equal(qs.get("phone"), "555-1234");
   assert.equal(qs.get("address"), "1 Main St, Brooklyn");
   assert.equal(qs.get("link"), "https://booksy.com/x");
+  assert.equal(qs.get("instagram"), "velvetlash");
   assert.equal(qs.get("desc"), "loved the demo");
 });
 
@@ -143,7 +147,8 @@ test("buildWizardPrefillUrl omits empty optional fields and unmapped type", () =
     business_type: "Lashes / brows",
     phone: "",
     business_address: null,
-    business_link: null,
+    booking_url: null,
+    instagram_url: null,
     notes: null,
   });
   const qs = new URLSearchParams(url.slice(url.indexOf("?") + 1));
@@ -153,5 +158,6 @@ test("buildWizardPrefillUrl omits empty optional fields and unmapped type", () =
   assert.equal(qs.has("phone"), false);
   assert.equal(qs.has("address"), false);
   assert.equal(qs.has("link"), false);
+  assert.equal(qs.has("instagram"), false);
   assert.equal(qs.has("desc"), false);
 });
