@@ -24,7 +24,8 @@ export function DemoLeadForm() {
       phone: String(formData.get("phone") ?? ""),
       businessAddress: String(formData.get("businessAddress") ?? ""),
       businessType: String(formData.get("businessType") ?? ""),
-      businessLink: String(formData.get("businessLink") ?? ""),
+      instagramUrl: String(formData.get("instagramUrl") ?? ""),
+      bookingUrl: String(formData.get("bookingUrl") ?? ""),
       notes: String(formData.get("notes") ?? ""),
     };
 
@@ -96,18 +97,23 @@ export function DemoLeadForm() {
               </select>
             </label>
             <DemoField
-              label="Business address"
+              label="Business address (optional)"
               name="businessAddress"
               autoComplete="street-address"
             />
             <DemoField
-              label="Instagram, website, or booking link"
-              name="businessLink"
+              label="Instagram (optional)"
+              name="instagramUrl"
+              autoComplete="off"
+            />
+            <DemoField
+              label="Booking link (optional)"
+              name="bookingUrl"
               autoComplete="url"
             />
             <label className="grid gap-1.5">
               <span className="text-xs font-black uppercase tracking-[0.16em] text-warm-eyebrow">
-                Notes
+                Notes (optional)
               </span>
               <textarea
                 name="notes"
