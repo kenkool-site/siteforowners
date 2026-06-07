@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+type LeadStatus = "new" | "contacted" | "archived";
+
 interface RequestActionsProps {
   leadId: string;
   previewHref: string;
-  status: string;
+  status: LeadStatus;
   previewGroupId: string | null;
 }
 

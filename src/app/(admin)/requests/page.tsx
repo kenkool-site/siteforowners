@@ -12,7 +12,7 @@ interface MarketingLead {
   business_link: string | null;
   notes: string | null;
   source: string;
-  status: string;
+  status: "new" | "contacted" | "archived";
   preview_group_id: string | null;
   created_at: string;
 }
