@@ -22,6 +22,7 @@ export function DemoLeadForm() {
       businessName: String(formData.get("businessName") ?? ""),
       email: String(formData.get("email") ?? ""),
       phone: String(formData.get("phone") ?? ""),
+      businessAddress: String(formData.get("businessAddress") ?? ""),
       businessType: String(formData.get("businessType") ?? ""),
       businessLink: String(formData.get("businessLink") ?? ""),
       notes: String(formData.get("notes") ?? ""),
@@ -94,6 +95,11 @@ export function DemoLeadForm() {
                 ))}
               </select>
             </label>
+            <DemoField
+              label="Business address"
+              name="businessAddress"
+              autoComplete="street-address"
+            />
             <DemoField
               label="Instagram, website, or booking link"
               name="businessLink"
