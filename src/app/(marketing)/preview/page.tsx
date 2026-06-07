@@ -127,6 +127,7 @@ function PreviewWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editGroupId = searchParams.get("edit");
+  const leadId = searchParams.get("lead");
   const [step, setStep] = useState<Step>(1);
   const [loading, setLoading] = useState(false);
   const [editLoading, setEditLoading] = useState(!!editGroupId);
@@ -271,6 +272,29 @@ function PreviewWizard() {
       }
     })();
   }, [editGroupId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Prefill from an admin "Create preview" deep link (?lead=…&name=…&type=…).
+  // Edit mode (?edit=) takes precedence and skips this.
+  useEffect(() => {
+    if (editGroupId) return;
+    const name = searchParams.get("name");
+    const type = searchParams.get("type");
+    const ph = searchParams.get("phone");
+    const addr = searchParams.get("address");
+    const link = searchParams.get("link");
+    const desc = searchParams.get("desc");
+    if (!name && !type && !ph && !addr && !link && !desc) return;
+
+    if (name) setBusinessName(name);
+    if (type && BUSINESS_TYPES.some((bt) => bt.value === type)) {
+      setBusinessType(type as BusinessType);
+    }
+    if (ph) setPhone(ph);
+    if (addr) setAddress(addr);
+    if (desc) setDescription(desc);
+    if (link) setImportUrl(link);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -602,6 +626,19 @@ function PreviewWizard() {
           throw new Error("Failed to generate. Please try again.");
         }
         const data = await res.json();
+        if (leadId && data.group_id) {
+          // Best-effort: tag the lead with this preview group. Only succeeds
+          // when the founder is logged into admin (same-domain cookie).
+          fetch("/api/admin/marketing-leads", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              leadId,
+              preview_group_id: data.group_id,
+            }),
+            keepalive: true,
+          }).catch(() => {});
+        }
         router.push(`/preview/compare/${data.group_id}`);
         return;
       } catch (e) {
