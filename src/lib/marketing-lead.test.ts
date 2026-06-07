@@ -6,6 +6,8 @@ import {
   parseMarketingLead,
   mapMarketingTypeToWizardType,
   buildWizardPrefillUrl,
+  instagramHref,
+  externalHref,
 } from "./marketing-lead";
 
 test("BUSINESS_TYPES includes existing homepage options and new beauty demo options", () => {
@@ -160,4 +162,21 @@ test("buildWizardPrefillUrl omits empty optional fields and unmapped type", () =
   assert.equal(qs.has("link"), false);
   assert.equal(qs.has("instagram"), false);
   assert.equal(qs.has("desc"), false);
+});
+
+test("instagramHref builds a profile URL from a bare handle", () => {
+  assert.equal(instagramHref("velvetlash"), "https://instagram.com/velvetlash");
+  assert.equal(instagramHref("@velvetlash"), "https://instagram.com/velvetlash");
+  assert.equal(instagramHref("instagram.com/velvetlash"), "https://instagram.com/velvetlash");
+  assert.equal(instagramHref("https://instagram.com/velvetlash"), "https://instagram.com/velvetlash");
+  assert.equal(instagramHref(""), "");
+  assert.equal(instagramHref(null), "");
+});
+
+test("externalHref ensures a scheme", () => {
+  assert.equal(externalHref("booksy.com/x"), "https://booksy.com/x");
+  assert.equal(externalHref("https://booksy.com/x"), "https://booksy.com/x");
+  assert.equal(externalHref("http://x.com"), "http://x.com");
+  assert.equal(externalHref(""), "");
+  assert.equal(externalHref(undefined), "");
 });

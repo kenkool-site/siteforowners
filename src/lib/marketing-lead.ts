@@ -123,6 +123,23 @@ export function buildWizardPrefillUrl(lead: {
   return `/preview?${params.toString()}`;
 }
 
+// Render-time href builders. Stored values keep their raw form (handles, etc.);
+// these only run when we need a clickable link (admin email, detail modal).
+export function instagramHref(value: string | null | undefined): string {
+  const v = (value ?? "").trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/instagram\.com/i.test(v)) return `https://${v.replace(/^\/+/, "")}`;
+  return `https://instagram.com/${v.replace(/^@+/, "")}`;
+}
+
+export function externalHref(value: string | null | undefined): string {
+  const v = (value ?? "").trim();
+  if (!v) return "";
+  if (/^https?:\/\//i.test(v)) return v;
+  return `https://${v.replace(/^\/+/, "")}`;
+}
+
 export function parseMarketingLead(body: unknown): ParseResult {
   const data = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const businessName = cleanString(data.businessName);
