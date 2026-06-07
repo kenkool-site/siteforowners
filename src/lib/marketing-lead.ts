@@ -51,6 +51,57 @@ export function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// Wizard business types (src/app/(marketing)/preview/page.tsx). There is no
+// "locs" wizard type — loc businesses use the braids template/services.
+export type WizardBusinessType =
+  | "salon"
+  | "barbershop"
+  | "restaurant"
+  | "nails"
+  | "braids";
+
+const MARKETING_TO_WIZARD_TYPE: Record<BusinessType, WizardBusinessType | ""> = {
+  Braids: "braids",
+  Locs: "braids",
+  Haircuts: "salon",
+  Nails: "nails",
+  Salon: "salon",
+  Hair: "salon",
+  "Lashes / brows": "",
+  "Barber / grooming": "barbershop",
+  "Spa / skincare": "",
+  "Other beauty business": "",
+};
+
+export function mapMarketingTypeToWizardType(
+  type: string,
+): WizardBusinessType | "" {
+  return (MARKETING_TO_WIZARD_TYPE as Record<string, WizardBusinessType | "">)[
+    type
+  ] ?? "";
+}
+
+export function buildWizardPrefillUrl(lead: {
+  id: string;
+  business_name: string;
+  business_type: string;
+  phone: string;
+  business_address?: string | null;
+  business_link?: string | null;
+  notes?: string | null;
+}): string {
+  const params = new URLSearchParams();
+  params.set("lead", lead.id);
+  if (lead.business_name) params.set("name", lead.business_name);
+  const wizardType = mapMarketingTypeToWizardType(lead.business_type);
+  if (wizardType) params.set("type", wizardType);
+  if (lead.phone) params.set("phone", lead.phone);
+  if (lead.business_address) params.set("address", lead.business_address);
+  if (lead.business_link) params.set("link", lead.business_link);
+  if (lead.notes) params.set("desc", lead.notes);
+  return `/preview?${params.toString()}`;
+}
+
 export function parseMarketingLead(body: unknown): ParseResult {
   const data = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const businessName = cleanString(data.businessName);
