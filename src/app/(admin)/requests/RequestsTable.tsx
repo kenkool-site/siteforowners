@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   buildWizardPrefillUrl,
   instagramHref,
@@ -30,6 +30,7 @@ function stop(e: React.MouseEvent) {
 
 export function RequestsTable({ leads }: { leads: MarketingLeadRow[] }) {
   const [selected, setSelected] = useState<MarketingLeadRow | null>(null);
+  const handleClose = useCallback(() => setSelected(null), []);
 
   return (
     <>
@@ -110,7 +111,7 @@ export function RequestsTable({ leads }: { leads: MarketingLeadRow[] }) {
       </div>
 
       {selected && (
-        <RequestDetailModal lead={selected} onClose={() => setSelected(null)} />
+        <RequestDetailModal lead={selected} onClose={handleClose} />
       )}
     </>
   );

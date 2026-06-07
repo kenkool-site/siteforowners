@@ -39,6 +39,7 @@ export function RequestDetailModal({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="request-modal-title"
     >
       <div
         className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl"
@@ -46,7 +47,7 @@ export function RequestDetailModal({
       >
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{lead.business_name}</h2>
+            <h2 id="request-modal-title" className="text-xl font-bold text-gray-900">{lead.business_name}</h2>
             <p className="mt-1 text-sm text-gray-500">
               {lead.business_type}
               <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
