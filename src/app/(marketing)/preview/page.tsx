@@ -615,6 +615,7 @@ function PreviewWizard() {
               leadId,
               preview_group_id: data.group_id,
             }),
+            keepalive: true,
           }).catch(() => {});
         }
         router.push(`/preview/compare/${data.group_id}`);
