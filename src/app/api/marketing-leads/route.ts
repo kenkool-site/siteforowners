@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { checkRateLimit, getClientIp, hashIp } from "@/lib/api-rate-limit";
-import { escapeHtml, parseMarketingLead } from "@/lib/marketing-lead";
+import { escapeHtml, instagramHref, externalHref, parseMarketingLead } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const LEAD_WINDOW_SECONDS = 60 * 60;
@@ -47,7 +47,8 @@ export async function POST(request: NextRequest) {
     phone,
     businessAddress,
     businessType,
-    businessLink,
+    bookingUrl,
+    instagramUrl,
     notes,
     source,
   } = parsed.value;
@@ -61,7 +62,8 @@ export async function POST(request: NextRequest) {
     phone,
     business_address: businessAddress || null,
     business_type: businessType,
-    business_link: businessLink || null,
+    booking_url: bookingUrl || null,
+    instagram_url: instagramUrl || null,
     notes: notes || null,
     source,
   });
@@ -84,7 +86,10 @@ export async function POST(request: NextRequest) {
   const safePhone = escapeHtml(phone);
   const safeAddress = businessAddress ? escapeHtml(businessAddress) : "";
   const safeBusinessType = escapeHtml(businessType);
-  const safeBusinessLink = businessLink ? escapeHtml(businessLink) : "";
+  const safeBooking = bookingUrl ? escapeHtml(bookingUrl) : "";
+  const safeInstagram = instagramUrl ? escapeHtml(instagramUrl) : "";
+  const safeInstagramHref = instagramHref(instagramUrl) ? escapeHtml(instagramHref(instagramUrl)) : "";
+  const safeBookingHref = externalHref(bookingUrl) ? escapeHtml(externalHref(bookingUrl)) : "";
   const safeNotes = notes ? escapeHtml(notes) : "";
   const safeSource = escapeHtml(source);
 
@@ -127,10 +132,16 @@ export async function POST(request: NextRequest) {
                   <td style="padding: 8px 0; color: #111827;">${safeAddress}</td>
                 </tr>
               ` : ""}
-              ${safeBusinessLink ? `
+              ${safeInstagram ? `
                 <tr>
-                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Link</td>
-                  <td style="padding: 8px 0;"><a href="${safeBusinessLink}" style="color: #db2777;">${safeBusinessLink}</a></td>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Instagram</td>
+                  <td style="padding: 8px 0;"><a href="${safeInstagramHref}" style="color: #db2777;">${safeInstagram}</a></td>
+                </tr>
+              ` : ""}
+              ${safeBooking ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Booking</td>
+                  <td style="padding: 8px 0;"><a href="${safeBookingHref}" style="color: #db2777;">${safeBooking}</a></td>
                 </tr>
               ` : ""}
               ${safeNotes ? `
