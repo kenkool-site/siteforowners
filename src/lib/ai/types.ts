@@ -1,4 +1,4 @@
-export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'braids' | 'locs';
+export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'braids' | 'locs' | 'locs_and_braids';
 
 export type ColorTheme =
   // Salon

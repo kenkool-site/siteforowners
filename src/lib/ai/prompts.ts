@@ -13,6 +13,8 @@ const TONE_GUIDELINES: Record<BusinessType, string> = {
     "Cultural, vibrant, proud, and empowering. Speak like a skilled artist who honors tradition. Celebrate heritage, beauty, and the art of braiding.",
   locs:
     "Grounded, skilled, restorative, and confident. Speak like a trusted loctician who protects healthy growth and personal expression. Celebrate patience, care, roots, and crown confidence.",
+  locs_and_braids:
+    "Cultural, grounded, and empowering — equally at home with intricate braiding and healthy loc care. Speak like a versatile natural-hair artist who honors tradition and protects the crown. Celebrate heritage, artistry, and confidence.",
 };
 
 export function buildSystemPrompt(businessType: BusinessType): string {
