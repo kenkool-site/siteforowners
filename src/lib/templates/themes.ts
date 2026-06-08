@@ -16,7 +16,7 @@ export interface ThemeConfig {
   previewSwatch: [string, string, string]; // 3 colors shown in picker
 }
 
-export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
+const BASE_THEMES = {
   salon: [
     {
       id: 'salon_gold',
@@ -640,4 +640,10 @@ export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
       previewSwatch: ['#D0A44A', '#0B0B0B', '#050505'],
     },
   ],
+} satisfies Record<Exclude<BusinessType, "locs_and_braids">, ThemeConfig[]>;
+
+export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
+  ...BASE_THEMES,
+  // Combined "Locs & Braids": offer both palettes (braids first, then locs).
+  locs_and_braids: [...BASE_THEMES.braids, ...BASE_THEMES.locs],
 };

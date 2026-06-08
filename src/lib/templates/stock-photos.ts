@@ -3,10 +3,10 @@ import type { BusinessType } from "@/lib/ai/types";
 // All images from Pexels (free for commercial use, no attribution required)
 // Curated per vertical — verified accessible as of 2026-04-11
 
-const pexels = (id: number) =>
+export const pexels = (id: number) =>
   `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&cs=tinysrgb&w=1600`;
 
-export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
+const BASE_STOCK_PHOTOS = {
   salon: [
     pexels(8834026),  // Woman standing near round mirrors of a salon
     pexels(8834071),  // Woman cutting hair of client
@@ -63,4 +63,10 @@ export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
     pexels(19803587), // Black woman with braided hair portrait
     pexels(20644320), // Woman with braid portrait
   ],
+} satisfies Record<Exclude<BusinessType, "locs_and_braids">, string[]>;
+
+export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
+  ...BASE_STOCK_PHOTOS,
+  // Combined "Locs & Braids": merge both photo pools for hero + gallery variety.
+  locs_and_braids: [...BASE_STOCK_PHOTOS.braids, ...BASE_STOCK_PHOTOS.locs],
 };
