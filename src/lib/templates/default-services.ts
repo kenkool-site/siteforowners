@@ -71,6 +71,16 @@ const BASE_SERVICES = {
   ]),
 } satisfies Record<Exclude<BusinessType, "locs_and_braids">, ServiceItem[]>;
 
+/**
+ * The local default service photos for a business type, deduped — used to seed
+ * the default gallery (and hero) when a tenant has no real images. Owned, local
+ * files rather than remote stock; see generate-copy where stock is appended for
+ * extra variety.
+ */
+export function defaultGalleryImages(type: BusinessType): string[] {
+  return Array.from(new Set((DEFAULT_SERVICES[type] ?? []).map((s) => s.image!)));
+}
+
 export const DEFAULT_SERVICES: Record<BusinessType, ServiceItem[]> = {
   ...BASE_SERVICES,
   // Combined "Locs & Braids" — a tight, curated mix of the most-requested
