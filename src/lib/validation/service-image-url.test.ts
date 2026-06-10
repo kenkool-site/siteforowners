@@ -65,6 +65,19 @@ test("reject wrong Supabase bucket path", () => {
   );
 });
 
+test("accepts our app-served local default image paths", () => {
+  assert.ok(isValidPersistedServiceImageUrl("/defaults/services/salon/wash-and-blowout.jpg"));
+  assert.ok(isValidPersistedServiceImageUrl("/defaults/services/braids/medium-box-braids.png"));
+  assert.ok(isValidPersistedServiceImageUrl("/defaults/services/locs/faux-locs.webp"));
+});
+
+test("rejects other relative paths, traversal, and unsupported extensions", () => {
+  assert.equal(isValidPersistedServiceImageUrl("/uploads/x.jpg"), false);
+  assert.equal(isValidPersistedServiceImageUrl("defaults/services/x.jpg"), false); // no leading slash
+  assert.equal(isValidPersistedServiceImageUrl("/defaults/../secret.jpg"), false); // traversal
+  assert.equal(isValidPersistedServiceImageUrl("/defaults/services/x.gif"), false); // unsupported ext
+});
+
 test("collectInvalidServiceImageErrors lists bad rows only", () => {
   const err = collectInvalidServiceImageErrors([
     { name: "A", image: "http://booksy.dev/x.jpg" },

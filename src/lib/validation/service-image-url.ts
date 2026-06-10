@@ -18,6 +18,16 @@ function isSupabasePublicBucketPath(url: URL, supabaseOrigin: string): boolean {
   );
 }
 
+/**
+ * App-served default images live in `public/defaults/` and are referenced by
+ * root-relative path (same origin) — e.g. `/defaults/services/salon/x.jpg`.
+ * We ship these files, so they're trusted. The char class excludes `.` except
+ * before the extension, so `..` traversal can't match.
+ */
+function isLocalDefaultImagePath(raw: string): boolean {
+  return /^\/defaults\/[a-zA-Z0-9/_-]+\.(jpe?g|png|webp)$/.test(raw);
+}
+
 function isForbiddenImageHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   if (h === "localhost" || h === "0.0.0.0" || h === "::1") return true;
@@ -41,6 +51,7 @@ export const PERSISTED_SERVICE_IMAGE_URL_ERROR =
 
 /**
  * Allowed persisted image URLs:
+ * - Our app-served default images by root-relative path (`/defaults/...`).
  * - Public objects in our Supabase `service-images` or `preview-images` buckets.
  * - Any other plain **https** URL on a non-loopback / non‑RFC1918 hostname
  *   (imported thumbnails from salons’ booking platforms).
@@ -49,6 +60,8 @@ export function isValidPersistedServiceImageUrl(raw: string): boolean {
   const urlString = raw.trim();
   if (urlString === "") return true;
   if (urlString.length > MAX_URL_LENGTH) return false;
+  // Our own default images, served from public/ by root-relative path.
+  if (isLocalDefaultImagePath(urlString)) return true;
   let url: URL;
   try {
     url = new URL(urlString);

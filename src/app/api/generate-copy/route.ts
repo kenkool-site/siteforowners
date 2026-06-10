@@ -3,6 +3,7 @@ export const maxDuration = 120;
 import { NextResponse } from "next/server";
 import { generateWebsiteCopyVariants } from "@/lib/ai/generate-copy";
 import { getDefaultHeroVideoUrl } from "@/lib/templates/default-hero-videos";
+import { defaultGalleryImages } from "@/lib/templates/default-services";
 import { STOCK_PHOTOS } from "@/lib/templates/stock-photos";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -242,27 +243,34 @@ export async function POST(request: Request) {
       variantCount: templates.length,
     });
 
-    const stockImages = STOCK_PHOTOS[business_type] || [];
+    // Default gallery = local per-service photos (owned) first, then remote
+    // stock photos appended for extra variety. images[0] becomes the hero.
+    const defaultImages = Array.from(
+      new Set([
+        ...defaultGalleryImages(business_type),
+        ...(STOCK_PHOTOS[business_type] || []),
+      ]),
+    );
     const serviceGalleryUrls = uniqueServiceImageUrls(resolvedServices);
     let images: string[];
     if (uploaded_images && uploaded_images.length > 0) {
-      if (has_hero_image === false && stockImages.length > 0) {
-        // Imported images are too low-res for hero — use stock photo as hero,
+      if (has_hero_image === false && defaultImages.length > 0) {
+        // Imported images are too low-res for hero — use a default photo as hero,
         // imported images go to gallery positions
-        images = [stockImages[0], ...uploaded_images];
+        images = [defaultImages[0], ...uploaded_images];
       } else {
         images = uploaded_images;
       }
     } else if (serviceGalleryUrls.length > 0) {
       // Booking import: no venue/Gallery photos, but services often have images — use those
-      // instead of generic stock (still optionally tuck stock first when hero is low-res).
-      if (has_hero_image === false && stockImages.length > 0) {
-        images = [stockImages[0], ...serviceGalleryUrls];
+      // instead of generic defaults (still optionally tuck a default first when hero is low-res).
+      if (has_hero_image === false && defaultImages.length > 0) {
+        images = [defaultImages[0], ...serviceGalleryUrls];
       } else {
         images = serviceGalleryUrls;
       }
     } else {
-      images = stockImages;
+      images = defaultImages;
     }
 
     const groupId = generateGroupId();

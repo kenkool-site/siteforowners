@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { DEFAULT_SERVICES } from "./default-services";
+import { DEFAULT_SERVICES, defaultGalleryImages } from "./default-services";
 import { serviceDefaultImage, slugifyServiceName } from "./service-images";
 
 const PATH_RE = /^\/defaults\/services\/[a-z_]+\/[a-z0-9-]+\.(jpg|jpeg|png|webp)$/;
@@ -41,6 +41,15 @@ test("default service images are unique within each vertical", () => {
   for (const [type, services] of Object.entries(DEFAULT_SERVICES)) {
     const paths = services.map((s) => s.image!);
     assert.equal(new Set(paths).size, paths.length, `${type} reuses the same image across cards`);
+  }
+});
+
+test("defaultGalleryImages returns deduped, well-formed local paths for every type", () => {
+  for (const type of Object.keys(DEFAULT_SERVICES)) {
+    const gallery = defaultGalleryImages(type as never);
+    assert.ok(gallery.length > 0, `${type} default gallery is empty`);
+    assert.equal(new Set(gallery).size, gallery.length, `${type} default gallery has duplicates`);
+    for (const img of gallery) assert.match(img, PATH_RE, `${type}: malformed gallery path ${img}`);
   }
 });
 
