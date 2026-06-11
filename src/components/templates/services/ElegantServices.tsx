@@ -81,7 +81,7 @@ export function ElegantServices({ services, categories, colors, bookingMode, def
                 alt={service.name}
                 fill
                 sizes="128px"
-                className="object-cover"
+                className="object-cover object-top"
                 unoptimized
               />
             </div>

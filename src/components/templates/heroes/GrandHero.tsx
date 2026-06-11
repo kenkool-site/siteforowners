@@ -126,7 +126,6 @@ export function GrandHero({
             }}
           />
           <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(115deg,rgba(255,255,255,0.08)_0,transparent_30%,transparent_70%,rgba(255,255,255,0.06)_100%)]" />
-          <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px bg-white/10" />
         </>
       )}
 

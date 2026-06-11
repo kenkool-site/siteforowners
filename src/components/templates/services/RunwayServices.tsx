@@ -101,7 +101,7 @@ export function RunwayServices({
                 width={720}
                 height={440}
                 sizes="(max-width: 768px) 100vw, 33vw"
-                className="h-full w-full scale-[1.04] object-cover brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:scale-110 group-hover:brightness-90 group-hover:saturate-100"
+                className="h-full w-full scale-[1.04] object-cover object-top brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:scale-110 group-hover:brightness-90 group-hover:saturate-100"
                 unoptimized
               />
             </div>
@@ -164,7 +164,6 @@ export function RunwayServices({
           "radial-gradient(circle at 10% 0%, rgba(216,177,90,0.18), transparent 28rem), radial-gradient(circle at 92% 18%, rgba(216,177,90,0.14), transparent 24rem), #030303",
       }}
     >
-      <div className="absolute left-1/2 top-0 h-full w-px bg-white/10" aria-hidden />
       <div className="relative z-10 mx-auto max-w-7xl">
         <AnimateSection>
           <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
@@ -210,7 +209,7 @@ export function RunwayServices({
                         src={thumbUrl}
                         alt=""
                         fill
-                        className="object-cover transition-transform duration-500 group-hover/cat:scale-105"
+                        className="object-cover object-top transition-transform duration-500 group-hover/cat:scale-105"
                         sizes="84px"
                         unoptimized
                       />

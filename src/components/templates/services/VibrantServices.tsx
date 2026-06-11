@@ -82,7 +82,7 @@ export function VibrantServices({ services, categories, colors, bookingMode, def
                 alt={service.name}
                 fill
                 sizes="(max-width: 768px) 50vw, 33vw"
-                className="object-cover"
+                className="object-cover object-top"
                 unoptimized
               />
             </div>
