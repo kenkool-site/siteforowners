@@ -84,13 +84,13 @@ export function BoldServices({ services, categories, colors, bookingMode, defaul
             : {})}
         >
           {service.image && (
-            <div className={`relative mb-4 overflow-hidden rounded-xl ${isFeatured ? "h-56 md:mb-0 md:h-full" : "aspect-[4/5]"}`}>
+            <div className={`relative mb-4 overflow-hidden rounded-xl ${isFeatured ? "h-56 md:mb-0 md:h-full" : "h-64"}`}>
               <Image
                 src={service.image}
                 alt={service.name}
                 fill
                 sizes={isFeatured ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 100vw, 33vw"}
-                className="object-cover object-top transition-transform duration-500 hover:scale-105"
+                className="object-contain transition-transform duration-500 hover:scale-105"
                 unoptimized
               />
             </div>
