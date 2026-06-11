@@ -92,7 +92,7 @@ export function RunwayServices({
 
           {service.image && (
             <div
-              className="-mx-6 -mt-6 mb-6 aspect-[4/5] overflow-hidden border-b bg-neutral-950"
+              className="-mx-6 -mt-6 mb-6 h-64 overflow-hidden border-b bg-neutral-950"
               style={{ borderColor: `${gold}2E` }}
             >
               <Image
@@ -101,7 +101,7 @@ export function RunwayServices({
                 width={720}
                 height={440}
                 sizes="(max-width: 768px) 100vw, 33vw"
-                className="h-full w-full scale-[1.04] object-cover object-top brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:scale-110 group-hover:brightness-90 group-hover:saturate-100"
+                className="h-full w-full object-contain brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:scale-105 group-hover:brightness-90 group-hover:saturate-100"
                 unoptimized
               />
             </div>
