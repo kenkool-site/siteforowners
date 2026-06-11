@@ -60,9 +60,10 @@ export function RunwayServices({
     return withUrl?.image?.trim();
   };
 
-  const renderService = (service: DisplayService, i: number) => {
+  const renderService = (service: DisplayService, i: number, isCompact = false) => {
     const m = bookingMode ?? "in_site_only";
     const canBook = !(m === "external_only" && !service.bookingDeepLink);
+    const useCompactLayout = isCompact && Boolean(service.image);
     const triggerBook = () => {
       if (m === "external_only" && service.bookingDeepLink) {
         window.open(service.bookingDeepLink, "_blank", "noopener,noreferrer");
@@ -76,7 +77,11 @@ export function RunwayServices({
     return (
       <AnimateSection key={service.name} animation="fade-up" delay={i * 0.1}>
         <div
-          className={`group relative min-h-[220px] overflow-hidden border bg-white/[0.035] p-6 shadow-2xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_0_45px_rgba(216,177,90,0.16)] ${
+          className={`group relative overflow-hidden border bg-white/[0.035] shadow-2xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_0_45px_rgba(216,177,90,0.16)] ${
+            useCompactLayout
+              ? "grid min-h-[15rem] grid-cols-[42%_minmax(0,1fr)]"
+              : "min-h-[220px] p-6"
+          } ${
             canBook ? "hover:border-opacity-70" : ""
           }`}
           style={{
@@ -92,7 +97,11 @@ export function RunwayServices({
 
           {service.image && (
             <div
-              className="-mx-6 -mt-6 mb-6 h-64 overflow-hidden border-b bg-neutral-950"
+              className={
+                useCompactLayout
+                  ? "min-h-[15rem] overflow-hidden border-r bg-neutral-950"
+                  : "-mx-6 -mt-6 mb-6 h-64 overflow-hidden border-b bg-neutral-950"
+              }
               style={{ borderColor: `${gold}2E` }}
             >
               <Image
@@ -101,56 +110,81 @@ export function RunwayServices({
                 width={720}
                 height={440}
                 sizes="(max-width: 768px) 100vw, 33vw"
-                className="h-full w-full object-contain brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:scale-105 group-hover:brightness-90 group-hover:saturate-100"
+                className={`h-full w-full object-contain brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:brightness-90 group-hover:saturate-100 ${
+                  useCompactLayout ? "" : "group-hover:scale-105"
+                }`}
                 unoptimized
               />
             </div>
           )}
 
-          <div className="mb-8 flex items-start justify-between gap-5">
-            <span
-              className="text-[0.68rem] font-black uppercase tracking-[0.34em]"
-              style={{ color: gold }}
+          <div className={useCompactLayout ? "flex min-w-0 flex-col justify-center p-4" : ""}>
+            <div
+              className={`flex items-start justify-between ${
+                useCompactLayout ? "mb-4 gap-3" : "mb-8 gap-5"
+              }`}
             >
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <div className="text-right">
-              <div className="whitespace-nowrap text-lg font-black" style={{ color: gold }}>
-                {service.price}
-              </div>
-              <div className="mt-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/45">
-                {formatDuration(service.durationMinutes ?? 60)}
+              <span
+                className="text-[0.68rem] font-black uppercase tracking-[0.34em]"
+                style={{ color: gold }}
+              >
+                {String(i + 1).padStart(2, "0")}
+              </span>
+              <div className="text-right">
+                <div
+                  className={`whitespace-nowrap font-black ${
+                    useCompactLayout ? "text-base" : "text-lg"
+                  }`}
+                  style={{ color: gold }}
+                >
+                  {service.price}
+                </div>
+                <div className="mt-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-white/45">
+                  {formatDuration(service.durationMinutes ?? 60)}
+                </div>
               </div>
             </div>
-          </div>
 
-          <h3 className="max-w-[16rem] text-3xl font-black uppercase leading-[0.95] tracking-[-0.04em]">
-            {service.name}
-          </h3>
-
-          {service.description && (
-            <p className="mt-4 line-clamp-4 text-sm leading-7 text-white/65">
-              {service.description}
-            </p>
-          )}
-
-          {canBook && (
-            <button
-              type="button"
-              aria-label={`Book ${service.name}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                triggerBook();
-              }}
-              className="mt-7 inline-flex min-h-11 items-center justify-center px-5 text-[0.68rem] font-black uppercase tracking-[0.22em] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(216,177,90,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-              style={{
-                backgroundColor: gold,
-                color: buttonText,
-              }}
+            <h3
+              className={`max-w-[16rem] font-black uppercase leading-[0.95] tracking-[-0.04em] ${
+                useCompactLayout ? "text-xl sm:text-2xl" : "text-3xl"
+              }`}
             >
-              Book Look
-            </button>
-          )}
+              {service.name}
+            </h3>
+
+            {service.description && (
+              <p
+                className={`text-sm text-white/65 ${
+                  useCompactLayout
+                    ? "mt-3 line-clamp-3 leading-5"
+                    : "mt-4 line-clamp-4 leading-7"
+                }`}
+              >
+                {service.description}
+              </p>
+            )}
+
+            {canBook && (
+              <button
+                type="button"
+                aria-label={`Book ${service.name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  triggerBook();
+                }}
+                className={`inline-flex min-h-11 items-center justify-center self-start text-[0.68rem] font-black uppercase tracking-[0.22em] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(216,177,90,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+                  useCompactLayout ? "mt-4 px-4" : "mt-7 px-5"
+                }`}
+                style={{
+                  backgroundColor: gold,
+                  color: buttonText,
+                }}
+              >
+                Book Look
+              </button>
+            )}
+          </div>
         </div>
       </AnimateSection>
     );
@@ -184,6 +218,7 @@ export function RunwayServices({
           const visibleServices = shouldLimitGroup
             ? group.services.slice(0, serviceLimit)
             : group.services;
+          const isCompactGroup = visibleServices.length === 1;
           const groupId = group.label
             ? `runway-services-${group.label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "")}`
             : undefined;
@@ -265,9 +300,14 @@ export function RunwayServices({
 
               {!isCollapsed && (
                 <>
-                  <div id={groupId} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  <div
+                    id={groupId}
+                    className={`grid gap-4 ${
+                      isCompactGroup ? "max-w-3xl grid-cols-1" : "md:grid-cols-2 lg:grid-cols-3"
+                    }`}
+                  >
                     {(visibleServices as DisplayService[]).map((service, i) =>
-                      renderService(service, i),
+                      renderService(service, i, isCompactGroup),
                     )}
                   </div>
                   {group.services.length > serviceLimit && (
