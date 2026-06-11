@@ -76,10 +76,25 @@ test("runway uses a compact no-crop layout for a single visible service", async 
     /grid-cols-\[42%_minmax\(0,1fr\)\]/,
     "A single service should use the selected compact horizontal layout",
   );
+});
+
+test("runway keeps every image service compact on mobile even when the group has multiple services", async () => {
+  const services = await readFile(files.services, "utf8");
+
   assert.match(
     services,
-    /const useCompactLayout = isCompact && Boolean\(service\.image\)/,
-    "A service without an image should keep the standard full-width layout",
+    /const useCompactLayout = Boolean\(service\.image\)/,
+    "Mobile compact layout should depend on the card having an image, not the group containing one service",
+  );
+  assert.match(
+    services,
+    /isCompact \? "" : "md:block md:min-h-\[220px\] md:p-6"/,
+    "Multi-service cards should return to the vertical grid layout only at desktop widths",
+  );
+  assert.match(
+    services,
+    /md:border-b md:border-r-0/,
+    "Multi-service images should switch from a mobile side border to a desktop bottom border",
   );
 });
 
