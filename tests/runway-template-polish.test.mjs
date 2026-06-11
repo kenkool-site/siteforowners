@@ -53,6 +53,36 @@ test("runway keeps long service lists premium instead of rendering a wall", asyn
   assert.match(services, /Show featured services/, "Runway should let users collapse back to the premium featured set");
 });
 
+test("runway uses a compact no-crop layout for a single visible service", async () => {
+  const services = await readFile(files.services, "utf8");
+
+  assert.match(
+    services,
+    /const isCompactGroup = visibleServices\.length === 1/,
+    "Runway should detect a group with one visible service",
+  );
+  assert.match(
+    services,
+    /renderService\(service, i, isCompactGroup\)/,
+    "Runway should pass compact layout state into service rendering",
+  );
+  assert.match(
+    services,
+    /object-contain/,
+    "Runway should preserve the complete service image",
+  );
+  assert.match(
+    services,
+    /grid-cols-\[42%_minmax\(0,1fr\)\]/,
+    "A single service should use the selected compact horizontal layout",
+  );
+  assert.match(
+    services,
+    /const useCompactLayout = isCompact && Boolean\(service\.image\)/,
+    "A service without an image should keep the standard full-width layout",
+  );
+});
+
 test("runway marquee and gallery CTAs stay concise and booking-oriented", async () => {
   const orchestrator = await readFile(files.orchestrator, "utf8");
   const gallery = await readFile(files.gallery, "utf8");
