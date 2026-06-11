@@ -4,12 +4,46 @@ import { verifySession } from "@/lib/admin-auth";
 import { loadTenantBySlug } from "@/lib/admin-tenant";
 import { loadAdminTheme, adminThemeStyle } from "@/lib/admin-theme";
 import { getRollups } from "@/lib/admin-rollups";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type { ShellTenant } from "@/lib/admin-navigation";
 import { PinEntry } from "./_components/PinEntry";
-import { AdminShell, ShellTenant } from "./_components/AdminShell";
+import { AdminShell } from "./_components/AdminShell";
 
 export const dynamic = "force-dynamic";
 
 const AUTH_BYPASS_PATHS = ["/admin/forgot-pin", "/admin/pin-reset"];
+
+async function loadProfileImageUrl(previewSlug: string | null): Promise<string | null> {
+  if (!previewSlug) return null;
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("previews")
+    .select("generated_copy")
+    .eq("slug", previewSlug)
+    .maybeSingle();
+  if (error) {
+    console.error("[admin/layout] profile image load failed", {
+      previewSlug,
+      error,
+    });
+    return null;
+  }
+  const copy =
+    data?.generated_copy &&
+    typeof data.generated_copy === "object" &&
+    !Array.isArray(data.generated_copy)
+      ? (data.generated_copy as Record<string, unknown>)
+      : {};
+  const settings =
+    copy.section_settings &&
+    typeof copy.section_settings === "object" &&
+    !Array.isArray(copy.section_settings)
+      ? (copy.section_settings as Record<string, unknown>)
+      : {};
+  return typeof settings.about_image_url === "string"
+    ? settings.about_image_url
+    : null;
+}
 
 export default async function AdminLayout({
   children,
@@ -50,6 +84,7 @@ export default async function AdminLayout({
     business_name: tenant.business_name,
     booking_tool: tenant.booking_tool,
     checkout_mode: tenant.checkout_mode,
+    profile_image_url: await loadProfileImageUrl(tenant.preview_slug),
   };
 
   const rollups = await getRollups(tenant.id);
