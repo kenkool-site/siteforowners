@@ -1,37 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { getAdminNavIconName, type AdminNavIconName } from "@/lib/admin-nav-icons";
+import {
+  buildAdminTabs,
+  type ShellTenant,
+} from "@/lib/admin-navigation";
 import { SignOutButton } from "./SignOutButton";
 import { LeadsBadge } from "./LeadsBadge";
 import { AdminNavGlyph } from "./AdminNavGlyph";
-
-type Tab = { href: string; label: string; icon: AdminNavIconName };
-
-export type ShellTenant = {
-  business_name: string;
-  booking_tool?: string | null;
-  checkout_mode?: string | null;
-};
-
-function buildTabs(tenant: ShellTenant): Tab[] {
-  const showSchedule = !tenant.booking_tool || tenant.booking_tool === "none" || tenant.booking_tool === "internal";
-  const showOrders = tenant.checkout_mode === "pickup";
-  const tabs: Tab[] = [{ href: "/admin", label: "Home", icon: getAdminNavIconName("Home") }];
-  if (showSchedule) tabs.push({ href: "/admin/schedule", label: "Schedule", icon: getAdminNavIconName("Schedule") });
-  if (showSchedule) tabs.push({ href: "/admin/services", label: "Services", icon: getAdminNavIconName("Services") });
-  if (showOrders) tabs.push({ href: "/admin/orders", label: "Orders", icon: getAdminNavIconName("Orders") });
-  tabs.push({ href: "/admin/updates", label: "Updates", icon: getAdminNavIconName("Updates") });
-  // Leads demoted to overflow (page still exists; the LeadsBadge in the
-  // top bar / sidebar header is the primary entry now).
-  tabs.push({ href: "/admin/leads", label: "Leads", icon: getAdminNavIconName("Leads") });
-  tabs.push({ href: "/admin/billing", label: "Billing", icon: getAdminNavIconName("Billing") });
-  tabs.push({ href: "/admin/photos", label: "Photos", icon: getAdminNavIconName("Photos") });
-  tabs.push({ href: "/admin/settings", label: "Settings", icon: getAdminNavIconName("Settings") });
-  return tabs;
-}
 
 export function AdminShell({
   tenant,
@@ -43,9 +22,11 @@ export function AdminShell({
   children: React.ReactNode;
 }) {
   const currentPath = usePathname() || "/admin";
-  const tabs = buildTabs(tenant);
+  const tabs = buildAdminTabs(tenant);
   const primary = tabs.slice(0, 4);
-  const overflow = tabs.slice(4);
+  const overflow = tabs
+    .slice(4)
+    .filter((tab) => tab.href !== "/admin/profile");
 
   // Mobile More overflow menu — controlled state instead of native <details>
   // so we can dismiss on outside tap and on route navigation (which native
@@ -140,8 +121,27 @@ export function AdminShell({
             >
               View
             </a>
-            <LeadsBadge unreadCount={unreadCount} variant="mobile" />
-            <SignOutButton className="text-xs font-bold text-warm-textMuted" />
+            <Link
+              href="/admin/profile"
+              className="flex min-h-11 items-center gap-1.5 rounded-full border border-pop-pink/30 bg-white p-1 pr-2.5 text-[11px] font-black text-pink-700 shadow-sm"
+            >
+              <span className="relative grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-pop-pink text-pop-cream">
+                {tenant.profile_image_url ? (
+                  <Image
+                    src={tenant.profile_image_url}
+                    alt=""
+                    fill
+                    sizes="32px"
+                    className="object-cover"
+                    unoptimized
+                    priority
+                  />
+                ) : (
+                  <AdminNavGlyph name="user" className="h-4 w-4" />
+                )}
+              </span>
+              Profile
+            </Link>
           </div>
         </header>
 

@@ -23,6 +23,10 @@ export const ADMIN_NAV_ICON_PATHS = {
     "m5 16 4-4 3 3 3.5-4 4 5",
     "M9 10.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z",
   ],
+  user: [
+    "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
+    "M4.5 21a7.5 7.5 0 0 1 15 0",
+  ],
 } as const;
 
 export type AdminNavIconName = keyof typeof ADMIN_NAV_ICON_PATHS;
@@ -46,6 +50,8 @@ export function getAdminNavIconName(label: string): AdminNavIconName {
       return "settings";
     case "Photos":
       return "photo";
+    case "Profile":
+      return "user";
     default:
       return "more";
   }

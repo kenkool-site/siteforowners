@@ -83,6 +83,7 @@ export type AdminTenant = {
   id: string;
   business_name: string;
   owner_name: string;
+  phone: string | null;
   preview_slug: string | null;
   email: string | null;
   admin_email: string | null;
@@ -106,7 +107,7 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
   const byCustom = await supabase
     .from("tenants")
     .select(
-      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode, booking_mode"
+      "id, business_name, owner_name, phone, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode, booking_mode"
     )
     .eq("custom_domain", normalized)
     .maybeSingle();
@@ -125,7 +126,7 @@ export async function resolveTenantByHost(hostname: string): Promise<AdminTenant
   const bySub = await supabase
     .from("tenants")
     .select(
-      "id, business_name, owner_name, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode, booking_mode"
+      "id, business_name, owner_name, phone, preview_slug, email, admin_email, admin_pin_hash, subscription_status, site_published, booking_tool, checkout_mode, booking_mode"
     )
     .eq("subdomain", subdomain)
     .maybeSingle();

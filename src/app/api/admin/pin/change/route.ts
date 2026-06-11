@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
   const currentPin = typeof b.currentPin === "string" ? b.currentPin : "";
   const newPin = typeof b.newPin === "string" ? b.newPin : "";
 
-  if (!/^\d{4,8}$/.test(currentPin) || !/^\d{4,8}$/.test(newPin)) {
+  if (!/^\d{6}$/.test(currentPin) || !/^\d{6}$/.test(newPin)) {
     return NextResponse.json({ error: "Invalid PIN format" }, { status: 400 });
   }
   if (newPin === currentPin) {

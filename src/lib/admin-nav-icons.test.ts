@@ -10,6 +10,7 @@ test("admin nav icon names are semantic instead of letter glyphs", () => {
   assert.equal(getAdminNavIconName("Leads"), "mail");
   assert.equal(getAdminNavIconName("Billing"), "card");
   assert.equal(getAdminNavIconName("Settings"), "settings");
+  assert.equal(getAdminNavIconName("Profile"), "user");
 });
 
 test("admin nav icons expose svg paths for every shell destination", () => {
@@ -22,6 +23,7 @@ test("admin nav icons expose svg paths for every shell destination", () => {
     "card",
     "settings",
     "more",
+    "user",
   ] as const) {
     assert.ok(ADMIN_NAV_ICON_PATHS[iconName].length > 0);
   }
