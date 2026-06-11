@@ -63,7 +63,7 @@ export function RunwayServices({
   const renderService = (service: DisplayService, i: number, isCompact = false) => {
     const m = bookingMode ?? "in_site_only";
     const canBook = !(m === "external_only" && !service.bookingDeepLink);
-    const useCompactLayout = isCompact && Boolean(service.image);
+    const useCompactLayout = Boolean(service.image);
     const triggerBook = () => {
       if (m === "external_only" && service.bookingDeepLink) {
         window.open(service.bookingDeepLink, "_blank", "noopener,noreferrer");
@@ -79,7 +79,9 @@ export function RunwayServices({
         <div
           className={`group relative overflow-hidden border bg-white/[0.035] shadow-2xl transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_0_45px_rgba(216,177,90,0.16)] ${
             useCompactLayout
-              ? "grid min-h-[15rem] grid-cols-[42%_minmax(0,1fr)]"
+              ? `grid min-h-[15rem] grid-cols-[42%_minmax(0,1fr)] ${
+                  isCompact ? "" : "md:block md:min-h-[220px] md:p-6"
+                }`
               : "min-h-[220px] p-6"
           } ${
             canBook ? "hover:border-opacity-70" : ""
@@ -99,7 +101,11 @@ export function RunwayServices({
             <div
               className={
                 useCompactLayout
-                  ? "min-h-[15rem] overflow-hidden border-r bg-neutral-950"
+                  ? `min-h-[15rem] overflow-hidden border-r bg-neutral-950 ${
+                      isCompact
+                        ? ""
+                        : "md:-mx-6 md:-mt-6 md:mb-6 md:h-64 md:min-h-0 md:border-b md:border-r-0"
+                    }`
                   : "-mx-6 -mt-6 mb-6 h-64 overflow-hidden border-b bg-neutral-950"
               }
               style={{ borderColor: `${gold}2E` }}
@@ -111,17 +117,25 @@ export function RunwayServices({
                 height={440}
                 sizes="(max-width: 768px) 100vw, 33vw"
                 className={`h-full w-full object-contain brightness-75 contrast-110 saturate-95 transition duration-500 group-hover:brightness-90 group-hover:saturate-100 ${
-                  useCompactLayout ? "" : "group-hover:scale-105"
+                  isCompact ? "" : "md:group-hover:scale-105"
                 }`}
                 unoptimized
               />
             </div>
           )}
 
-          <div className={useCompactLayout ? "flex min-w-0 flex-col justify-center p-4" : ""}>
+          <div
+            className={
+              useCompactLayout
+                ? `flex min-w-0 flex-col justify-center p-4 ${isCompact ? "" : "md:block md:p-0"}`
+                : ""
+            }
+          >
             <div
               className={`flex items-start justify-between ${
-                useCompactLayout ? "mb-4 gap-3" : "mb-8 gap-5"
+                useCompactLayout
+                  ? `mb-4 gap-3 ${isCompact ? "" : "md:mb-8 md:gap-5"}`
+                  : "mb-8 gap-5"
               }`}
             >
               <span
@@ -133,7 +147,9 @@ export function RunwayServices({
               <div className="text-right">
                 <div
                   className={`whitespace-nowrap font-black ${
-                    useCompactLayout ? "text-base" : "text-lg"
+                    useCompactLayout
+                      ? `text-base ${isCompact ? "" : "md:text-lg"}`
+                      : "text-lg"
                   }`}
                   style={{ color: gold }}
                 >
@@ -147,7 +163,9 @@ export function RunwayServices({
 
             <h3
               className={`max-w-[16rem] font-black uppercase leading-[0.95] tracking-[-0.04em] ${
-                useCompactLayout ? "text-xl sm:text-2xl" : "text-3xl"
+                useCompactLayout
+                  ? `text-xl sm:text-2xl ${isCompact ? "" : "md:text-3xl"}`
+                  : "text-3xl"
               }`}
             >
               {service.name}
@@ -157,7 +175,9 @@ export function RunwayServices({
               <p
                 className={`text-sm text-white/65 ${
                   useCompactLayout
-                    ? "mt-3 line-clamp-3 leading-5"
+                    ? `mt-3 line-clamp-3 leading-5 ${
+                        isCompact ? "" : "md:mt-4 md:line-clamp-4 md:leading-7"
+                      }`
                     : "mt-4 line-clamp-4 leading-7"
                 }`}
               >
@@ -174,7 +194,9 @@ export function RunwayServices({
                   triggerBook();
                 }}
                 className={`inline-flex min-h-11 items-center justify-center self-start text-[0.68rem] font-black uppercase tracking-[0.22em] transition-all hover:-translate-y-0.5 hover:shadow-[0_0_28px_rgba(216,177,90,0.24)] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
-                  useCompactLayout ? "mt-4 px-4" : "mt-7 px-5"
+                  useCompactLayout
+                    ? `mt-4 px-4 ${isCompact ? "" : "md:mt-7 md:px-5"}`
+                    : "mt-7 px-5"
                 }`}
                 style={{
                   backgroundColor: gold,
