@@ -92,7 +92,7 @@ export function RunwayServices({
 
           {service.image && (
             <div
-              className="-mx-6 -mt-6 mb-6 h-44 overflow-hidden border-b bg-neutral-950"
+              className="-mx-6 -mt-6 mb-6 aspect-[4/5] overflow-hidden border-b bg-neutral-950"
               style={{ borderColor: `${gold}2E` }}
             >
               <Image
