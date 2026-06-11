@@ -90,7 +90,7 @@ export function BoldServices({ services, categories, colors, bookingMode, defaul
                 alt={service.name}
                 fill
                 sizes={isFeatured ? "(max-width: 768px) 100vw, 50vw" : "(max-width: 768px) 100vw, 33vw"}
-                className="object-cover transition-transform duration-500 hover:scale-105"
+                className="object-cover object-top transition-transform duration-500 hover:scale-105"
                 unoptimized
               />
             </div>
@@ -191,7 +191,7 @@ export function BoldServices({ services, categories, colors, bookingMode, defaul
                         src={thumbUrl}
                         alt=""
                         fill
-                        className="object-cover transition-transform duration-500 group-hover/cat:scale-105"
+                        className="object-cover object-top transition-transform duration-500 group-hover/cat:scale-105"
                         sizes="96px"
                         unoptimized
                       />

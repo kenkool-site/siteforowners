@@ -179,7 +179,6 @@ export function RunwayGallery({ images, colors }: RunwayGalleryProps) {
           "radial-gradient(circle at 10% 10%, rgba(216,178,85,0.16), transparent 28rem), radial-gradient(circle at 86% 42%, rgba(216,178,85,0.12), transparent 24rem), #050505",
       }}
     >
-      <div className="absolute left-1/2 top-0 h-full w-px bg-white/10" aria-hidden />
       <div className="relative z-10 mx-auto max-w-7xl">
         <AnimateSection>
           <div className="mb-12 flex flex-col justify-between gap-6 md:flex-row md:items-end">
