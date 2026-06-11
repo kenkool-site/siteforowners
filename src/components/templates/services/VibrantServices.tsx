@@ -76,7 +76,7 @@ export function VibrantServices({ services, categories, colors, bookingMode, def
             : {})}
         >
           {service.image && (
-            <div className="relative mb-3 h-40 w-full overflow-hidden rounded-md">
+            <div className="relative mb-3 aspect-[4/5] w-full overflow-hidden rounded-md">
               <Image
                 src={service.image}
                 alt={service.name}
