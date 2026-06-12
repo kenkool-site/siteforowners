@@ -8,6 +8,7 @@ interface ClientActionsProps {
   subdomain: string | null;
   customDomain: string | null;
   sitePublished: boolean;
+  isDemo: boolean;
 }
 
 export function ClientActions({
@@ -16,12 +17,15 @@ export function ClientActions({
   subdomain,
   customDomain,
   sitePublished,
+  isDemo,
 }: ClientActionsProps) {
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(sitePublished);
   const [siteSubdomain, setSiteSubdomain] = useState(subdomain);
   const [editingSubdomain, setEditingSubdomain] = useState(false);
   const [customSubdomain, setCustomSubdomain] = useState(subdomain || "");
+  const [moving, setMoving] = useState(false);
+  const [movedToProspect, setMovedToProspect] = useState(false);
 
   const handlePublish = async () => {
     setPublishing(true);
@@ -65,6 +69,38 @@ export function ClientActions({
     alert(`New PIN: ${pin}\n\nShare with owner. You won't see it again.`);
   };
 
+  const handleMoveToProspect = async () => {
+    if (
+      !confirm(
+        `Move "${businessName}" to Prospects? The live demo stays up — this just lets you onboard them from the Prospects page.`,
+      )
+    )
+      return;
+    setMoving(true);
+    try {
+      const res = await fetch("/api/admin/move-to-prospect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenant_id: tenantId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Failed to move to prospect");
+        return;
+      }
+      setMovedToProspect(true);
+      alert(
+        data.alreadyExists
+          ? "Already in Prospects — onboard them from the Prospects page."
+          : "Moved to Prospects. Onboard them from the Prospects page.",
+      );
+    } catch {
+      alert("Failed to move to prospect");
+    } finally {
+      setMoving(false);
+    }
+  };
+
   const subdomainUrl = siteSubdomain
     ? `https://${siteSubdomain}.siteforowners.com`
     : null;
@@ -85,6 +121,22 @@ export function ClientActions({
       >
         Set/Reset PIN
       </button>
+
+      {isDemo && !movedToProspect && (
+        <button
+          type="button"
+          onClick={handleMoveToProspect}
+          disabled={moving}
+          className="rounded-lg border px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-50 disabled:opacity-50"
+        >
+          {moving ? "Moving..." : "Move to Prospect"}
+        </button>
+      )}
+      {movedToProspect && (
+        <span className="text-xs font-medium text-amber-700">
+          In Prospects →
+        </span>
+      )}
 
       {published && (customDomainUrl || subdomainUrl) ? (
         <>

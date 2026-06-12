@@ -48,6 +48,11 @@ export function buildAdminTabs(tenant: ShellTenant): AdminTab[] {
 
   tabs.push(
     {
+      href: "/admin/photos",
+      label: "Photos",
+      icon: getAdminNavIconName("Photos"),
+    },
+    {
       href: "/admin/updates",
       label: "Updates",
       icon: getAdminNavIconName("Updates"),

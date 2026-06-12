@@ -8,11 +8,11 @@ const tenant = {
   checkout_mode: "mockup",
 };
 
-test("owner navigation includes Profile and removes duplicate destinations", () => {
+test("owner navigation includes Profile and Photos while removing Settings", () => {
   const labels = buildAdminTabs(tenant).map((tab) => tab.label);
 
   assert.ok(labels.includes("Profile"));
-  assert.equal(labels.includes("Photos"), false);
+  assert.ok(labels.includes("Photos"));
   assert.equal(labels.includes("Settings"), false);
 });
 
