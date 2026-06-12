@@ -41,6 +41,12 @@ export default function AdminLayout({
                 Clients
               </Link>
               <Link
+                href="/demos"
+                className="text-sm font-medium text-gray-600 hover:text-gray-900"
+              >
+                Demos
+              </Link>
+              <Link
                 href="/previews"
                 className="text-sm font-medium text-gray-600 hover:text-gray-900"
               >
