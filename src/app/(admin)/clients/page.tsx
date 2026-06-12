@@ -13,6 +13,7 @@ interface Tenant {
   custom_domain: string | null;
   site_published: boolean;
   subscription_status: string;
+  is_demo: boolean;
   created_at: string;
 }
 
@@ -141,6 +142,7 @@ export default async function ClientsPage() {
                       subdomain={tenant.subdomain}
                       customDomain={tenant.custom_domain}
                       sitePublished={tenant.site_published}
+                      isDemo={tenant.is_demo}
                     />
                   </td>
                 </tr>
