@@ -86,7 +86,7 @@ export function PreviewActions({ slug, groupId, businessName, demo, converted }:
   };
 
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center gap-1.5">
       <a
         href={`/preview/${slug}`}
         target="_blank"

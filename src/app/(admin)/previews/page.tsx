@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import Link from "next/link";
 import { PreviewsTable } from "./PreviewsTable";
+import { StatCards } from "../_components/StatCards";
 
 async function getPreviews() {
   const supabase = createAdminClient();
@@ -42,20 +43,13 @@ export default async function PreviewsPage() {
 
   return (
     <div>
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Total Previews</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{previews.length}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Businesses</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{businesses.size}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Total Views</p>
-          <p className="mt-1 text-3xl font-bold text-amber-600">{totalViews}</p>
-        </div>
-      </div>
+      <StatCards
+        stats={[
+          { label: "Total Previews", value: previews.length },
+          { label: "Businesses", value: businesses.size },
+          { label: "Total Views", value: totalViews, tone: "amber" },
+        ]}
+      />
 
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">All Previews</h1>

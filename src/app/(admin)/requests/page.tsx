@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { buildWizardPrefillUrl } from "@/lib/marketing-lead";
 import { RequestActions } from "./RequestActions";
+import { StatCards } from "../_components/StatCards";
 
 interface MarketingLead {
   id: string;
@@ -81,21 +82,13 @@ export default async function RequestsPage() {
 
   return (
     <div>
-      {/* Stats */}
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Total Requests</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">This Week</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{stats.thisWeek}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">New</p>
-          <p className="mt-1 text-3xl font-bold text-amber-600">{stats.new}</p>
-        </div>
-      </div>
+      <StatCards
+        stats={[
+          { label: "Total Requests", value: stats.total },
+          { label: "This Week", value: stats.thisWeek },
+          { label: "New", value: stats.new, tone: "amber" },
+        ]}
+      />
 
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Ad Requests</h1>
@@ -110,23 +103,94 @@ export default async function RequestsPage() {
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-xl border bg-white">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                <th className="px-5 py-3">Business</th>
-                <th className="px-5 py-3">Contact</th>
-                <th className="hidden px-5 py-3 md:table-cell">Link</th>
-                <th className="hidden px-5 py-3 lg:table-cell">Notes</th>
-                <th className="px-5 py-3">When</th>
-                <th className="px-5 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y">
-              {leads.map((lead) => (
-                <tr key={lead.id} className="hover:bg-gray-50">
-                  <td className="px-5 py-4">
-                    <p className="text-sm font-semibold text-gray-900">
+        <>
+          {/* Desktop: table */}
+          <div className="hidden overflow-hidden rounded-xl border bg-white md:block">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  <th className="px-5 py-3">Business</th>
+                  <th className="px-5 py-3">Contact</th>
+                  <th className="px-5 py-3">Link</th>
+                  <th className="hidden px-5 py-3 lg:table-cell">Notes</th>
+                  <th className="px-5 py-3">When</th>
+                  <th className="px-5 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {leads.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-gray-50">
+                    <td className="px-5 py-4">
+                      <p className="text-sm font-semibold text-gray-900">
+                        {lead.business_name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {lead.business_type}
+                        <span className="ml-2 rounded-full bg-gray-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-gray-500">
+                          {lead.source}
+                        </span>
+                      </p>
+                      {lead.business_address && (
+                        <p className="mt-0.5 text-xs text-gray-400">
+                          {lead.business_address}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <a
+                        href={`tel:${lead.phone}`}
+                        className="block text-sm font-medium text-blue-600 hover:underline"
+                      >
+                        {lead.phone}
+                      </a>
+                      <a
+                        href={`mailto:${lead.email}`}
+                        className="block text-xs text-gray-400 hover:underline"
+                      >
+                        {lead.email}
+                      </a>
+                    </td>
+                    <td className="px-5 py-4">
+                      {lead.business_link ? (
+                        <a
+                          href={lead.business_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs font-medium text-amber-600 hover:underline"
+                        >
+                          Open link
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-300">&mdash;</span>
+                      )}
+                    </td>
+                    <td className="hidden max-w-xs truncate px-5 py-4 text-sm text-gray-500 lg:table-cell">
+                      {lead.notes || "—"}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 text-xs text-gray-400">
+                      {timeAgo(lead.created_at)}
+                    </td>
+                    <td className="px-5 py-4">
+                      <RequestActions
+                        leadId={lead.id}
+                        previewHref={buildWizardPrefillUrl(lead)}
+                        status={lead.status}
+                        previewGroupId={lead.preview_group_id}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile: cards */}
+          <div className="space-y-3 md:hidden">
+            {leads.map((lead) => (
+              <div key={lead.id} className="rounded-xl border bg-white p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-gray-900">
                       {lead.business_name}
                     </p>
                     <p className="text-xs text-gray-400">
@@ -140,54 +204,50 @@ export default async function RequestsPage() {
                         {lead.business_address}
                       </p>
                     )}
-                  </td>
-                  <td className="px-5 py-4">
-                    <a
-                      href={`tel:${lead.phone}`}
-                      className="block text-sm font-medium text-blue-600 hover:underline"
-                    >
-                      {lead.phone}
-                    </a>
-                    <a
-                      href={`mailto:${lead.email}`}
-                      className="block text-xs text-gray-400 hover:underline"
-                    >
-                      {lead.email}
-                    </a>
-                  </td>
-                  <td className="hidden px-5 py-4 md:table-cell">
-                    {lead.business_link ? (
-                      <a
-                        href={lead.business_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-medium text-amber-600 hover:underline"
-                      >
-                        Open link
-                      </a>
-                    ) : (
-                      <span className="text-xs text-gray-300">&mdash;</span>
-                    )}
-                  </td>
-                  <td className="hidden max-w-xs truncate px-5 py-4 text-sm text-gray-500 lg:table-cell">
-                    {lead.notes || "—"}
-                  </td>
-                  <td className="whitespace-nowrap px-5 py-4 text-xs text-gray-400">
+                  </div>
+                  <span className="shrink-0 text-xs text-gray-400">
                     {timeAgo(lead.created_at)}
-                  </td>
-                  <td className="px-5 py-4">
-                    <RequestActions
-                      leadId={lead.id}
-                      previewHref={buildWizardPrefillUrl(lead)}
-                      status={lead.status}
-                      previewGroupId={lead.preview_group_id}
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                  </span>
+                </div>
+                <div className="mt-2 space-y-0.5">
+                  <a
+                    href={`tel:${lead.phone}`}
+                    className="block text-sm font-medium text-blue-600 hover:underline"
+                  >
+                    {lead.phone}
+                  </a>
+                  <a
+                    href={`mailto:${lead.email}`}
+                    className="block truncate text-xs text-gray-400 hover:underline"
+                  >
+                    {lead.email}
+                  </a>
+                  {lead.business_link && (
+                    <a
+                      href={lead.business_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block text-xs font-medium text-amber-600 hover:underline"
+                    >
+                      Open link
+                    </a>
+                  )}
+                  {lead.notes && (
+                    <p className="text-xs text-gray-500">{lead.notes}</p>
+                  )}
+                </div>
+                <div className="mt-3 border-t pt-3">
+                  <RequestActions
+                    leadId={lead.id}
+                    previewHref={buildWizardPrefillUrl(lead)}
+                    status={lead.status}
+                    previewGroupId={lead.preview_group_id}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
