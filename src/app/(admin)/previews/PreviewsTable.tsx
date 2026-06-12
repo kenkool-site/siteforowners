@@ -82,7 +82,8 @@ export function PreviewsTable({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border bg-white">
+      {/* Desktop: table */}
+      <div className="hidden overflow-hidden rounded-xl border bg-white md:block">
         <table className="w-full">
           <thead>
             <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
@@ -96,8 +97,8 @@ export function PreviewsTable({
               </th>
               <th className="px-3 py-3">Business</th>
               <th className="px-3 py-3">Template</th>
-              <th className="hidden px-3 py-3 md:table-cell">Views</th>
-              <th className="hidden px-3 py-3 md:table-cell">Status</th>
+              <th className="px-3 py-3">Views</th>
+              <th className="px-3 py-3">Status</th>
               <th className="px-3 py-3">Created</th>
               <th className="px-3 py-3"></th>
             </tr>
@@ -122,10 +123,10 @@ export function PreviewsTable({
                     {TEMPLATE_LABELS[p.template_variant || ""] || p.template_variant || "—"}
                   </span>
                 </td>
-                <td className="hidden px-3 py-3 text-sm text-gray-500 md:table-cell">
+                <td className="px-3 py-3 text-sm text-gray-500">
                   {p.view_count || 0}
                 </td>
-                <td className="hidden px-3 py-3 md:table-cell">
+                <td className="px-3 py-3">
                   {p.converted ? (
                     <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">Converted</span>
                   ) : p.is_selected ? (
@@ -150,6 +151,56 @@ export function PreviewsTable({
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile: cards */}
+      <div className="space-y-3 md:hidden">
+        {previews.map((p) => (
+          <div
+            key={p.slug}
+            className={`rounded-xl border bg-white p-4 ${selected.has(p.slug) ? "bg-amber-50" : ""}`}
+          >
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                checked={selected.has(p.slug)}
+                onChange={() => toggleSelect(p.slug)}
+                className="mt-1 h-4 w-4 shrink-0 rounded border-gray-300"
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-gray-900">{p.business_name}</p>
+                    <p className="truncate text-xs text-gray-400">
+                      {p.business_type}{p.variant_label ? ` · Variant ${p.variant_label}` : ""}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-xs text-gray-400">{timeAgo(p.created_at)}</span>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                    {TEMPLATE_LABELS[p.template_variant || ""] || p.template_variant || "—"}
+                  </span>
+                  {p.converted ? (
+                    <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">Converted</span>
+                  ) : p.is_selected ? (
+                    <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-700">Selected</span>
+                  ) : null}
+                  <span className="text-xs text-gray-400">{p.view_count || 0} views</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 border-t pt-3">
+              <PreviewActions
+                slug={p.slug}
+                groupId={p.group_id}
+                businessName={p.business_name}
+                demo={demoBySlug[p.slug] ?? null}
+                converted={p.converted}
+              />
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTenants, partitionTenants, clientStats } from "../_lib/tenants";
 import { TenantTable } from "../_components/TenantTable";
+import { StatCards } from "../_components/StatCards";
 
 export const revalidate = 0;
 
@@ -10,21 +11,13 @@ export default async function ClientsPage() {
 
   return (
     <div>
-      {/* Stats */}
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Active Clients</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{activeClients}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Sites Live</p>
-          <p className="mt-1 text-3xl font-bold text-green-600">{sitesLive}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Monthly Revenue</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">${mrr}</p>
-        </div>
-      </div>
+      <StatCards
+        stats={[
+          { label: "Active Clients", value: activeClients },
+          { label: "Sites Live", value: sitesLive, tone: "green" },
+          { label: "Monthly Revenue", value: `$${mrr}` },
+        ]}
+      />
 
       {/* Title */}
       <div className="mb-4 flex items-center justify-between">

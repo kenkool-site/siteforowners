@@ -1,6 +1,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { type MarketingLeadRow } from "@/lib/marketing-lead";
 import { RequestsTable } from "./RequestsTable";
+import { StatCards } from "../_components/StatCards";
 
 async function getRequests(): Promise<MarketingLeadRow[]> {
   const supabase = createAdminClient();
@@ -51,21 +52,13 @@ export default async function RequestsPage() {
 
   return (
     <div>
-      {/* Stats */}
-      <div className="mb-8 grid grid-cols-3 gap-4">
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">Total Requests</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{stats.total}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">This Week</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{stats.thisWeek}</p>
-        </div>
-        <div className="rounded-xl border bg-white p-5">
-          <p className="text-sm text-gray-500">New</p>
-          <p className="mt-1 text-3xl font-bold text-amber-600">{stats.new}</p>
-        </div>
-      </div>
+      <StatCards
+        stats={[
+          { label: "Total Requests", value: stats.total },
+          { label: "This Week", value: stats.thisWeek },
+          { label: "New", value: stats.new, tone: "amber" },
+        ]}
+      />
 
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Ad Requests</h1>
