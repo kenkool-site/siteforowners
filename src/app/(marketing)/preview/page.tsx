@@ -288,8 +288,9 @@ function PreviewWizard() {
     const ph = searchParams.get("phone");
     const addr = searchParams.get("address");
     const link = searchParams.get("link");
+    const insta = searchParams.get("instagram");
     const desc = searchParams.get("desc");
-    if (!name && !type && !ph && !addr && !link && !desc) return;
+    if (!name && !type && !ph && !addr && !link && !desc && !insta) return;
 
     if (name) setBusinessName(name);
     if (type && BUSINESS_TYPES.some((bt) => bt.value === type)) {
@@ -299,6 +300,7 @@ function PreviewWizard() {
     if (addr) setAddress(addr);
     if (desc) setDescription(desc);
     if (link) setImportUrl(link);
+    if (insta) setInstagramUrl(insta);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
