@@ -87,5 +87,17 @@ export function buildLocalBusinessJsonLd(
     if (sameAs.length) jsonLd.sameAs = sameAs;
   }
 
+  if (input.bookingHours) {
+    const specs: Record<string, string>[] = [];
+    for (const [day, hours] of Object.entries(input.bookingHours)) {
+      if (!hours) continue;
+      const opens = hours.open?.trim();
+      const closes = hours.close?.trim();
+      if (!opens || !closes) continue;
+      specs.push({ "@type": "OpeningHoursSpecification", dayOfWeek: day, opens, closes });
+    }
+    if (specs.length) jsonLd.openingHoursSpecification = specs;
+  }
+
   return jsonLd;
 }

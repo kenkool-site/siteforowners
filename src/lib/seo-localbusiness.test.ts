@@ -128,3 +128,28 @@ test("omits sameAs when there are no social links", () => {
   const out = buildLocalBusinessJsonLd(siteData({}), "https://x.com/") as Record<string, unknown>;
   assert.ok(!("sameAs" in out));
 });
+
+test("builds openingHoursSpecification from bookingHours, skipping closed days", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({}, {
+      bookingHours: {
+        Monday: { open: "10:00", close: "19:00" },
+        Tuesday: null,
+        Wednesday: { open: "09:00", close: "17:00" },
+      },
+    }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.deepEqual(out.openingHoursSpecification, [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Monday", opens: "10:00", closes: "19:00" },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Wednesday", opens: "09:00", closes: "17:00" },
+  ]);
+});
+
+test("omits openingHoursSpecification when no hours or all closed", () => {
+  const none = buildLocalBusinessJsonLd(siteData({}, { bookingHours: null }), "https://x.com/") as Record<string, unknown>;
+  assert.ok(!("openingHoursSpecification" in none));
+
+  const allClosed = buildLocalBusinessJsonLd(siteData({}, { bookingHours: { Monday: null, Sunday: null } }), "https://x.com/") as Record<string, unknown>;
+  assert.ok(!("openingHoursSpecification" in allClosed));
+});
