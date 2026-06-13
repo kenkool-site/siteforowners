@@ -28,3 +28,26 @@ test("emits @context, name, and url for a minimal valid business", () => {
   assert.equal(out.name, "Acme Salon");
   assert.equal(out.url, "https://acme.com/");
 });
+
+test("maps each business_type to the correct schema.org @type", () => {
+  const cases: [PreviewData["business_type"], string][] = [
+    ["salon", "HairSalon"],
+    ["barbershop", "HairSalon"],
+    ["braids", "HairSalon"],
+    ["locs", "HairSalon"],
+    ["nails", "NailSalon"],
+    ["restaurant", "Restaurant"],
+  ];
+  for (const [type, expected] of cases) {
+    const out = buildLocalBusinessJsonLd(siteData({ business_type: type }), "https://x.com/") as Record<string, unknown>;
+    assert.equal(out["@type"], expected, `business_type ${type}`);
+  }
+});
+
+test("falls back to LocalBusiness for an unknown type", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({ business_type: "spaceship" as unknown as PreviewData["business_type"] }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.equal(out["@type"], "LocalBusiness");
+});
