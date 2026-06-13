@@ -70,7 +70,7 @@ export function ServiceReorderRow({
 
   return (
     <div
-      className={cn("flex items-start gap-2 sm:gap-3", isDragging && "opacity-55")}
+      className={cn("flex w-full min-w-0 items-start gap-2 sm:gap-3", isDragging && "opacity-55")}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >

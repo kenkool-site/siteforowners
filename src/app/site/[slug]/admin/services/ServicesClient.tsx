@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
+import { createBlankService } from "@/lib/admin-services";
 import { ServiceRow } from "../_components/ServiceRow";
 import { ServiceReorderRow } from "../_components/ServiceReorderRow";
 import { CategoriesPanel } from "./CategoriesPanel";
@@ -60,6 +61,7 @@ export function ServicesClient({
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [failingIndexes, setFailingIndexes] = useState<Set<number>>(new Set());
+  const [newServiceId, setNewServiceId] = useState<string | null>(null);
   const [showTruncatedNotice, setShowTruncatedNotice] = useState(truncatedIndexes.size > 0);
   // Bumped on Save click to force every ServiceRow back to its compact
   // collapsed view. Failing rows re-expand themselves via their `failing`
@@ -72,7 +74,16 @@ export function ServicesClient({
     bookingPolicies: initialBookingPolicies,
     deposit: initialDeposit,
   });
-  const dirty = JSON.stringify({ services, categories, bookingPolicies, deposit }) !== initialJson;
+  const [savedJson, setSavedJson] = useState(initialJson);
+  const currentJson = JSON.stringify({ services, categories, bookingPolicies, deposit });
+  const dirty = currentJson !== savedJson;
+  const showSaveBar = dirty || saving || error !== null || savedAt !== null;
+
+  useEffect(() => {
+    if (savedAt === null) return;
+    const timeout = window.setTimeout(() => setSavedAt(null), 1800);
+    return () => window.clearTimeout(timeout);
+  }, [savedAt]);
 
   // Per-category service counts for the categories panel.
   const counts = useMemo(() => {
@@ -131,11 +142,11 @@ export function ServicesClient({
   }
 
   function add() {
-    setServices((prev) => [
-      ...prev,
-      { name: "", price: "", duration_minutes: 60, client_id: crypto.randomUUID() },
-    ]);
+    const clientId = crypto.randomUUID();
+    setServices((prev) => [...prev, createBlankService(clientId)]);
+    setNewServiceId(clientId);
     setSavedAt(null);
+    setError(null);
   }
 
   // Categories panel callback — handles rename cascade and remove cascade
@@ -209,6 +220,7 @@ export function ServicesClient({
         }
         return;
       }
+      setSavedJson(currentJson);
       setSavedAt(Date.now());
       setFailingIndexes(new Set());
     } catch {
@@ -219,7 +231,7 @@ export function ServicesClient({
   }
 
   return (
-    <div className="space-y-4 pb-24 md:space-y-5">
+    <div className="space-y-4 overflow-x-clip pb-40 md:space-y-5 md:pb-24">
       <section className="overflow-hidden rounded-3xl bg-warm-deep text-pop-cream shadow-sm md:rounded-[2rem]">
         <div className="grid gap-5 p-5 sm:p-6 md:grid-cols-[minmax(0,1fr)_16rem] md:p-8">
           <div>
@@ -311,6 +323,10 @@ export function ServicesClient({
               categories={categories}
               failing={failingIndexes.has(i)}
               collapseSignal={collapseSignal}
+              autoFocusName={s.client_id === newServiceId}
+              onAutoFocusComplete={() =>
+                setNewServiceId((current) => (current === s.client_id ? null : current))
+              }
               onChange={(next) => update(i, next)}
               onDelete={() => remove(i)}
             />
@@ -318,26 +334,33 @@ export function ServicesClient({
         ))
       )}
 
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 px-3 md:bottom-4 md:px-8">
-        <div className="pointer-events-auto mx-auto flex max-w-3xl flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-          {error && (
-            <span className="max-w-full whitespace-pre-line text-right text-[11px] font-bold text-red-600 sm:max-w-md">
-              {error}
-            </span>
-          )}
-          {savedAt && !dirty && (
-            <span className="text-center text-xs font-black text-green-700 sm:text-right">✓ Saved</span>
-          )}
-          <button
-            type="button"
-            disabled={!dirty || saving}
-            onClick={save}
-            className="w-full rounded-full bg-pop-pink px-5 py-2.5 text-sm font-black text-pop-cream shadow-lg disabled:opacity-50 sm:w-auto"
-          >
-            {saving ? "Saving..." : "Save changes"}
-          </button>
+      {showSaveBar && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-30 px-3 md:bottom-4 md:px-8">
+          <div className="pointer-events-auto mx-auto flex max-w-3xl min-w-0 items-center gap-3 rounded-[1.25rem] bg-warm-deep p-2.5 pl-4 text-pop-cream shadow-2xl">
+            <div className="min-w-0 flex-1">
+              {error ? (
+                <span className="block max-h-16 overflow-y-auto whitespace-pre-line break-words text-[11px] font-bold leading-4 text-red-200">
+                  {error}
+                </span>
+              ) : savedAt && !dirty ? (
+                <span className="text-xs font-black text-green-200">Saved ✓</span>
+              ) : (
+                <span className="text-xs font-black">
+                  {saving ? "Saving changes…" : "Unsaved changes"}
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              disabled={!dirty || saving}
+              onClick={save}
+              className="shrink-0 rounded-full bg-pop-pink px-4 py-2.5 text-sm font-black text-pop-cream shadow-lg disabled:opacity-50"
+            >
+              {saving ? "Saving…" : "Save changes"}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

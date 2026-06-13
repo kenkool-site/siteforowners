@@ -15,6 +15,8 @@ interface ServiceRowProps {
    * collapse to the compact view. Failing rows ignore this — they
    * auto-re-expand via the `failing` effect below. */
   collapseSignal?: number;
+  autoFocusName?: boolean;
+  onAutoFocusComplete?: () => void;
   onChange: (next: ServiceItem) => void;
   onDelete: () => void;
 }
@@ -91,13 +93,13 @@ function DurationMinutesInput({
   }
 
   return (
-    <div className="flex items-center gap-1 rounded-lg border border-warm-cream1 px-1.5 py-1 text-sm">
+    <div className="flex min-w-0 max-w-full shrink-0 items-center gap-1 rounded-lg border border-warm-cream1 px-1.5 py-1 text-base sm:text-sm">
       {isAddOn && <span className="text-xs text-warm-textMuted">+</span>}
       <select
         value={hours}
         onChange={(e) => commit(parseInt(e.target.value, 10), minutes)}
         aria-label="Hours"
-        className="bg-transparent tabular-nums focus:outline-none"
+        className="min-w-0 bg-transparent text-base tabular-nums focus:outline-none sm:text-sm"
       >
         {Array.from({ length: maxHours + 1 }, (_, i) => (
           <option key={i} value={i}>{i}</option>
@@ -108,7 +110,7 @@ function DurationMinutesInput({
         value={minutes}
         onChange={(e) => commit(hours, parseInt(e.target.value, 10))}
         aria-label="Minutes"
-        className="bg-transparent tabular-nums focus:outline-none"
+        className="min-w-0 bg-transparent text-base tabular-nums focus:outline-none sm:text-sm"
       >
         {MINUTE_OPTIONS.map((m) => (
           <option key={m} value={m}>{String(m).padStart(2, "0")}</option>
@@ -125,6 +127,8 @@ export function ServiceRow({
   founderTenantId,
   failing = false,
   collapseSignal = 0,
+  autoFocusName = false,
+  onAutoFocusComplete,
   onChange,
   onDelete,
 }: ServiceRowProps) {
@@ -133,6 +137,32 @@ export function ServiceRow({
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const autoFocusCompleteRef = useRef(onAutoFocusComplete);
+  const [showNewServiceCue, setShowNewServiceCue] = useState(false);
+
+  useEffect(() => {
+    autoFocusCompleteRef.current = onAutoFocusComplete;
+  }, [onAutoFocusComplete]);
+
+  useEffect(() => {
+    if (!autoFocusName) return;
+    setExpanded(true);
+    setShowNewServiceCue(true);
+    const frame = window.requestAnimationFrame(() => {
+      containerRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+    const focusTimeout = window.setTimeout(() => {
+      nameInputRef.current?.focus({ preventScroll: true });
+      autoFocusCompleteRef.current?.();
+    }, 350);
+    const cueTimeout = window.setTimeout(() => setShowNewServiceCue(false), 2800);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(focusTimeout);
+      window.clearTimeout(cueTimeout);
+    };
+  }, [autoFocusName]);
 
   useEffect(() => {
     if (failing) {
@@ -249,7 +279,7 @@ export function ServiceRow({
   }
 
   return (
-    <div ref={containerRef} className="space-y-1.5">
+    <div ref={containerRef} className="w-full min-w-0 space-y-1.5">
       {/* Featured toggle — sits OUTSIDE the editing card. Featuring is a
           marketing/positioning decision (where the service appears on the
           site), not a per-service content edit, so it lives above the card. */}
@@ -274,7 +304,7 @@ export function ServiceRow({
         failing ? "border-red-500 ring-2 ring-red-200" : "border-pop-pink/40 ring-1 ring-pink-100"
       }`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 flex-col items-stretch gap-3 min-[360px]:flex-row min-[360px]:items-start">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
@@ -298,11 +328,12 @@ export function ServiceRow({
 
         <div className="flex-1 space-y-2 min-w-0">
           <input
+            ref={nameInputRef}
             type="text"
             value={service.name}
             onChange={(e) => set("name", e.target.value)}
             placeholder="Service name"
-            className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep"
+            className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-base font-bold text-warm-deep sm:text-sm"
             maxLength={80}
           />
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -311,7 +342,7 @@ export function ServiceRow({
               value={service.price}
               onChange={(e) => set("price", e.target.value)}
               placeholder="$0"
-              className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep sm:flex-1"
+              className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-base font-bold text-warm-deep sm:flex-1 sm:text-sm"
               maxLength={30}
             />
             <DurationMinutesInput
@@ -333,7 +364,7 @@ export function ServiceRow({
               <select
                 value={service.category ?? ""}
                 onChange={(e) => set("category", e.target.value || undefined)}
-                className="w-full bg-white px-2 py-1.5 text-sm font-bold text-warm-deep"
+                className="w-full bg-white px-2 py-1.5 text-base font-bold text-warm-deep sm:text-sm"
               >
                 <option value="">(no category)</option>
                 {categories.map((c) => (
@@ -352,11 +383,17 @@ export function ServiceRow({
         </div>
       </div>
 
+      {showNewServiceCue && (
+        <div className="rounded-xl bg-pink-50 px-3 py-2 text-xs font-black text-pink-700">
+          New service added — complete the details, then save.
+        </div>
+      )}
+
       <textarea
         value={service.description ?? ""}
         onChange={(e) => set("description", e.target.value)}
         placeholder="Description (optional) — owners can write up to ~5 paragraphs"
-        className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-sm font-bold text-warm-deep"
+        className="w-full rounded-xl border border-warm-cream1 px-2 py-1.5 text-base font-bold text-warm-deep sm:text-sm"
         rows={4}
         maxLength={1000}
       />
@@ -380,35 +417,40 @@ export function ServiceRow({
           </button>
         </div>
         {addOns.map((ao, i) => (
-          <div key={i} className="flex items-center gap-2">
+          <div
+            key={i}
+            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-2 sm:flex sm:items-center"
+          >
             <input
               type="text"
               value={ao.name}
               onChange={(e) => setAddOn(i, { ...ao, name: e.target.value })}
               placeholder="Add-on name"
-              className="flex-1 rounded-lg border border-warm-cream1 px-2 py-1 text-xs font-bold text-warm-deep"
+              className="min-w-0 rounded-lg border border-warm-cream1 px-2 py-1 text-base font-bold text-warm-deep sm:flex-1 sm:text-xs"
               maxLength={80}
             />
-            <DurationMinutesInput
-              value={ao.duration_delta_minutes}
-              min={0}
-              max={240}
-              variant="addon"
-              onChange={(next) => setAddOn(i, { ...ao, duration_delta_minutes: next })}
-            />
-            <PriceDeltaInput
-              value={ao.price_delta}
-              onChange={(next) => setAddOn(i, { ...ao, price_delta: next })}
-              className="w-20 rounded-lg border border-warm-cream1 px-2 py-1 text-xs font-bold text-warm-deep"
-            />
-            <button
-              type="button"
-              onClick={() => removeAddOn(i)}
-              aria-label="Remove add-on"
-              className="px-1 text-warm-textMuted hover:text-red-600"
-            >
-              ×
-            </button>
+            <div className="col-span-2 flex min-w-0 items-center justify-end gap-2 sm:contents">
+              <DurationMinutesInput
+                value={ao.duration_delta_minutes}
+                min={0}
+                max={240}
+                variant="addon"
+                onChange={(next) => setAddOn(i, { ...ao, duration_delta_minutes: next })}
+              />
+              <PriceDeltaInput
+                value={ao.price_delta}
+                onChange={(next) => setAddOn(i, { ...ao, price_delta: next })}
+                className="w-20 min-w-0 rounded-lg border border-warm-cream1 px-2 py-1 text-base font-bold text-warm-deep sm:text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => removeAddOn(i)}
+                aria-label="Remove add-on"
+                className="min-h-11 min-w-11 px-1 text-warm-textMuted hover:text-red-600 sm:min-h-0 sm:min-w-0"
+              >
+                ×
+              </button>
+            </div>
           </div>
         ))}
       </div>
