@@ -115,10 +115,25 @@ export async function generateMetadata({
 
   const { data: tenantMeta } = await supabase
     .from("tenants")
-    .select("is_demo")
+    .select("is_demo, custom_domain, subdomain")
     .eq("preview_slug", params.slug)
     .maybeSingle();
   const noindex = tenantMeta?.is_demo === true;
+
+  // Canonical must point at the tenant's own host. Without this, the homepage
+  // inherits the root layout's `alternates.canonical: "/"`, which resolves
+  // against metadataBase to https://www.siteforowners.com — telling Google the
+  // marketing site is canonical for every client homepage. Landing pages
+  // already set their own canonical via the same tenantUrl() helper.
+  const canonical = tenantUrl(
+    APP_URL,
+    {
+      custom_domain: (tenantMeta?.custom_domain as string | null) ?? null,
+      subdomain: (tenantMeta?.subdomain as string | null) ?? null,
+      preview_slug: params.slug,
+    },
+    "/",
+  );
 
   const name = data?.business_name || "Business";
   const copy = data?.generated_copy as Record<string, unknown> | null;
@@ -136,12 +151,14 @@ export async function generateMetadata({
   return {
     title: seoTitle,
     description: seoDesc,
+    alternates: { canonical },
     ...(noindex ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
       title: seoTitle,
       description: seoDesc,
       type: "website",
       siteName: name,
+      url: canonical,
       ...imageBlock,
     },
     twitter: {
