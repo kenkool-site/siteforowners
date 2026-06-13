@@ -63,9 +63,14 @@ buildLocalBusinessJsonLd(siteData: SiteData, canonicalUrl: string): object | nul
 
 ### Render point — `src/app/site/[slug]/page.tsx`
 
-- Call the helper with the existing `SiteData` and the canonical URL built via
-  the existing `tenantUrl(APP_URL, ctx.hostFields, "/")` helper
-  (`src/lib/tenant-url.ts`), so the `url` reflects the custom domain / subdomain.
+- `getSiteData()` currently selects only `id, checkout_mode, booking_mode,
+  is_demo` from `tenants`. Extend that select to also fetch `custom_domain,
+  subdomain`, and compute the canonical site root once via
+  `tenantUrl(APP_URL, { custom_domain, subdomain, preview_slug: slug }, "/")`
+  (`src/lib/tenant-url.ts`) — add it to `SiteData` as `canonicalUrl`. This
+  mirrors the `loadContext()` pattern already used by the landing page.
+- Call the helper with the `SiteData` and `canonicalUrl`, so the JSON-LD `url`
+  reflects the custom domain / subdomain.
 - When the helper returns an object, render:
   ```tsx
   <script
@@ -79,12 +84,14 @@ buildLocalBusinessJsonLd(siteData: SiteData, canonicalUrl: string): object | nul
 
 Source: `preview.business_type` (enum).
 
-| business_type                          | @type        |
-| -------------------------------------- | ------------ |
-| `salon`, `braids`, `locs`, `locs_and_braids` | `HairSalon`  |
-| `barbershop`                           | `HairSalon`  |
-| `nails`                                | `NailSalon`  |
-| `restaurant`                           | `Restaurant` |
+Source enum (`src/lib/ai/types.ts`): `salon | barbershop | restaurant | nails | braids | locs`.
+
+| business_type              | @type        |
+| -------------------------- | ------------ |
+| `salon`, `braids`, `locs`  | `HairSalon`  |
+| `barbershop`               | `HairSalon`  |
+| `nails`                    | `NailSalon`  |
+| `restaurant`               | `Restaurant` |
 
 All are valid `LocalBusiness` subtypes (beauty types under
 `HealthAndBeautyBusiness`; restaurant under `FoodEstablishment`). Unknown/unset
