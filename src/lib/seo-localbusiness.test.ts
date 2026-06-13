@@ -51,3 +51,45 @@ test("falls back to LocalBusiness for an unknown type", () => {
   ) as Record<string, unknown>;
   assert.equal(out["@type"], "LocalBusiness");
 });
+
+test("description prefers google_business_description, then seo_description, then hero_subheadline", () => {
+  const withGbp = buildLocalBusinessJsonLd(
+    siteData({ generated_copy: { en: { google_business_description: "GBP desc", seo_description: "SEO desc", hero_subheadline: "Hero" } } as unknown as PreviewData["generated_copy"] }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.equal(withGbp.description, "GBP desc");
+
+  const withSeo = buildLocalBusinessJsonLd(
+    siteData({ generated_copy: { en: { google_business_description: "  ", seo_description: "SEO desc", hero_subheadline: "Hero" } } as unknown as PreviewData["generated_copy"] }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.equal(withSeo.description, "SEO desc");
+
+  const withHero = buildLocalBusinessJsonLd(
+    siteData({ generated_copy: { en: { google_business_description: "", seo_description: "", hero_subheadline: "Hero" } } as unknown as PreviewData["generated_copy"] }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.equal(withHero.description, "Hero");
+});
+
+test("omits telephone, image, logo, and description when absent or empty", () => {
+  const out = buildLocalBusinessJsonLd(siteData({ phone: "  ", images: [] }), "https://x.com/") as Record<string, unknown>;
+  assert.ok(!("telephone" in out));
+  assert.ok(!("image" in out));
+  assert.ok(!("logo" in out));
+  assert.ok(!("description" in out));
+});
+
+test("includes telephone, image, and logo when present", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({
+      phone: "+1 718 555 0100",
+      images: ["https://cdn/x.jpg", "https://cdn/y.jpg"],
+      generated_copy: { en: {}, logo: "https://cdn/logo.png" } as unknown as PreviewData["generated_copy"],
+    }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.equal(out.telephone, "+1 718 555 0100");
+  assert.equal(out.image, "https://cdn/x.jpg");
+  assert.equal(out.logo, "https://cdn/logo.png");
+});

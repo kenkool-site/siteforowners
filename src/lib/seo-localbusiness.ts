@@ -26,6 +26,15 @@ function schemaType(businessType: BusinessType | undefined): string {
   }
 }
 
+/** First non-empty trimmed string, or undefined. */
+function firstNonEmpty(...values: (string | undefined | null)[]): string | undefined {
+  for (const v of values) {
+    const t = v?.trim();
+    if (t) return t;
+  }
+  return undefined;
+}
+
 export function buildLocalBusinessJsonLd(
   input: LocalBusinessInput,
   canonicalUrl: string,
@@ -42,6 +51,24 @@ export function buildLocalBusinessJsonLd(
     name,
     url: canonicalUrl,
   };
+
+  const en = preview.generated_copy?.en as Record<string, string> | undefined;
+  const description = firstNonEmpty(
+    en?.google_business_description,
+    en?.seo_description,
+    en?.hero_subheadline,
+  );
+  if (description) jsonLd.description = description;
+
+  const telephone = preview.phone?.trim();
+  if (telephone) jsonLd.telephone = telephone;
+
+  const image = preview.images?.[0]?.trim();
+  if (image) jsonLd.image = image;
+
+  // logo lives in stored generated_copy but is not declared on GeneratedCopy.
+  const logo = (preview.generated_copy as { logo?: string } | undefined)?.logo?.trim();
+  if (logo) jsonLd.logo = logo;
 
   return jsonLd;
 }
