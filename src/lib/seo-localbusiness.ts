@@ -47,8 +47,8 @@ export function serializeJsonLd(jsonLd: unknown): string {
     .replace(/</g, "\\u003c")
     .replace(/>/g, "\\u003e")
     .replace(/&/g, "\\u0026")
-    .replace(new RegExp(" ", "g"), "\\u2028")
-    .replace(new RegExp(" ", "g"), "\\u2029");
+    .replace(new RegExp("\u2028", "g"), "\\u2028")
+    .replace(new RegExp("\u2029", "g"), "\\u2029");
 }
 
 export function buildLocalBusinessJsonLd(
