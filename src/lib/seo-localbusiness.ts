@@ -51,6 +51,39 @@ export function serializeJsonLd(jsonLd: unknown): string {
     .replace(new RegExp("\u2029", "g"), "\\u2029");
 }
 
+/**
+ * Normalize a stored time string to schema.org's required 24-hour "HH:MM".
+ * booking_settings.working_hours are stored 12-hour ("10:00 AM", "7:00 PM"),
+ * but OpeningHoursSpecification.opens/closes must be 24-hour or Google ignores
+ * them. Accepts 12-hour (with AM/PM) and already-24-hour input; returns null
+ * for anything unparseable (e.g. "Closed") so the caller skips that day.
+ */
+export function to24Hour(time: string | undefined | null): string | null {
+  const t = time?.trim();
+  if (!t) return null;
+
+  const twelve = t.match(/^(\d{1,2}):(\d{2})\s*([AaPp][Mm])$/);
+  if (twelve) {
+    let hour = Number(twelve[1]);
+    const minute = Number(twelve[2]);
+    const isPm = twelve[3].toLowerCase() === "pm";
+    if (hour < 1 || hour > 12 || minute > 59) return null;
+    if (hour === 12) hour = 0; // 12 AM -> 0, 12 PM -> 12 (after +12 below)
+    if (isPm) hour += 12;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  const twentyFour = t.match(/^(\d{1,2}):(\d{2})$/);
+  if (twentyFour) {
+    const hour = Number(twentyFour[1]);
+    const minute = Number(twentyFour[2]);
+    if (hour > 23 || minute > 59) return null;
+    return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  }
+
+  return null;
+}
+
 export function buildLocalBusinessJsonLd(
   input: LocalBusinessInput,
   canonicalUrl: string,
@@ -107,8 +140,8 @@ export function buildLocalBusinessJsonLd(
     const specs: Record<string, string>[] = [];
     for (const [day, hours] of Object.entries(input.bookingHours)) {
       if (!hours) continue;
-      const opens = hours.open?.trim();
-      const closes = hours.close?.trim();
+      const opens = to24Hour(hours.open);
+      const closes = to24Hour(hours.close);
       if (!opens || !closes) continue;
       specs.push({ "@type": "OpeningHoursSpecification", dayOfWeek: day, opens, closes });
     }

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLocalBusinessJsonLd, serializeJsonLd } from "./seo-localbusiness";
+import { buildLocalBusinessJsonLd, serializeJsonLd, to24Hour } from "./seo-localbusiness";
 import type { PreviewData } from "@/lib/ai/types";
 
 function siteData(preview: Partial<PreviewData>, overrides: Record<string, unknown> = {}) {
@@ -143,6 +143,63 @@ test("builds openingHoursSpecification from bookingHours, skipping closed days",
   assert.deepEqual(out.openingHoursSpecification, [
     { "@type": "OpeningHoursSpecification", dayOfWeek: "Monday", opens: "10:00", closes: "19:00" },
     { "@type": "OpeningHoursSpecification", dayOfWeek: "Wednesday", opens: "09:00", closes: "17:00" },
+  ]);
+});
+
+test("to24Hour converts 12-hour times to schema.org 24-hour HH:MM", () => {
+  assert.equal(to24Hour("10:00 AM"), "10:00");
+  assert.equal(to24Hour("7:00 PM"), "19:00");
+  assert.equal(to24Hour("8:00 AM"), "08:00"); // zero-pads the hour
+  assert.equal(to24Hour("9:30 PM"), "21:30");
+  assert.equal(to24Hour("12:00 PM"), "12:00"); // noon
+  assert.equal(to24Hour("12:00 AM"), "00:00"); // midnight
+  assert.equal(to24Hour("12:15 am"), "00:15"); // lowercase
+});
+
+test("to24Hour passes through already-valid 24-hour times", () => {
+  assert.equal(to24Hour("14:00"), "14:00");
+  assert.equal(to24Hour("09:00"), "09:00");
+  assert.equal(to24Hour("9:05"), "09:05"); // zero-pads
+  assert.equal(to24Hour("00:00"), "00:00");
+});
+
+test("to24Hour returns null for empty or unparseable input", () => {
+  assert.equal(to24Hour(""), null);
+  assert.equal(to24Hour("   "), null);
+  assert.equal(to24Hour("Closed"), null);
+  assert.equal(to24Hour("25:00"), null); // invalid hour
+  assert.equal(to24Hour("10:99 AM"), null); // invalid minute
+  assert.equal(to24Hour("noon"), null);
+});
+
+test("openingHoursSpecification normalizes 12-hour stored times to 24-hour (real-world case)", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({}, {
+      bookingHours: {
+        Monday: { open: "10:00 AM", close: "7:00 PM" },
+        Saturday: { open: "8:00 AM", close: "8:00 PM" },
+      },
+    }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.deepEqual(out.openingHoursSpecification, [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Monday", opens: "10:00", closes: "19:00" },
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Saturday", opens: "08:00", closes: "20:00" },
+  ]);
+});
+
+test("openingHoursSpecification skips days whose times cannot be parsed", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({}, {
+      bookingHours: {
+        Monday: { open: "10:00 AM", close: "7:00 PM" },
+        Tuesday: { open: "Closed", close: "Closed" },
+      },
+    }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.deepEqual(out.openingHoursSpecification, [
+    { "@type": "OpeningHoursSpecification", dayOfWeek: "Monday", opens: "10:00", closes: "19:00" },
   ]);
 });
 
