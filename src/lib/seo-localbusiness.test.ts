@@ -93,3 +93,25 @@ test("includes telephone, image, and logo when present", () => {
   assert.equal(out.image, "https://cdn/x.jpg");
   assert.equal(out.logo, "https://cdn/logo.png");
 });
+
+test("emits PostalAddress with streetAddress and addressLocality from seo_locality", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({ address: "123 Main St, Brooklyn", seo_locality: "Brooklyn, NY" }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.deepEqual(out.address, {
+    "@type": "PostalAddress",
+    streetAddress: "123 Main St, Brooklyn",
+    addressLocality: "Brooklyn, NY",
+  });
+  assert.equal(out.areaServed, "Brooklyn, NY");
+});
+
+test("omits addressLocality when there is no seo_locality, and omits address node entirely when no address text", () => {
+  const withAddr = buildLocalBusinessJsonLd(siteData({ address: "123 Main St" }), "https://x.com/") as Record<string, unknown>;
+  assert.deepEqual(withAddr.address, { "@type": "PostalAddress", streetAddress: "123 Main St" });
+  assert.ok(!("areaServed" in withAddr));
+
+  const noAddr = buildLocalBusinessJsonLd(siteData({ address: "  ", seo_locality: null }), "https://x.com/") as Record<string, unknown>;
+  assert.ok(!("address" in noAddr));
+});

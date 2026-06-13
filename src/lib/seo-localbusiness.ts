@@ -70,5 +70,14 @@ export function buildLocalBusinessJsonLd(
   const logo = (preview.generated_copy as { logo?: string } | undefined)?.logo?.trim();
   if (logo) jsonLd.logo = logo;
 
+  const street = preview.address?.trim();
+  const locality = preview.seo_locality?.trim();
+  if (street) {
+    const postal: Record<string, string> = { "@type": "PostalAddress", streetAddress: street };
+    if (locality) postal.addressLocality = locality;
+    jsonLd.address = postal;
+  }
+  if (locality) jsonLd.areaServed = locality;
+
   return jsonLd;
 }
