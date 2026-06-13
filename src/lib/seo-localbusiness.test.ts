@@ -115,3 +115,16 @@ test("omits addressLocality when there is no seo_locality, and omits address nod
   const noAddr = buildLocalBusinessJsonLd(siteData({ address: "  ", seo_locality: null }), "https://x.com/") as Record<string, unknown>;
   assert.ok(!("address" in noAddr));
 });
+
+test("sameAs contains only non-empty social links, in IG/FB/TikTok order", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({ generated_copy: { en: {}, social_links: { instagram: "https://instagram.com/acme", facebook: "  ", tiktok: "https://tiktok.com/@acme" } } as unknown as PreviewData["generated_copy"] }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.deepEqual(out.sameAs, ["https://instagram.com/acme", "https://tiktok.com/@acme"]);
+});
+
+test("omits sameAs when there are no social links", () => {
+  const out = buildLocalBusinessJsonLd(siteData({}), "https://x.com/") as Record<string, unknown>;
+  assert.ok(!("sameAs" in out));
+});

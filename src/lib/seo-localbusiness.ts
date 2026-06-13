@@ -79,5 +79,13 @@ export function buildLocalBusinessJsonLd(
   }
   if (locality) jsonLd.areaServed = locality;
 
+  const social = preview.generated_copy?.social_links as SocialLinks | null | undefined;
+  if (social) {
+    const sameAs = [social.instagram, social.facebook, social.tiktok]
+      .map((v) => v?.trim())
+      .filter((v): v is string => !!v);
+    if (sameAs.length) jsonLd.sameAs = sameAs;
+  }
+
   return jsonLd;
 }
