@@ -146,6 +146,15 @@ test("builds openingHoursSpecification from bookingHours, skipping closed days",
   ]);
 });
 
+test("emits areaServed even when there is no street address", () => {
+  const out = buildLocalBusinessJsonLd(
+    siteData({ address: "  ", seo_locality: "Brooklyn, NY" }),
+    "https://x.com/",
+  ) as Record<string, unknown>;
+  assert.ok(!("address" in out));
+  assert.equal(out.areaServed, "Brooklyn, NY");
+});
+
 test("omits openingHoursSpecification when no hours or all closed", () => {
   const none = buildLocalBusinessJsonLd(siteData({}, { bookingHours: null }), "https://x.com/") as Record<string, unknown>;
   assert.ok(!("openingHoursSpecification" in none));

@@ -1,5 +1,6 @@
 import type { BusinessType, PreviewData, SocialLinks } from "@/lib/ai/types";
 
+// Mirrors the BookingHoursMap shape in src/app/site/[slug]/page.tsx (not exported there).
 type BookingHoursMap = Record<string, { open: string; close: string } | null> | null;
 
 /** Minimal shape this helper consumes from getSiteData(). */
@@ -52,7 +53,7 @@ export function buildLocalBusinessJsonLd(
     url: canonicalUrl,
   };
 
-  const en = preview.generated_copy?.en as Record<string, string> | undefined;
+  const en = preview.generated_copy?.en;
   const description = firstNonEmpty(
     en?.google_business_description,
     en?.seo_description,
