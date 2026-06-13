@@ -4,7 +4,11 @@ import Script from "next/script";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
+import { tenantUrl } from "@/lib/tenant-url";
+import { buildLocalBusinessJsonLd } from "@/lib/seo-localbusiness";
 import { SiteClient } from "./SiteClient";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
 
 type BookingHoursMap = Record<string, { open: string; close: string } | null> | null;
 
@@ -27,6 +31,7 @@ interface SiteData {
   bookingMode: BookingModePolicy;
   depositSettings?: DepositSettings;
   isDemo: boolean;
+  canonicalUrl: string;
 }
 
 async function getSiteData(slug: string): Promise<SiteData | null> {
@@ -50,7 +55,7 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
 
   const { data: tenant } = await supabase
     .from("tenants")
-    .select("id, checkout_mode, booking_mode, is_demo")
+    .select("id, checkout_mode, booking_mode, is_demo, custom_domain, subdomain")
     .eq("preview_slug", slug)
     .maybeSingle();
 
@@ -83,7 +88,17 @@ async function getSiteData(slug: string): Promise<SiteData | null> {
       : undefined;
   }
 
-  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode, depositSettings, isDemo };
+  const canonicalUrl = tenantUrl(
+    APP_URL,
+    {
+      custom_domain: (tenant?.custom_domain as string | null) ?? null,
+      subdomain: (tenant?.subdomain as string | null) ?? null,
+      preview_slug: slug,
+    },
+    "/",
+  );
+
+  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode, depositSettings, isDemo, canonicalUrl };
 }
 
 export async function generateMetadata({
@@ -147,9 +162,16 @@ export default async function SitePage({
 }) {
   const result = await getSiteData(params.slug);
   if (!result) notFound();
+  const jsonLd = buildLocalBusinessJsonLd(result, result.canonicalUrl);
   return (
     <>
       <Script src="/track.js" strategy="afterInteractive" />
+      {jsonLd ? (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      ) : null}
       <SiteClient
         data={result.preview}
         bookingHours={result.bookingHours}
