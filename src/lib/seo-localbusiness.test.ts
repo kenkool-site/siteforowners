@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildLocalBusinessJsonLd } from "./seo-localbusiness";
+import { buildLocalBusinessJsonLd, serializeJsonLd } from "./seo-localbusiness";
 import type { PreviewData } from "@/lib/ai/types";
 
 function siteData(preview: Partial<PreviewData>, overrides: Record<string, unknown> = {}) {
@@ -161,4 +161,16 @@ test("omits openingHoursSpecification when no hours or all closed", () => {
 
   const allClosed = buildLocalBusinessJsonLd(siteData({}, { bookingHours: { Monday: null, Sunday: null } }), "https://x.com/") as Record<string, unknown>;
   assert.ok(!("openingHoursSpecification" in allClosed));
+});
+
+test("serializeJsonLd escapes script-breaking characters", () => {
+  const out = serializeJsonLd({ name: "Evil </script><script>alert(1)</script>" });
+  assert.ok(!out.includes("</script>"));
+  assert.ok(!out.includes("<"));
+  assert.ok(out.includes("\\u003c"));
+});
+
+test("serializeJsonLd round-trips back to the original object via JSON.parse", () => {
+  const obj = { name: "A & B < C > D", url: "https://x.com/" };
+  assert.deepEqual(JSON.parse(serializeJsonLd(obj)), obj);
 });

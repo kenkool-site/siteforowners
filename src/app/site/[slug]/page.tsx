@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
 import { tenantUrl } from "@/lib/tenant-url";
-import { buildLocalBusinessJsonLd } from "@/lib/seo-localbusiness";
+import { buildLocalBusinessJsonLd, serializeJsonLd } from "@/lib/seo-localbusiness";
 import { SiteClient } from "./SiteClient";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://siteforowners.com";
@@ -169,7 +169,7 @@ export default async function SitePage({
       {jsonLd ? (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
         />
       ) : null}
       <SiteClient

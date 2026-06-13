@@ -36,6 +36,21 @@ function firstNonEmpty(...values: (string | undefined | null)[]): string | undef
   return undefined;
 }
 
+/**
+ * Serialize a JSON-LD object for safe embedding inside a <script> tag.
+ * Escapes characters that could break out of the script element or be
+ * misread by the HTML parser. The \uXXXX forms are valid JSON and are
+ * parsed transparently by JSON-LD consumers.
+ */
+export function serializeJsonLd(jsonLd: unknown): string {
+  return JSON.stringify(jsonLd)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026")
+    .replace(new RegExp(" ", "g"), "\\u2028")
+    .replace(new RegExp(" ", "g"), "\\u2029");
+}
+
 export function buildLocalBusinessJsonLd(
   input: LocalBusinessInput,
   canonicalUrl: string,
