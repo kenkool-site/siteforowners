@@ -12,6 +12,7 @@ export interface Tenant {
   site_published: boolean;
   subscription_status: string;
   is_demo: boolean;
+  go_live_checklist?: Record<string, string> | null;
   created_at: string;
 }
 
