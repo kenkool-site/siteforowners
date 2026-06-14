@@ -1,6 +1,7 @@
 import { ClientActions } from "../clients/ClientActions";
 import { GoLiveChecklist } from "../clients/GoLiveChecklist";
 import type { Tenant } from "../_lib/tenants";
+import type { ManualState } from "@/lib/go-live-checklist";
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -38,7 +39,7 @@ export function TenantTable({
 }: {
   tenants: Tenant[];
   emptyMessage: React.ReactNode;
-  goLive?: Record<string, { seoLocality: string | null; checklist: Record<string, string> }>;
+  goLive?: Record<string, { seoLocality: string | null; checklist: ManualState }>;
 }) {
   if (tenants.length === 0) {
     return (
@@ -63,31 +64,32 @@ export function TenantTable({
             </tr>
           </thead>
           <tbody className="divide-y">
-            {tenants.map((tenant) => (
-              <tr key={tenant.id} className="hover:bg-gray-50">
-                <td className="px-5 py-4">
-                  <p className="text-sm font-semibold text-gray-900">
-                    {tenant.business_name}
-                  </p>
-                  <p className="text-xs text-gray-400">{tenant.owner_name}</p>
-                  {tenant.phone && (
-                    <a
-                      href={`tel:${tenant.phone}`}
-                      className="text-xs text-blue-600 hover:underline"
-                    >
-                      {tenant.phone}
-                    </a>
-                  )}
-                </td>
-                <td className="px-5 py-4">
-                  {statusBadge(tenant.subscription_status)}
-                </td>
-                {goLive && (() => {
-                  const gl = goLive[tenant.id];
-                  return (
+            {tenants.map((tenant) => {
+              const gl = goLive?.[tenant.id];
+              return (
+                <tr key={tenant.id} className="hover:bg-gray-50">
+                  <td className="px-5 py-4">
+                    <p className="text-sm font-semibold text-gray-900">
+                      {tenant.business_name}
+                    </p>
+                    <p className="text-xs text-gray-400">{tenant.owner_name}</p>
+                    {tenant.phone && (
+                      <a
+                        href={`tel:${tenant.phone}`}
+                        className="text-xs text-blue-600 hover:underline"
+                      >
+                        {tenant.phone}
+                      </a>
+                    )}
+                  </td>
+                  <td className="px-5 py-4">
+                    {statusBadge(tenant.subscription_status)}
+                  </td>
+                  {goLive && (
                     <td className="px-5 py-4">
                       {gl && (
                         <GoLiveChecklist
+                          key={tenant.id}
                           tenantId={tenant.id}
                           isDemo={tenant.is_demo}
                           customDomain={tenant.custom_domain}
@@ -97,54 +99,55 @@ export function TenantTable({
                         />
                       )}
                     </td>
-                  );
-                })()}
-                <td className="whitespace-nowrap px-5 py-4 text-xs text-gray-400">
-                  {timeAgo(tenant.created_at)}
-                </td>
-                <td className="px-5 py-4">
-                  <ClientActions
-                    tenantId={tenant.id}
-                    businessName={tenant.business_name}
-                    subdomain={tenant.subdomain}
-                    customDomain={tenant.custom_domain}
-                    sitePublished={tenant.site_published}
-                    isDemo={tenant.is_demo}
-                  />
-                </td>
-              </tr>
-            ))}
+                  )}
+                  <td className="whitespace-nowrap px-5 py-4 text-xs text-gray-400">
+                    {timeAgo(tenant.created_at)}
+                  </td>
+                  <td className="px-5 py-4">
+                    <ClientActions
+                      tenantId={tenant.id}
+                      businessName={tenant.business_name}
+                      subdomain={tenant.subdomain}
+                      customDomain={tenant.custom_domain}
+                      sitePublished={tenant.site_published}
+                      isDemo={tenant.is_demo}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {/* Mobile: cards */}
       <div className="space-y-3 md:hidden">
-        {tenants.map((tenant) => (
-          <div key={tenant.id} className="rounded-xl border bg-white p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-gray-900">
-                  {tenant.business_name}
-                </p>
-                <p className="truncate text-xs text-gray-400">
-                  {tenant.owner_name}
-                </p>
-                {tenant.phone && (
-                  <a
-                    href={`tel:${tenant.phone}`}
-                    className="text-xs text-blue-600 hover:underline"
-                  >
-                    {tenant.phone}
-                  </a>
-                )}
-              </div>
-              <div className="flex shrink-0 flex-col items-end gap-1">
-                {statusBadge(tenant.subscription_status)}
-                {goLive && (() => {
-                  const gl = goLive[tenant.id];
-                  return gl ? (
+        {tenants.map((tenant) => {
+          const gl = goLive?.[tenant.id];
+          return (
+            <div key={tenant.id} className="rounded-xl border bg-white p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-gray-900">
+                    {tenant.business_name}
+                  </p>
+                  <p className="truncate text-xs text-gray-400">
+                    {tenant.owner_name}
+                  </p>
+                  {tenant.phone && (
+                    <a
+                      href={`tel:${tenant.phone}`}
+                      className="text-xs text-blue-600 hover:underline"
+                    >
+                      {tenant.phone}
+                    </a>
+                  )}
+                </div>
+                <div className="flex shrink-0 flex-col items-end gap-1">
+                  {statusBadge(tenant.subscription_status)}
+                  {goLive && gl && (
                     <GoLiveChecklist
+                      key={tenant.id}
                       tenantId={tenant.id}
                       isDemo={tenant.is_demo}
                       customDomain={tenant.custom_domain}
@@ -152,25 +155,25 @@ export function TenantTable({
                       seoLocality={gl.seoLocality}
                       initialChecklist={gl.checklist}
                     />
-                  ) : null;
-                })()}
-                <span className="text-xs text-gray-400">
-                  {timeAgo(tenant.created_at)}
-                </span>
+                  )}
+                  <span className="text-xs text-gray-400">
+                    {timeAgo(tenant.created_at)}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-3 border-t pt-3">
+                <ClientActions
+                  tenantId={tenant.id}
+                  businessName={tenant.business_name}
+                  subdomain={tenant.subdomain}
+                  customDomain={tenant.custom_domain}
+                  sitePublished={tenant.site_published}
+                  isDemo={tenant.is_demo}
+                />
               </div>
             </div>
-            <div className="mt-3 border-t pt-3">
-              <ClientActions
-                tenantId={tenant.id}
-                businessName={tenant.business_name}
-                subdomain={tenant.subdomain}
-                customDomain={tenant.custom_domain}
-                sitePublished={tenant.site_published}
-                isDemo={tenant.is_demo}
-              />
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </>
   );

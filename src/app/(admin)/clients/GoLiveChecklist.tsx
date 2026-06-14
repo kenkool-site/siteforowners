@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AUTO_ITEMS,
   MANUAL_ITEMS,
@@ -31,6 +31,15 @@ export function GoLiveChecklist({
   const [savingId, setSavingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
   const autoState = deriveAuto({ isDemo, customDomain, subdomain, seoLocality });
   const { done, total } = computeProgress(autoState, manual);
   const complete = done === total;
@@ -54,7 +63,7 @@ export function GoLiveChecklist({
       });
       if (!res.ok) throw new Error("save failed");
     } catch {
-      // rollback to previous state
+      // Rollback restores key presence (presence = done). Timestamp is re-issued, not the exact original — the failed write never changed the stored value.
       setManual((prev) => {
         const next = { ...prev };
         if (wasDone) next[itemId] = new Date().toISOString();
@@ -70,6 +79,7 @@ export function GoLiveChecklist({
   return (
     <>
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
           complete ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"
@@ -84,6 +94,8 @@ export function GoLiveChecklist({
           onClick={() => setOpen(false)}
         >
           <div
+            role="dialog"
+            aria-modal="true"
             className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
