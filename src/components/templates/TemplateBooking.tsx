@@ -42,6 +42,7 @@ interface TemplateBookingProps {
   businessName?: string;
   previewSlug?: string;
   isLive?: boolean; // true when rendered on published site (not preview)
+  locale?: "en" | "es";
   /**
    * If provided, the per-service Book button opens the in-site booking
    * modal (deep-linked to the service) instead of opening a new tab.
@@ -121,6 +122,7 @@ export function TemplateBooking({
   bookingPolicies = "",
   depositSettings,
   autoOpenBooking = false,
+  locale = "en",
 }: TemplateBookingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
@@ -623,6 +625,7 @@ export function TemplateBooking({
               colors={colors}
               businessName={businessName}
               previewSlug={previewSlug}
+              locale={locale}
               onClose={() => {
                 setShowBookingCalendar(false);
                 setPendingServiceName(null);
@@ -638,6 +641,7 @@ export function TemplateBooking({
               services={services}
               colors={colors}
               businessName={businessName}
+              locale={locale}
               onClose={() => {
                 setShowBookingCalendar(false);
                 setPendingServiceName(null);

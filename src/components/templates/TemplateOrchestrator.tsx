@@ -391,6 +391,7 @@ export function TemplateOrchestrator({
       businessName={data.business_name}
       previewSlug={data.slug}
       isLive={isLive}
+      locale={locale}
       onSelectService={onSelectService}
       bookingMode={bookingModeProp}
       workingHours={bookingHours}
