@@ -8,6 +8,7 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import { CustomerBookingFlow } from "./CustomerBookingFlow";
 import { type SimpleService } from "./CustomerBookingFlow";
 import { MockBookingCalendar } from "./MockBookingCalendar";
+import { shouldAutoOpenInSiteCalendar } from "@/lib/booking-entry";
 
 interface BookingService {
   name: string;
@@ -68,6 +69,13 @@ interface TemplateBookingProps {
     deposit_other_label: string | null;
     deposit_other_value: string | null;
   };
+  /**
+   * When true (set by the `/booking` entry-point route used for Google
+   * Business Profile links), open the in-site booking calendar on mount at the
+   * service-list step — mirroring the general "Book Now" CTA. No-ops for
+   * external-only tenants that have no in-site flow.
+   */
+  autoOpenBooking?: boolean;
 }
 
 // For Vagaro URLs, ensure the embed loads the /services page directly
@@ -112,6 +120,7 @@ export function TemplateBooking({
   blockedDates = [],
   bookingPolicies = "",
   depositSettings,
+  autoOpenBooking = false,
 }: TemplateBookingProps) {
   const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
   const [showFallbackEmbed, setShowFallbackEmbed] = useState(false);
@@ -163,6 +172,18 @@ export function TemplateBooking({
     window.addEventListener("hashchange", handleHash);
     return () => window.removeEventListener("hashchange", handleHash);
   }, [hasCategories, canEmbed, showInternalBooking, bookingCategories, effectiveMode, bookingUrl]);
+
+  // `/booking` deep link (Google Business Profile entry point). Open the in-site
+  // booking calendar on mount at the service-list step — no preselected service,
+  // mirroring the general "Book Now" CTA. Runs once; external-only tenants have
+  // no in-site flow so this no-ops via shouldAutoOpenInSiteCalendar.
+  useEffect(() => {
+    if (!autoOpenBooking) return;
+    if (shouldAutoOpenInSiteCalendar(effectiveMode, !!showInternalBooking)) {
+      setShowBookingCalendar(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Intercept clicks on <a href="#booking"> anywhere on the page (heroes,
   // SiteNav, custom buttons) and open the booking modal directly without

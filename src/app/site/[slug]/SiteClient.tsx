@@ -22,6 +22,8 @@ interface SiteClientProps {
     deposit_other_label: string | null;
     deposit_other_value: string | null;
   };
+  /** When true (the /booking entry point), auto-open the in-site booking flow. */
+  autoOpenBooking?: boolean;
 }
 
 export function SiteClient({
@@ -33,6 +35,7 @@ export function SiteClient({
   checkoutMode = "mockup",
   bookingMode = "in_site_only",
   depositSettings,
+  autoOpenBooking = false,
 }: SiteClientProps) {
   // Published site — no preview chrome, just the raw template
   return (
@@ -50,6 +53,7 @@ export function SiteClient({
         checkoutMode={checkoutMode}
         bookingMode={bookingMode}
         depositSettings={depositSettings}
+        autoOpenBooking={autoOpenBooking}
       />
     </div>
   );

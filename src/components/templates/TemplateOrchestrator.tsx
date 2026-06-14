@@ -85,6 +85,8 @@ interface TemplateOrchestratorProps {
     deposit_other_label: string | null;
     deposit_other_value: string | null;
   };
+  /** When true (the /booking entry point), auto-open the in-site booking flow. */
+  autoOpenBooking?: boolean;
 }
 
 function getTemplateName(data: PreviewData): TemplateName {
@@ -215,6 +217,7 @@ export function TemplateOrchestrator({
   tenantId = null,
   bookingMode = "in_site_only",
   depositSettings,
+  autoOpenBooking = false,
 }: TemplateOrchestratorProps) {
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const ss = getSectionSettings(data);
@@ -394,6 +397,7 @@ export function TemplateOrchestrator({
       blockedDates={blockedDates}
       bookingPolicies={bookingPolicies}
       depositSettings={depositSettings}
+      autoOpenBooking={autoOpenBooking}
     />
   ) : null;
 
