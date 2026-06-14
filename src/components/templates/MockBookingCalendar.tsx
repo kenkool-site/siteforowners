@@ -15,6 +15,7 @@ import {
   ServiceDetailsPanel,
   RunningTotalBar,
 } from "./CustomerBookingFlow";
+import { BookingServicePicker } from "./BookingServicePicker";
 
 // Mock-only working-hours used for demo/preview surfaces. Mon-Sat 10-19,
 // Sunday closed. Mirrors what the live flow gets from the owner's settings.
@@ -35,12 +36,14 @@ export function MockBookingCalendar({
   onClose,
   initialService = null,
   demoOptInMode = false,
+  locale = "en",
 }: {
   services: SimpleService[];
   colors: ThemeColors;
   businessName: string;
   onClose: () => void;
   initialService?: SimpleService | null;
+  locale?: "en" | "es";
   /** When true, auto-mounts on the "Your Details" step with a synthetic
    * service/date/time so reviewers (e.g. Twilio A2P CTA verification)
    * land on the SMS opt-in checkbox immediately. */
@@ -185,25 +188,16 @@ export function MockBookingCalendar({
             {/* Step: service — service list picker */}
             {step === "service" && (
               <motion.div key="service" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }} transition={{ duration: 0.2 }}>
-                <div className="space-y-2 py-2">
-                  {services.map((svc, i) => (
-                    <button
-                      key={i}
-                      onClick={() => {
-                        setSelectedService(svc);
-                        setSelectedAddOns([]);
-                        setStep("details");
-                      }}
-                      className="flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left transition-all hover:scale-[1.01]"
-                      style={{ backgroundColor: colors.muted, color: colors.foreground }}
-                    >
-                      <span className="font-medium">{svc.name}</span>
-                      <span className="text-sm font-semibold" style={{ color: colors.primary }}>
-                        {formatDuration(svc.durationMinutes ?? 60)} · {svc.price}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <BookingServicePicker
+                  services={services}
+                  colors={colors}
+                  locale={locale}
+                  onSelect={(service) => {
+                    setSelectedService(service);
+                    setSelectedAddOns([]);
+                    setStep("details");
+                  }}
+                />
               </motion.div>
             )}
 

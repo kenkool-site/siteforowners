@@ -8,6 +8,7 @@ import type { AddOn } from "@/lib/ai/types";
 import { formatTimeRange, formatDuration, filterSlotsToFuture } from "@/lib/availability";
 import { computeDeposit, parseServicePrice } from "@/lib/deposit";
 import { cashappUrl, normalizeCashapp, hasAnyMethod, type PaymentMethods } from "@/lib/deposit-payment-methods";
+import { BookingServicePicker } from "./BookingServicePicker";
 
 export interface SimpleService {
   name: string;
@@ -169,6 +170,7 @@ export function CustomerBookingFlow({
   bookingPolicies = "",
   depositSettings,
   rescheduleMode,
+  locale = "en",
 }: {
   services: SimpleService[];
   colors: ThemeColors;
@@ -186,6 +188,7 @@ export function CustomerBookingFlow({
   workingHours?: Record<string, { open: string; close: string } | null> | null;
   blockedDates?: string[];
   bookingPolicies?: string;
+  locale?: "en" | "es";
   depositSettings?: {
     deposit_required: boolean;
     deposit_mode: "fixed" | "percent" | null;
@@ -448,18 +451,16 @@ export function CustomerBookingFlow({
             {/* Step: service — service list picker */}
             {step === "service" && (
               <motion.div key="service" initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} exit={{ x: -20, opacity: 0 }}>
-                <div className="space-y-2 py-2">
-                  {services.map((svc, i) => (
-                    <button key={i} onClick={() => { setSelectedService(svc); setStep("details"); }}
-                      className="flex w-full items-center justify-between rounded-xl px-4 py-3.5 text-left transition-all hover:scale-[1.01]"
-                      style={{ backgroundColor: colors.muted, color: colors.foreground }}>
-                      <span className="font-medium">{svc.name}</span>
-                      <span className="text-sm font-semibold" style={{ color: colors.primary }}>
-                        {formatDuration(svc.durationMinutes ?? 60)} · {svc.price}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+                <BookingServicePicker
+                  services={services}
+                  colors={colors}
+                  locale={locale}
+                  onSelect={(service) => {
+                    setSelectedService(service);
+                    setSelectedAddOns([]);
+                    setStep("details");
+                  }}
+                />
               </motion.div>
             )}
 
