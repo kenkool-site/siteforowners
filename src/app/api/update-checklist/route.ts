@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
   }
 
   const tenantId = typeof body.tenant_id === "string" ? body.tenant_id.trim() : "";
-  const itemId = typeof body.item_id === "string" ? body.item_id : "";
+  const itemId = typeof body.item_id === "string" ? body.item_id.trim() : "";
   const done = body.done === true;
 
   if (!tenantId) {
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
 
   if (readErr) {
+    console.error("update-checklist lookup failed:", readErr);
     return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
   }
   if (!tenant) {
@@ -63,6 +64,7 @@ export async function POST(request: NextRequest) {
     .eq("id", tenantId);
 
   if (writeErr) {
+    console.error("update-checklist update failed:", writeErr);
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
 
