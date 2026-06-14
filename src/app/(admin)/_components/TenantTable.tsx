@@ -1,4 +1,5 @@
 import { ClientActions } from "../clients/ClientActions";
+import { GoLiveChecklist } from "../clients/GoLiveChecklist";
 import type { Tenant } from "../_lib/tenants";
 
 function statusBadge(status: string) {
@@ -33,9 +34,11 @@ function timeAgo(dateStr: string): string {
 export function TenantTable({
   tenants,
   emptyMessage,
+  goLive,
 }: {
   tenants: Tenant[];
   emptyMessage: React.ReactNode;
+  goLive?: Record<string, { seoLocality: string | null; checklist: Record<string, string> }>;
 }) {
   if (tenants.length === 0) {
     return (
@@ -54,6 +57,7 @@ export function TenantTable({
             <tr className="border-b bg-gray-50 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
               <th className="px-5 py-3">Business</th>
               <th className="px-5 py-3">Status</th>
+              {goLive && <th className="px-5 py-3">Go-live</th>}
               <th className="px-5 py-3">Since</th>
               <th className="px-5 py-3">Site</th>
             </tr>
@@ -78,6 +82,23 @@ export function TenantTable({
                 <td className="px-5 py-4">
                   {statusBadge(tenant.subscription_status)}
                 </td>
+                {goLive && (() => {
+                  const gl = goLive[tenant.id];
+                  return (
+                    <td className="px-5 py-4">
+                      {gl && (
+                        <GoLiveChecklist
+                          tenantId={tenant.id}
+                          isDemo={tenant.is_demo}
+                          customDomain={tenant.custom_domain}
+                          subdomain={tenant.subdomain}
+                          seoLocality={gl.seoLocality}
+                          initialChecklist={gl.checklist}
+                        />
+                      )}
+                    </td>
+                  );
+                })()}
                 <td className="whitespace-nowrap px-5 py-4 text-xs text-gray-400">
                   {timeAgo(tenant.created_at)}
                 </td>
@@ -120,6 +141,19 @@ export function TenantTable({
               </div>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 {statusBadge(tenant.subscription_status)}
+                {goLive && (() => {
+                  const gl = goLive[tenant.id];
+                  return gl ? (
+                    <GoLiveChecklist
+                      tenantId={tenant.id}
+                      isDemo={tenant.is_demo}
+                      customDomain={tenant.custom_domain}
+                      subdomain={tenant.subdomain}
+                      seoLocality={gl.seoLocality}
+                      initialChecklist={gl.checklist}
+                    />
+                  ) : null;
+                })()}
                 <span className="text-xs text-gray-400">
                   {timeAgo(tenant.created_at)}
                 </span>
