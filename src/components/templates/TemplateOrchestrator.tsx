@@ -148,6 +148,7 @@ export interface SectionSettings {
   show_rating?: boolean;
   show_hours?: boolean;
   disable_animations?: boolean;
+  mobile_gallery_slider?: boolean;
   about_image_url?: string | null;
   template_override?: string | null;
   /** px to clip off the top of the booking modal iframe on desktop (>=640px).
@@ -222,6 +223,7 @@ export function TemplateOrchestrator({
   const [locale, setLocale] = useState<"en" | "es">(initialLocale);
   const ss = getSectionSettings(data);
   const defaultCategoriesCollapsed = ss.services_categories_collapsed_default === true;
+  const mobileGallerySliderEnabled = ss.mobile_gallery_slider === true;
   const template = (ss.template_override as TemplateName) || getTemplateName(data);
   const colors = getColors(data);
   const logo = getLogo(data);
@@ -504,7 +506,13 @@ export function TemplateOrchestrator({
             </div>
           </div>
           {galleryVideoSection && !hasGalleryImages ? <div id="gallery">{galleryVideoSection}</div> : galleryVideoSection}
-          {showGallery && hasGalleryImages && <RunwayGallery images={galleryImages} colors={colors} />}
+          {showGallery && hasGalleryImages && (
+            <RunwayGallery
+              images={galleryImages}
+              colors={colors}
+              mobileSliderEnabled={mobileGallerySliderEnabled}
+            />
+          )}
           {showAbout && <div id="about"><RunwayAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}
           {productsSection}
           {testimonialsSection || ratingSection}

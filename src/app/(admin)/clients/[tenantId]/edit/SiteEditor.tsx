@@ -172,6 +172,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
     show_map: existingSettings.show_map !== false,
     show_testimonials: existingSettings.show_testimonials !== false,
     show_rating: existingSettings.show_rating !== false,
+    mobile_gallery_slider: existingSettings.mobile_gallery_slider === true,
     disable_animations: existingSettings.disable_animations === true,
     about_image_url: (existingSettings.about_image_url as string) || "",
     template_override: (existingSettings.template_override as string) || "",
@@ -1060,6 +1061,36 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 </div>
               ))}
             </div>
+
+            {sectionSettings.show_gallery && (
+              <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-2.5">
+                <div className="min-w-0">
+                  <span className="text-sm font-medium text-gray-800">
+                    Mobile gallery slider
+                  </span>
+                  <p className="mt-0.5 text-xs text-gray-600">
+                    Off uses the recommended nine-photo grid. On restores the swipeable Grand and Runway slider.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleSection("mobile_gallery_slider")}
+                  className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+                    sectionSettings.mobile_gallery_slider ? "bg-green-500" : "bg-gray-300"
+                  }`}
+                  aria-pressed={sectionSettings.mobile_gallery_slider}
+                  aria-label="Mobile gallery slider"
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                      sectionSettings.mobile_gallery_slider
+                        ? "translate-x-[18px]"
+                        : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+            )}
 
             {sectionSettings.show_services && (
               <div className="mt-3 flex items-center justify-between gap-3 rounded-lg border border-amber-100 bg-amber-50/40 px-4 py-2.5">

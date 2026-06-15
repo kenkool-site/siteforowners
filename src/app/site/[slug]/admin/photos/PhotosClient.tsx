@@ -9,22 +9,28 @@ interface PhotosClientProps {
   initialImages: string[];
   initialGalleryVideoUrl: string | null;
   initialGalleryVideoTitle: string | null;
+  initialMobileGallerySlider: boolean;
 }
 
 interface PhotosSnapshot {
   images: string[];
   galleryVideoUrl: string | null;
   galleryVideoTitle: string;
+  mobileGallerySlider: boolean;
 }
 
 export function PhotosClient({
   initialImages,
   initialGalleryVideoUrl,
   initialGalleryVideoTitle,
+  initialMobileGallerySlider,
 }: PhotosClientProps) {
   const [images, setImages] = useState<string[]>(initialImages);
   const [galleryVideoUrl, setGalleryVideoUrl] = useState<string | null>(initialGalleryVideoUrl);
   const [galleryVideoTitle, setGalleryVideoTitle] = useState(initialGalleryVideoTitle ?? "");
+  const [mobileGallerySlider, setMobileGallerySlider] = useState(
+    initialMobileGallerySlider,
+  );
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -33,9 +39,15 @@ export function PhotosClient({
     images: initialImages,
     galleryVideoUrl: initialGalleryVideoUrl,
     galleryVideoTitle: initialGalleryVideoTitle ?? "",
+    mobileGallerySlider: initialMobileGallerySlider,
   };
   const [persistedSnapshot, setPersistedSnapshot] = useState<PhotosSnapshot>(initialSnapshot);
-  const currentSnapshot: PhotosSnapshot = { images, galleryVideoUrl, galleryVideoTitle };
+  const currentSnapshot: PhotosSnapshot = {
+    images,
+    galleryVideoUrl,
+    galleryVideoTitle,
+    mobileGallerySlider,
+  };
   const dirty = JSON.stringify(currentSnapshot) !== JSON.stringify(persistedSnapshot);
 
   async function save() {
@@ -50,6 +62,7 @@ export function PhotosClient({
           images: snapshotToSave.images,
           gallery_video_url: snapshotToSave.galleryVideoUrl,
           gallery_video_title: snapshotToSave.galleryVideoTitle,
+          mobile_gallery_slider: snapshotToSave.mobileGallerySlider,
         }),
       });
       if (!res.ok) {
@@ -86,6 +99,32 @@ export function PhotosClient({
         variant="owner"
         enableHeroPromotion={false}
       />
+
+      <section className="rounded-[1.5rem] border border-warm-cream1 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-sm font-black text-warm-deep">Mobile gallery slider</h2>
+            <p className="mt-1 text-xs font-bold leading-5 text-warm-textMuted">
+              Off shows a clean photo grid. Turn it on for a swipeable slider in Grand and Runway.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMobileGallerySlider((enabled) => !enabled)}
+            aria-pressed={mobileGallerySlider}
+            aria-label="Mobile gallery slider"
+            className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full transition-colors ${
+              mobileGallerySlider ? "bg-pop-pink" : "bg-warm-cream1"
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                mobileGallerySlider ? "translate-x-6" : "translate-x-1"
+              }`}
+            />
+          </button>
+        </div>
+      </section>
 
       <GalleryVideoEditor
         value={galleryVideoUrl}
