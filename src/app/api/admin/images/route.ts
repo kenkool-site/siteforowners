@@ -13,6 +13,7 @@ interface PreviewSnapshot {
   images: string[];
   /** Currently chosen About-Us image URL, or null when using template default. */
   about_image_url: string | null;
+  mobile_gallery_slider: boolean;
   gallery_video_url: string | null;
   gallery_video_title: string | null;
 }
@@ -41,6 +42,7 @@ async function loadSnapshot(slug: string): Promise<PreviewSnapshot> {
   return {
     images,
     about_image_url: typeof about === "string" && about.length > 0 ? about : null,
+    mobile_gallery_slider: settings.mobile_gallery_slider === true,
     gallery_video_url:
       typeof data?.gallery_video_url === "string" && data.gallery_video_url.length > 0
         ? data.gallery_video_url
@@ -62,6 +64,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       images: [],
       about_image_url: null,
+      mobile_gallery_slider: false,
       gallery_video_url: null,
       gallery_video_title: null,
     });
@@ -143,6 +146,27 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const rawMobileGallerySlider = b.mobile_gallery_slider;
+  const touchMobileGallerySlider = rawMobileGallerySlider !== undefined;
+  if (
+    touchMobileGallerySlider &&
+    typeof rawMobileGallerySlider !== "boolean"
+  ) {
+    return NextResponse.json(
+      {
+        error: "Validation failed",
+        errors: [
+          {
+            field: "mobile_gallery_slider",
+            reason: "must be a boolean",
+          },
+        ],
+      },
+      { status: 400 },
+    );
+  }
+  const mobileGallerySlider = rawMobileGallerySlider as boolean | undefined;
+
   const rawGalleryVideoUrl = b.gallery_video_url;
   let galleryVideoUrl: string | null = null;
   if (rawGalleryVideoUrl === undefined || rawGalleryVideoUrl === null || rawGalleryVideoUrl === "") {
@@ -176,8 +200,8 @@ export async function POST(request: NextRequest) {
   // section_settings lives nested inside generated_copy. Read-modify-write
   // to preserve sibling keys (show_about, show_gallery, template_override,
   // booking_iframe_top_clip_px, etc.). Skipped entirely when the request
-  // didn't supply about_image_url.
-  if (touchAbout) {
+  // didn't supply about_image_url or mobile_gallery_slider.
+  if (touchAbout || touchMobileGallerySlider) {
     const { data: existing } = await supabase
       .from("previews")
       .select("generated_copy")
@@ -185,7 +209,10 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     const copy = (existing?.generated_copy as Record<string, unknown> | null) ?? {};
     const settings = { ...((copy.section_settings as Record<string, unknown> | undefined) ?? {}) };
-    settings.about_image_url = aboutImageUrl;
+    if (touchAbout) settings.about_image_url = aboutImageUrl;
+    if (touchMobileGallerySlider) {
+      settings.mobile_gallery_slider = mobileGallerySlider;
+    }
     const nextCopy = { ...copy, section_settings: settings };
     const { error: copyError } = await supabase
       .from("previews")
@@ -219,6 +246,7 @@ export async function POST(request: NextRequest) {
     ok: true,
     images,
     about_image_url: touchAbout ? aboutImageUrl : undefined,
+    mobile_gallery_slider: touchMobileGallerySlider ? mobileGallerySlider : undefined,
     gallery_video_url: galleryVideoUrl,
     gallery_video_title: galleryVideoTitle,
   });
