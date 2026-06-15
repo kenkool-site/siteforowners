@@ -61,6 +61,26 @@ test("runway gallery renders a polished lookbook without dropping uploaded galle
   );
 });
 
+test("grand and runway share the optional mobile gallery slider setting", async () => {
+  const orchestrator = await readFile(files.orchestrator, "utf8");
+
+  assert.match(
+    orchestrator,
+    /mobile_gallery_slider\?:\s*boolean/,
+    "Section settings should type the optional slider preference",
+  );
+  assert.match(
+    orchestrator,
+    /const mobileGallerySliderEnabled = ss\.mobile_gallery_slider === true/,
+    "Missing settings should resolve to the grid",
+  );
+  assert.match(
+    orchestrator,
+    /<RunwayGallery[\s\S]*mobileSliderEnabled=\{mobileGallerySliderEnabled\}/,
+    "The shared Grand/Runway gallery should receive the preference",
+  );
+});
+
 test("runway moving text is generated from client services and categories", async () => {
   const orchestrator = await readFile(files.orchestrator, "utf8");
 
