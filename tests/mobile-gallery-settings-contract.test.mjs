@@ -70,3 +70,23 @@ test("owner images API validates and preserves the mobile gallery setting", asyn
     "Images API should check generated_copy load errors before rebuilding generated_copy",
   );
 });
+
+test("founder SiteEditor edits the same mobile gallery setting", async () => {
+  const editor = await readFile(files.siteEditor, "utf8");
+
+  assert.match(
+    editor,
+    /mobile_gallery_slider:\s*existingSettings\.mobile_gallery_slider === true/,
+    "SiteEditor should default missing values to the grid",
+  );
+  assert.match(
+    editor,
+    /Mobile gallery slider/,
+    "SiteEditor should expose the shared setting",
+  );
+  assert.match(
+    editor,
+    /toggleSection\("mobile_gallery_slider"\)/,
+    "SiteEditor should update the shared section settings object",
+  );
+});
