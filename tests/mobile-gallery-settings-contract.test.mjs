@@ -55,4 +55,18 @@ test("owner images API validates and preserves the mobile gallery setting", asyn
     /const nextCopy = \{ \.\.\.copy, section_settings: settings \}/,
     "Images API should preserve sibling generated copy and section settings",
   );
+  assert.match(
+    route,
+    /const \{ data: existing, error: copyLoadError \} = await supabase/,
+    "Images API should capture generated_copy load errors",
+  );
+  assert.match(
+    route,
+    /if \(copyLoadError\)/,
+    "Images API should check generated_copy load errors",
+  );
+  assert.ok(
+    route.indexOf("if (copyLoadError)") < route.indexOf("const nextCopy"),
+    "Images API should check generated_copy load errors before rebuilding generated_copy",
+  );
 });

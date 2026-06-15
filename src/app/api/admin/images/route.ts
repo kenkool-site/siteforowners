@@ -202,11 +202,18 @@ export async function POST(request: NextRequest) {
   // booking_iframe_top_clip_px, etc.). Skipped entirely when the request
   // didn't supply about_image_url or mobile_gallery_slider.
   if (touchAbout || touchMobileGallerySlider) {
-    const { data: existing } = await supabase
+    const { data: existing, error: copyLoadError } = await supabase
       .from("previews")
       .select("generated_copy")
       .eq("slug", slug)
       .maybeSingle();
+    if (copyLoadError) {
+      console.error("[admin/images] load generated_copy failed", {
+        tenantId: auth.tenantId,
+        error: copyLoadError,
+      });
+      return NextResponse.json({ error: "Save failed" }, { status: 500 });
+    }
     const copy = (existing?.generated_copy as Record<string, unknown> | null) ?? {};
     const settings = { ...((copy.section_settings as Record<string, unknown> | undefined) ?? {}) };
     if (touchAbout) settings.about_image_url = aboutImageUrl;
