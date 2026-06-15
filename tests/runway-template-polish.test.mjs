@@ -32,6 +32,33 @@ test("runway gallery renders a polished lookbook without dropping uploaded galle
   assert.doesNotMatch(gallery, /images\.slice\(0,\s*6\)/, "Runway gallery should not silently drop images after the sixth upload");
   assert.match(gallery, /TILE_CLASSES\[index % TILE_CLASSES\.length\]/, "Runway gallery should cycle editorial tile classes for all images");
   assert.match(gallery, /href="#booking"/, "Runway gallery should include a booking CTA near finished looks");
+  assert.match(
+    gallery,
+    /mobileSliderEnabled\s*=\s*false/,
+    "Runway gallery should default to the mobile grid",
+  );
+  assert.match(
+    gallery,
+    /getVisibleMobileGalleryImages/,
+    "Runway gallery should use the tested nine-image visibility policy",
+  );
+  assert.match(
+    gallery,
+    /grid-cols-3/,
+    "The default mobile gallery should use three columns",
+  );
+  assert.match(
+    gallery,
+    /object-contain/,
+    "The default mobile gallery should preserve the complete source image",
+  );
+  assert.match(gallery, /See More Looks/, "Long galleries should offer expansion");
+  assert.match(gallery, /Show Less/, "Expanded galleries should be collapsible");
+  assert.match(
+    gallery,
+    /mobileSliderEnabled\s*&&/,
+    "The existing carousel should only render when explicitly enabled",
+  );
 });
 
 test("runway moving text is generated from client services and categories", async () => {
