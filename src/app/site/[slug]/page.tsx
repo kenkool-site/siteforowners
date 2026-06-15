@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantUrl } from "@/lib/tenant-url";
+import { buildSharePreviewTitle } from "@/lib/share-preview-title";
 import { buildLocalBusinessJsonLd, serializeJsonLd } from "@/lib/seo-localbusiness";
 import { getSiteData } from "./getSiteData";
 import { SiteClient } from "./SiteClient";
@@ -49,6 +50,10 @@ export async function generateMetadata({
   const seoTitle =
     en?.seo_title?.trim() ||
     (en?.hero_headline?.trim() ? `${name} — ${en.hero_headline.trim()}` : name);
+  const shareTitle = buildSharePreviewTitle(name, {
+    seoTitle: en?.seo_title,
+    heroHeadline: en?.hero_headline,
+  });
   const seoDesc =
     en?.seo_description?.trim() ||
     en?.hero_subheadline?.trim() ||
@@ -57,12 +62,14 @@ export async function generateMetadata({
   const imageBlock = image ? { images: [{ url: image, alt: name }] } : {};
 
   return {
+    metadataBase: new URL(canonical),
+    applicationName: name,
     title: seoTitle,
     description: seoDesc,
     alternates: { canonical },
     ...(noindex ? { robots: { index: false, follow: false } } : {}),
     openGraph: {
-      title: seoTitle,
+      title: shareTitle,
       description: seoDesc,
       type: "website",
       siteName: name,
@@ -71,7 +78,7 @@ export async function generateMetadata({
     },
     twitter: {
       card: "summary_large_image",
-      title: seoTitle,
+      title: shareTitle,
       description: seoDesc,
       ...imageBlock,
     },
