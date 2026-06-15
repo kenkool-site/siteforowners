@@ -52,6 +52,16 @@ test("runway gallery renders a polished lookbook without dropping uploaded galle
     /object-contain/,
     "The default mobile gallery should preserve the complete source image",
   );
+  assert.match(
+    gallery,
+    /w-screen/,
+    "The default mobile gallery should span the mobile viewport instead of staying boxed in section padding",
+  );
+  assert.match(
+    gallery,
+    /aspect-\[3\/4\]/,
+    "The default mobile gallery should use taller portrait tiles so images feel larger",
+  );
   assert.match(gallery, /See More Looks/, "Long galleries should offer expansion");
   assert.match(gallery, /Show Less/, "Expanded galleries should be collapsible");
   assert.match(

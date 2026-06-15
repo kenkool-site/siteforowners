@@ -316,12 +316,12 @@ export function RunwayGallery({
         )}
 
         {!mobileSliderEnabled && (
-          <div className="md:hidden">
-            <div className="grid grid-cols-3 gap-2">
+          <div className="relative left-1/2 w-screen -translate-x-1/2 px-2 md:hidden">
+            <div className="grid grid-cols-3 gap-1.5">
               {visibleMobileGridImages.map((src, index) => (
                 <div
                   key={`mobile-grid-${src}-${index}`}
-                  className="relative aspect-square overflow-hidden border bg-[#0D0B08]"
+                  className="relative aspect-[3/4] overflow-hidden border bg-[#0D0B08]"
                   style={{ borderColor: `${gold}42` }}
                 >
                   <Image
@@ -329,7 +329,7 @@ export function RunwayGallery({
                     alt={`Editorial hair gallery image ${index + 1}`}
                     fill
                     className="object-contain"
-                    sizes="33vw"
+                    sizes="34vw"
                     unoptimized
                   />
                 </div>
