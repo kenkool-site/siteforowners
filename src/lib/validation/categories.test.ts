@@ -30,10 +30,13 @@ test("validateCategories: rejects non-string entries", () => {
   assert.equal(r.ok, false);
 });
 
-test("validateCategories: rejects empty after trim", () => {
-  const r = validateCategories(["valid", "   "]);
-  assert.equal(r.ok, false);
-  if (!r.ok) assert.equal(r.errors[0].field, "categories[1]");
+test("validateCategories: silently drops empty/whitespace entries", () => {
+  // An empty category is meaningless — there's nothing to preserve, so drop
+  // it rather than failing the whole save. A stray empty entry (e.g. seeded
+  // by an old import) must not block an otherwise-valid categories list.
+  const r = validateCategories(["", "valid", "   ", "also valid"]);
+  assert.equal(r.ok, true);
+  if (r.ok) assert.deepEqual(r.value, ["valid", "also valid"]);
 });
 
 test("validateCategories: rejects > 60 chars", () => {

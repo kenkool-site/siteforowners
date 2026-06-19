@@ -648,6 +648,16 @@ function orderedUniqueCategoriesFromServices(
   return out;
 }
 
+/**
+ * Trim booking-category labels and drop any that are blank. Some upstream
+ * tools (Vagaro/Acuity/Square/Booksy) occasionally expose an unnamed category;
+ * a blank label seeded into previews.categories poisons the categories
+ * validator and cascades into "not in categories list" errors on every service.
+ */
+function cleanCategoryNames(names: (string | undefined | null)[]): string[] {
+  return names.map((n) => n?.trim()).filter((n): n is string => !!n);
+}
+
 function normalizeClaudeServiceRow(raw: {
   name: string;
   price?: string;
@@ -841,7 +851,7 @@ export async function POST(request: Request) {
         const finalImages = photos.filter((p) => p !== finalLogo).map(getHighResUrl);
 
         const services = servicesFromAcuityCategories(booksyData.categories);
-        const categoryNames = booksyData.categories.map((c) => c.name);
+        const categoryNames = cleanCategoryNames(booksyData.categories.map((c) => c.name));
 
         return NextResponse.json({
           business_name: booksyData.businessName,
@@ -892,7 +902,7 @@ export async function POST(request: Request) {
           : await generateVagaroServices(vagaroData.business_name || "Business", vagaroData.description);
       const categoryNames =
         bookingCategories.length > 0
-          ? bookingCategories.map((category) => category.name)
+          ? cleanCategoryNames(bookingCategories.map((category) => category.name))
           : [];
       const { photos, logo: visionLogo, hasHeroImage: heroWorthy } = imageResult;
       const finalImages = photos.map(getHighResUrl);
@@ -925,7 +935,7 @@ export async function POST(request: Request) {
           await classifyImages(squareData.images);
         const finalImages = photos.map(getHighResUrl);
         const services = servicesFromAcuityCategories(squareData.categories, 720);
-        const categoryNames = squareData.categories.map((c) => c.name);
+        const categoryNames = cleanCategoryNames(squareData.categories.map((c) => c.name));
 
         return NextResponse.json({
           business_name: squareData.businessName,
@@ -1055,7 +1065,7 @@ ${html.slice(0, 40000)}`,
       .map((s) => normalizeClaudeServiceRow(s));
     const servicesPayload = acuityServices.length > 0 ? acuityServices : claudeServicesNorm;
 
-    const acuityCategoryNames = acuityData?.categories?.map((c) => c.name) ?? [];
+    const acuityCategoryNames = cleanCategoryNames(acuityData?.categories?.map((c) => c.name) ?? []);
     const derivedCategoryNames = orderedUniqueCategoriesFromServices(servicesPayload);
     const categoriesPayload =
       acuityCategoryNames.length > 0 ? acuityCategoryNames : derivedCategoryNames;

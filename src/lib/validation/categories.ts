@@ -27,8 +27,11 @@ export function validateCategories(input: unknown): CategoriesValidationResult {
       return;
     }
     const trimmed = entry.trim();
+    // An empty category carries no meaning — silently drop it rather than
+    // failing the whole save. A single stray empty entry (e.g. seeded by an
+    // old import) would otherwise poison the parsed list and cascade into
+    // "not in categories list" errors on every service.
     if (trimmed.length === 0) {
-      errors.push({ field: `categories[${i}]`, reason: "must not be empty" });
       return;
     }
     if (trimmed.length > MAX_LENGTH) {
