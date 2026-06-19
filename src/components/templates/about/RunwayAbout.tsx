@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import type { ThemeColors } from "@/lib/templates/themes";
+import { buildAboutBodyParagraphs, splitAboutPullQuote } from "@/lib/about-pull-quote";
 import { ensureReadable } from "@/lib/templates/contrast";
 import { AnimateSection } from "../shared/AnimateSection";
 
@@ -11,15 +12,9 @@ interface RunwayAboutProps {
   colors: ThemeColors;
 }
 
-function getPullQuote(text: string): string {
-  const firstSentence = text.match(/^[^.!?]+[.!?]/)?.[0]?.trim();
-  const quote = firstSentence || text.trim();
-  return quote.length > 132 ? `${quote.slice(0, 128).trim()}...` : quote;
-}
-
 export function RunwayAbout({ paragraphs, image, colors }: RunwayAboutProps) {
-  const pullQuote = getPullQuote(paragraphs[0] || "Texture respected. Style elevated.");
-  const rest = paragraphs.slice(1);
+  const { quote: pullQuote } = splitAboutPullQuote(paragraphs[0] || "");
+  const rest = buildAboutBodyParagraphs(paragraphs);
   const gold = ensureReadable(colors.primary || "#D8B255", "#050505", 3);
 
   return (
