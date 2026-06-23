@@ -6,6 +6,7 @@ import {
   isGalleryVideoUrl,
   normalizeGalleryVideoTitle,
 } from "@/lib/video/gallery-video";
+import { isValidPersistedServiceImageUrl } from "@/lib/validation/service-image-url";
 
 const MAX_IMAGES = 50;
 
@@ -79,8 +80,13 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Mirrors services-image validation: app-served `/defaults/...` images, our
+// Supabase preview/service buckets, and plain https thumbnails are all valid.
+// A new tenant's gallery is prefilled with `/defaults/...` paths, so an
+// https-only check rejected every photos-page save until the owner replaced
+// each default photo.
 function isValidImageUrl(v: unknown): v is string {
-  return typeof v === "string" && /^https:\/\//.test(v);
+  return typeof v === "string" && isValidPersistedServiceImageUrl(v);
 }
 
 export async function POST(request: NextRequest) {
@@ -119,7 +125,7 @@ export async function POST(request: NextRequest) {
   for (let i = 0; i < rawImages.length; i++) {
     if (!isValidImageUrl(rawImages[i])) {
       return NextResponse.json(
-        { error: "Validation failed", errors: [{ field: `images[${i}]`, reason: "must be an https URL" }] },
+        { error: "Validation failed", errors: [{ field: `images[${i}]`, reason: "must be a default image path or an https URL" }] },
         { status: 400 },
       );
     }
@@ -141,7 +147,7 @@ export async function POST(request: NextRequest) {
     aboutImageUrl = rawAbout;
   } else {
     return NextResponse.json(
-      { error: "Validation failed", errors: [{ field: "about_image_url", reason: "must be an https URL or null" }] },
+      { error: "Validation failed", errors: [{ field: "about_image_url", reason: "must be a default image path, an https URL, or null" }] },
       { status: 400 },
     );
   }
