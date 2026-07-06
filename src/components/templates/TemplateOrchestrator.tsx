@@ -511,6 +511,7 @@ export function TemplateOrchestrator({
               images={galleryImages}
               colors={colors}
               mobileSliderEnabled={mobileGallerySliderEnabled}
+              mobileGridColumns={template === "grand" ? 2 : 3}
             />
           )}
           {showAbout && <div id="about"><RunwayAbout paragraphs={aboutParagraphs} image={showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined} colors={colors} /></div>}

@@ -14,6 +14,8 @@ interface RunwayGalleryProps {
   images: string[];
   colors: ThemeColors;
   mobileSliderEnabled?: boolean;
+  /** Mobile grid columns — 3 compact tiles (runway) or 2 larger tiles (grand) */
+  mobileGridColumns?: 2 | 3;
 }
 
 const TILE_CLASSES = [
@@ -49,6 +51,7 @@ export function RunwayGallery({
   images,
   colors,
   mobileSliderEnabled = false,
+  mobileGridColumns = 3,
 }: RunwayGalleryProps) {
   const galleryImages = images;
   const galleryImageKey = galleryImages.join("\u0000");
@@ -63,11 +66,17 @@ export function RunwayGallery({
   const userPausedAutoRef = useRef(false);
   const resumeAutoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reduceMotionRef = useRef(false);
+  // Keep preview rows full: 8 (4 rows of 2) or 9 (3 rows of 3)
+  const mobileGridPreviewLimit = mobileGridColumns === 2 ? 8 : 9;
   const visibleMobileGridImages = getVisibleMobileGalleryImages(
     galleryImages,
     mobileGridExpanded,
+    mobileGridPreviewLimit,
   );
-  const canExpandMobileGrid = hasMoreMobileGalleryImages(galleryImages);
+  const canExpandMobileGrid = hasMoreMobileGalleryImages(
+    galleryImages,
+    mobileGridPreviewLimit,
+  );
 
   const markUserControlsGallery = useCallback(() => {
     if (!mobileSliderEnabled) return;
@@ -317,7 +326,13 @@ export function RunwayGallery({
 
         {!mobileSliderEnabled && (
           <div className="relative left-1/2 w-screen -translate-x-1/2 px-2 md:hidden">
-            <div className="grid grid-cols-3 gap-1.5">
+            <div
+              className={
+                mobileGridColumns === 2
+                  ? "grid grid-cols-2 gap-1.5"
+                  : "grid grid-cols-3 gap-1.5"
+              }
+            >
               {visibleMobileGridImages.map((src, index) => (
                 <div
                   key={`mobile-grid-${src}-${index}`}
@@ -329,7 +344,7 @@ export function RunwayGallery({
                     alt={`Editorial hair gallery image ${index + 1}`}
                     fill
                     className="object-contain"
-                    sizes="34vw"
+                    sizes={mobileGridColumns === 2 ? "50vw" : "34vw"}
                     unoptimized
                   />
                 </div>
