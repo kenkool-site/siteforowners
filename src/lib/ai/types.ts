@@ -1,4 +1,4 @@
-export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'braids' | 'locs' | 'locs_and_braids';
+export type BusinessType = 'salon' | 'barbershop' | 'restaurant' | 'nails' | 'braids' | 'locs' | 'locs_and_braids' | 'home_services';
 
 export type ColorTheme =
   // Salon
@@ -17,7 +17,9 @@ export type ColorTheme =
   | 'braids_kente' | 'braids_royal' | 'braids_earth' | 'braids_ocean' | 'braids_sunset'
   | 'braids_midnight' | 'braids_coral' | 'braids_jade' | 'braids_runway_noir'
   // Locs
-  | 'locs_gold' | 'locs_earth' | 'locs_sage' | 'locs_copper' | 'locs_noir';
+  | 'locs_gold' | 'locs_earth' | 'locs_sage' | 'locs_copper' | 'locs_noir'
+  // Home services
+  | 'home_services_neighborhood';
 
 export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand';
 
@@ -95,6 +97,7 @@ export interface GeneratedCopy {
     booking_intro?: string;
   };
   social_links?: SocialLinks | null;
+  home_services_config?: unknown;
 }
 
 export interface PreviewData {
