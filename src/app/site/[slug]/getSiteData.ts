@@ -27,6 +27,11 @@ export interface SiteData {
   depositSettings?: DepositSettings;
   isDemo: boolean;
   canonicalUrl: string;
+  tenantHostFields: {
+    custom_domain: string | null;
+    subdomain: string | null;
+    preview_slug: string;
+  };
 }
 
 /**
@@ -89,15 +94,24 @@ export async function getSiteData(slug: string): Promise<SiteData | null> {
       : undefined;
   }
 
-  const canonicalUrl = tenantUrl(
-    APP_URL,
-    {
-      custom_domain: (tenant?.custom_domain as string | null) ?? null,
-      subdomain: (tenant?.subdomain as string | null) ?? null,
-      preview_slug: slug,
-    },
-    "/",
-  );
+  const tenantHostFields = {
+    custom_domain: (tenant?.custom_domain as string | null) ?? null,
+    subdomain: (tenant?.subdomain as string | null) ?? null,
+    preview_slug: slug,
+  };
 
-  return { preview: preview as PreviewData, bookingHours, blockedDates, tenantId, checkoutMode, bookingMode, depositSettings, isDemo, canonicalUrl };
+  const canonicalUrl = tenantUrl(APP_URL, tenantHostFields, "/");
+
+  return {
+    preview: preview as PreviewData,
+    bookingHours,
+    blockedDates,
+    tenantId,
+    checkoutMode,
+    bookingMode,
+    depositSettings,
+    isDemo,
+    canonicalUrl,
+    tenantHostFields,
+  };
 }
