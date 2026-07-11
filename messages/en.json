@@ -106,5 +106,26 @@
     "password": "Password",
     "forgotPassword": "Forgot password?",
     "resetPassword": "Reset Password"
+  },
+  "homeServices": {
+    "nav": {
+      "services": "Services",
+      "work": "Our Work",
+      "reviews": "Reviews",
+      "serviceAreas": "Service Areas"
+    },
+    "actions": {
+      "call": "Call",
+      "message": "Message",
+      "freeEstimate": "Free Estimate"
+    },
+    "sections": {
+      "services": "Services",
+      "work": "Our Work",
+      "whyUs": "Why Choose Us",
+      "reviews": "Customer Reviews",
+      "serviceAreas": "Areas We Serve",
+      "estimate": "Request a Free Estimate"
+    }
   }
 }

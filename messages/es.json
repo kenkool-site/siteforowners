@@ -106,5 +106,26 @@
     "password": "Contraseña",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "resetPassword": "Restablecer Contraseña"
+  },
+  "homeServices": {
+    "nav": {
+      "services": "Servicios",
+      "work": "Nuestro Trabajo",
+      "reviews": "Reseñas",
+      "serviceAreas": "Zonas de Servicio"
+    },
+    "actions": {
+      "call": "Llamar",
+      "message": "Mensaje",
+      "freeEstimate": "Estimado Gratis"
+    },
+    "sections": {
+      "services": "Servicios",
+      "work": "Nuestro Trabajo",
+      "whyUs": "Por Qué Elegirnos",
+      "reviews": "Opiniones de Clientes",
+      "serviceAreas": "Áreas que Atendemos",
+      "estimate": "Solicite un Estimado Gratis"
+    }
   }
 }

@@ -65,7 +65,7 @@ import { TemplateSocialLinks } from "./TemplateSocialLinks";
 
 type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand";
 
-interface TemplateOrchestratorProps {
+export interface TemplateOrchestratorProps {
   data: PreviewData;
   locale?: "en" | "es";
   isLive?: boolean;
