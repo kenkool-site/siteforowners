@@ -38,13 +38,16 @@ function formField(form: FormData, key: string): string {
   return value.trim();
 }
 
+export function isEstimateHoneypotTripped(form: FormData): boolean {
+  return formField(form, "company_website").length > 0;
+}
+
 export function parseEstimateFormFields(
   form: FormData,
   locale: HomeServicesLocale,
   sourcePath: string,
 ): EstimateValidationResult {
-  const honeypot = formField(form, "company_website");
-  if (honeypot.length > 0) {
+  if (isEstimateHoneypotTripped(form)) {
     return { ok: false, isSpam: true, errors: [] };
   }
 

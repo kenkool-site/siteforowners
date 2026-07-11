@@ -16,7 +16,10 @@ import {
   ESTIMATE_RATE_LIMIT,
   estimateRateLimitBucket,
 } from "@/lib/estimate-rate-limit";
-import { parseEstimateFormFields } from "@/lib/validation/estimate-request";
+import {
+  isEstimateHoneypotTripped,
+  parseEstimateFormFields,
+} from "@/lib/validation/estimate-request";
 import { validateEstimatePhotos } from "@/lib/validation/estimate-photos";
 
 type FieldError = { field: string; reason: string };
@@ -128,15 +131,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const parsedFields = parseEstimateFormFields(form, locale, sourcePath);
-  if (!parsedFields.ok) {
-    if (parsedFields.isSpam) {
-      return NextResponse.json({ ok: true, photoWarning: false });
-    }
-    return NextResponse.json(
-      { ok: false, code: "invalid", errors: parsedFields.errors },
-      { status: 400 },
-    );
+  if (isEstimateHoneypotTripped(form)) {
+    return NextResponse.json({ ok: true, photoWarning: false });
   }
 
   const ipHash = hashIp(getClientIp(request.headers));
@@ -149,6 +145,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { ok: false, code: "rate_limited" },
       { status: 429 },
+    );
+  }
+
+  const parsedFields = parseEstimateFormFields(form, locale, sourcePath);
+  if (!parsedFields.ok) {
+    return NextResponse.json(
+      { ok: false, code: "invalid", errors: parsedFields.errors },
+      { status: 400 },
     );
   }
 

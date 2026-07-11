@@ -39,7 +39,7 @@ function sanitizeTwilioError(err: unknown): string {
 }
 
 export function getTwilioMessageClient(): TwilioMessageClient | null {
-  return client;
+  return client as TwilioMessageClient | null;
 }
 
 export async function sendTwilioMessage(

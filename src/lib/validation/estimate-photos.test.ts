@@ -13,7 +13,7 @@ function imageFile(
   name: string,
   type: string,
 ): File {
-  return new File([bytes], name, { type });
+  return new File([Buffer.from(bytes)], name, { type });
 }
 
 function paddedBytes(signature: Uint8Array, totalSize: number): Uint8Array {
