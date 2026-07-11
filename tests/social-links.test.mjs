@@ -22,7 +22,12 @@ test("site editor can update social links", async () => {
   assert.match(editor, /facebookUrl/, "SiteEditor should expose Facebook");
   assert.match(editor, /tiktokUrl/, "SiteEditor should expose TikTok");
   assert.match(editor, /social_links:\s*buildSocialLinksPayload/, "SiteEditor should save normalized social links");
-  assert.match(route, /generatedCopyUpdates\.social_links/, "update-site should merge social links");
+  assert.match(route, /mergeGeneratedCopy/, "update-site should merge generated_copy updates");
+  assert.match(
+    await readFile("src/lib/generated-copy-merge.ts", "utf8"),
+    /social_links/,
+    "generated-copy merge should preserve social links",
+  );
 });
 
 test("template social links render only populated platforms", async () => {
