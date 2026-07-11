@@ -26,6 +26,7 @@ import { HomeServicesServiceAreas } from "./HomeServicesServiceAreas";
 import { HomeServicesServices } from "./HomeServicesServices";
 import { HomeServicesTrustStrip } from "./HomeServicesTrustStrip";
 import { HomeServicesWhyUs } from "./HomeServicesWhyUs";
+import { HomeServicesEstimateForm } from "./HomeServicesEstimateForm";
 import { ensureReadable } from "@/lib/templates/contrast";
 
 interface HomeServicesTemplateProps {
@@ -126,6 +127,7 @@ function HomeServicesPage({ data, locale }: HomeServicesPageProps) {
   const showServiceAreas =
     config.sections.show_service_areas !== false && Boolean(coverageSummary.trim());
   const showEstimate = config.sections.show_estimate !== false;
+  const estimateEnabled = Boolean(config.notification?.destination_e164);
   const estimateHref = "#estimate";
 
   return (
@@ -197,11 +199,20 @@ function HomeServicesPage({ data, locale }: HomeServicesPageProps) {
           style={{ backgroundColor: colors.muted }}
           aria-labelledby="estimate-heading"
         >
-          <DirectEstimateCard
-            phoneHref={phoneHref}
-            messageHref={messageHref}
-            colors={colors}
-          />
+          {estimateEnabled ? (
+            <HomeServicesEstimateForm
+              services={data.services}
+              phoneHref={phoneHref}
+              messageHref={messageHref}
+              colors={colors}
+            />
+          ) : (
+            <DirectEstimateCard
+              phoneHref={phoneHref}
+              messageHref={messageHref}
+              colors={colors}
+            />
+          )}
         </section>
       )}
       <HomeServicesFooter
