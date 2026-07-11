@@ -1,7 +1,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SiteEditor } from "./SiteEditor";
+import { VerticalSiteEditor } from "./VerticalSiteEditor";
 
 async function getData(tenantId: string) {
   noStore();
@@ -76,7 +76,7 @@ export default async function EditSitePage({
   }
 
   return (
-    <SiteEditor
+    <VerticalSiteEditor
       tenant={data.tenant}
       preview={data.preview}
       initialDeposit={data.deposit}
