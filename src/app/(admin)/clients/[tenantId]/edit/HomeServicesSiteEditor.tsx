@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { TemplateRouter } from "@/components/templates";
 import { GalleryEditor } from "@/app/site/[slug]/admin/_components/GalleryEditor";
@@ -8,7 +8,7 @@ import { GalleryVideoEditor } from "@/app/site/[slug]/admin/_components/GalleryV
 import { AboutImagePicker } from "@/app/site/[slug]/admin/_components/AboutImagePicker";
 import type { SiteEditorProps } from "./SiteEditor";
 import type { ColorTheme, PreviewData, ServiceItem } from "@/lib/ai/types";
-import type { HomeServicesLocale } from "@/lib/home-services/types";
+import type { HomeServicesLocale, EstimateDeliveryChannel } from "@/lib/home-services/types";
 import {
   parseHomeServicesConfig,
   type HomeServicesConfig,
@@ -18,6 +18,10 @@ import {
 } from "@/lib/home-services/types";
 import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
+import {
+  EstimateDeliveryDiagnostics,
+  NotificationSettingsSection,
+} from "./EstimateDeliveryDiagnostics";
 
 type LocaleCopyDraft = {
   hero_headline: string;
@@ -742,6 +746,7 @@ function buildPreviewData(preview: Record<string, unknown>, draft: EditorDraft):
 
 export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
   const slug = preview.slug as string;
+  const tenantId = typeof tenant.id === "string" ? tenant.id : "";
   const [draft, setDraft] = useState<EditorDraft>(() => buildDraft(preview));
   const [contentLocale, setContentLocale] = useState<HomeServicesLocale>("en");
   const [previewLocale, setPreviewLocale] = useState<HomeServicesLocale>("en");
@@ -751,9 +756,60 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
   const [error, setError] = useState("");
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [twilioWarning, setTwilioWarning] = useState<string | null>(null);
+  const [channelWarnings, setChannelWarnings] = useState<{
+    sms: string | null;
+    whatsapp: string | null;
+  }>({ sms: null, whatsapp: null });
+
+  useEffect(() => {
+    if (!tenantId) return;
+    void fetch(`/api/admin/estimate-requests/list?tenantId=${encodeURIComponent(tenantId)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((body) => {
+        if (!body) return;
+        setTwilioWarning(typeof body.twilioWarning === "string" ? body.twilioWarning : null);
+        const warnings = body.channelWarnings;
+        if (warnings && typeof warnings === "object") {
+          setChannelWarnings({
+            sms: typeof warnings.sms === "string" ? warnings.sms : null,
+            whatsapp: typeof warnings.whatsapp === "string" ? warnings.whatsapp : null,
+          });
+        }
+      })
+      .catch(() => {});
+  }, [tenantId]);
 
   const updateConfig = (home_services_config: HomeServicesConfig) => {
     setDraft((current) => ({ ...current, home_services_config }));
+  };
+
+  const updateNotification = (patch: {
+    channel?: EstimateDeliveryChannel;
+    destination_e164?: string;
+    sms_fallback_e164?: string;
+  }) => {
+    const current = draft.home_services_config.notification ?? {
+      channel: "sms" as const,
+      destination_e164: "",
+    };
+    const next = {
+      ...current,
+      ...patch,
+    };
+    if (patch.channel === "sms") {
+      const withoutFallback = { ...next };
+      delete (withoutFallback as { sms_fallback_e164?: string }).sms_fallback_e164;
+      updateConfig({
+        ...draft.home_services_config,
+        notification: withoutFallback,
+      });
+      return;
+    }
+    updateConfig({
+      ...draft.home_services_config,
+      notification: next,
+    });
   };
 
   const handleSave = async () => {
@@ -919,6 +975,16 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
           <CoverageSection config={draft.home_services_config} onChange={updateConfig} />
           <GalleryProjectsSection config={draft.home_services_config} onChange={updateConfig} />
           <MessageLinksSection config={draft.home_services_config} onChange={updateConfig} />
+          <NotificationSettingsSection
+            channel={draft.home_services_config.notification?.channel ?? "sms"}
+            destinationE164={draft.home_services_config.notification?.destination_e164 ?? ""}
+            smsFallbackE164={draft.home_services_config.notification?.sms_fallback_e164 ?? ""}
+            twilioWarning={
+              twilioWarning
+              ?? channelWarnings[draft.home_services_config.notification?.channel ?? "sms"]
+            }
+            onChange={updateNotification}
+          />
           <SectionVisibilitySection config={draft.home_services_config} onChange={updateConfig} />
 
           <GalleryEditor
@@ -955,6 +1021,8 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
               setVideoError(null);
             }}
           />
+
+          {tenantId && <EstimateDeliveryDiagnostics tenantId={tenantId} />}
         </div>
       ) : (
         <div className="overflow-hidden rounded-xl border bg-white shadow-lg">
