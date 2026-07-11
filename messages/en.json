@@ -126,6 +126,25 @@
       "reviews": "Customer Reviews",
       "serviceAreas": "Areas We Serve",
       "estimate": "Request a Free Estimate"
+    },
+    "gallery": {
+      "before": "Before",
+      "after": "After"
+    },
+    "reviews": {
+      "countLabel": "reviews",
+      "attribution": "Reviews from Google"
+    },
+    "estimate": {
+      "directTitle": "Ready for a free estimate?",
+      "directBody": "Call or message us with your project details and we will follow up with pricing and scheduling options.",
+      "directCall": "Call for an estimate",
+      "directMessage": "Message for an estimate"
+    },
+    "footer": {
+      "contact": "Contact",
+      "hours": "Hours",
+      "closed": "Closed"
     }
   }
 }

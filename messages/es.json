@@ -126,6 +126,25 @@
       "reviews": "Opiniones de Clientes",
       "serviceAreas": "Áreas que Atendemos",
       "estimate": "Solicite un Estimado Gratis"
+    },
+    "gallery": {
+      "before": "Antes",
+      "after": "Después"
+    },
+    "reviews": {
+      "countLabel": "reseñas",
+      "attribution": "Reseñas de Google"
+    },
+    "estimate": {
+      "directTitle": "¿Listo para un estimado gratis?",
+      "directBody": "Llámenos o envíenos un mensaje con los detalles de su proyecto y le responderemos con precios y opciones de programación.",
+      "directCall": "Llamar para un estimado",
+      "directMessage": "Mensaje para un estimado"
+    },
+    "footer": {
+      "contact": "Contacto",
+      "hours": "Horario",
+      "closed": "Cerrado"
     }
   }
 }

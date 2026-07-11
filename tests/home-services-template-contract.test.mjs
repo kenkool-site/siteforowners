@@ -14,6 +14,14 @@ test("home-services components contain no booking imports or labels", async () =
     "HomeServicesTemplate.tsx",
     "HomeServicesNav.tsx",
     "HomeServicesHero.tsx",
+    "HomeServicesTrustStrip.tsx",
+    "HomeServicesServices.tsx",
+    "HomeServicesGallery.tsx",
+    "HomeServicesWhyUs.tsx",
+    "HomeServicesReviews.tsx",
+    "HomeServicesServiceAreas.tsx",
+    "HomeServicesMobileActionBar.tsx",
+    "HomeServicesFooter.tsx",
   ];
   const source = (await Promise.all(files.map((name) =>
     readFile(`src/components/templates/home-services/${name}`, "utf8")
