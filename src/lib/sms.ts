@@ -16,6 +16,44 @@ const fromNumber = process.env.TWILIO_FROM;
 
 const client = accountSid && authToken ? twilio(accountSid, authToken) : null;
 
+export interface TwilioMessageClient {
+  messages: {
+    create(input: Record<string, string>): Promise<{ sid: string; status: string }>;
+  };
+}
+
+export type TwilioSendResult =
+  | { ok: true; sid: string; status: string }
+  | { ok: false; error: string };
+
+function sanitizeTwilioError(err: unknown): string {
+  if (err && typeof err === "object") {
+    const e = err as { code?: number; status?: number; message?: string };
+    const parts: string[] = [];
+    if (e.code != null) parts.push(`code=${e.code}`);
+    if (e.status != null) parts.push(`status=${e.status}`);
+    if (typeof e.message === "string" && e.message.trim()) parts.push(e.message.trim());
+    if (parts.length > 0) return parts.join(" ");
+  }
+  return "Twilio send failed";
+}
+
+export function getTwilioMessageClient(): TwilioMessageClient | null {
+  return client;
+}
+
+export async function sendTwilioMessage(
+  twilioClient: TwilioMessageClient,
+  input: Record<string, string>,
+): Promise<TwilioSendResult> {
+  try {
+    const message = await twilioClient.messages.create(input);
+    return { ok: true, sid: message.sid, status: message.status };
+  } catch (err) {
+    return { ok: false, error: sanitizeTwilioError(err) };
+  }
+}
+
 /**
  * Normalize a raw phone string to Twilio's required E.164 format.
  * Returns null for inputs that can't be confidently normalized.

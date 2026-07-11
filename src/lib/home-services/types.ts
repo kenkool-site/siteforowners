@@ -1,4 +1,14 @@
+import { normalizeE164 } from "./urls";
+
 export type HomeServicesLocale = "en" | "es";
+
+export type EstimateDeliveryChannel = "sms" | "whatsapp";
+
+export interface HomeServicesNotificationConfig {
+  channel: EstimateDeliveryChannel;
+  destination_e164: string;
+  sms_fallback_e164?: string;
+}
 
 export interface HomeServicesTrustPoint {
   id: string;
@@ -32,6 +42,7 @@ export interface HomeServicesConfig {
   coverage_summary_en: string;
   coverage_summary_es: string;
   message_links: { whatsapp_e164?: string; sms_e164?: string };
+  notification?: HomeServicesNotificationConfig;
   sections: {
     show_trust?: boolean;
     show_gallery?: boolean;
@@ -61,6 +72,27 @@ export function parseHomeServicesConfig(raw: unknown): HomeServicesConfig {
 
   const whatsapp_e164 = text(links.whatsapp_e164) || undefined;
   const sms_e164 = text(links.sms_e164) || undefined;
+
+  const notificationRaw = source.notification && typeof source.notification === "object"
+    ? source.notification as Record<string, unknown>
+    : null;
+  const notificationChannel = notificationRaw ? text(notificationRaw.channel) : "";
+  const notificationDestination = notificationRaw
+    ? normalizeE164(text(notificationRaw.destination_e164))
+    : null;
+  const notificationFallbackRaw = notificationRaw ? text(notificationRaw.sms_fallback_e164) : "";
+  const notificationFallback = notificationFallbackRaw
+    ? normalizeE164(notificationFallbackRaw) ?? undefined
+    : undefined;
+  const notification = notificationRaw
+    && (notificationChannel === "sms" || notificationChannel === "whatsapp")
+    && notificationDestination
+    ? {
+        channel: notificationChannel as EstimateDeliveryChannel,
+        destination_e164: notificationDestination,
+        ...(notificationFallback ? { sms_fallback_e164: notificationFallback } : {}),
+      }
+    : undefined;
 
   return {
     trust_points: rows(source.trust_points).flatMap((row) => {
@@ -101,6 +133,7 @@ export function parseHomeServicesConfig(raw: unknown): HomeServicesConfig {
       ...(whatsapp_e164 ? { whatsapp_e164 } : {}),
       ...(sms_e164 ? { sms_e164 } : {}),
     },
+    ...(notification ? { notification } : {}),
     sections,
   };
 }
