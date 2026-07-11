@@ -13,9 +13,10 @@ const DEFAULT_HERO_VIDEO_BY_TYPE: Record<BusinessType, string> = {
   braids: "/marketing/hero-defaults/braids.mp4",
   locs: "/marketing/hero-defaults/braids.mp4",
   locs_and_braids: "/marketing/hero-defaults/braids.mp4",
+  home_services: "",
 };
 
 export function getDefaultHeroVideoUrl(businessType: BusinessType): string | null {
   const path = DEFAULT_HERO_VIDEO_BY_TYPE[businessType];
-  return path ?? null;
+  return path || null;
 }

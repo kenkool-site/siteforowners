@@ -62,6 +62,11 @@ const TAGLINES: Record<BusinessType, string[]> = {
     "From fresh braids to healthy locs",
     "Your crown, your culture, your style",
   ],
+  home_services: [
+    "Outdoor care you can count on",
+    "Reliable service for every season",
+    "Your neighborhood outdoor pros",
+  ],
 };
 
 function getPreviewQualityTips({

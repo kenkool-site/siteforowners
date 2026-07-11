@@ -1,5 +1,6 @@
 import type { BusinessType, ServiceItem } from '@/lib/ai/types';
 import { serviceDefaultImage } from '@/lib/templates/service-images';
+import { STOCK_PHOTOS } from '@/lib/templates/stock-photos';
 
 // Default fallback service cards, shown when a tenant has no real images
 // (no Google Maps photos, no booking-app images, no uploads). Each card's image
@@ -69,7 +70,22 @@ const BASE_SERVICES = {
     { name: 'Faux Locs', price: '$220+' },
     { name: 'Microloc Retie', price: '$225+' },
   ]),
-} satisfies Record<Exclude<BusinessType, "locs_and_braids">, ServiceItem[]>;
+} satisfies Record<Exclude<BusinessType, "locs_and_braids" | "home_services">, ServiceItem[]>;
+
+const homeServiceDefaults: ServiceItem[] = [
+  "Sprinkler Installation & Repair",
+  "Lawn Mowing & Maintenance",
+  "Sod & Grass Installation",
+  "Landscaping",
+  "Tree Trimming",
+  "Yard Cleanup",
+  "Mulching",
+  "Seasonal Maintenance",
+].map((name, index) => ({
+  name,
+  price: "",
+  image: STOCK_PHOTOS.home_services[index % STOCK_PHOTOS.home_services.length],
+}));
 
 /**
  * The local default service photos for a business type, deduped — used to seed
@@ -83,6 +99,7 @@ export function defaultGalleryImages(type: BusinessType): string[] {
 
 export const DEFAULT_SERVICES: Record<BusinessType, ServiceItem[]> = {
   ...BASE_SERVICES,
+  home_services: homeServiceDefaults,
   // Combined "Locs & Braids" — a tight, curated mix of the most-requested
   // services from both verticals (4 braids + 4 locs), reusing their images.
   locs_and_braids: [

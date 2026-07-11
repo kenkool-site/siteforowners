@@ -63,10 +63,19 @@ const BASE_STOCK_PHOTOS = {
     pexels(19803587), // Black woman with braided hair portrait
     pexels(20644320), // Woman with braid portrait
   ],
-} satisfies Record<Exclude<BusinessType, "locs_and_braids">, string[]>;
+} satisfies Record<Exclude<BusinessType, "locs_and_braids" | "home_services">, string[]>;
+
+const HOME_SERVICES_STOCK_PHOTOS = [
+  pexels(34319671),
+  pexels(37720375),
+  pexels(37601618),
+  pexels(12919779),
+  pexels(30958777),
+];
 
 export const STOCK_PHOTOS: Record<BusinessType, string[]> = {
   ...BASE_STOCK_PHOTOS,
+  home_services: HOME_SERVICES_STOCK_PHOTOS,
   // Combined "Locs & Braids": merge both photo pools for hero + gallery variety.
   locs_and_braids: [...BASE_STOCK_PHOTOS.braids, ...BASE_STOCK_PHOTOS.locs],
 };

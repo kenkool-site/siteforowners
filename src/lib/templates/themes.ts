@@ -640,10 +640,27 @@ const BASE_THEMES = {
       previewSwatch: ['#D0A44A', '#0B0B0B', '#050505'],
     },
   ],
-} satisfies Record<Exclude<BusinessType, "locs_and_braids">, ThemeConfig[]>;
+} satisfies Record<Exclude<BusinessType, "locs_and_braids" | "home_services">, ThemeConfig[]>;
+
+const HOME_SERVICES_THEMES: ThemeConfig[] = [
+  {
+    id: 'home_services_neighborhood',
+    name: 'Neighborhood Professional',
+    colors: {
+      primary: '#0C3658',
+      secondary: '#13795B',
+      accent: '#13795B',
+      background: '#FFFFFF',
+      foreground: '#102A43',
+      muted: '#F0F6F8',
+    },
+    previewSwatch: ['#0C3658', '#13795B', '#F0F6F8'],
+  },
+];
 
 export const THEMES_BY_VERTICAL: Record<BusinessType, ThemeConfig[]> = {
   ...BASE_THEMES,
+  home_services: HOME_SERVICES_THEMES,
   // Combined "Locs & Braids": offer both palettes (braids first, then locs).
   locs_and_braids: [...BASE_THEMES.braids, ...BASE_THEMES.locs],
 };
