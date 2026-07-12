@@ -44,3 +44,14 @@ test("marketing previews switch the home-services locale without leaving the pre
   assert.match(router, /onHomeServicesLocaleChange/);
   assert.match(nav, /onLocaleChange/);
 });
+
+test("all estimate CTAs share the modal controller and delivery boundary is explicit", async () => {
+  const names = ["HomeServicesTemplate.tsx", "HomeServicesNav.tsx", "HomeServicesHero.tsx", "HomeServicesServices.tsx", "HomeServicesMobileActionBar.tsx"];
+  const source = (await Promise.all(names.map((name) => readFile(`src/components/templates/home-services/${name}`, "utf8")))).join("\n");
+  const preview = await readFile("src/app/(marketing)/preview/[slug]/PreviewClient.tsx", "utf8");
+  const tenant = await readFile("src/app/site/[slug]/SiteClient.tsx", "utf8");
+  assert.match(source, /onEstimate/);
+  assert.doesNotMatch(source, /estimateHref|#estimate/);
+  assert.match(preview, /estimateDeliveryMode=["']preview_mock["']/);
+  assert.match(tenant, /estimateDeliveryMode=["']tenant["']/);
+});

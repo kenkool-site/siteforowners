@@ -12,6 +12,7 @@ export interface HomeServicesServicesProps {
   serviceDescriptions: Record<string, string>;
   locale: HomeServicesLocale;
   colors: ThemeColors;
+  onEstimate: (serviceName?: string) => void;
 }
 
 function serviceDescriptionKey(service: ServiceItem): string {
@@ -22,6 +23,7 @@ export function HomeServicesServices({
   services,
   serviceDescriptions,
   colors,
+  onEstimate,
 }: HomeServicesServicesProps) {
   const t = useTranslations("homeServices");
   const readable = getHomeServicesReadable(colors);
@@ -53,13 +55,11 @@ export function HomeServicesServices({
               serviceDescriptions[service.name] ||
               service.description ||
               "";
-            const estimateHref = `#estimate?service=${encodeURIComponent(service.name)}`;
-
             return (
-              <a
+              <button type="button"
                 key={service.client_id || service.name}
-                href={estimateHref}
-                className="group flex min-h-11 flex-col overflow-hidden rounded-2xl border transition-shadow hover:shadow-md"
+                onClick={() => onEstimate(service.name)}
+                className="text-left group flex min-h-11 flex-col overflow-hidden rounded-2xl border transition-shadow hover:shadow-md"
                 style={{
                   backgroundColor: colors.muted,
                   borderColor: `${colors.foreground}10`,
@@ -93,7 +93,7 @@ export function HomeServicesServices({
                     {t("actions.freeEstimate")} →
                   </span>
                 </div>
-              </a>
+              </button>
             );
           })}
         </div>

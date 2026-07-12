@@ -148,6 +148,20 @@
       "rateLimited": "Demasiadas solicitudes. Espere un momento e inténtelo de nuevo.",
       "unavailable": "Las solicitudes de estimado no están disponibles por ahora. Llámenos o envíenos un mensaje directamente.",
       "photoWarning": "Recibimos su solicitud, pero algunas fotos no se pudieron adjuntar. Puede enviar las fotos faltantes por mensaje.",
+      "modal": {
+        "title": "Solicite un estimado gratis",
+        "of": "de",
+        "stageContact": "Datos de contacto",
+        "stageProject": "Detalles del proyecto",
+        "optional": "Opcional",
+        "cityZip": "Ciudad / código postal",
+        "back": "Atrás",
+        "continue": "Continuar",
+        "submit": "Enviar",
+        "sampleSuccessTitle": "Solicitud de muestra completada",
+        "sampleSuccessBody": "Esta solicitud fue simulada. No se contactó a ningún contratista.",
+        "close": "Cerrar"
+      },
       "fields": {
         "name": {
           "label": "Su nombre",

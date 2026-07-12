@@ -1,5 +1,6 @@
 "use client";
 
+import { useReducer } from "react";
 import { useTranslations } from "next-intl";
 import { NextIntlClientProvider } from "next-intl";
 import type { PreviewData } from "@/lib/ai/types";
@@ -26,28 +27,30 @@ import { HomeServicesServiceAreas } from "./HomeServicesServiceAreas";
 import { HomeServicesServices } from "./HomeServicesServices";
 import { HomeServicesTrustStrip } from "./HomeServicesTrustStrip";
 import { HomeServicesWhyUs } from "./HomeServicesWhyUs";
-import { HomeServicesEstimateForm } from "./HomeServicesEstimateForm";
+import { HomeServicesEstimateModal } from "./HomeServicesEstimateModal";
+import { estimateModalReducer, initialEstimateModalState, type EstimateDeliveryMode } from "./estimate-modal-state";
 
 interface HomeServicesTemplateProps {
   data: PreviewData;
   locale: HomeServicesLocale;
   isLive?: boolean;
   onLocaleChange?: (locale: HomeServicesLocale) => void;
+  estimateDeliveryMode: EstimateDeliveryMode;
 }
 
 interface HomeServicesPageProps {
   data: PreviewData;
   locale: HomeServicesLocale;
   onLocaleChange?: (locale: HomeServicesLocale) => void;
+  estimateDeliveryMode: EstimateDeliveryMode;
 }
 
 interface DirectEstimateCardProps {
-  phoneHref: string | null;
-  messageHref: string | null;
   colors: ThemeColors;
+  onEstimate: () => void;
 }
 
-function DirectEstimateCard({ phoneHref, messageHref, colors }: DirectEstimateCardProps) {
+function DirectEstimateCard({ colors, onEstimate }: DirectEstimateCardProps) {
   const t = useTranslations("homeServices");
   const readable = getHomeServicesReadable(colors);
 
@@ -69,35 +72,21 @@ function DirectEstimateCard({ phoneHref, messageHref, colors }: DirectEstimateCa
       <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed" style={{ color: readable.bodyOnBg }}>
         {t("estimate.directBody")}
       </p>
-      <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
-        {phoneHref && (
-          <a
-            href={phoneHref}
+      <div className="mt-8 flex justify-center">
+          <button type="button" onClick={onEstimate}
             className="inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold shadow-sm transition-opacity hover:opacity-90"
             style={{ backgroundColor: colors.secondary, color: readable.ctaOnSecondary }}
           >
-            {t("estimate.directCall")}
-          </a>
-        )}
-        {messageHref && (
-          <a
-            href={messageHref}
-            className="inline-flex min-h-11 items-center justify-center rounded-full border px-6 text-sm font-semibold transition-opacity hover:opacity-90"
-            style={{
-              borderColor: `${colors.primary}35`,
-              color: readable.outlineOnBg,
-              backgroundColor: colors.background,
-            }}
-          >
-            {t("estimate.directMessage")}
-          </a>
-        )}
+            {t("actions.freeEstimate")}
+          </button>
       </div>
     </div>
   );
 }
 
-function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProps) {
+function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }: HomeServicesPageProps) {
+  const [estimateState, dispatchEstimate] = useReducer(estimateModalReducer, initialEstimateModalState);
+  const onEstimate = (serviceName?: string) => dispatchEstimate({ type: "open", service: serviceName });
   const config = parseHomeServicesConfig(data.generated_copy?.home_services_config);
   const copy = data.generated_copy?.[locale];
   const colors = getHomeServicesColors(data);
@@ -125,8 +114,6 @@ function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProp
   const showServiceAreas =
     config.sections.show_service_areas !== false && Boolean(coverageSummary.trim());
   const showEstimate = config.sections.show_estimate !== false;
-  const estimateEnabled = Boolean(config.notification?.destination_e164);
-  const estimateHref = "#estimate";
 
   return (
     <main id="home" className="min-h-screen bg-white pb-20 md:pb-0">
@@ -135,7 +122,7 @@ function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProp
         locale={locale}
         showGallery={showGallery}
         showReviews={showReviews}
-        estimateHref={estimateHref}
+        onEstimate={onEstimate}
         colors={colors}
         onLocaleChange={onLocaleChange}
       />
@@ -146,7 +133,7 @@ function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProp
         heroImage={data.images?.[0]}
         phoneHref={phoneHref}
         messageHref={messageHref}
-        estimateHref={estimateHref}
+        onEstimate={onEstimate}
         colors={colors}
       />
       {showTrust && (
@@ -161,6 +148,7 @@ function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProp
         serviceDescriptions={copy?.service_descriptions ?? {}}
         locale={locale}
         colors={colors}
+        onEstimate={onEstimate}
       />
       {showGallery && (
         <HomeServicesGallery
@@ -193,25 +181,14 @@ function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProp
       )}
       {showEstimate && (
         <section
-          id="estimate"
           className="px-4 py-16 sm:px-6"
           style={{ backgroundColor: colors.muted }}
           aria-labelledby="estimate-heading"
         >
-          {estimateEnabled ? (
-            <HomeServicesEstimateForm
-              services={data.services}
-              phoneHref={phoneHref}
-              messageHref={messageHref}
-              colors={colors}
-            />
-          ) : (
             <DirectEstimateCard
-              phoneHref={phoneHref}
-              messageHref={messageHref}
               colors={colors}
+              onEstimate={() => onEstimate()}
             />
-          )}
         </section>
       )}
       <HomeServicesFooter
@@ -225,10 +202,11 @@ function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProp
       <HomeServicesMobileActionBar
         phoneHref={phoneHref}
         messageHref={messageHref}
-        estimateHref={estimateHref}
+        onEstimate={onEstimate}
         showEstimate={showEstimate}
         colors={colors}
       />
+      <HomeServicesEstimateModal state={estimateState} services={data.services} colors={colors} deliveryMode={estimateDeliveryMode} onClose={() => dispatchEstimate({type:"close"})} onComplete={() => dispatchEstimate({type:"complete"})} />
     </main>
   );
 }
@@ -237,12 +215,13 @@ export function HomeServicesTemplate({
   data,
   locale,
   onLocaleChange,
+  estimateDeliveryMode,
 }: HomeServicesTemplateProps) {
   const messages = locale === "es" ? esMessages : enMessages;
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <HomeServicesPage data={data} locale={locale} onLocaleChange={onLocaleChange} />
+      <HomeServicesPage data={data} locale={locale} onLocaleChange={onLocaleChange} estimateDeliveryMode={estimateDeliveryMode} />
     </NextIntlClientProvider>
   );
 }

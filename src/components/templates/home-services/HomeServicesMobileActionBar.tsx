@@ -7,7 +7,7 @@ import { getHomeServicesReadable } from "./home-services-theme";
 export interface HomeServicesMobileActionBarProps {
   phoneHref: string | null;
   messageHref: string | null;
-  estimateHref: string;
+  onEstimate: (serviceName?: string) => void;
   showEstimate: boolean;
   colors: ThemeColors;
 }
@@ -15,7 +15,7 @@ export interface HomeServicesMobileActionBarProps {
 export function HomeServicesMobileActionBar({
   phoneHref,
   messageHref,
-  estimateHref,
+  onEstimate,
   showEstimate,
   colors,
 }: HomeServicesMobileActionBarProps) {
@@ -32,7 +32,7 @@ export function HomeServicesMobileActionBar({
       ? [{ key: "message", href: messageHref, label: t("actions.message"), primary: false }]
       : []),
     ...(showEstimate
-      ? [{ key: "estimate", href: estimateHref, label: t("actions.freeEstimate"), primary: true }]
+      ? [{ key: "estimate", onClick: () => onEstimate(), label: t("actions.freeEstimate"), primary: true }]
       : []),
   ];
 
@@ -53,9 +53,9 @@ export function HomeServicesMobileActionBar({
     >
       <div className="mx-auto grid max-w-6xl gap-2 px-3 py-2" style={{ gridTemplateColumns: `repeat(${actions.length}, minmax(0, 1fr))` }}>
         {actions.map((action) => (
-          <a
+          <button type="button"
             key={action.key}
-            href={action.href}
+            onClick={"onClick" in action ? action.onClick : () => { window.location.href = action.href; }}
             className="inline-flex min-h-11 items-center justify-center rounded-full px-3 text-center text-xs font-semibold sm:text-sm"
             style={
               action.primary
@@ -68,7 +68,7 @@ export function HomeServicesMobileActionBar({
             }
           >
             {action.label}
-          </a>
+          </button>
         ))}
       </div>
     </div>
