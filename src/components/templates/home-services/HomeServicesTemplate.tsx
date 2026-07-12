@@ -32,11 +32,13 @@ interface HomeServicesTemplateProps {
   data: PreviewData;
   locale: HomeServicesLocale;
   isLive?: boolean;
+  onLocaleChange?: (locale: HomeServicesLocale) => void;
 }
 
 interface HomeServicesPageProps {
   data: PreviewData;
   locale: HomeServicesLocale;
+  onLocaleChange?: (locale: HomeServicesLocale) => void;
 }
 
 interface DirectEstimateCardProps {
@@ -95,7 +97,7 @@ function DirectEstimateCard({ phoneHref, messageHref, colors }: DirectEstimateCa
   );
 }
 
-function HomeServicesPage({ data, locale }: HomeServicesPageProps) {
+function HomeServicesPage({ data, locale, onLocaleChange }: HomeServicesPageProps) {
   const config = parseHomeServicesConfig(data.generated_copy?.home_services_config);
   const copy = data.generated_copy?.[locale];
   const colors = getHomeServicesColors(data);
@@ -135,6 +137,7 @@ function HomeServicesPage({ data, locale }: HomeServicesPageProps) {
         showReviews={showReviews}
         estimateHref={estimateHref}
         colors={colors}
+        onLocaleChange={onLocaleChange}
       />
       <HomeServicesHero
         businessName={data.business_name}
@@ -233,12 +236,13 @@ function HomeServicesPage({ data, locale }: HomeServicesPageProps) {
 export function HomeServicesTemplate({
   data,
   locale,
+  onLocaleChange,
 }: HomeServicesTemplateProps) {
   const messages = locale === "es" ? esMessages : enMessages;
 
   return (
     <NextIntlClientProvider locale={locale} messages={messages}>
-      <HomeServicesPage data={data} locale={locale} />
+      <HomeServicesPage data={data} locale={locale} onLocaleChange={onLocaleChange} />
     </NextIntlClientProvider>
   );
 }

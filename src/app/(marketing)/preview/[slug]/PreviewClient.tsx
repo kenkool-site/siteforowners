@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { TemplateRouter } from "@/components/templates";
 import { GetStartedModal } from "@/components/GetStartedModal";
 import type { PreviewData } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
+import { enableEstimateSectionForPreview } from "@/lib/home-services/build-preview-config";
 
 interface PreviewClientProps {
   data: PreviewData;
@@ -20,6 +21,19 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
   const [viewMode, setViewMode] = useState<"mobile" | "desktop">("desktop");
   const [copied, setCopied] = useState(false);
   const [showGetStarted, setShowGetStarted] = useState(false);
+  const previewData = useMemo((): PreviewData => {
+    if (data.business_type !== "home_services" || !data.generated_copy) return data;
+    const generatedCopy = data.generated_copy;
+    return {
+      ...data,
+      generated_copy: {
+        ...generatedCopy,
+        home_services_config: enableEstimateSectionForPreview(
+          generatedCopy.home_services_config,
+        ),
+      },
+    };
+  }, [data]);
 
   const previewUrl =
     typeof window !== "undefined"
@@ -145,7 +159,12 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
               viewMode === "mobile" ? "h-[700px] overflow-y-auto" : ""
             }
           >
-            <TemplateRouter data={data} locale={locale} bookingMode={bookingMode} />
+            <TemplateRouter
+              data={previewData}
+              locale={locale}
+              bookingMode={bookingMode}
+              onHomeServicesLocaleChange={setLocale}
+            />
           </div>
         </div>
       </div>

@@ -28,3 +28,19 @@ test("home-services components contain no booking imports or labels", async () =
   ))).join("\n");
   assert.doesNotMatch(source, /TemplateBooking|CustomerBookingFlow|Book Now|bookingMode|deposit/i);
 });
+
+test("marketing previews switch the home-services locale without leaving the preview", async () => {
+  const preview = await readFile(
+    "src/app/(marketing)/preview/[slug]/PreviewClient.tsx",
+    "utf8",
+  );
+  const router = await readFile("src/components/templates/TemplateRouter.tsx", "utf8");
+  const nav = await readFile(
+    "src/components/templates/home-services/HomeServicesNav.tsx",
+    "utf8",
+  );
+
+  assert.match(preview, /onHomeServicesLocaleChange=\{setLocale\}/);
+  assert.match(router, /onHomeServicesLocaleChange/);
+  assert.match(nav, /onLocaleChange/);
+});

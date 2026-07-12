@@ -7,6 +7,15 @@ function baseConfig(): HomeServicesConfig {
   return parseHomeServicesConfig(preset.generated_copy?.home_services_config);
 }
 
+/** Keep CTAs functional for previews saved before estimates were enabled by default. */
+export function enableEstimateSectionForPreview(raw: unknown): HomeServicesConfig {
+  const config = parseHomeServicesConfig(raw);
+  return {
+    ...config,
+    sections: { ...config.sections, show_estimate: true },
+  };
+}
+
 /** Turn a wizard address into a public-safe service-area phrase (no street). */
 export function deriveServiceAreaSummary(
   address: string,
