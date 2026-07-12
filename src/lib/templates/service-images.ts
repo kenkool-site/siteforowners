@@ -29,3 +29,14 @@ export function serviceDefaultImage(type: BusinessType, name: string): string {
   // was added before the manifest was regenerated (the test will flag it).
   return SERVICE_IMAGE_FILES[`${type}/${slug}`] ?? `/defaults/services/${type}/${slug}.jpg`;
 }
+
+/**
+ * Manifest-only lookup: the default image for a service if (and only if) a
+ * matching file exists under `public/defaults/services/<type>/`. Unlike
+ * `serviceDefaultImage`, a miss returns undefined instead of a guessed path,
+ * so callers render "no image" rather than a 404 — right for verticals like
+ * home_services where the defaults folder fills up incrementally.
+ */
+export function serviceManifestImage(type: BusinessType, name: string): string | undefined {
+  return SERVICE_IMAGE_FILES[`${type}/${slugifyServiceName(name)}`];
+}
