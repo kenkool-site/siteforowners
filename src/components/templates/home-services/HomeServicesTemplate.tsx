@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { PreviewData } from "@/lib/ai/types";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
 import { parseHomeServicesConfig } from "@/lib/home-services/types";
-import { hasProjectMedia } from "@/lib/home-services/display";
+import { galleryFallbackPhotos, hasProjectMedia } from "@/lib/home-services/display";
 import { resolveHomeServicesProcessSteps, resolveHomeServicesSectionCopies } from "@/lib/home-services/content-defaults";
 import {
   buildSmsHref,
@@ -65,9 +65,10 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
   const coverageSummary =
     locale === "es" ? config.coverage_summary_es : config.coverage_summary_en;
   const showTrust = config.sections.show_trust !== false;
+  const galleryFallback = galleryFallbackPhotos(config.gallery_projects, data.images);
   const showGallery =
     config.sections.show_gallery !== false &&
-    config.gallery_projects.some(hasProjectMedia);
+    (config.gallery_projects.some(hasProjectMedia) || galleryFallback.length > 0);
   const showWhyUs =
     config.sections.show_why_us !== false &&
     config.why_us_points.some((point) =>
@@ -119,6 +120,7 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
       {showGallery && (
         <HomeServicesGallery
           projects={config.gallery_projects}
+          fallbackImages={galleryFallback}
           locale={locale}
           colors={colors}
           copy={sectionCopies.recent_work}

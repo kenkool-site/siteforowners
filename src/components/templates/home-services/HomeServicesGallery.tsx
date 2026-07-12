@@ -11,6 +11,8 @@ import { HomeServicesSectionHeading } from "./HomeServicesSectionHeading";
 
 export interface HomeServicesGalleryProps {
   projects: HomeServicesGalleryProject[];
+  /** Photo-gallery URLs shown only when no project has media. */
+  fallbackImages?: string[];
   locale: HomeServicesLocale;
   colors: ThemeColors;
   copy: Required<HomeServicesSectionCopy>;
@@ -33,6 +35,7 @@ function GalleryImage({ src, alt }: { src: string; alt: string }) {
 
 export function HomeServicesGallery({
   projects,
+  fallbackImages = [],
   locale,
   colors,
   copy,
@@ -42,8 +45,29 @@ export function HomeServicesGallery({
 
   const visibleProjects = projects.filter(hasProjectMedia);
 
-  if (visibleProjects.length === 0) {
+  if (visibleProjects.length === 0 && fallbackImages.length === 0) {
     return null;
+  }
+
+  if (visibleProjects.length === 0) {
+    return (
+      <section
+        id="work"
+        className="px-4 py-16 sm:px-6"
+        style={{ backgroundColor: colors.muted }}
+        aria-labelledby="work-heading"
+      >
+        <div className="mx-auto max-w-6xl">
+          <HomeServicesSectionHeading id="work-heading" copy={copy} locale={locale} color={readable.headingOnMuted} />
+
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+            {fallbackImages.map((src, index) => (
+              <GalleryImage key={`${index}-${src}`} src={src} alt={t("sections.work")} />
+            ))}
+          </div>
+        </div>
+      </section>
+    );
   }
 
   return (
