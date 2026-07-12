@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { ThemeColors } from "@/lib/templates/themes";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesMobileActionBarProps {
   phoneHref: string | null;
@@ -20,8 +20,9 @@ export function HomeServicesMobileActionBar({
   colors,
 }: HomeServicesMobileActionBarProps) {
   const t = useTranslations("homeServices");
-  const controlTextColor = ensureReadable(colors.foreground, colors.background);
-  const estimateTextColor = ensureReadable(colors.background, colors.secondary, 3);
+  const readable = getHomeServicesReadable(colors);
+  const controlTextColor = readable.navControl;
+  const estimateTextColor = readable.ctaOnSecondary;
 
   const actions = [
     ...(phoneHref

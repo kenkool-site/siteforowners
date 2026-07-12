@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesNavProps {
   businessName: string;
@@ -29,9 +29,10 @@ export function HomeServicesNav({
   const [open, setOpen] = useState(false);
   const languageHref = locale === "es" ? "/" : "/es";
   const languageLabel = locale === "es" ? "EN" : "ES";
-  const controlTextColor = ensureReadable(colors.foreground, colors.background);
-  const drawerTextColor = ensureReadable(colors.background, colors.foreground);
-  const estimateTextColor = ensureReadable(colors.background, colors.secondary, 3);
+  const readable = getHomeServicesReadable(colors);
+  const controlTextColor = readable.navControl;
+  const drawerTextColor = readable.drawerBody;
+  const estimateTextColor = readable.ctaOnSecondary;
   const shellBackground = `${colors.background}E6`;
   const shellBorder = `${colors.foreground}1A`;
 

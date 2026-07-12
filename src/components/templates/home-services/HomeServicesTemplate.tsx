@@ -15,7 +15,7 @@ import {
 import enMessages from "../../../../messages/en.json";
 import esMessages from "../../../../messages/es.json";
 import type { GoogleReview } from "../TemplateTestimonials";
-import { getHomeServicesColors } from "./home-services-theme";
+import { getHomeServicesColors, getHomeServicesReadable } from "./home-services-theme";
 import { HomeServicesFooter } from "./HomeServicesFooter";
 import { HomeServicesGallery } from "./HomeServicesGallery";
 import { HomeServicesHero } from "./HomeServicesHero";
@@ -27,7 +27,6 @@ import { HomeServicesServices } from "./HomeServicesServices";
 import { HomeServicesTrustStrip } from "./HomeServicesTrustStrip";
 import { HomeServicesWhyUs } from "./HomeServicesWhyUs";
 import { HomeServicesEstimateForm } from "./HomeServicesEstimateForm";
-import { ensureReadable } from "@/lib/templates/contrast";
 
 interface HomeServicesTemplateProps {
   data: PreviewData;
@@ -48,10 +47,7 @@ interface DirectEstimateCardProps {
 
 function DirectEstimateCard({ phoneHref, messageHref, colors }: DirectEstimateCardProps) {
   const t = useTranslations("homeServices");
-  const headingColor = ensureReadable(colors.muted, colors.primary);
-  const textColor = ensureReadable(colors.muted, colors.foreground);
-  const estimateTextColor = ensureReadable(colors.background, colors.secondary, 3);
-  const outlineTextColor = ensureReadable(colors.primary, colors.background, 3);
+  const readable = getHomeServicesReadable(colors);
 
   return (
     <div
@@ -64,11 +60,11 @@ function DirectEstimateCard({ phoneHref, messageHref, colors }: DirectEstimateCa
       <h2
         id="estimate-heading"
         className="text-2xl font-bold tracking-tight sm:text-3xl"
-        style={{ color: headingColor }}
+        style={{ color: readable.headingOnBg }}
       >
         {t("estimate.directTitle")}
       </h2>
-      <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed" style={{ color: textColor, opacity: 0.9 }}>
+      <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed" style={{ color: readable.bodyOnBg }}>
         {t("estimate.directBody")}
       </p>
       <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
@@ -76,7 +72,7 @@ function DirectEstimateCard({ phoneHref, messageHref, colors }: DirectEstimateCa
           <a
             href={phoneHref}
             className="inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold shadow-sm transition-opacity hover:opacity-90"
-            style={{ backgroundColor: colors.secondary, color: estimateTextColor }}
+            style={{ backgroundColor: colors.secondary, color: readable.ctaOnSecondary }}
           >
             {t("estimate.directCall")}
           </a>
@@ -87,7 +83,7 @@ function DirectEstimateCard({ phoneHref, messageHref, colors }: DirectEstimateCa
             className="inline-flex min-h-11 items-center justify-center rounded-full border px-6 text-sm font-semibold transition-opacity hover:opacity-90"
             style={{
               borderColor: `${colors.primary}35`,
-              color: outlineTextColor,
+              color: readable.outlineOnBg,
               backgroundColor: colors.background,
             }}
           >

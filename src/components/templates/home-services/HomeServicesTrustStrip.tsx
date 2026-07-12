@@ -3,7 +3,7 @@
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesLocale, HomeServicesTrustPoint } from "@/lib/home-services/types";
 import { localizedText } from "@/lib/home-services/display";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesTrustStripProps {
   trustPoints: HomeServicesTrustPoint[];
@@ -27,7 +27,7 @@ export function HomeServicesTrustStrip({
     return null;
   }
 
-  const textColor = ensureReadable(colors.background, colors.foreground);
+  const readable = getHomeServicesReadable(colors);
 
   return (
     <section
@@ -43,7 +43,7 @@ export function HomeServicesTrustStrip({
             style={{
               backgroundColor: colors.background,
               borderColor: `${colors.foreground}10`,
-              color: textColor,
+              color: readable.bodyOnBg,
             }}
           >
             {point.label}

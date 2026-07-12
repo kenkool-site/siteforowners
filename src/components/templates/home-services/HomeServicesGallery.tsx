@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesGalleryProject, HomeServicesLocale } from "@/lib/home-services/types";
 import { hasProjectMedia, localizedText } from "@/lib/home-services/display";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesGalleryProps {
   projects: HomeServicesGalleryProject[];
@@ -34,9 +34,7 @@ export function HomeServicesGallery({
   colors,
 }: HomeServicesGalleryProps) {
   const t = useTranslations("homeServices");
-  const headingColor = ensureReadable(colors.background, colors.primary);
-  const textColor = ensureReadable(colors.background, colors.foreground);
-  const labelColor = ensureReadable(colors.muted, colors.foreground);
+  const readable = getHomeServicesReadable(colors);
 
   const visibleProjects = projects.filter(hasProjectMedia);
 
@@ -55,7 +53,7 @@ export function HomeServicesGallery({
         <h2
           id="work-heading"
           className="mb-8 text-2xl font-bold tracking-tight sm:text-3xl"
-          style={{ color: headingColor }}
+          style={{ color: readable.headingOnMuted }}
         >
           {t("sections.work")}
         </h2>
@@ -85,7 +83,7 @@ export function HomeServicesGallery({
                     <div>
                       <p
                         className="mb-2 text-xs font-semibold uppercase tracking-[0.14em]"
-                        style={{ color: labelColor, opacity: 0.7 }}
+                        style={{ color: readable.labelOnBg, opacity: 0.7 }}
                       >
                         {t("gallery.before")}
                       </p>
@@ -94,7 +92,7 @@ export function HomeServicesGallery({
                     <div>
                       <p
                         className="mb-2 text-xs font-semibold uppercase tracking-[0.14em]"
-                        style={{ color: labelColor, opacity: 0.7 }}
+                        style={{ color: readable.labelOnBg, opacity: 0.7 }}
                       >
                         {t("gallery.after")}
                       </p>
@@ -108,7 +106,7 @@ export function HomeServicesGallery({
                 )}
 
                 {caption && (
-                  <figcaption className="mt-4 text-sm leading-relaxed" style={{ color: textColor }}>
+                  <figcaption className="mt-4 text-sm leading-relaxed" style={{ color: readable.bodyOnBg }}>
                     {caption}
                   </figcaption>
                 )}

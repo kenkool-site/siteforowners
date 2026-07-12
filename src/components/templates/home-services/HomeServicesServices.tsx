@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { ServiceItem } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesServicesProps {
   services: ServiceItem[];
@@ -24,9 +24,7 @@ export function HomeServicesServices({
   colors,
 }: HomeServicesServicesProps) {
   const t = useTranslations("homeServices");
-  const headingColor = ensureReadable(colors.background, colors.primary);
-  const textColor = ensureReadable(colors.background, colors.foreground);
-  const estimateTextColor = ensureReadable(colors.background, colors.secondary, 3);
+  const readable = getHomeServicesReadable(colors);
 
   if (services.length === 0) {
     return null;
@@ -43,7 +41,7 @@ export function HomeServicesServices({
         <h2
           id="services-heading"
           className="mb-8 text-2xl font-bold tracking-tight sm:text-3xl"
-          style={{ color: headingColor }}
+          style={{ color: readable.headingOnBg }}
         >
           {t("sections.services")}
         </h2>
@@ -80,17 +78,17 @@ export function HomeServicesServices({
                   </div>
                 )}
                 <div className="flex flex-1 flex-col gap-2 p-5">
-                  <h3 className="text-lg font-semibold" style={{ color: headingColor }}>
+                  <h3 className="text-lg font-semibold" style={{ color: readable.cardHeadingOnMuted }}>
                     {service.name}
                   </h3>
                   {description && (
-                    <p className="text-sm leading-relaxed" style={{ color: textColor, opacity: 0.85 }}>
+                    <p className="text-sm leading-relaxed" style={{ color: readable.cardBodyOnMuted }}>
                       {description}
                     </p>
                   )}
                   <span
                     className="mt-auto inline-flex min-h-11 items-center text-sm font-semibold"
-                    style={{ color: estimateTextColor }}
+                    style={{ color: readable.estimateLinkOnMuted }}
                   >
                     {t("actions.freeEstimate")} →
                   </span>

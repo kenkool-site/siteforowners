@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesServiceAreasProps {
   coverageSummary: string;
@@ -16,8 +16,7 @@ export function HomeServicesServiceAreas({
   colors,
 }: HomeServicesServiceAreasProps) {
   const t = useTranslations("homeServices");
-  const headingColor = ensureReadable(colors.background, colors.primary);
-  const textColor = ensureReadable(colors.background, colors.foreground);
+  const readable = getHomeServicesReadable(colors);
 
   if (!coverageSummary.trim()) {
     return null;
@@ -34,11 +33,11 @@ export function HomeServicesServiceAreas({
         <h2
           id="service-areas-heading"
           className="mb-4 text-2xl font-bold tracking-tight sm:text-3xl"
-          style={{ color: headingColor }}
+          style={{ color: readable.headingOnBg }}
         >
           {t("sections.serviceAreas")}
         </h2>
-        <p className="max-w-3xl text-base leading-relaxed" style={{ color: textColor, opacity: 0.9 }}>
+        <p className="max-w-3xl text-base leading-relaxed" style={{ color: readable.bodyOnBg }}>
           {coverageSummary}
         </p>
       </div>

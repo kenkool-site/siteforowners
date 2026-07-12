@@ -652,9 +652,9 @@ const HOME_SERVICES_THEMES: ThemeConfig[] = [
       accent: '#13795B',
       background: '#FFFFFF',
       foreground: '#102A43',
-      muted: '#F0F6F8',
+      muted: '#E8F5EE',
     },
-    previewSwatch: ['#0C3658', '#13795B', '#F0F6F8'],
+    previewSwatch: ['#0C3658', '#13795B', '#E8F5EE'],
   },
 ];
 
