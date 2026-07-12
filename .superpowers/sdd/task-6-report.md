@@ -33,4 +33,14 @@
 - Added a production-used channel diagnostic projection and retry predicate. Executable value assertions prove text/email state, destination, provider ID, and error remain independent, and retry visibility requires that specific channel to be failed with a configured destination.
 - Focused verification: `npx tsx --test src/lib/estimate-admin-resend.test.ts src/lib/estimate-admin-diagnostics.test.ts tests/estimate-admin-contract.test.mjs tests/estimate-api-contract.test.mjs` — 14/14 passed.
 - Type verification: `npx tsc --noEmit` — passed. Diff hygiene: `git diff --check` — passed.
+- Final covering verification: `npx tsx --test src/lib/estimate-retry-state.test.ts src/lib/estimate-admin-resend.test.ts src/lib/estimate-admin-diagnostics.test.ts tests/estimate-admin-contract.test.mjs tests/estimate-api-contract.test.mjs` — 16/16 passed; `npx tsc --noEmit` and `git diff --check` both exited 0.
 - Defense-in-depth preview tenant filtering was not added: the preview lookup is keyed by the tenant-owned `preview_slug`; no verified tenant predicate was available in the queried preview shape without expanding schema assumptions.
+
+## Fix: keyed diagnostics retry UI state
+
+- Replaced the shared retry key/error with production-used reducer state indexed by `${requestId}:${channel}`. Each start, success, and failure updates only its own entry; list-loading errors remain separate from retry errors.
+- The text and email rows now read pending labels, disabled state, and retry failure text exclusively from their matching key.
+- RED evidence: `npx tsx --test src/lib/estimate-retry-state.test.ts` failed with `Cannot find module './estimate-retry-state'` before the helper existed.
+- GREEN evidence: `npx tsx --test src/lib/estimate-retry-state.test.ts` — 2/2 passed, covering concurrent starts, one completion preserving the other pending retry, and request/channel-local errors.
+- Contract verification: `node --test tests/estimate-admin-contract.test.mjs` — 4/4 passed.
+- Type verification: `npx tsc --noEmit` — passed. Diff hygiene: `git diff --check` — passed.

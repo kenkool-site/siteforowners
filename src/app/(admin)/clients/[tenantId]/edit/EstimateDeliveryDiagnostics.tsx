@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import type { EstimateDeliveryChannel } from "@/lib/home-services/types";
 import { canRetryChannel } from "@/lib/estimate-admin-diagnostics";
+import {
+  initialEstimateRetryState,
+  reduceEstimateRetryState,
+} from "@/lib/estimate-retry-state";
 
 type EstimateRequestRow = {
   id: string;
@@ -135,12 +139,15 @@ export function NotificationSettingsSection({
 export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) {
   const [requests, setRequests] = useState<EstimateRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [resendingKey, setResendingKey] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [retryState, dispatchRetry] = useReducer(
+    reduceEstimateRetryState,
+    initialEstimateRetryState,
+  );
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setLoadError("");
     try {
       const res = await fetch(
         `/api/admin/estimate-requests/list?tenantId=${encodeURIComponent(tenantId)}`,
@@ -152,7 +159,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
       const body = await res.json();
       setRequests(Array.isArray(body.requests) ? body.requests : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load");
+      setLoadError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
     }
@@ -164,8 +171,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
 
   const handleResend = async (requestId: string, channel: RetryChannel) => {
     const key = `${requestId}:${channel}`;
-    setResendingKey(key);
-    setError("");
+    dispatchRetry({ type: "start", key });
     try {
       const res = await fetch("/api/admin/estimate-requests/resend", {
         method: "POST",
@@ -177,10 +183,13 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
         throw new Error(typeof body.error === "string" ? body.error : "Resend failed");
       }
       await loadRequests();
+      dispatchRetry({ type: "success", key });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Resend failed");
-    } finally {
-      setResendingKey(null);
+      dispatchRetry({
+        type: "failure",
+        key,
+        error: err instanceof Error ? err.message : "Resend failed",
+      });
     }
   };
 
@@ -190,7 +199,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
       <p className="mb-4 text-sm text-gray-500">
         Recent estimate requests and notification delivery status (founder only).
       </p>
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {loadError && <p className="mb-3 text-sm text-red-600">{loadError}</p>}
       {loading ? (
         <p className="text-sm text-gray-500">Loading...</p>
       ) : requests.length === 0 ? (
@@ -214,29 +223,35 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
                   <button
                     type="button"
                     onClick={() => void handleResend(row.id, "text")}
-                    disabled={resendingKey === `${row.id}:text`}
+                    disabled={retryState[`${row.id}:text`]?.pending === true}
                     className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50"
                   >
-                    {resendingKey === `${row.id}:text` ? "Sending..." : "Retry"}
+                    {retryState[`${row.id}:text`]?.pending ? "Sending..." : "Retry"}
                   </button>
                   )}
                 </div>
                 {row.text_notification_state === "failed" && row.text_provider_error && (
                   <p className="text-xs text-red-700">{sanitizeFailureSummary(row.text_provider_error)}</p>
                 )}
+                {retryState[`${row.id}:text`]?.error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(retryState[`${row.id}:text`].error)}</p>
+                )}
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-gray-700">Email</span>
                   <StateBadge state={row.email_notification_state} />
                   {canRetryChannel({ state: row.email_notification_state, destination: row.email_notification_destination, providerId: row.email_provider_message_id, error: row.email_provider_error }) && (
                     <button type="button" onClick={() => void handleResend(row.id, "email")}
-                      disabled={resendingKey === `${row.id}:email`}
+                      disabled={retryState[`${row.id}:email`]?.pending === true}
                       className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50">
-                      {resendingKey === `${row.id}:email` ? "Sending..." : "Retry"}
+                      {retryState[`${row.id}:email`]?.pending ? "Sending..." : "Retry"}
                     </button>
                   )}
                 </div>
                 {row.email_notification_state === "failed" && row.email_provider_error && (
                   <p className="text-xs text-red-700">{sanitizeFailureSummary(row.email_provider_error)}</p>
+                )}
+                {retryState[`${row.id}:email`]?.error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(retryState[`${row.id}:email`].error)}</p>
                 )}
               </div>
             </li>
