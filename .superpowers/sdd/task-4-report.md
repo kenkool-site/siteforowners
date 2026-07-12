@@ -1,32 +1,58 @@
-# Task 4 report
+# Task 4 Report — Service image control in the founder editor
 
-Implemented one shared home-services estimate modal controller and routed all navigation, hero, service-card, estimate-section, and mobile-bar CTAs through `onEstimate`, including service preselection.
+## Status: DONE
 
-The modal provides an accessible labeled dialog, Escape/backdrop close, focus containment and restoration, body scroll locking, two stages, bilingual controls/copy, and a bottom-sheet layout at mobile widths. The form defaults to SMS, treats description/photos as optional, submits tenant requests to `/api/estimate`, and simulates preview success after 500ms without fetching. Marketing preview explicitly selects `preview_mock`; tenant sites explicitly select `tenant`, independent of demo state. Existing preview locale switching and non-home-services routing remain intact.
+## What was implemented
 
-TDD evidence: the new reducer and source-contract suite first failed for the absent reducer/controller/delivery props, then passed after implementation.
+1. **Created** `src/app/(admin)/clients/[tenantId]/edit/ServiceImageControl.tsx` — verbatim from the brief.
+   - Client component `ServiceImageControl({ image, tenantId, onChange })`.
+   - Uploads to `POST /api/admin/services/upload-image` (FormData: `image` + `tenant_id`), parses `{ url }` / `{ error }` response defensively (no `any`).
+   - Reads `SERVICE_IMAGE_FILES` manifest, filters to keys prefixed `home_services/`, and renders a "Choose default" picker only when that list is non-empty (currently empty, so the picker button/grid do not render — expected, per the brief's own comment, since no `home_services/` entries exist yet in the manifest).
+   - "Remove image" calls `onChange(undefined)`.
 
-Verification:
+2. **Modified** `src/app/(admin)/clients/[tenantId]/edit/HomeServicesSiteEditor.tsx`:
+   - Added `import { ServiceImageControl } from "./ServiceImageControl";`.
+   - `ServicesSection` now takes a required `tenantId: string` prop.
+   - Inside the per-service card, after the description block and before "Remove service", added the `<FieldLabel>Image</FieldLabel>` + `<ServiceImageControl>` block, wired to `updateService(index, { image })` (uses the existing spread-merge/patch pattern already in the file — `{ ...service, ...patch }` with `image: undefined` overwrites and `JSON.stringify` drops the key on save, per the brief's note).
+   - Call site updated: `<ServicesSection draft={draft} contentLocale={contentLocale} tenantId={tenantId} onChange={setDraft} />`. Confirmed `tenantId` was already in scope in `HomeServicesSiteEditor` (line 751: `const tenantId = typeof tenant.id === "string" ? tenant.id : "";`), so no new prop threading was needed.
 
-- `npx tsx --test src/components/templates/home-services/estimate-modal-state.test.ts tests/home-services-template-contract.test.mjs`: 5 passed, 0 failed.
-- `npx tsc --noEmit`: passed.
-- `git diff --check`: passed.
+Diff is exactly the 4 hunks the brief specified: import, signature, JSX block insertion, call-site prop. No other lines touched.
 
-Self-review: confirmed no home-services `estimateHref` or `#estimate` builders remain, preview fetch is structurally excluded by the delivery-mode branch, tenant success uses live success copy, preview success explicitly says no contractor was contacted, and Spanish states the request was simulated.
+## Verification
 
-Concern: browser-level interaction coverage is not present; accessibility behavior is implemented directly and covered by TypeScript/source contracts rather than an end-to-end dialog test.
+```
+npx tsc --noEmit
+```
+Output: clean, no errors.
 
-## Fix
+```
+npm run lint
+```
+Output: `✔ No ESLint warnings or errors`
 
-Addressed the Task 4 review findings by visibly marking both description and photos with the bilingual optional label; restoring structured tenant API errors (including 429 and 503), accessible required-field errors, autocomplete/input-mode hints, the honeypot, and client-side photo count/size/type/total validation; and formatting both modal components as maintainable multiline TypeScript. The `preview_mock` branch completes after its delay and returns before constructing tenant request data or calling `fetch`.
+Both were run as `npx tsc --noEmit && npm run lint` per the brief; both passed with zero output/warnings (not even pre-existing ones surfaced).
 
-Exact verification commands and outputs:
+## Files changed
 
-- `npx tsx --test src/components/templates/home-services/estimate-modal-state.test.ts tests/home-services-template-contract.test.mjs`
-  - `6` tests passed, `0` failed.
-- `npx tsc --noEmit`
-  - exited `0` with no output.
-- `git diff --check`
-  - exited `0` with no output.
+- `src/app/(admin)/clients/[tenantId]/edit/ServiceImageControl.tsx` (new, 126 lines)
+- `src/app/(admin)/clients/[tenantId]/edit/HomeServicesSiteEditor.tsx` (+12/-1)
 
-TDD evidence: the focused contract test initially failed because `company_website` and the restored validation/error contracts were absent. It passed after the two-stage form restoration.
+## Commit
+
+- `bda9d7f` — `feat(home-services): service image upload + defaults picker in founder editor`
+
+## Self-review findings
+
+- Verified `ServiceItem.image?: string` already exists in `src/lib/ai/types.ts` (added by an earlier task) — no type gap.
+- Verified `/api/admin/services/upload-image/route.ts` exists (implemented in an earlier task) — endpoint contract matches what the component calls.
+- Verified `FieldLabel` is defined locally in `HomeServicesSiteEditor.tsx` (~line 66) and used inside that file for the wiring snippet, not imported into the new component file — matches the brief's note.
+- Verified `SERVICE_IMAGE_FILES` manifest currently has no `home_services/`-prefixed keys (existing keys are `barbershop/`, `braids/`, `locs/`, `nails/`, `restaurant/`, `salon/`), so `HOME_SERVICES_DEFAULTS` is `[]` today and the "Choose default" button/grid are correctly hidden until a later manifest regeneration adds home-services defaults. Expected per the brief, not a bug.
+- No `any` used; both `unknown`-typed fetch-response parsing paths are narrowed before use.
+- Both `<img>` tags carry the required `// eslint-disable-next-line @next/next/no-img-element` comment, and lint confirms no warnings.
+- Mobile-first: the control uses `flex`/`grid` with `gap`, no fixed widths beyond the thumbnail (`h-16 w-24`), and the default-picker grid drops to `grid-cols-3` below `sm`, consistent with the rest of the editor's mobile-first patterns.
+- Did not touch `serviceManifestImage` or the gallery URL validation added in earlier tasks, per the instruction not to touch them.
+- Note: a stale `task-4-report.md` from an unrelated earlier "Task 4" (home-services estimate modal) previously occupied this path; it has been overwritten with this task's report.
+
+## Concerns
+
+None. Implementation matches the brief verbatim; verification is clean.
