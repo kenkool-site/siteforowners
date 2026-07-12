@@ -327,11 +327,13 @@ function ServicesSection({
   contentLocale,
   tenantId,
   onChange,
+  onImageChange,
 }: {
   draft: EditorDraft;
   contentLocale: HomeServicesLocale;
   tenantId: string;
   onChange: (next: EditorDraft) => void;
+  onImageChange: (clientId: string, image: string | undefined) => void;
 }) {
   const descriptions = draft.generated_copy[contentLocale].service_descriptions;
 
@@ -386,7 +388,7 @@ function ServicesSection({
               <ServiceImageControl
                 image={service.image}
                 tenantId={tenantId}
-                onChange={(image) => updateService(index, { image })}
+                onChange={(image) => onImageChange(service.client_id ?? "", image)}
               />
             </div>
             <button
@@ -633,18 +635,49 @@ function ProjectImageControl({
   );
 }
 
+function GalleryProjectErrors({
+  index,
+  rowId,
+  errors,
+}: {
+  index: number;
+  rowId: string;
+  errors: HomeServicesEditorError[];
+}) {
+  const prefix = `gallery_projects.${index}.`;
+  return (
+    <>
+      {errors
+        .filter((error) =>
+          error.rowId ? error.rowId === rowId : error.field.startsWith(prefix),
+        )
+        .map((error, i) => (
+          <p key={`${error.field}-${i}`} className="text-xs text-red-600">
+            {error.reason}
+          </p>
+        ))}
+    </>
+  );
+}
+
 function GalleryProjectsSection({
   config,
+  errors,
   onChange,
 }: {
   config: HomeServicesConfig;
-  onChange: (next: HomeServicesConfig) => void;
+  errors: HomeServicesEditorError[];
+  onChange: (
+    next: HomeServicesConfig | ((current: HomeServicesConfig) => HomeServicesConfig),
+  ) => void;
 }) {
   const updateProject = (id: string, patch: Partial<HomeServicesGalleryProject>) => {
-    const next = config.gallery_projects.map((project) =>
-      project.id === id ? { ...project, ...patch } : project,
-    );
-    onChange({ ...config, gallery_projects: next });
+    onChange((current) => ({
+      ...current,
+      gallery_projects: current.gallery_projects.map((project) =>
+        project.id === id ? { ...project, ...patch } : project,
+      ),
+    }));
   };
 
   return (
@@ -656,6 +689,7 @@ function GalleryProjectsSection({
               project={project}
               onChange={(patch) => updateProject(project.id, patch)}
             />
+            <GalleryProjectErrors index={index} rowId={project.id} errors={errors} />
             <div className="grid gap-2 sm:grid-cols-2">
               <TextInput value={project.caption_en || ""} onChange={(caption_en) => updateProject(project.id, { caption_en })} placeholder="Description (English)" />
               <TextInput value={project.caption_es || ""} onChange={(caption_es) => updateProject(project.id, { caption_es })} placeholder="Description (Español)" />
@@ -879,8 +913,24 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
       .catch(() => {});
   }, [tenantId]);
 
-  const updateConfig = (home_services_config: HomeServicesConfig) => {
-    setDraft((current) => ({ ...current, home_services_config }));
+  const updateConfig = (
+    next: HomeServicesConfig | ((current: HomeServicesConfig) => HomeServicesConfig),
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      home_services_config:
+        typeof next === "function" ? next(current.home_services_config) : next,
+    }));
+  };
+
+  const patchServiceImage = (clientId: string, image: string | undefined) => {
+    if (!clientId) return;
+    setDraft((current) => ({
+      ...current,
+      services: current.services.map((service) =>
+        service.client_id === clientId ? { ...service, image } : service,
+      ),
+    }));
   };
 
   const updateNotification = (patch: {
@@ -1075,12 +1125,22 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
           </div>
 
           <LocaleCopySection draft={draft} locale={contentLocale} onChange={setDraft} />
-          <ServicesSection draft={draft} contentLocale={contentLocale} tenantId={tenantId} onChange={setDraft} />
+          <ServicesSection
+            draft={draft}
+            contentLocale={contentLocale}
+            tenantId={tenantId}
+            onChange={setDraft}
+            onImageChange={patchServiceImage}
+          />
           <TrustPointsSection config={draft.home_services_config} onChange={updateConfig} />
           <WhyUsSection config={draft.home_services_config} onChange={updateConfig} />
           <CoverageSection config={draft.home_services_config} onChange={updateConfig} />
           <HomeServicesContentEditor config={draft.home_services_config} rowErrors={configErrors} onChange={updateConfig} />
-          <GalleryProjectsSection config={draft.home_services_config} onChange={updateConfig} />
+          <GalleryProjectsSection
+            config={draft.home_services_config}
+            errors={configErrors}
+            onChange={updateConfig}
+          />
           <MessageLinksSection config={draft.home_services_config} onChange={updateConfig} />
           <NotificationSettingsSection
             channel={draft.home_services_config.notification?.channel ?? "sms"}

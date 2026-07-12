@@ -96,6 +96,14 @@ test("accepts local default paths, https URLs, and empty gallery image fields", 
   assert.equal(result.ok, true);
 });
 
+test("fails closed on merged updates when stored config already has a bad gallery image url", () => {
+  const result = validateHomeServicesConfigUpdate(
+    { gallery_projects: [{ id: "p1", image: "javascript:alert(1)" }] },
+    { coverage_summary_en: "Serving Richmond" },
+  );
+  assert.equal(result.ok, false);
+});
+
 test("rejects a non-list gallery_projects value", () => {
   const result = validateHomeServicesEditorConfig({ gallery_projects: "nope" });
   assert.equal(result.ok, false);
