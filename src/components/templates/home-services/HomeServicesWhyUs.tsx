@@ -37,7 +37,7 @@ export function HomeServicesWhyUs({
   return (
     <section
       className="px-4 py-16 sm:px-6"
-      style={{ backgroundColor: colors.background }}
+      style={{ backgroundColor: colors.muted }}
       aria-labelledby="why-us-heading"
     >
       <div className="mx-auto max-w-6xl">
@@ -57,7 +57,7 @@ export function HomeServicesWhyUs({
                 key={point.id}
                 className="flex gap-4 rounded-2xl border p-5"
                 style={{
-                  backgroundColor: colors.muted,
+                  backgroundColor: colors.background,
                   borderColor: `${colors.foreground}10`,
                 }}
               >
