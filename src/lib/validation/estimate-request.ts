@@ -38,6 +38,14 @@ function formField(form: FormData, key: string): string {
   return value.trim();
 }
 
+function optionalString(value: FormDataEntryValue | null): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function parsePreferredResponse(value: string): PreferredResponse {
+  return value as PreferredResponse;
+}
+
 export function isEstimateHoneypotTripped(form: FormData): boolean {
   return formField(form, "company_website").length > 0;
 }
@@ -55,8 +63,11 @@ export function parseEstimateFormFields(
   const phone = formField(form, "phone");
   const service = formField(form, "service");
   const location = formField(form, "location");
-  const description = formField(form, "description");
-  const preferredResponse = formField(form, "preferred_response");
+  const description = optionalString(form.get("description"));
+  const preferredResponseRaw = optionalString(form.get("preferred_response"));
+  const preferredResponse: PreferredResponse = preferredResponseRaw
+    ? parsePreferredResponse(preferredResponseRaw)
+    : "sms";
 
   const errors: { field: string; reason: "required" | "too_long" | "invalid" }[] = [];
 
@@ -76,14 +87,11 @@ export function parseEstimateFormFields(
     errors.push({ field: "location", reason: "too_long" });
   }
 
-  if (!description) errors.push({ field: "description", reason: "required" });
-  else if (description.length > ESTIMATE_FIELD_LIMITS.description) {
+  if (description.length > 0 && description.length > ESTIMATE_FIELD_LIMITS.description) {
     errors.push({ field: "description", reason: "too_long" });
   }
 
-  if (!preferredResponse) {
-    errors.push({ field: "preferred_response", reason: "required" });
-  } else if (!PREFERRED_RESPONSES.has(preferredResponse as PreferredResponse)) {
+  if (!PREFERRED_RESPONSES.has(preferredResponse)) {
     errors.push({ field: "preferred_response", reason: "invalid" });
   }
 
@@ -105,7 +113,7 @@ export function parseEstimateFormFields(
       service_needed: service,
       job_location: location,
       description,
-      preferred_response: preferredResponse as PreferredResponse,
+      preferred_response: preferredResponse,
       locale,
       source_path: sourcePath,
     },
