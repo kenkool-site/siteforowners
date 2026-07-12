@@ -36,8 +36,8 @@ export function HomeServicesWhyUs({
 
   return (
     <section
-      className="px-4 py-16 sm:px-6"
-      style={{ backgroundColor: colors.muted }}
+      className="border-y px-4 py-16 sm:px-6"
+      style={{ backgroundColor: colors.background, borderColor: `${colors.foreground}10` }}
       aria-labelledby="why-us-heading"
     >
       <div className="mx-auto max-w-6xl">

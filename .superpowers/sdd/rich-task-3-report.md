@@ -33,3 +33,11 @@ Implemented the approved public conversion-story composition with localized reso
 - `npx tsx --test src/components/templates/home-services/richer-homepage.render.test.tsx tests/home-services-template-contract.test.mjs src/lib/home-services/content-defaults.test.ts` — 18 passed, 0 failed.
 - `npx tsc --noEmit` — passed with exit code 0.
 - `git diff --check` — passed with exit code 0.
+
+## Final review-fix evidence (2026-07-12)
+
+- The visibility test now renders the production `HomeServicesTemplate` caller: absent/default and explicit `show_process: true` include `process-heading`, while `show_process: false` omits it.
+- Gallery retains the muted theme surface; the adjacent Why Us section now uses the normal background plus subtle top/bottom borders, creating a visible boundary without introducing off-theme colors.
+- The mobile rendered test explicitly sets JSDOM `innerWidth` to 375, then verifies actual template DOM order, the process section's `grid-cols-1` mobile stacking hook, and rendered `min-h-11` (44px) action hooks. JSDOM does not compute Tailwind layout, so this is class/DOM evidence rather than a claim about computed CSS geometry.
+- `npx tsx --test src/components/templates/home-services/richer-homepage.render.test.tsx tests/home-services-template-contract.test.mjs src/lib/home-services/content-defaults.test.ts` — 20 passed, 0 failed.
+- `npx tsc --noEmit` and `git diff --check` — passed with exit code 0.
