@@ -51,7 +51,7 @@ export function buildHomeServicesConfigForPreview(input: {
       show_why_us: true,
       show_reviews: true,
       show_service_areas: false,
-      show_estimate: false,
+      show_estimate: true,
     },
   };
 }

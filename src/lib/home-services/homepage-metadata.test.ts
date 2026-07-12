@@ -19,7 +19,7 @@ test("buildHomeServicesHomepageAlternates emits reciprocal hreflang URLs", () =>
   assert.equal(result.languages?.["x-default"], "https://greenline.siteforowners.com/");
 });
 
-test("hasSpanishHomepageCopy requires all Spanish homepage fields", () => {
+test("hasSpanishHomepageCopy allows a useful Spanish page without optional SEO fields", () => {
   assert.equal(
     hasSpanishHomepageCopy({
       es: {
@@ -36,7 +36,14 @@ test("hasSpanishHomepageCopy requires all Spanish homepage fields", () => {
       es: {
         hero_headline: "Titulo",
         hero_subheadline: "Subtitulo",
-        seo_title: "SEO",
+      },
+    } as GeneratedCopy),
+    true,
+  );
+  assert.equal(
+    hasSpanishHomepageCopy({
+      es: {
+        hero_headline: "Titulo",
       },
     } as GeneratedCopy),
     false,

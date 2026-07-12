@@ -15,9 +15,7 @@ export function hasSpanishHomepageCopy(
   const es = generatedCopy?.es;
   return Boolean(
     es?.hero_headline?.trim() &&
-      es?.hero_subheadline?.trim() &&
-      es?.seo_title?.trim() &&
-      es?.seo_description?.trim(),
+      es?.hero_subheadline?.trim(),
   );
 }
 

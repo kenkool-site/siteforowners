@@ -16,14 +16,14 @@ test("deriveServiceAreaSummary extracts city from a full address", () => {
   );
 });
 
-test("buildHomeServicesConfigForPreview seeds trust points and hides estimate on previews", () => {
+test("buildHomeServicesConfigForPreview seeds trust points and keeps the estimate CTA functional", () => {
   const config = buildHomeServicesConfigForPreview({
     phone: "(214) 555-0100",
     serviceAreaAddress: "Plano, TX",
   });
 
   assert.ok(config.trust_points.length >= 3);
-  assert.equal(config.sections.show_estimate, false);
+  assert.equal(config.sections.show_estimate, true);
   assert.equal(config.notification, undefined);
   assert.match(config.coverage_summary_en, /Plano/i);
   assert.equal(config.message_links.sms_e164, "+12145550100");
