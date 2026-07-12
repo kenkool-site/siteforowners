@@ -243,6 +243,9 @@ export function HomeServicesContentEditor({
                   ...config.service_areas,
                   { id: crypto.randomUUID(), name: "", zip_codes: [] },
                 ],
+                // Previews seed show_service_areas:false; adding an area is a
+                // clear signal the founder wants the section visible.
+                sections: { ...config.sections, show_service_areas: true },
               })
             }
           >
