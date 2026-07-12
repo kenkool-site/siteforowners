@@ -68,3 +68,46 @@ test("returns a normalized config when editor input is valid", () => {
     assert.equal(result.value.service_areas[0].name, "Richmond");
   }
 });
+
+test("rejects gallery project images that fail persisted-URL validation", () => {
+  const result = validateHomeServicesEditorConfig({
+    gallery_projects: [
+      { id: "p1", image: "javascript:alert(1)" },
+      { id: "p2", before_image: "http://192.168.1.5/x.jpg" },
+    ],
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    const fields = result.errors.map((e) => e.field);
+    assert.ok(fields.includes("gallery_projects.0.image"));
+    assert.ok(fields.includes("gallery_projects.1.before_image"));
+    assert.equal(result.errors[0]?.rowId, "p1");
+  }
+});
+
+test("accepts local default paths, https URLs, and empty gallery image fields", () => {
+  const result = validateHomeServicesEditorConfig({
+    gallery_projects: [
+      { id: "p1", image: "/defaults/services/home_services/lawn-mowing.jpg", caption_en: "Lawn" },
+      { id: "p2", image: "https://example.com/photo.jpg" },
+      { id: "p3", caption_en: "No image yet" },
+    ],
+  });
+  assert.equal(result.ok, true);
+});
+
+test("fails closed on merged updates when stored config already has a bad gallery image url", () => {
+  const result = validateHomeServicesConfigUpdate(
+    { gallery_projects: [{ id: "p1", image: "javascript:alert(1)" }] },
+    { coverage_summary_en: "Serving Richmond" },
+  );
+  assert.equal(result.ok, false);
+});
+
+test("rejects a non-list gallery_projects value", () => {
+  const result = validateHomeServicesEditorConfig({ gallery_projects: "nope" });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(result.errors.some((e) => e.field === "gallery_projects"));
+  }
+});

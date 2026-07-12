@@ -1,5 +1,9 @@
 import { parseHomeServicesConfig, type HomeServicesConfig } from "./types";
 import { mergeHomeServicesConfig } from "./config-merge";
+import {
+  isValidPersistedServiceImageUrl,
+  PERSISTED_SERVICE_IMAGE_URL_ERROR,
+} from "@/lib/validation/service-image-url";
 
 export type HomeServicesEditorError = {
   field: string;
@@ -156,6 +160,31 @@ export function validateHomeServicesEditorConfig(
           });
         } else {
           zips.add(zip);
+        }
+      }
+    });
+  }
+
+  const galleryRows = source.gallery_projects;
+  if (galleryRows !== undefined && !Array.isArray(galleryRows)) {
+    errors.push({
+      field: "gallery_projects",
+      reason: "Gallery projects must be a list.",
+    });
+  } else if (Array.isArray(galleryRows)) {
+    const IMAGE_FIELDS = ["image", "before_image", "after_image"] as const;
+    galleryRows.forEach((value, index) => {
+      const row = record(value);
+      if (!row) return; // parseHomeServicesConfig drops malformed rows
+      const rowId = trimmedString(row.id) || undefined;
+      for (const field of IMAGE_FIELDS) {
+        const url = trimmedString(row[field]);
+        if (url && !isValidPersistedServiceImageUrl(url)) {
+          errors.push({
+            field: `gallery_projects.${index}.${field}`,
+            reason: `Project image ${PERSISTED_SERVICE_IMAGE_URL_ERROR}.`,
+            rowId,
+          });
         }
       }
     });

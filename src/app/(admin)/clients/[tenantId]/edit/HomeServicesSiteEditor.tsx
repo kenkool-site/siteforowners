@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { TemplateRouter } from "@/components/templates";
 import { GalleryEditor } from "@/app/site/[slug]/admin/_components/GalleryEditor";
@@ -24,6 +24,7 @@ import {
 } from "./EstimateDeliveryDiagnostics";
 import { HomeServicesContentEditor } from "./HomeServicesContentEditor";
 import { validateHomeServicesEditorConfig, type HomeServicesEditorError } from "@/lib/home-services/editor-validation";
+import { ServiceImageControl } from "./ServiceImageControl";
 
 type LocaleCopyDraft = {
   hero_headline: string;
@@ -324,11 +325,15 @@ function LocaleCopySection({
 function ServicesSection({
   draft,
   contentLocale,
+  tenantId,
   onChange,
+  onImageChange,
 }: {
   draft: EditorDraft;
   contentLocale: HomeServicesLocale;
+  tenantId: string;
   onChange: (next: EditorDraft) => void;
+  onImageChange: (clientId: string, image: string | undefined) => void;
 }) {
   const descriptions = draft.generated_copy[contentLocale].service_descriptions;
 
@@ -376,6 +381,14 @@ function ServicesSection({
                 value={descriptions[service.client_id ?? ""] || ""}
                 onChange={(value) => updateDescription(service.client_id ?? "", value)}
                 rows={2}
+              />
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Image</FieldLabel>
+              <ServiceImageControl
+                image={service.image}
+                tenantId={tenantId}
+                onChange={(image) => onImageChange(service.client_id ?? "", image)}
               />
             </div>
             <button
@@ -538,33 +551,150 @@ function CoverageSection({
   );
 }
 
-function GalleryProjectsSection({
-  config,
+/**
+ * One display image per Recent Work project. Legacy before/after pairs still
+ * render on the live site (the template prefers the pair), so uploading or
+ * removing here also clears before_image/after_image — otherwise the old pair
+ * would keep winning over the new upload.
+ */
+function ProjectImageControl({
+  project,
   onChange,
 }: {
-  config: HomeServicesConfig;
-  onChange: (next: HomeServicesConfig) => void;
+  project: HomeServicesGalleryProject;
+  onChange: (patch: Partial<HomeServicesGalleryProject>) => void;
 }) {
-  const updateProject = (index: number, patch: Partial<HomeServicesGalleryProject>) => {
-    const next = config.gallery_projects.map((project, i) => (i === index ? { ...project, ...patch } : project));
-    onChange({ ...config, gallery_projects: next });
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const displayImage = project.image || project.before_image || project.after_image;
+
+  const handlePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("images", file);
+      const res = await fetch("/api/upload-images", { method: "POST", body: fd });
+      const data: unknown = await res.json().catch(() => ({}));
+      const body = (data ?? {}) as { urls?: unknown; error?: unknown };
+      const url = Array.isArray(body.urls) ? body.urls[0] : undefined;
+      if (!res.ok || typeof url !== "string") {
+        setError(typeof body.error === "string" ? body.error : "Upload failed");
+        return;
+      }
+      onChange({ image: url, before_image: undefined, after_image: undefined });
+    } catch {
+      setError("Network error");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
   return (
-    <SectionCard title="Gallery projects">
+    <div className="flex items-start gap-3">
+      {displayImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={displayImage} alt="" className="h-20 w-28 rounded-lg border border-gray-200 object-cover" />
+      ) : (
+        <div className="flex h-20 w-28 items-center justify-center rounded-lg border border-dashed border-gray-200 text-xs text-gray-400">
+          No image
+        </div>
+      )}
+      <div className="flex flex-col gap-1 text-sm">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="text-left font-medium text-amber-700 hover:text-amber-900 disabled:opacity-50"
+        >
+          {uploading ? "Uploading…" : displayImage ? "Replace image" : "Upload image"}
+        </button>
+        {displayImage && (
+          <button
+            type="button"
+            onClick={() => onChange({ image: undefined, before_image: undefined, after_image: undefined })}
+            className="text-left text-xs text-red-600 hover:text-red-800"
+          >
+            Remove image
+          </button>
+        )}
+        {error && <p className="text-xs text-red-600">{error}</p>}
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handlePick}
+      />
+    </div>
+  );
+}
+
+function GalleryProjectErrors({
+  index,
+  rowId,
+  errors,
+}: {
+  index: number;
+  rowId: string;
+  errors: HomeServicesEditorError[];
+}) {
+  const prefix = `gallery_projects.${index}.`;
+  return (
+    <>
+      {errors
+        .filter((error) =>
+          error.rowId ? error.rowId === rowId : error.field.startsWith(prefix),
+        )
+        .map((error, i) => (
+          <p key={`${error.field}-${i}`} className="text-xs text-red-600">
+            {error.reason}
+          </p>
+        ))}
+    </>
+  );
+}
+
+function GalleryProjectsSection({
+  config,
+  errors,
+  onChange,
+}: {
+  config: HomeServicesConfig;
+  errors: HomeServicesEditorError[];
+  onChange: (
+    next: HomeServicesConfig | ((current: HomeServicesConfig) => HomeServicesConfig),
+  ) => void;
+}) {
+  const updateProject = (id: string, patch: Partial<HomeServicesGalleryProject>) => {
+    onChange((current) => ({
+      ...current,
+      gallery_projects: current.gallery_projects.map((project) =>
+        project.id === id ? { ...project, ...patch } : project,
+      ),
+    }));
+  };
+
+  return (
+    <SectionCard title="Recent work">
       <div className="space-y-3">
         {config.gallery_projects.map((project, index) => (
           <div key={project.id} className="space-y-2 rounded-lg border border-gray-100 p-3">
+            <ProjectImageControl
+              project={project}
+              onChange={(patch) => updateProject(project.id, patch)}
+            />
+            <GalleryProjectErrors index={index} rowId={project.id} errors={errors} />
             <div className="grid gap-2 sm:grid-cols-2">
-              <TextInput value={project.before_image || ""} onChange={(before_image) => updateProject(index, { before_image })} placeholder="Before image URL" />
-              <TextInput value={project.after_image || ""} onChange={(after_image) => updateProject(index, { after_image })} placeholder="After image URL" />
-              <TextInput value={project.image || ""} onChange={(image) => updateProject(index, { image })} placeholder="Single image URL" />
-              <TextInput value={project.service_name || ""} onChange={(service_name) => updateProject(index, { service_name })} placeholder="Service name" />
+              <TextInput value={project.caption_en || ""} onChange={(caption_en) => updateProject(project.id, { caption_en })} placeholder="Description (English)" />
+              <TextInput value={project.caption_es || ""} onChange={(caption_es) => updateProject(project.id, { caption_es })} placeholder="Description (Español)" />
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <TextInput value={project.caption_en || ""} onChange={(caption_en) => updateProject(index, { caption_en })} placeholder="Caption (English)" />
-              <TextInput value={project.caption_es || ""} onChange={(caption_es) => updateProject(index, { caption_es })} placeholder="Caption (Español)" />
-            </div>
+            <TextInput value={project.service_name || ""} onChange={(service_name) => updateProject(project.id, { service_name })} placeholder="Service name (optional)" />
             <button
               type="button"
               onClick={() => onChange({ ...config, gallery_projects: config.gallery_projects.filter((_, i) => i !== index) })}
@@ -783,8 +913,24 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
       .catch(() => {});
   }, [tenantId]);
 
-  const updateConfig = (home_services_config: HomeServicesConfig) => {
-    setDraft((current) => ({ ...current, home_services_config }));
+  const updateConfig = (
+    next: HomeServicesConfig | ((current: HomeServicesConfig) => HomeServicesConfig),
+  ) => {
+    setDraft((current) => ({
+      ...current,
+      home_services_config:
+        typeof next === "function" ? next(current.home_services_config) : next,
+    }));
+  };
+
+  const patchServiceImage = (clientId: string, image: string | undefined) => {
+    if (!clientId) return;
+    setDraft((current) => ({
+      ...current,
+      services: current.services.map((service) =>
+        service.client_id === clientId ? { ...service, image } : service,
+      ),
+    }));
   };
 
   const updateNotification = (patch: {
@@ -979,12 +1125,22 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
           </div>
 
           <LocaleCopySection draft={draft} locale={contentLocale} onChange={setDraft} />
-          <ServicesSection draft={draft} contentLocale={contentLocale} onChange={setDraft} />
+          <ServicesSection
+            draft={draft}
+            contentLocale={contentLocale}
+            tenantId={tenantId}
+            onChange={setDraft}
+            onImageChange={patchServiceImage}
+          />
           <TrustPointsSection config={draft.home_services_config} onChange={updateConfig} />
           <WhyUsSection config={draft.home_services_config} onChange={updateConfig} />
           <CoverageSection config={draft.home_services_config} onChange={updateConfig} />
           <HomeServicesContentEditor config={draft.home_services_config} rowErrors={configErrors} onChange={updateConfig} />
-          <GalleryProjectsSection config={draft.home_services_config} onChange={updateConfig} />
+          <GalleryProjectsSection
+            config={draft.home_services_config}
+            errors={configErrors}
+            onChange={updateConfig}
+          />
           <MessageLinksSection config={draft.home_services_config} onChange={updateConfig} />
           <NotificationSettingsSection
             channel={draft.home_services_config.notification?.channel ?? "sms"}
