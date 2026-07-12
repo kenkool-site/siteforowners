@@ -120,7 +120,8 @@
       "freeEstimate": "Free Estimate"
   },
   "coverage": {
-    "serving": "Serving {count, plural, one {# local area} other {# local areas}}"
+    "serving": "Serving {count, plural, one {# local area} other {# local areas}}",
+    "moreAreas": "+{count} more"
   },
     "sections": {
       "services": "Services",

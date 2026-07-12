@@ -2,8 +2,11 @@
 
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { MapPin } from "lucide-react";
 import type { ThemeColors } from "@/lib/templates/themes";
 import { getHomeServicesReadable } from "./home-services-theme";
+
+const MAX_HERO_AREA_CHIPS = 4;
 
 export interface HomeServicesHeroProps {
   businessName: string;
@@ -73,9 +76,40 @@ export function HomeServicesHero({
         <p className="mt-4 max-w-2xl text-base leading-relaxed opacity-95 sm:text-lg">
           {subheadline}
         </p>
-        {serviceAreaNames.length > 0 && <p className="mt-4 text-sm font-semibold opacity-90">
-          {t("coverage.serving", { count: serviceAreaNames.length })}: {serviceAreaNames.slice(0, 3).join(" · ")}
-        </p>}
+        {serviceAreaNames.length > 0 && (
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="sr-only">
+              {t("coverage.serving", { count: serviceAreaNames.length })}
+            </span>
+            {serviceAreaNames.slice(0, MAX_HERO_AREA_CHIPS).map((name) => (
+              <span
+                key={name}
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-semibold backdrop-blur-sm"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.14)",
+                  borderColor: "rgba(255,255,255,0.4)",
+                }}
+              >
+                <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                {name}
+              </span>
+            ))}
+            {serviceAreaNames.length > MAX_HERO_AREA_CHIPS && (
+              <a
+                href="#service-areas"
+                className="inline-flex min-h-8 items-center rounded-full border px-3.5 py-1.5 text-sm font-semibold backdrop-blur-sm transition-opacity hover:opacity-80"
+                style={{
+                  backgroundColor: "rgba(255,255,255,0.14)",
+                  borderColor: "rgba(255,255,255,0.4)",
+                }}
+              >
+                {t("coverage.moreAreas", {
+                  count: serviceAreaNames.length - MAX_HERO_AREA_CHIPS,
+                })}
+              </a>
+            )}
+          </div>
+        )}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button type="button"

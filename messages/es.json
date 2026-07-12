@@ -120,7 +120,8 @@
       "freeEstimate": "Estimado Gratis"
   },
   "coverage": {
-    "serving": "Atendemos {count, plural, one {# área local} other {# áreas locales}}"
+    "serving": "Atendemos {count, plural, one {# área local} other {# áreas locales}}",
+    "moreAreas": "+{count} más"
   },
     "sections": {
       "services": "Servicios",
