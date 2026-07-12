@@ -8,6 +8,7 @@ export const BUSINESS_TYPES = [
   "Lashes / brows",
   "Barber / grooming",
   "Spa / skincare",
+  "Outdoor / home services",
   "Other beauty business",
 ] as const;
 
@@ -77,7 +78,8 @@ export type WizardBusinessType =
   | "barbershop"
   | "restaurant"
   | "nails"
-  | "braids";
+  | "braids"
+  | "home_services";
 
 const MARKETING_TO_WIZARD_TYPE: Record<BusinessType, WizardBusinessType | ""> = {
   Braids: "braids",
@@ -89,6 +91,7 @@ const MARKETING_TO_WIZARD_TYPE: Record<BusinessType, WizardBusinessType | ""> = 
   "Lashes / brows": "",
   "Barber / grooming": "barbershop",
   "Spa / skincare": "",
+  "Outdoor / home services": "home_services",
   "Other beauty business": "",
 };
 

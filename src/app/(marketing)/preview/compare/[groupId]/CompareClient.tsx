@@ -20,6 +20,7 @@ const TEMPLATE_META: Record<string, { desc: string; icon: string }> = {
   warm: { desc: "Warm & Personal", icon: "🤝" },
   runway: { desc: "Editorial Runway", icon: "◆" },
   grand: { desc: "Grand Cinematic", icon: "◇" },
+  neighborhood: { desc: "Neighborhood Professional", icon: "🏡" },
 };
 
 function TemplatePreviewCard({

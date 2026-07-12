@@ -112,6 +112,14 @@ test("mapMarketingTypeToWizardType maps known beauty types to wizard types", () 
   assert.equal(mapMarketingTypeToWizardType("Barber / grooming"), "barbershop");
 });
 
+test("mapMarketingTypeToWizardType maps outdoor services to home_services", () => {
+  assert.equal(mapMarketingTypeToWizardType("Outdoor / home services"), "home_services");
+});
+
+test("BUSINESS_TYPES includes outdoor / home services", () => {
+  assert.ok(BUSINESS_TYPES.includes("Outdoor / home services"));
+});
+
 test("mapMarketingTypeToWizardType returns '' for types with no wizard equivalent", () => {
   assert.equal(mapMarketingTypeToWizardType("Lashes / brows"), "");
   assert.equal(mapMarketingTypeToWizardType("Spa / skincare"), "");

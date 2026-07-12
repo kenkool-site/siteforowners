@@ -5,7 +5,14 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useFadeUp } from "./_motion";
 
-const BUSINESS_TYPES = ["Braids", "Locs", "Haircuts", "Nails", "Salon"] as const;
+const BUSINESS_TYPES = [
+  "Braids",
+  "Locs",
+  "Haircuts",
+  "Nails",
+  "Salon",
+  "Outdoor / home services",
+] as const;
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
