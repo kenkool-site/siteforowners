@@ -26,6 +26,6 @@ test("home-services save validates before fetch and server validates only touche
   assert.match(editor, /HomeServicesContentEditor/);
   const route = await readFile("src/app/api/update-site/route.ts", "utf8");
   assert.match(route, /generatedCopyUpdates\.home_services_config !== undefined/);
-  assert.match(route, /validateHomeServicesEditorConfig/);
+  assert.match(route, /validateHomeServicesConfigUpdate/);
   assert.match(route, /mergeGeneratedCopy/);
 });

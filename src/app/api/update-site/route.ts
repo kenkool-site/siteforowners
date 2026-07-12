@@ -11,8 +11,7 @@ import {
   normalizeGalleryVideoTitle as normalizeGalleryVideoTitleValue,
 } from "@/lib/video/gallery-video";
 import { mergeGeneratedCopy } from "@/lib/generated-copy-merge";
-import { mergeHomeServicesConfig } from "@/lib/home-services/config-merge";
-import { validateHomeServicesEditorConfig } from "@/lib/home-services/editor-validation";
+import { validateHomeServicesConfigUpdate } from "@/lib/home-services/editor-validation";
 
 function normalizeGalleryVideoTitle(value: unknown): string | null {
   if (value === null || value === undefined) return null;
@@ -189,16 +188,15 @@ export async function POST(request: NextRequest) {
             ? (currentCopy.home_services_config as Record<string, unknown>)
             : {};
         const incomingConfig = generatedCopyUpdates.home_services_config;
-        const mergedConfig =
+        const validation =
           incomingConfig &&
           typeof incomingConfig === "object" &&
           !Array.isArray(incomingConfig)
-            ? mergeHomeServicesConfig(
+            ? validateHomeServicesConfigUpdate(
                 currentConfig,
                 incomingConfig as Record<string, unknown>,
               )
-            : incomingConfig;
-        const validation = validateHomeServicesEditorConfig(mergedConfig);
+            : { ok: false as const, errors: [{ field: "config", reason: "Configuration must be an object." }] };
         if (!validation.ok)
           return NextResponse.json(
             { error: "Validation failed", errors: validation.errors },

@@ -1,4 +1,5 @@
 import { parseHomeServicesConfig, type HomeServicesConfig } from "./types";
+import { mergeHomeServicesConfig } from "./config-merge";
 
 export type HomeServicesEditorError = {
   field: string;
@@ -163,4 +164,14 @@ export function validateHomeServicesEditorConfig(
   return errors.length
     ? { ok: false, errors }
     : { ok: true, value: parseHomeServicesConfig(source) };
+}
+
+export function validateHomeServicesConfigUpdate(
+  stored: Record<string, unknown>,
+  incoming: Record<string, unknown>,
+): HomeServicesEditorValidation & { value?: HomeServicesConfig & Record<string, unknown> } {
+  const merged = mergeHomeServicesConfig(stored, incoming);
+  const validation = validateHomeServicesEditorConfig(merged);
+  if (!validation.ok) return validation;
+  return { ok: true, value: { ...merged, ...validation.value } };
 }

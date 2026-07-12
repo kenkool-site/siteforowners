@@ -124,6 +124,7 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
           copy={sectionCopies.recent_work}
         />
       )}
+      {showProcess && <HomeServicesProcess steps={processSteps} copy={sectionCopies.process} locale={locale} colors={colors} />}
       {showWhyUs && (
         <HomeServicesWhyUs
           points={config.why_us_points}
@@ -131,7 +132,6 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
           colors={colors}
         />
       )}
-      {showProcess && <HomeServicesProcess steps={processSteps} copy={sectionCopies.process} locale={locale} colors={colors} />}
       {(showReviews || showServiceAreas) && <HomeServicesProofAndAreas reviews={showReviews ? reviews : []} areas={showServiceAreas ? config.service_areas : []} rating={data.rating} reviewCount={data.review_count} coverageSummary={showServiceAreas ? coverageSummary : ""} copies={{ reviews: sectionCopies.reviews, serviceAreas: sectionCopies.service_areas }} locale={locale} colors={colors} />}
       {showEstimate && (
         <HomeServicesFinalCta copy={sectionCopies.final_cta} locale={locale} phoneHref={phoneHref} messageHref={messageHref} onEstimate={() => onEstimate()} colors={colors} />

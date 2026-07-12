@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseZipInput, validateHomeServicesEditorConfig } from "./editor-validation";
+import { parseZipInput, validateHomeServicesConfigUpdate, validateHomeServicesEditorConfig } from "./editor-validation";
+
+test("validated updates preserve arbitrary unmodeled config siblings", () => {
+  const result = validateHomeServicesConfigUpdate(
+    { future_integration: { vendor: "acme", flags: ["a"] }, sections: { show_reviews: true } },
+    { sections: { show_process: false }, coverage_summary_en: "  Downtown  " },
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.deepEqual(result.value.future_integration, { vendor: "acme", flags: ["a"] });
+  assert.equal(result.value.sections.show_reviews, true);
+  assert.equal(result.value.sections.show_process, false);
+  assert.equal(result.value.coverage_summary_en, "Downtown");
+});
 
 const step = (id: string) => ({ id, title_en: "Title", body_en: "Body", title_es: "Título", body_es: "Texto" });
 const area = (id: string, name: string, zip_codes: string[] = []) => ({ id, name, zip_codes });

@@ -37,7 +37,12 @@ const templateData: PreviewData = {
 
 function renderTemplate(sections?: Record<string, boolean>) {
   const data = structuredClone(templateData);
-  data.generated_copy!.home_services_config = { sections };
+  data.generated_copy!.home_services_config = {
+    sections,
+    why_us_points: sections?.show_why_us
+      ? [{ id: "local", title_en: "Local", body_en: "Nearby", title_es: "Local", body_es: "Cerca" }]
+      : [],
+  };
   return renderToStaticMarkup(<HomeServicesTemplate data={data} locale="en" estimateDeliveryMode="preview_mock" />);
 }
 
@@ -45,11 +50,12 @@ function intl(locale: "en" | "es", child: React.ReactNode) {
   return <NextIntlClientProvider locale={locale} messages={locale === "es" ? es : en} timeZone="America/New_York">{child}</NextIntlClientProvider>;
 }
 
-test("structured areas render the semantic list without the legacy summary", () => {
+test("structured areas render the optional summary introduction above the semantic list", () => {
   const html = renderToStaticMarkup(<HomeServicesServiceAreas coverageSummary="LEGACY EXACT" areas={areas} copy={copy} locale="en" colors={colors} />);
   assert.match(html, /<ul/);
   assert.match(html, /Northside/);
-  assert.doesNotMatch(html, /LEGACY EXACT/);
+  assert.match(html, /LEGACY EXACT/);
+  assert.ok(html.indexOf("LEGACY EXACT") < html.indexOf("<ul"));
 });
 
 test("summary-only coverage is rendered exactly and empty coverage renders nothing", () => {
@@ -89,6 +95,12 @@ test("HomeServicesTemplate renders process by default/true and omits it when con
   assert.match(renderTemplate(), /id="process-heading"/);
   assert.match(renderTemplate({ show_process: true }), /id="process-heading"/);
   assert.doesNotMatch(renderTemplate({ show_process: false }), /id="process-heading"/);
+});
+
+test("conditional Why Us remains visually separated and follows How It Works", () => {
+  const html = renderTemplate({ show_process: true, show_why_us: true });
+  assert.ok(html.indexOf('id="process-heading"') < html.indexOf('id="why-us-heading"'));
+  assert.match(html.slice(html.lastIndexOf("<section", html.indexOf('id="why-us-heading"')), html.indexOf('id="why-us-heading"')), /py-16/);
 });
 
 test("375px render preserves mobile DOM order, stacking hooks, and 44px action hooks", () => {

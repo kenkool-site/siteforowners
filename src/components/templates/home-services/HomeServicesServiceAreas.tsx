@@ -36,7 +36,7 @@ export function HomeServicesServiceAreas({
     >
       <div className="mx-auto max-w-6xl">
         <HomeServicesSectionHeading id="service-areas-heading" copy={copy} locale={locale} color={readable.headingOnBg} />
-        {areas.length === 0 && coverageSummary && <p className="mb-5 max-w-3xl text-base leading-relaxed" style={{ color: readable.bodyOnBg }}>{coverageSummary}</p>}
+        {coverageSummary && <p className="mb-5 max-w-3xl text-base leading-relaxed" style={{ color: readable.bodyOnBg }}>{coverageSummary}</p>}
         {areas.length > 0 && <ul className="space-y-3">{areas.map((area) => {
           const note = locale === "es" ? area.note_es : area.note_en;
           return <li key={area.id} className="rounded-xl border p-4" style={{ borderColor: `${colors.foreground}12`, backgroundColor: colors.background }}>

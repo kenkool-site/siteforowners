@@ -37,9 +37,10 @@ Homepage order:
 4. Services with an editable heading and introduction.
 5. Recent work with an editable heading/introduction and optional city captions.
 6. Editable bilingual three-step “How it works.”
-7. Reviews and service areas side-by-side on desktop and stacked on mobile.
-8. Final call/text/free-estimate CTA.
-9. Footer and mobile action bar.
+7. Existing conditional “Why Us” (retained for backward compatibility).
+8. Reviews and service areas side-by-side on desktop and stacked on mobile.
+9. Final call/text/free-estimate CTA.
+10. Footer and mobile action bar.
 
 Maps remain optional and secondary. The city/ZIP list is the authoritative
 public coverage presentation.

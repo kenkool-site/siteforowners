@@ -28,6 +28,14 @@ Compatibility and automated release verification passed. No production data was 
 - Browser/manual visual verification at 375px and desktop was unavailable in this task run. Automated rendered/contract tests were used; this report does not claim visual browser verification.
 - A full `HomeServicesSiteEditor` save/reload integration test was not added. The current editor is coupled to the broader admin editor and network persistence harness; building a reliable end-to-end harness would be a substantial scope expansion. Existing tests cover add/reorder/remove interactions, malformed/duplicate ZIP blocking, validation-before-fetch, merged server validation, config preservation, and locale rendering, but do not prove a real persisted reload in a browser.
 
+## Final-review fixes
+
+- Added `validateHomeServicesConfigUpdate` and routed production `update-site` persistence through it. The helper merges nested `sections`/`section_copy`, validates and normalizes owned fields, and preserves arbitrary stored top-level sibling objects. A regression verifies an unmodeled integration object survives a partial update.
+- Structured service areas now render a nonblank coverage summary as an optional introduction above the semantic list. Summary-only remains exact; empty summary plus no areas still renders nothing.
+- Retained conditional Why Us for backward compatibility and moved it after How It Works, with rendered order and section-spacing coverage. The approved order is recorded in the design spec.
+- Final focused suite: 71 passed, 0 failed. `npx tsc --noEmit`, `npm run build` (74 static pages), and `git diff --check` all exited 0.
+- Non-failing warnings remain the previously documented `next-intl` environment fallback during server rendering, Node ES-module warning, and Next edge-runtime static-generation advisory.
+
 ## Scope and release safety
 
 - No production records were created or updated.

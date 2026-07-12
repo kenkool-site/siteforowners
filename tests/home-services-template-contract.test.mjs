@@ -114,7 +114,7 @@ test("estimate modal preserves accessible validation and upload contracts", asyn
 
 test("richer homepage follows the approved conversion-story order", async () => {
   const source = await readFile("src/components/templates/home-services/HomeServicesTemplate.tsx", "utf8");
-  const order = ["HomeServicesHero", "HomeServicesTrustStrip", "HomeServicesServices", "HomeServicesGallery", "HomeServicesWhyUs", "HomeServicesProcess", "HomeServicesProofAndAreas", "HomeServicesFinalCta", "HomeServicesFooter"];
+  const order = ["HomeServicesHero", "HomeServicesTrustStrip", "HomeServicesServices", "HomeServicesGallery", "HomeServicesProcess", "HomeServicesWhyUs", "HomeServicesProofAndAreas", "HomeServicesFinalCta", "HomeServicesFooter"];
   let cursor = -1;
   for (const component of order) {
     const next = source.indexOf(`<${component}`, cursor + 1);
