@@ -3,9 +3,11 @@ import test from "node:test";
 import {
   ESTIMATE_MESSAGE_MAX_LENGTH,
   formatEstimateMessage,
+  deliverEstimateText,
   sendEstimateNotification,
   type EstimateMessageInput,
 } from "./estimate-notification";
+import type { HomeServicesNotificationConfig } from "./home-services/types";
 import type { TwilioMessageClient } from "./sms";
 
 function sampleInput(overrides: Partial<EstimateMessageInput> = {}): EstimateMessageInput {
@@ -191,5 +193,42 @@ test("sendEstimateNotification returns WhatsApp config failure without calling T
     ok: false,
     error: "WhatsApp sender or template not configured",
     channel: "whatsapp",
+  });
+});
+
+test("deliverEstimateText falls back from WhatsApp to SMS", async () => {
+  const calls: Array<{ channel: string; destination: string }> = [];
+  const config: HomeServicesNotificationConfig = {
+    channel: "whatsapp",
+    destination_e164: "+18325550147",
+    sms_fallback_e164: "+18325550148",
+  };
+  const result = await deliverEstimateText("body", config, async (_body, channel, destination) => {
+    calls.push({ channel, destination });
+    return channel === "whatsapp"
+      ? { ok: false, error: "rejected", channel }
+      : { ok: true, messageSid: "SM2", providerStatus: "queued", channel };
+  });
+  assert.deepEqual(calls, [
+    { channel: "whatsapp", destination: "+18325550147" },
+    { channel: "sms", destination: "+18325550148" },
+  ]);
+  assert.deepEqual(result, {
+    result: { state: "sent", providerId: "SM2", destination: "+18325550148" },
+    channel: "sms",
+    destination: "+18325550148",
+  });
+});
+
+test("deliverEstimateText converts a provider rejection into failure", async () => {
+  const result = await deliverEstimateText(
+    "body",
+    { channel: "sms", destination_e164: "+18325550147" },
+    async () => { throw new Error("provider down"); },
+  );
+  assert.deepEqual(result, {
+    result: { state: "failed", error: "provider down", destination: "+18325550147" },
+    channel: "sms",
+    destination: "+18325550147",
   });
 });

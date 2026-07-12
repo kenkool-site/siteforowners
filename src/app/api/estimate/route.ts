@@ -10,8 +10,11 @@ import {
 } from "@/lib/estimate-storage";
 import {
   formatEstimateMessage,
+  deliverEstimateText,
   sendEstimateNotification,
 } from "@/lib/estimate-notification";
+import { selectEstimateOwnerEmail, sendEstimateEmail } from "@/lib/estimate-email";
+import { estimateDeliveryUpdate, type EstimateChannelResult } from "@/lib/estimate-delivery";
 import {
   ESTIMATE_RATE_LIMIT,
   estimateRateLimitBucket,
@@ -108,8 +111,9 @@ export async function POST(request: NextRequest) {
       ? (preview.generated_copy as Record<string, unknown>)
       : {};
   const config = parseHomeServicesConfig(generatedCopy.home_services_config);
-  const notification = config.notification;
-  if (!notification?.destination_e164) {
+  const ownerEmail = selectEstimateOwnerEmail(tenant);
+  const textNotification = config.notification;
+  if (!textNotification?.destination_e164 && !ownerEmail) {
     return NextResponse.json(
       { ok: false, code: "estimate_unavailable" },
       { status: 503 },
@@ -182,9 +186,12 @@ export async function POST(request: NextRequest) {
       preferred_response: parsed.preferred_response,
       locale: parsed.locale,
       source_path: parsed.source_path,
-      notification_channel: notification.channel,
-      notification_destination: notification.destination_e164,
+      notification_channel: textNotification?.channel ?? null,
+      notification_destination: textNotification?.destination_e164 ?? null,
       notification_state: "pending",
+      text_notification_state: textNotification ? "pending" : "not_configured",
+      email_notification_state: ownerEmail ? "pending" : "not_configured",
+      email_notification_destination: ownerEmail,
       photo_upload_warning: false,
     })
     .select("id")
@@ -236,7 +243,7 @@ export async function POST(request: NextRequest) {
   }
 
   const photoLinks = await createEstimatePhotoLinks(supabase, uploadedPaths);
-  const messageBody = formatEstimateMessage({
+  const messageInput = {
     businessName: tenant.business_name,
     customerName: parsed.customer_name,
     customerPhone: parsed.customer_phone,
@@ -246,37 +253,41 @@ export async function POST(request: NextRequest) {
     preferredResponse: parsed.preferred_response,
     locale: parsed.locale,
     photoLinks,
-  });
-
-  let usedChannel = notification.channel;
-  let usedDestination = notification.destination_e164;
-
-  let delivery = await sendEstimateNotification(
-    messageBody,
-    usedChannel,
-    usedDestination,
-  );
-
-  if (!delivery.ok && usedChannel === "whatsapp" && notification.sms_fallback_e164) {
-    usedChannel = "sms";
-    usedDestination = notification.sms_fallback_e164;
-    delivery = await sendEstimateNotification(
-      messageBody,
-      usedChannel,
-      usedDestination,
-    );
-  }
+  };
+  const messageBody = formatEstimateMessage(messageInput);
+  const notConfigured: EstimateChannelResult = { state: "not_configured" };
+  const emailDelivery: Promise<EstimateChannelResult> = ownerEmail
+    ? sendEstimateEmail(ownerEmail, messageInput)
+        .then((result): EstimateChannelResult => result.ok
+          ? { state: "sent", providerId: result.providerId, destination: ownerEmail }
+          : { state: "failed", error: result.error, destination: ownerEmail })
+        .catch((error: unknown): EstimateChannelResult => ({
+          state: "failed",
+          error: error instanceof Error ? error.message : "Email delivery failed",
+          destination: ownerEmail,
+        }))
+    : Promise.resolve(notConfigured);
+  const [textDelivery, emailResult] = await Promise.all([
+    textNotification
+      ? deliverEstimateText(messageBody, textNotification, sendEstimateNotification)
+      : Promise.resolve(null),
+    emailDelivery,
+  ]);
+  const textResult = textDelivery?.result ?? notConfigured;
+  const usedChannel = textDelivery?.channel ?? null;
+  const usedDestination = textDelivery?.destination ?? null;
 
   const { error: updateError } = await supabase
     .from("estimate_requests")
     .update({
-      notification_state: delivery.ok ? "sent" : "failed",
+      ...estimateDeliveryUpdate(textResult, emailResult),
+      notification_state: textResult.state === "sent" ? "sent" : "failed",
       notification_channel: usedChannel,
       notification_destination: usedDestination,
-      provider_message_id: delivery.ok ? delivery.messageSid : null,
-      provider_error: delivery.ok ? null : delivery.error,
+      provider_message_id: textResult.state === "sent" ? textResult.providerId : null,
+      provider_error: textResult.state === "failed" ? textResult.error : null,
       photo_upload_warning: photoWarning,
-      notified_at: delivery.ok ? new Date().toISOString() : null,
+      notified_at: textResult.state === "sent" ? new Date().toISOString() : null,
     })
     .eq("id", requestId)
     .eq("tenant_id", tenant.id);
