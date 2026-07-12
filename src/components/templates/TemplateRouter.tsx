@@ -5,9 +5,11 @@ import {
   TemplateOrchestrator,
   type TemplateOrchestratorProps,
 } from "./TemplateOrchestrator";
+import type { EstimateDeliveryMode } from "./home-services/estimate-modal-state";
 
 export interface TemplateRouterProps extends TemplateOrchestratorProps {
   onHomeServicesLocaleChange?: (locale: "en" | "es") => void;
+  estimateDeliveryMode?: EstimateDeliveryMode;
 }
 
 export function TemplateRouter(props: TemplateRouterProps) {
@@ -18,6 +20,7 @@ export function TemplateRouter(props: TemplateRouterProps) {
         locale={props.locale ?? "en"}
         isLive={props.isLive}
         onLocaleChange={props.onHomeServicesLocaleChange}
+        estimateDeliveryMode={props.estimateDeliveryMode ?? "tenant"}
       />
     );
   }

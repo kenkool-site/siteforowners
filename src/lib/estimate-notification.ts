@@ -1,4 +1,5 @@
-import type { EstimateDeliveryChannel } from "@/lib/home-services/types";
+import type { EstimateDeliveryChannel, HomeServicesNotificationConfig } from "@/lib/home-services/types";
+import type { EstimateChannelResult } from "@/lib/estimate-delivery";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
 import {
   getTwilioMessageClient,
@@ -147,5 +148,48 @@ export async function sendEstimateNotification(
     messageSid: result.sid,
     providerStatus: result.status,
     channel,
+  };
+}
+
+type EstimateNotificationSender = typeof sendEstimateNotification;
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : "Text delivery failed";
+}
+
+export async function deliverEstimateText(
+  messageBody: string,
+  notification: HomeServicesNotificationConfig,
+  sender: EstimateNotificationSender = sendEstimateNotification,
+): Promise<{
+  result: EstimateChannelResult;
+  channel: EstimateDeliveryChannel;
+  destination: string;
+}> {
+  let channel = notification.channel;
+  let destination = notification.destination_e164;
+  let delivery: SendEstimateResult;
+  try {
+    delivery = await sender(messageBody, channel, destination);
+  } catch (error: unknown) {
+    delivery = { ok: false, error: errorMessage(error), channel };
+  }
+
+  if (!delivery.ok && channel === "whatsapp" && notification.sms_fallback_e164) {
+    channel = "sms";
+    destination = notification.sms_fallback_e164;
+    try {
+      delivery = await sender(messageBody, channel, destination);
+    } catch (error: unknown) {
+      delivery = { ok: false, error: errorMessage(error), channel };
+    }
+  }
+
+  return {
+    result: delivery.ok
+      ? { state: "sent", providerId: delivery.messageSid, destination }
+      : { state: "failed", error: delivery.error, destination },
+    channel,
+    destination,
   };
 }

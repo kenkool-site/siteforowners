@@ -28,6 +28,25 @@ test("parses and normalizes a valid estimate", () => {
   }
 });
 
+test("accepts omitted optional details and defaults response to SMS", () => {
+  const form = validForm();
+  form.delete("description");
+  form.delete("preferred_response");
+  const result = parseEstimateFormFields(form, "en", "/");
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.value.description, "");
+    assert.equal(result.value.preferred_response, "sms");
+  }
+});
+
+test("still enforces description length when supplied", () => {
+  const form = validForm();
+  form.set("description", "x".repeat(2001));
+  const result = parseEstimateFormFields(form, "en", "/");
+  assert.equal(result.ok, false);
+});
+
 test("rejects honeypot submissions", () => {
   const form = validForm();
   form.set("company_website", "https://spam.invalid");

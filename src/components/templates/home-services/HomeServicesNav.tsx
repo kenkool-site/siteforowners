@@ -13,7 +13,7 @@ export interface HomeServicesNavProps {
   locale: HomeServicesLocale;
   showGallery: boolean;
   showReviews: boolean;
-  estimateHref: string;
+  onEstimate: (serviceName?: string) => void;
   colors: ThemeColors;
   onLocaleChange?: (locale: HomeServicesLocale) => void;
 }
@@ -23,7 +23,7 @@ export function HomeServicesNav({
   locale,
   showGallery,
   showReviews,
-  estimateHref,
+  onEstimate,
   colors,
   onLocaleChange,
 }: HomeServicesNavProps) {
@@ -89,13 +89,13 @@ export function HomeServicesNav({
             >
               {languageLabel}
             </Link>}
-            <a
-              href={estimateHref}
+            <button type="button"
+              onClick={() => onEstimate()}
               className="inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold shadow-sm transition-opacity hover:opacity-90"
               style={{ backgroundColor: colors.secondary, color: estimateTextColor }}
             >
               {t("actions.freeEstimate")}
-            </a>
+            </button>
           </nav>
 
           <div className="flex items-center gap-2 md:hidden">
@@ -165,14 +165,13 @@ export function HomeServicesNav({
                   {item.label}
                 </a>
               ))}
-              <a
-                href={estimateHref}
-                onClick={closeMenu}
+              <button type="button"
+                onClick={() => { closeMenu(); onEstimate(); }}
                 className="mt-2 inline-flex min-h-11 items-center justify-center rounded-full px-4 text-base font-semibold"
                 style={{ backgroundColor: colors.secondary, color: estimateTextColor }}
               >
                 {t("actions.freeEstimate")}
-              </a>
+              </button>
             </motion.nav>
           </motion.div>
         )}

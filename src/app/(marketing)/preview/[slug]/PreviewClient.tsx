@@ -164,6 +164,7 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
               locale={locale}
               bookingMode={bookingMode}
               onHomeServicesLocaleChange={setLocale}
+              estimateDeliveryMode="preview_mock"
             />
           </div>
         </div>

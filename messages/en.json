@@ -148,6 +148,20 @@
       "rateLimited": "Too many requests. Please wait a little while and try again.",
       "unavailable": "Estimate requests are temporarily unavailable. Please call or message us directly.",
       "photoWarning": "We received your request, but some photos could not be attached. You can send the missing photos by message.",
+      "modal": {
+        "title": "Request a free estimate",
+        "of": "of",
+        "stageContact": "Contact details",
+        "stageProject": "Project details",
+        "optional": "Optional",
+        "cityZip": "City / ZIP",
+        "back": "Back",
+        "continue": "Continue",
+        "submit": "Submit",
+        "sampleSuccessTitle": "Sample request complete",
+        "sampleSuccessBody": "This preview request was simulated. No contractor was contacted.",
+        "close": "Close"
+      },
       "fields": {
         "name": {
           "label": "Your name",

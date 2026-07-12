@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEstimateTwilioConfigWarning } from "@/lib/estimate-twilio-config";
+import { channelDiagnostic } from "@/lib/estimate-admin-diagnostics";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const UUID_RE =
@@ -29,7 +30,16 @@ export async function GET(request: NextRequest) {
       created_at,
       service_needed,
       notification_state,
+      notification_channel,
+      notification_destination,
       provider_error,
+      text_notification_state,
+      text_provider_message_id,
+      text_provider_error,
+      email_notification_state,
+      email_notification_destination,
+      email_provider_message_id,
+      email_provider_error,
       estimate_photos (
         content_type,
         size_bytes
@@ -58,6 +68,17 @@ export async function GET(request: NextRequest) {
       service_needed: row.service_needed,
       notification_state: row.notification_state,
       provider_error: row.provider_error,
+      notification_channel: row.notification_channel,
+      notification_destination: row.notification_destination,
+      text_notification_state: row.text_notification_state,
+      text_provider_message_id: row.text_provider_message_id,
+      text_provider_error: row.text_provider_error,
+      email_notification_state: row.email_notification_state,
+      email_notification_destination: row.email_notification_destination,
+      email_provider_message_id: row.email_provider_message_id,
+      email_provider_error: row.email_provider_error,
+      text: channelDiagnostic(row, "text"),
+      email: channelDiagnostic(row, "email"),
       photo_count: photos.length,
       photos,
     };

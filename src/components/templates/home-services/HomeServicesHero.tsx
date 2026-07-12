@@ -12,7 +12,7 @@ export interface HomeServicesHeroProps {
   heroImage?: string;
   phoneHref: string | null;
   messageHref: string | null;
-  estimateHref: string;
+  onEstimate: (serviceName?: string) => void;
   colors: ThemeColors;
 }
 
@@ -23,7 +23,7 @@ export function HomeServicesHero({
   heroImage,
   phoneHref,
   messageHref,
-  estimateHref,
+  onEstimate,
   colors,
 }: HomeServicesHeroProps) {
   const t = useTranslations("homeServices");
@@ -73,13 +73,13 @@ export function HomeServicesHero({
         </p>
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-          <a
-            href={estimateHref}
+          <button type="button"
+            onClick={() => onEstimate()}
             className="inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold shadow-sm transition-opacity hover:opacity-90"
             style={{ backgroundColor: colors.secondary, color: estimateTextColor }}
           >
             {t("actions.freeEstimate")}
-          </a>
+          </button>
           {phoneHref && (
             <a
               href={phoneHref}

@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer, useState } from "react";
 import type { EstimateDeliveryChannel } from "@/lib/home-services/types";
+import { canRetryChannel } from "@/lib/estimate-admin-diagnostics";
+import {
+  initialEstimateRetryState,
+  reduceEstimateRetryState,
+} from "@/lib/estimate-retry-state";
 
 type EstimateRequestRow = {
   id: string;
@@ -9,8 +14,18 @@ type EstimateRequestRow = {
   service_needed: string;
   notification_state: "pending" | "sent" | "failed";
   provider_error: string | null;
+  notification_destination: string | null;
+  text_notification_state: ChannelState;
+  text_provider_message_id: string | null;
+  text_provider_error: string | null;
+  email_notification_state: ChannelState;
+  email_notification_destination: string | null;
+  email_provider_message_id: string | null;
+  email_provider_error: string | null;
   photo_count: number;
 };
+type ChannelState = "not_configured" | "pending" | "sent" | "failed";
+type RetryChannel = "text" | "email";
 
 function sanitizeFailureSummary(error: string | null): string {
   if (!error) return "";
@@ -29,7 +44,7 @@ function formatTimestamp(iso: string): string {
   }
 }
 
-function StateBadge({ state }: { state: EstimateRequestRow["notification_state"] }) {
+function StateBadge({ state }: { state: ChannelState }) {
   if (state === "sent") {
     return (
       <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
@@ -44,11 +59,12 @@ function StateBadge({ state }: { state: EstimateRequestRow["notification_state"]
       </span>
     );
   }
-  return (
+  if (state === "pending") return (
     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
       Pending
     </span>
   );
+  return <span className="text-xs text-gray-400">Not configured</span>;
 }
 
 export function NotificationSettingsSection({
@@ -123,12 +139,15 @@ export function NotificationSettingsSection({
 export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) {
   const [requests, setRequests] = useState<EstimateRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [retryState, dispatchRetry] = useReducer(
+    reduceEstimateRetryState,
+    initialEstimateRetryState,
+  );
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
-    setError("");
+    setLoadError("");
     try {
       const res = await fetch(
         `/api/admin/estimate-requests/list?tenantId=${encodeURIComponent(tenantId)}`,
@@ -140,7 +159,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
       const body = await res.json();
       setRequests(Array.isArray(body.requests) ? body.requests : []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load");
+      setLoadError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
     }
@@ -150,24 +169,27 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
     void loadRequests();
   }, [loadRequests]);
 
-  const handleResend = async (requestId: string) => {
-    setResendingId(requestId);
-    setError("");
+  const handleResend = async (requestId: string, channel: RetryChannel) => {
+    const key = `${requestId}:${channel}`;
+    dispatchRetry({ type: "start", key });
     try {
       const res = await fetch("/api/admin/estimate-requests/resend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, requestId }),
+        body: JSON.stringify({ tenantId, requestId, channel }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(typeof body.error === "string" ? body.error : "Resend failed");
       }
       await loadRequests();
+      dispatchRetry({ type: "success", key });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Resend failed");
-    } finally {
-      setResendingId(null);
+      dispatchRetry({
+        type: "failure",
+        key,
+        error: err instanceof Error ? err.message : "Resend failed",
+      });
     }
   };
 
@@ -177,7 +199,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
       <p className="mb-4 text-sm text-gray-500">
         Recent estimate requests and notification delivery status (founder only).
       </p>
-      {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
+      {loadError && <p className="mb-3 text-sm text-red-600">{loadError}</p>}
       {loading ? (
         <p className="text-sm text-gray-500">Loading...</p>
       ) : requests.length === 0 ? (
@@ -192,23 +214,44 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
                 {row.photo_count > 0 && (
                   <p className="text-xs text-gray-400">{row.photo_count} photo(s)</p>
                 )}
-                {row.notification_state === "failed" && row.provider_error && (
-                  <p className="mt-1 text-xs text-red-700">
-                    {sanitizeFailureSummary(row.provider_error)}
-                  </p>
-                )}
               </div>
-              <div className="flex items-center gap-2">
-                <StateBadge state={row.notification_state} />
-                {row.notification_state === "failed" && (
+              <div className="grid min-w-64 gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-gray-700">Text</span>
+                  <StateBadge state={row.text_notification_state} />
+                  {canRetryChannel({ state: row.text_notification_state, destination: row.notification_destination, providerId: row.text_provider_message_id, error: row.text_provider_error }) && (
                   <button
                     type="button"
-                    onClick={() => void handleResend(row.id)}
-                    disabled={resendingId === row.id}
+                    onClick={() => void handleResend(row.id, "text")}
+                    disabled={retryState[`${row.id}:text`]?.pending === true}
                     className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50"
                   >
-                    {resendingId === row.id ? "Sending..." : "Resend"}
+                    {retryState[`${row.id}:text`]?.pending ? "Sending..." : "Retry"}
                   </button>
+                  )}
+                </div>
+                {row.text_notification_state === "failed" && row.text_provider_error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(row.text_provider_error)}</p>
+                )}
+                {retryState[`${row.id}:text`]?.error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(retryState[`${row.id}:text`].error)}</p>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-gray-700">Email</span>
+                  <StateBadge state={row.email_notification_state} />
+                  {canRetryChannel({ state: row.email_notification_state, destination: row.email_notification_destination, providerId: row.email_provider_message_id, error: row.email_provider_error }) && (
+                    <button type="button" onClick={() => void handleResend(row.id, "email")}
+                      disabled={retryState[`${row.id}:email`]?.pending === true}
+                      className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50">
+                      {retryState[`${row.id}:email`]?.pending ? "Sending..." : "Retry"}
+                    </button>
+                  )}
+                </div>
+                {row.email_notification_state === "failed" && row.email_provider_error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(row.email_provider_error)}</p>
+                )}
+                {retryState[`${row.id}:email`]?.error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(retryState[`${row.id}:email`].error)}</p>
                 )}
               </div>
             </li>

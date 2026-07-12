@@ -55,6 +55,7 @@ export function SiteClient({
         bookingMode={bookingMode}
         depositSettings={depositSettings}
         autoOpenBooking={autoOpenBooking}
+        estimateDeliveryMode="tenant"
       />
     </div>
   );
