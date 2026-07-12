@@ -11,6 +11,7 @@ import {
   normalizeGalleryVideoTitle as normalizeGalleryVideoTitleValue,
 } from "@/lib/video/gallery-video";
 import { mergeGeneratedCopy } from "@/lib/generated-copy-merge";
+import { mergeHomeServicesConfig } from "@/lib/home-services/config-merge";
 import { validateHomeServicesEditorConfig } from "@/lib/home-services/editor-validation";
 
 function normalizeGalleryVideoTitle(value: unknown): string | null {
@@ -35,14 +36,26 @@ export async function POST(request: NextRequest) {
 
     const { slug, updates } = body as Record<string, unknown>;
 
-    if (typeof slug !== "string" || !(updates !== null && typeof updates === "object" && !Array.isArray(updates))) {
-      return NextResponse.json({ error: "slug and updates required" }, { status: 400 });
+    if (
+      typeof slug !== "string" ||
+      !(
+        updates !== null &&
+        typeof updates === "object" &&
+        !Array.isArray(updates)
+      )
+    ) {
+      return NextResponse.json(
+        { error: "slug and updates required" },
+        { status: 400 },
+      );
     }
 
     const updateFields = updates as Record<string, unknown>;
 
     if (updateFields.services !== undefined) {
-      const imageErrors = collectInvalidServiceImageErrors(updateFields.services);
+      const imageErrors = collectInvalidServiceImageErrors(
+        updateFields.services,
+      );
       if (imageErrors.length > 0) {
         return NextResponse.json(
           { error: "Validation failed", errors: imageErrors },
@@ -67,10 +80,13 @@ export async function POST(request: NextRequest) {
     // Build the update object — only allow specific fields
     const allowed: Record<string, unknown> = {};
 
-    if (updateFields.business_name !== undefined) allowed.business_name = updateFields.business_name;
+    if (updateFields.business_name !== undefined)
+      allowed.business_name = updateFields.business_name;
     if (updateFields.phone !== undefined) allowed.phone = updateFields.phone;
-    if (updateFields.color_theme !== undefined) allowed.color_theme = updateFields.color_theme;
-    if (updateFields.address !== undefined) allowed.address = updateFields.address;
+    if (updateFields.color_theme !== undefined)
+      allowed.color_theme = updateFields.color_theme;
+    if (updateFields.address !== undefined)
+      allowed.address = updateFields.address;
     if (updateFields.seo_locality !== undefined) {
       const v =
         updateFields.seo_locality === null || updateFields.seo_locality === ""
@@ -80,35 +96,56 @@ export async function POST(request: NextRequest) {
     }
     if (updateFields.google_review_url !== undefined) {
       const v =
-        updateFields.google_review_url === null || updateFields.google_review_url === ""
+        updateFields.google_review_url === null ||
+        updateFields.google_review_url === ""
           ? null
           : String(updateFields.google_review_url).trim() || null;
       allowed.google_review_url = v;
     }
-    if (updateFields.booking_url !== undefined) allowed.booking_url = updateFields.booking_url;
-    if (updateFields.services !== undefined) allowed.services = updateFields.services;
-    if (updateFields.categories !== undefined) allowed.categories = updateFields.categories;
-    if (updateFields.booking_policies !== undefined) allowed.booking_policies = updateFields.booking_policies;
-    if (updateFields.products !== undefined) allowed.products = updateFields.products;
+    if (updateFields.booking_url !== undefined)
+      allowed.booking_url = updateFields.booking_url;
+    if (updateFields.services !== undefined)
+      allowed.services = updateFields.services;
+    if (updateFields.categories !== undefined)
+      allowed.categories = updateFields.categories;
+    if (updateFields.booking_policies !== undefined)
+      allowed.booking_policies = updateFields.booking_policies;
+    if (updateFields.products !== undefined)
+      allowed.products = updateFields.products;
     if (updateFields.images !== undefined) allowed.images = updateFields.images;
-    if (updateFields.hero_video_url !== undefined) allowed.hero_video_url = updateFields.hero_video_url;
+    if (updateFields.hero_video_url !== undefined)
+      allowed.hero_video_url = updateFields.hero_video_url;
     if (updateFields.gallery_video_url !== undefined) {
-      if (updateFields.gallery_video_url === null || updateFields.gallery_video_url === "") {
+      if (
+        updateFields.gallery_video_url === null ||
+        updateFields.gallery_video_url === ""
+      ) {
         allowed.gallery_video_url = null;
       } else if (isGalleryVideoUrl(updateFields.gallery_video_url)) {
         allowed.gallery_video_url = updateFields.gallery_video_url.trim();
       } else {
         return NextResponse.json(
-          { error: "Validation failed", errors: [{ field: "gallery_video_url", reason: "must be an uploaded gallery MP4 URL or null" }] },
+          {
+            error: "Validation failed",
+            errors: [
+              {
+                field: "gallery_video_url",
+                reason: "must be an uploaded gallery MP4 URL or null",
+              },
+            ],
+          },
           { status: 400 },
         );
       }
     }
     if (updateFields.gallery_video_title !== undefined) {
-      allowed.gallery_video_title = normalizeGalleryVideoTitle(updateFields.gallery_video_title);
+      allowed.gallery_video_title = normalizeGalleryVideoTitle(
+        updateFields.gallery_video_title,
+      );
     }
     if (updateFields.hours !== undefined) allowed.hours = updateFields.hours;
-    if (updateFields.imported_hours !== undefined) allowed.imported_hours = updateFields.imported_hours;
+    if (updateFields.imported_hours !== undefined)
+      allowed.imported_hours = updateFields.imported_hours;
 
     // Look up tenant once — used to route deposit + tenant-scoped fields
     // to their canonical homes (booking_settings, tenants) when a tenant
@@ -124,26 +161,55 @@ export async function POST(request: NextRequest) {
     // there is no tenant yet. Once a tenant exists, /api/update-tenant
     // owns these (canonical home: tenants table).
     if (!tenantId) {
-      if (updateFields.booking_mode !== undefined) allowed.booking_mode = updateFields.booking_mode;
-      if (updateFields.notification_email !== undefined) allowed.notification_email = updateFields.notification_email;
+      if (updateFields.booking_mode !== undefined)
+        allowed.booking_mode = updateFields.booking_mode;
+      if (updateFields.notification_email !== undefined)
+        allowed.notification_email = updateFields.notification_email;
     }
 
     // Handle generated_copy updates (merge, don't replace)
-    if (updateFields.generated_copy && typeof updateFields.generated_copy === "object" && !Array.isArray(updateFields.generated_copy)) {
-      const generatedCopyUpdates = updateFields.generated_copy as Record<string, unknown>;
-      const currentCopy = (current.generated_copy || {}) as Record<string, unknown>;
+    if (
+      updateFields.generated_copy &&
+      typeof updateFields.generated_copy === "object" &&
+      !Array.isArray(updateFields.generated_copy)
+    ) {
+      const generatedCopyUpdates = updateFields.generated_copy as Record<
+        string,
+        unknown
+      >;
+      const currentCopy = (current.generated_copy || {}) as Record<
+        string,
+        unknown
+      >;
       if (generatedCopyUpdates.home_services_config !== undefined) {
-        const currentConfig = currentCopy.home_services_config && typeof currentCopy.home_services_config === "object" && !Array.isArray(currentCopy.home_services_config)
-          ? currentCopy.home_services_config as Record<string, unknown> : {};
+        const currentConfig =
+          currentCopy.home_services_config &&
+          typeof currentCopy.home_services_config === "object" &&
+          !Array.isArray(currentCopy.home_services_config)
+            ? (currentCopy.home_services_config as Record<string, unknown>)
+            : {};
         const incomingConfig = generatedCopyUpdates.home_services_config;
-        const mergedConfig = incomingConfig && typeof incomingConfig === "object" && !Array.isArray(incomingConfig)
-          ? { ...currentConfig, ...incomingConfig as Record<string, unknown> }
-          : incomingConfig;
+        const mergedConfig =
+          incomingConfig &&
+          typeof incomingConfig === "object" &&
+          !Array.isArray(incomingConfig)
+            ? mergeHomeServicesConfig(
+                currentConfig,
+                incomingConfig as Record<string, unknown>,
+              )
+            : incomingConfig;
         const validation = validateHomeServicesEditorConfig(mergedConfig);
-        if (!validation.ok) return NextResponse.json({ error: "Validation failed", errors: validation.errors }, { status: 400 });
+        if (!validation.ok)
+          return NextResponse.json(
+            { error: "Validation failed", errors: validation.errors },
+            { status: 400 },
+          );
         generatedCopyUpdates.home_services_config = validation.value;
       }
-      allowed.generated_copy = mergeGeneratedCopy(currentCopy, generatedCopyUpdates);
+      allowed.generated_copy = mergeGeneratedCopy(
+        currentCopy,
+        generatedCopyUpdates,
+      );
     }
 
     // Deposit settings: canonical home is booking_settings (per-tenant). For
@@ -194,7 +260,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (Object.keys(allowed).length === 0) {
-      return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 },
+      );
     }
 
     const { error: updateError } = await supabase
@@ -229,7 +298,8 @@ export async function POST(request: NextRequest) {
     // handler reads when sending owner SMS. Sole-proprietor tenants use
     // one number for both, so we sync them on every save.
     if (tenantId && updateFields.phone !== undefined) {
-      const phoneValue = typeof updateFields.phone === "string" ? updateFields.phone.trim() : "";
+      const phoneValue =
+        typeof updateFields.phone === "string" ? updateFields.phone.trim() : "";
       const { error: tenantPhoneErr } = await supabase
         .from("tenants")
         .update({
@@ -238,7 +308,10 @@ export async function POST(request: NextRequest) {
         })
         .eq("id", tenantId);
       if (tenantPhoneErr) {
-        console.error("[update-site] tenant phone sync failed", { tenantId, err: tenantPhoneErr });
+        console.error("[update-site] tenant phone sync failed", {
+          tenantId,
+          err: tenantPhoneErr,
+        });
         // Don't fail the whole save — the public site phone updated fine,
         // owner just won't get SMS until next save. Log so we can spot it.
       }

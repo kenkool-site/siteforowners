@@ -7,7 +7,9 @@ test("mergeGeneratedCopy preserves omitted top-level keys", () => {
     en: { hero_headline: "Hello" },
     social_links: { instagram: "https://instagram.com/a" },
     section_settings: { show_hours: true },
-    home_services_config: { trust_points: [{ id: "a", label_en: "A", label_es: "A" }] },
+    home_services_config: {
+      trust_points: [{ id: "a", label_en: "A", label_es: "A" }],
+    },
   };
 
   const merged = mergeGeneratedCopy(existing, {
@@ -23,21 +25,32 @@ test("mergeGeneratedCopy preserves omitted top-level keys", () => {
   });
 });
 
-test("mergeGeneratedCopy replaces keys only when explicitly provided", () => {
+test("mergeGeneratedCopy deeply merges home-services config and unrelated generated copy", () => {
   const existing = {
     social_links: { instagram: "old" },
     section_settings: { show_hours: true },
-    home_services_config: { coverage_summary_en: "Old" },
+    home_services_config: {
+      sections: { show_process: true, show_reviews: true },
+      section_copy: { services: { title_en: "Old", title_es: "Viejo" } },
+    },
   };
 
   const merged = mergeGeneratedCopy(existing, {
     social_links: { facebook: "new" },
-    home_services_config: { coverage_summary_en: "New" },
+    en: { hero_subheadline: "New sub" },
+    home_services_config: {
+      sections: { show_process: false },
+      section_copy: { services: { title_en: "New" } },
+    },
   });
 
   assert.deepEqual(merged.social_links, { facebook: "new" });
   assert.deepEqual(merged.section_settings, { show_hours: true });
-  assert.deepEqual(merged.home_services_config, { coverage_summary_en: "New" });
+  assert.deepEqual(merged.en, { hero_subheadline: "New sub" });
+  assert.deepEqual(merged.home_services_config, {
+    sections: { show_process: false, show_reviews: true },
+    section_copy: { services: { title_en: "New", title_es: "Viejo" } },
+  });
 });
 
 test("mergeGeneratedCopy merges locale copy without dropping sibling locales", () => {
