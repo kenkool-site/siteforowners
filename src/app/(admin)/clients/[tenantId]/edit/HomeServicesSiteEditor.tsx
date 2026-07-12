@@ -24,6 +24,7 @@ import {
 } from "./EstimateDeliveryDiagnostics";
 import { HomeServicesContentEditor } from "./HomeServicesContentEditor";
 import { validateHomeServicesEditorConfig, type HomeServicesEditorError } from "@/lib/home-services/editor-validation";
+import { ServiceImageControl } from "./ServiceImageControl";
 
 type LocaleCopyDraft = {
   hero_headline: string;
@@ -324,10 +325,12 @@ function LocaleCopySection({
 function ServicesSection({
   draft,
   contentLocale,
+  tenantId,
   onChange,
 }: {
   draft: EditorDraft;
   contentLocale: HomeServicesLocale;
+  tenantId: string;
   onChange: (next: EditorDraft) => void;
 }) {
   const descriptions = draft.generated_copy[contentLocale].service_descriptions;
@@ -376,6 +379,14 @@ function ServicesSection({
                 value={descriptions[service.client_id ?? ""] || ""}
                 onChange={(value) => updateDescription(service.client_id ?? "", value)}
                 rows={2}
+              />
+            </div>
+            <div className="mt-3">
+              <FieldLabel>Image</FieldLabel>
+              <ServiceImageControl
+                image={service.image}
+                tenantId={tenantId}
+                onChange={(image) => updateService(index, { image })}
               />
             </div>
             <button
@@ -979,7 +990,7 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
           </div>
 
           <LocaleCopySection draft={draft} locale={contentLocale} onChange={setDraft} />
-          <ServicesSection draft={draft} contentLocale={contentLocale} onChange={setDraft} />
+          <ServicesSection draft={draft} contentLocale={contentLocale} tenantId={tenantId} onChange={setDraft} />
           <TrustPointsSection config={draft.home_services_config} onChange={updateConfig} />
           <WhyUsSection config={draft.home_services_config} onChange={updateConfig} />
           <CoverageSection config={draft.home_services_config} onChange={updateConfig} />
