@@ -4,8 +4,8 @@ import { useId, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ServiceItem } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
-import { ESTIMATE_PHOTO_LIMITS } from "@/lib/validation/estimate-photos";
 import type { EstimateDeliveryMode } from "./estimate-modal-state";
+import { validateEstimatePhotoSelection } from "./estimate-photo-selection";
 
 type FieldName = "name" | "phone" | "service" | "location" | "photos";
 type ErrorReason =
@@ -29,7 +29,6 @@ interface ApiFieldError {
 }
 
 const PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
-const PHOTO_TYPES = new Set(PHOTO_ACCEPT.split(","));
 
 export function HomeServicesEstimateForm({
   services,
@@ -110,20 +109,7 @@ export function HomeServicesEstimateForm({
     const selected = Array.from(event.target.files ?? []);
     event.target.value = "";
     const combined = [...photos, ...selected];
-    let reason: ErrorReason | undefined;
-    if (combined.length > ESTIMATE_PHOTO_LIMITS.maxFiles)
-      reason = "too_many_files";
-    else if (
-      combined.some((file) => file.size > ESTIMATE_PHOTO_LIMITS.maxBytesPerFile)
-    )
-      reason = "file_too_large";
-    else if (
-      combined.reduce((total, file) => total + file.size, 0) >
-      ESTIMATE_PHOTO_LIMITS.maxTotalBytes
-    )
-      reason = "total_too_large";
-    else if (combined.some((file) => !PHOTO_TYPES.has(file.type)))
-      reason = "invalid";
+    const reason = validateEstimatePhotoSelection(combined);
     if (reason) {
       setErrors((current) => ({ ...current, photos: reason }));
       return;
@@ -135,7 +121,12 @@ export function HomeServicesEstimateForm({
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setGlobalError("");
-    if (!validateRequired() || errors.photos) return;
+    const photoError = validateEstimatePhotoSelection(photos);
+    if (photoError) {
+      setErrors((current) => ({ ...current, photos: photoError }));
+      return;
+    }
+    if (!validateRequired()) return;
     setBusy(true);
     try {
       if (deliveryMode === "preview_mock") {

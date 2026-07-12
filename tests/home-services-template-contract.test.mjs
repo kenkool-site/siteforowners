@@ -89,6 +89,10 @@ test("estimate modal preserves accessible validation and upload contracts", asyn
     "src/components/templates/home-services/HomeServicesEstimateForm.tsx",
     "utf8",
   );
+  const photoSelection = await readFile(
+    "src/components/templates/home-services/estimate-photo-selection.ts",
+    "utf8",
+  );
   const english = JSON.parse(await readFile("messages/en.json", "utf8"));
   const spanish = JSON.parse(await readFile("messages/es.json", "utf8"));
 
@@ -96,9 +100,10 @@ test("estimate modal preserves accessible validation and upload contracts", asyn
   assert.match(form, /company_website/);
   assert.match(form, /aria-invalid/);
   assert.match(form, /aria-describedby/);
-  assert.match(form, /ESTIMATE_PHOTO_LIMITS\.maxFiles/);
-  assert.match(form, /ESTIMATE_PHOTO_LIMITS\.maxBytesPerFile/);
-  assert.match(form, /ESTIMATE_PHOTO_LIMITS\.maxTotalBytes/);
+  assert.match(form, /validateEstimatePhotoSelection\(photos\)/);
+  assert.match(photoSelection, /ESTIMATE_PHOTO_LIMITS\.maxFiles/);
+  assert.match(photoSelection, /ESTIMATE_PHOTO_LIMITS\.maxBytesPerFile/);
+  assert.match(photoSelection, /ESTIMATE_PHOTO_LIMITS\.maxTotalBytes/);
   assert.match(form, /response\.status === 429/);
   assert.match(form, /response\.status === 503/);
   assert.match(form, /deliveryMode === "preview_mock"/);
