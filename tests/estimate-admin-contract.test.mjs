@@ -28,11 +28,7 @@ test("estimate admin resend requires founder auth and tenant-scoped lookup", asy
   assert.match(source, /createEstimatePhotoLinks/);
   assert.match(source, /sendEstimateNotification/);
   assert.match(source, /sendEstimateEmail/);
-  assert.match(source, /channel !== ["']text["'] && channel !== ["']email["']/);
-  assert.match(source, /channel === ["']email["']/);
-  assert.match(source, /text_notification_state/);
-  assert.match(source, /email_notification_state/);
-  assert.match(source, /status:\s*404/);
+  assert.match(source, /executeAdminEstimateResend\(requireFounder\(request\), input/);
 });
 
 test("estimate admin list exposes independent channel diagnostics", async () => {

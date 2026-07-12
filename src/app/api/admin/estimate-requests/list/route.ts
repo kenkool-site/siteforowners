@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEstimateTwilioConfigWarning } from "@/lib/estimate-twilio-config";
+import { channelDiagnostic } from "@/lib/estimate-admin-diagnostics";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const UUID_RE =
@@ -76,6 +77,8 @@ export async function GET(request: NextRequest) {
       email_notification_destination: row.email_notification_destination,
       email_provider_message_id: row.email_provider_message_id,
       email_provider_error: row.email_provider_error,
+      text: channelDiagnostic(row, "text"),
+      email: channelDiagnostic(row, "email"),
       photo_count: photos.length,
       photos,
     };

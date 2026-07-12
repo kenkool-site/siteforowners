@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { EstimateDeliveryChannel } from "@/lib/home-services/types";
+import { canRetryChannel } from "@/lib/estimate-admin-diagnostics";
 
 type EstimateRequestRow = {
   id: string;
@@ -209,7 +210,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-gray-700">Text</span>
                   <StateBadge state={row.text_notification_state} />
-                  {row.text_notification_state === "failed" && row.notification_destination && (
+                  {canRetryChannel({ state: row.text_notification_state, destination: row.notification_destination, providerId: row.text_provider_message_id, error: row.text_provider_error }) && (
                   <button
                     type="button"
                     onClick={() => void handleResend(row.id, "text")}
@@ -226,7 +227,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-medium text-gray-700">Email</span>
                   <StateBadge state={row.email_notification_state} />
-                  {row.email_notification_state === "failed" && row.email_notification_destination && (
+                  {canRetryChannel({ state: row.email_notification_state, destination: row.email_notification_destination, providerId: row.email_provider_message_id, error: row.email_provider_error }) && (
                     <button type="button" onClick={() => void handleResend(row.id, "email")}
                       disabled={resendingKey === `${row.id}:email`}
                       className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50">

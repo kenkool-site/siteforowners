@@ -25,3 +25,12 @@
 ## Concerns
 
 - Contract tests are source-level integration contracts; provider calls remain covered by their existing sender unit tests.
+
+## Fix: executable tenant and channel isolation evidence
+
+- Extracted the resend decision path into the production-used `executeAdminEstimateResend` helper with injected lookup, provider, and update boundaries. Executable tests prove unauthorized requests return 401 with zero dependency calls, every non-exact channel returns 400 before lookup, and a request absent from the supplied tenant scope returns 404.
+- Executable call logs prove lookup and final update both receive `requestId` plus `tenantId`; email retry invokes only email and persists only email fields; text retry invokes only text and persists only text plus the legacy compatibility fields.
+- Added a production-used channel diagnostic projection and retry predicate. Executable value assertions prove text/email state, destination, provider ID, and error remain independent, and retry visibility requires that specific channel to be failed with a configured destination.
+- Focused verification: `npx tsx --test src/lib/estimate-admin-resend.test.ts src/lib/estimate-admin-diagnostics.test.ts tests/estimate-admin-contract.test.mjs tests/estimate-api-contract.test.mjs` — 14/14 passed.
+- Type verification: `npx tsc --noEmit` — passed. Diff hygiene: `git diff --check` — passed.
+- Defense-in-depth preview tenant filtering was not added: the preview lookup is keyed by the tenant-owned `preview_slug`; no verified tenant predicate was available in the queried preview shape without expanding schema assumptions.
