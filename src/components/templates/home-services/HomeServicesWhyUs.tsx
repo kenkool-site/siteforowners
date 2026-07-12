@@ -5,7 +5,7 @@ import { Clock, Leaf, Shield, Sparkles, Users } from "lucide-react";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesLocale, HomeServicesWhyUsPoint } from "@/lib/home-services/types";
 import { localizedText } from "@/lib/home-services/display";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesWhyUsProps {
   points: HomeServicesWhyUsPoint[];
@@ -21,9 +21,7 @@ export function HomeServicesWhyUs({
   colors,
 }: HomeServicesWhyUsProps) {
   const t = useTranslations("homeServices");
-  const headingColor = ensureReadable(colors.background, colors.primary);
-  const textColor = ensureReadable(colors.background, colors.foreground);
-  const iconColor = ensureReadable(colors.background, colors.secondary, 3);
+  const readable = getHomeServicesReadable(colors);
 
   const visiblePoints = points.flatMap((point) => {
     const title = localizedText(locale, { en: point.title_en, es: point.title_es });
@@ -46,7 +44,7 @@ export function HomeServicesWhyUs({
         <h2
           id="why-us-heading"
           className="mb-8 text-2xl font-bold tracking-tight sm:text-3xl"
-          style={{ color: headingColor }}
+          style={{ color: readable.headingOnBg }}
         >
           {t("sections.whyUs")}
         </h2>
@@ -65,17 +63,17 @@ export function HomeServicesWhyUs({
               >
                 <div
                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
-                  style={{ backgroundColor: `${colors.secondary}18`, color: iconColor }}
+                  style={{ backgroundColor: `${colors.secondary}18`, color: readable.iconOnMuted }}
                   aria-hidden="true"
                 >
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </div>
                 <div>
-                  <h3 className="text-base font-semibold" style={{ color: headingColor }}>
+                  <h3 className="text-base font-semibold" style={{ color: readable.cardHeadingOnMuted }}>
                     {point.title}
                   </h3>
                   {point.body && (
-                    <p className="mt-2 text-sm leading-relaxed" style={{ color: textColor, opacity: 0.85 }}>
+                    <p className="mt-2 text-sm leading-relaxed" style={{ color: readable.cardBodyOnMuted }}>
                       {point.body}
                     </p>
                   )}

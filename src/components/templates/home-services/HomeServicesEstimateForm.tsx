@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type { ServiceItem } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import { ESTIMATE_PHOTO_LIMITS } from "@/lib/validation/estimate-photos";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 type FieldName =
   | "name"
@@ -97,12 +97,13 @@ export function HomeServicesEstimateForm({
   const fieldRefs = useRef<Partial<Record<FieldName, HTMLElement | null>>>({});
 
   const serviceNames = services.map((item) => item.name);
-  const headingColor = ensureReadable(colors.muted, colors.primary);
-  const textColor = ensureReadable(colors.muted, colors.foreground);
-  const labelColor = ensureReadable(colors.background, colors.primary);
+  const readable = getHomeServicesReadable(colors);
+  const headingColor = readable.headingOnBg;
+  const textColor = readable.bodyOnBg;
+  const labelColor = readable.labelOnBg;
   const inputBorder = `${colors.foreground}20`;
-  const estimateTextColor = ensureReadable(colors.background, colors.secondary, 3);
-  const outlineTextColor = ensureReadable(colors.primary, colors.background, 3);
+  const estimateTextColor = readable.ctaOnSecondary;
+  const outlineTextColor = readable.outlineOnBg;
   const errorColor = "#b91c1c";
 
   const [form, setForm] = useState<FormState>({
@@ -293,7 +294,7 @@ export function HomeServicesEstimateForm({
 
   const inputStyle = {
     backgroundColor: colors.muted,
-    color: colors.foreground,
+    color: readable.cardBodyOnMuted,
     borderColor: inputBorder,
   };
 
@@ -314,7 +315,7 @@ export function HomeServicesEstimateForm({
         >
           {t("estimate.success.title")}
         </h2>
-        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed" style={{ color: textColor, opacity: 0.9 }}>
+        <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed" style={{ color: textColor }}>
           {t("estimate.success.body")}
         </p>
         {photoWarning && (

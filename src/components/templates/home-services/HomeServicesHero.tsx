@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import type { ThemeColors } from "@/lib/templates/themes";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesHeroProps {
   businessName: string;
@@ -28,9 +28,10 @@ export function HomeServicesHero({
 }: HomeServicesHeroProps) {
   const t = useTranslations("homeServices");
   const hasMedia = Boolean(heroImage);
-  const textColor = hasMedia ? "#FFFFFF" : ensureReadable(colors.background, colors.foreground);
-  const estimateTextColor = ensureReadable(colors.background, colors.secondary, 3);
-  const outlineTextColor = hasMedia ? "#FFFFFF" : ensureReadable(colors.primary, colors.background, 3);
+  const readable = getHomeServicesReadable(colors);
+  const textColor = hasMedia ? "#FFFFFF" : "#FFFFFF";
+  const estimateTextColor = readable.ctaOnSecondary;
+  const outlineTextColor = hasMedia ? "#FFFFFF" : readable.outlineOnBg;
 
   return (
     <section
@@ -40,7 +41,7 @@ export function HomeServicesHero({
           ? { color: textColor }
           : {
               color: textColor,
-              background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 52%, ${colors.muted} 100%)`,
+              background: `linear-gradient(160deg, ${colors.primary} 0%, ${colors.secondary} 52%, #0a2d4a 100%)`,
             }
       }
       aria-label={businessName}

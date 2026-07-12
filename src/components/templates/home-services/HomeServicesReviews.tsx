@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { GoogleReview } from "../TemplateTestimonials";
-import { ensureReadable } from "@/lib/templates/contrast";
+import { getHomeServicesReadable } from "./home-services-theme";
 
 export interface HomeServicesReviewsProps {
   reviews: GoogleReview[];
@@ -51,9 +51,7 @@ export function HomeServicesReviews({
     return null;
   }
 
-  const headingColor = ensureReadable(colors.background, colors.primary);
-  const textColor = ensureReadable(colors.background, colors.foreground);
-  const avatarTextColor = ensureReadable(colors.primary, colors.background, 3);
+  const readable = getHomeServicesReadable(colors);
 
   return (
     <section
@@ -67,14 +65,14 @@ export function HomeServicesReviews({
           <h2
             id="reviews-heading"
             className="text-2xl font-bold tracking-tight sm:text-3xl"
-            style={{ color: headingColor }}
+            style={{ color: readable.headingOnMuted }}
           >
             {t("sections.reviews")}
           </h2>
           {rating && (
             <div className="flex items-center gap-2">
-              <StarRow rating={Math.round(rating)} color={headingColor} />
-              <span className="text-sm font-medium" style={{ color: textColor }}>
+              <StarRow rating={Math.round(rating)} color={readable.headingOnMuted} />
+              <span className="text-sm font-medium" style={{ color: readable.bodyOnMuted }}>
                 {rating}
                 {reviewCount ? ` · ${reviewCount} ${t("reviews.countLabel")}` : ""}
               </span>
@@ -92,23 +90,23 @@ export function HomeServicesReviews({
                 borderColor: `${colors.foreground}10`,
               }}
             >
-              <StarRow rating={review.rating} color={headingColor} />
-              <p className="mt-3 text-sm leading-relaxed" style={{ color: textColor }}>
+              <StarRow rating={review.rating} color={readable.headingOnBg} />
+              <p className="mt-3 text-sm leading-relaxed" style={{ color: readable.bodyOnBg }}>
                 &ldquo;{review.text.length > 220 ? `${review.text.slice(0, 220).trim()}...` : review.text}&rdquo;
               </p>
               <div className="mt-4 flex items-center gap-3">
                 <div
                   className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold"
-                  style={{ backgroundColor: colors.primary, color: avatarTextColor }}
+                  style={{ backgroundColor: colors.primary, color: readable.avatarOnPrimary }}
                 >
                   {getInitials(review.authorName)}
                 </div>
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: textColor }}>
+                  <p className="text-sm font-semibold" style={{ color: readable.bodyOnBg }}>
                     {review.authorName}
                   </p>
                   {review.relativeTime && (
-                    <p className="text-xs opacity-60" style={{ color: textColor }}>
+                    <p className="text-xs opacity-60" style={{ color: readable.bodyOnBg }}>
                       {review.relativeTime}
                     </p>
                   )}
@@ -118,7 +116,7 @@ export function HomeServicesReviews({
           ))}
         </div>
 
-        <p className="mt-6 text-center text-xs opacity-50" style={{ color: textColor }}>
+        <p className="mt-6 text-center text-xs opacity-50" style={{ color: readable.bodyOnMuted }}>
           {t("reviews.attribution")}
         </p>
       </div>
