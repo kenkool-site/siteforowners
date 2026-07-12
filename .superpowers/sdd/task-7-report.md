@@ -37,7 +37,7 @@
 ## Manual-verification limitation and executable audit
 
 - Browser/manual verification was unavailable in this delegated verification environment, so no claim is made that a browser session ran.
-- Marketing preview behavior was audited through passing executable tests/contracts covering modal service preselection/reset, CTA-to-modal wiring, `preview_mock` selection, preview locale routing, and the preview-mock branch completing without reaching the tenant API path. The full suite passed all such feature tests.
+- Marketing preview behavior was audited through source contracts covering modal service preselection/reset, CTA-to-modal wiring, `preview_mock` selection, and preview locale routing. Those source contracts do not prove rendered interaction. A separate rendered `HomeServicesEstimateForm` interaction test now proves invalid-photo feedback, corrected-photo recovery, and first-click `preview_mock` completion; it does not replace a full browser/manual preview audit.
 - Development demo persistence and delivery were not exercised against a live database/provider because that could create a real `estimate_requests` row or send a notification. Passing executable tests/contracts cover default `preferred_response = 'sms'`, tenant-scoped insertion, text/email orchestration, photo-warning behavior, independent channel diagnostics, and channel-local resend state.
 
 ## Concerns
@@ -54,3 +54,10 @@
 - Type checking: `npx tsc --noEmit` exited 0 with no output.
 - Diff hygiene: `git diff --check` exited 0 with no output.
 - Environment note: the first combined final verification attempt was blocked by sandbox IPC (`listen EPERM` for a tsx pipe); rerunning the same verification with approved escalation exited 0.
+
+## Task 7 rendered-form review follow-up (2026-07-12)
+
+- Added `HomeServicesEstimateForm.render.test.tsx`, which mounts the actual form in JSDOM under `NextIntlClientProvider` with English messages, supplies `deliveryMode="preview_mock"`, enters the required contact fields, advances to project details, selects an invalid photo and observes the localized alert, replaces it with a valid photo and observes the alert disappear, clicks Submit once, and observes `onComplete` exactly once.
+- The test uses React DOM directly rather than treating a source regex or pure helper as integration evidence. The existing helper test remains useful unit coverage only.
+- RED proof: with the valid-selection transition temporarily changed to preserve its prior photo error, `npx tsx --test src/components/templates/home-services/HomeServicesEstimateForm.render.test.tsx` exited 1 at the rendered assertion expecting the alert to be absent after correction. The transition was then restored.
+- Final GREEN and home-services verification: `npx tsx --test src/components/templates/home-services/HomeServicesEstimateForm.render.test.tsx src/components/templates/home-services/estimate-photo-selection.test.ts tests/home-services-template-contract.test.mjs && npx tsc --noEmit && git diff --check` exited 0: 7 tests passed, 0 failed; TypeScript emitted no errors; diff hygiene emitted no errors.
