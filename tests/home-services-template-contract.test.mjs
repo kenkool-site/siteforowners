@@ -101,6 +101,7 @@ test("estimate modal preserves accessible validation and upload contracts", asyn
   assert.match(form, /aria-invalid/);
   assert.match(form, /aria-describedby/);
   assert.match(form, /validateEstimatePhotoSelection\(photos\)/);
+  assert.match(form, /selectEstimatePhotos\(/);
   assert.match(photoSelection, /ESTIMATE_PHOTO_LIMITS\.maxFiles/);
   assert.match(photoSelection, /ESTIMATE_PHOTO_LIMITS\.maxBytesPerFile/);
   assert.match(photoSelection, /ESTIMATE_PHOTO_LIMITS\.maxTotalBytes/);

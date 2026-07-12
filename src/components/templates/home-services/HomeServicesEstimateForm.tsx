@@ -5,7 +5,10 @@ import { useTranslations } from "next-intl";
 import type { ServiceItem } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { EstimateDeliveryMode } from "./estimate-modal-state";
-import { validateEstimatePhotoSelection } from "./estimate-photo-selection";
+import {
+  selectEstimatePhotos,
+  validateEstimatePhotoSelection,
+} from "./estimate-photo-selection";
 
 type FieldName = "name" | "phone" | "service" | "location" | "photos";
 type ErrorReason =
@@ -108,14 +111,14 @@ export function HomeServicesEstimateForm({
   function selectPhotos(event: React.ChangeEvent<HTMLInputElement>) {
     const selected = Array.from(event.target.files ?? []);
     event.target.value = "";
-    const combined = [...photos, ...selected];
-    const reason = validateEstimatePhotoSelection(combined);
-    if (reason) {
-      setErrors((current) => ({ ...current, photos: reason }));
-      return;
-    }
-    setErrors((current) => ({ ...current, photos: undefined }));
-    setPhotos(combined);
+    const currentPhotoError =
+      errors.photos === "required" ? undefined : errors.photos;
+    const next = selectEstimatePhotos(
+      { photos, error: currentPhotoError },
+      selected,
+    );
+    setErrors((current) => ({ ...current, photos: next.error }));
+    setPhotos(next.photos);
   }
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {

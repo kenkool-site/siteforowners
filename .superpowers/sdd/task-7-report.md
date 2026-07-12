@@ -44,3 +44,13 @@
 
 - Release verification is not globally all-green because the single pre-existing Runway contract failure remains.
 - A safe, isolated development tenant plus explicitly non-real notification destinations are still required for the requested live database/provider smoke test.
+
+## Task 7 photo-state regression follow-up (2026-07-12)
+
+- Root cause: the earlier regression test passed only a valid file directly to the stateless validator, so it never created or observed the stale photo-error state reported by review.
+- RED: `npx tsx --test src/components/templates/home-services/estimate-photo-selection.test.ts` exited 1 with `createEstimatePhotoSelectionState is not a function` after the test reproduced invalid selection -> `invalid`, corrected selection -> cleared error, and immediate submit validation -> no error.
+- GREEN/final focused verification: `npx tsx --test src/components/templates/home-services/estimate-photo-selection.test.ts` exited 0 with 1 test, 1 pass, 0 fail.
+- Home-services contract verification: `npx tsx --test tests/home-services-template-contract.test.mjs` exited 0 with 5 tests, 5 pass, 0 fail. The contract now also proves `HomeServicesEstimateForm` calls the tested `selectEstimatePhotos` transition.
+- Type checking: `npx tsc --noEmit` exited 0 with no output.
+- Diff hygiene: `git diff --check` exited 0 with no output.
+- Environment note: the first combined final verification attempt was blocked by sandbox IPC (`listen EPERM` for a tsx pipe); rerunning the same verification with approved escalation exited 0.
