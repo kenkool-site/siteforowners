@@ -274,12 +274,13 @@ export function HomeServicesContentEditor({
                 <textarea
                   className={inputClass}
                   value={zipDrafts[row.id] ?? row.zip_codes.join(", ")}
-                  onInput={(event) =>
+                  onInput={(event) => {
+                    const zipDraftValue = event.currentTarget.value;
                     setZipDrafts((current) => ({
                       ...current,
-                      [row.id]: event.currentTarget.value,
-                    }))
-                  }
+                      [row.id]: zipDraftValue,
+                    }));
+                  }}
                   onBlur={(event) =>
                     onChange({
                       ...config,
