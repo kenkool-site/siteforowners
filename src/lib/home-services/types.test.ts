@@ -80,3 +80,26 @@ test("defensively trims, limits, and removes invalid or duplicate public rows", 
   ]);
   assert.deepEqual(config.sections, { show_process: false, show_reviews: true });
 });
+
+test("public parser fills process and service-area caps from valid rows after invalid rows", () => {
+  const validStep = (index: number) => ({
+    id: `step-${index}`, title_en: `Step ${index}`, body_en: "Body",
+    title_es: `Paso ${index}`, body_es: "Texto",
+  });
+  const config = parseHomeServicesConfig({
+    process_steps: [
+      { id: "incomplete" },
+      ...Array.from({ length: 3 }, (_, index) => validStep(index)),
+    ],
+    service_areas: [
+      { id: "invalid", name: "", zip_codes: [] },
+      ...Array.from({ length: 20 }, (_, index) => ({
+        id: `area-${index}`, name: `Area ${index}`, zip_codes: [`${10000 + index}`],
+      })),
+    ],
+  });
+
+  assert.deepEqual(config.process_steps.map((step) => step.id), ["step-0", "step-1", "step-2"]);
+  assert.equal(config.service_areas.length, 20);
+  assert.equal(config.service_areas.at(-1)?.id, "area-19");
+});

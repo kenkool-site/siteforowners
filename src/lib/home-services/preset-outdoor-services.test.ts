@@ -23,6 +23,10 @@ test("seeds three bilingual process steps but no invented areas", () => {
   );
 
   assert.equal(config.process_steps.length, 3);
-  assert.ok(config.process_steps.every((step) => step.title_en && step.title_es));
+  assert.deepEqual(config.process_steps.map(({ body_en, body_es }) => ({ body_en, body_es })), [
+    { body_en: "Share a few details about your project.", body_es: "Comparta algunos detalles sobre su proyecto." },
+    { body_en: "We’ll review the work and provide a clear estimate.", body_es: "Revisaremos el trabajo y le daremos un estimado claro." },
+    { body_en: "Choose a convenient time to get the job done.", body_es: "Elija un horario conveniente para realizar el trabajo." },
+  ]);
   assert.deepEqual(config.service_areas, []);
 });

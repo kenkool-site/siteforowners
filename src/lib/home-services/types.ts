@@ -139,17 +139,17 @@ export function parseHomeServicesConfig(raw: unknown): HomeServicesConfig {
     if (Object.keys(copy).length) section_copy[section] = copy;
   }
 
-  const process_steps = rows(source.process_steps).slice(0, 3).flatMap((row) => {
+  const process_steps = rows(source.process_steps).flatMap((row) => {
     const step: HomeServicesProcessStep = {
       id: text(row.id), title_en: text(row.title_en), body_en: text(row.body_en),
       title_es: text(row.title_es), body_es: text(row.body_es),
     };
     return Object.values(step).every(Boolean) ? [step] : [];
-  });
+  }).slice(0, 3);
 
   const areaNames = new Set<string>();
   const zipCodes = new Set<string>();
-  const service_areas = rows(source.service_areas).slice(0, 20).flatMap((row) => {
+  const service_areas = rows(source.service_areas).flatMap((row) => {
     const id = text(row.id);
     const name = text(row.name);
     const normalizedName = name.toLocaleLowerCase();
@@ -170,7 +170,7 @@ export function parseHomeServicesConfig(raw: unknown): HomeServicesConfig {
       ...(text(row.note_en) ? { note_en: text(row.note_en) } : {}),
       ...(text(row.note_es) ? { note_es: text(row.note_es) } : {}),
     }];
-  });
+  }).slice(0, 20);
 
   const whatsapp_e164 = text(links.whatsapp_e164) || undefined;
   const sms_e164 = text(links.sms_e164) || undefined;
