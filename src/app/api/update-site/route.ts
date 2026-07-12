@@ -11,6 +11,7 @@ import {
   normalizeGalleryVideoTitle as normalizeGalleryVideoTitleValue,
 } from "@/lib/video/gallery-video";
 import { mergeGeneratedCopy } from "@/lib/generated-copy-merge";
+import { validateHomeServicesEditorConfig } from "@/lib/home-services/editor-validation";
 
 function normalizeGalleryVideoTitle(value: unknown): string | null {
   if (value === null || value === undefined) return null;
@@ -131,6 +132,17 @@ export async function POST(request: NextRequest) {
     if (updateFields.generated_copy && typeof updateFields.generated_copy === "object" && !Array.isArray(updateFields.generated_copy)) {
       const generatedCopyUpdates = updateFields.generated_copy as Record<string, unknown>;
       const currentCopy = (current.generated_copy || {}) as Record<string, unknown>;
+      if (generatedCopyUpdates.home_services_config !== undefined) {
+        const currentConfig = currentCopy.home_services_config && typeof currentCopy.home_services_config === "object" && !Array.isArray(currentCopy.home_services_config)
+          ? currentCopy.home_services_config as Record<string, unknown> : {};
+        const incomingConfig = generatedCopyUpdates.home_services_config;
+        const mergedConfig = incomingConfig && typeof incomingConfig === "object" && !Array.isArray(incomingConfig)
+          ? { ...currentConfig, ...incomingConfig as Record<string, unknown> }
+          : incomingConfig;
+        const validation = validateHomeServicesEditorConfig(mergedConfig);
+        if (!validation.ok) return NextResponse.json({ error: "Validation failed", errors: validation.errors }, { status: 400 });
+        generatedCopyUpdates.home_services_config = validation.value;
+      }
       allowed.generated_copy = mergeGeneratedCopy(currentCopy, generatedCopyUpdates);
     }
 
