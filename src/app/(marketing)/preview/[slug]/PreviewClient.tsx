@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
-import { TemplateOrchestrator } from "@/components/templates";
+import { TemplateRouter } from "@/components/templates";
 import { GetStartedModal } from "@/components/GetStartedModal";
 import type { PreviewData } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
@@ -145,7 +145,7 @@ export function PreviewClient({ data, slug, bookingMode = "in_site_only" }: Prev
               viewMode === "mobile" ? "h-[700px] overflow-y-auto" : ""
             }
           >
-            <TemplateOrchestrator data={data} locale={locale} bookingMode={bookingMode} />
+            <TemplateRouter data={data} locale={locale} bookingMode={bookingMode} />
           </div>
         </div>
       </div>

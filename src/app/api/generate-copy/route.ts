@@ -10,6 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import type { BusinessType, ServiceItem, ProductItem } from "@/lib/ai/types";
 import { buildCustomPalettes } from "@/lib/templates/brand-palette";
 import { buildSocialLinksPayload } from "@/lib/social-links";
+import { buildHomeServicesConfigForPreview } from "@/lib/home-services/build-preview-config";
+import { HOME_SERVICES_WIZARD_TEMPLATE } from "@/lib/home-services/wizard";
 
 function generateSlug(businessName: string): string {
   const base = businessName
@@ -218,10 +220,17 @@ export async function POST(request: Request) {
       customerHeroVideo || getDefaultHeroVideoUrl(business_type) || "";
     const resolvedSocialLinks = buildSocialLinksPayload(social_links);
 
+    const isHomeServices = business_type === "home_services";
+    const homeServicesVariantCount = isHomeServices
+      ? Math.max(1, Math.min(requestedTemplates?.length || 2, 2))
+      : 0;
+
     // Use requested templates or auto-pick 2
-    const templates: TemplateName[] = requestedTemplates && requestedTemplates.length > 0
-      ? requestedTemplates.filter((t): t is TemplateName => ALL_TEMPLATES.includes(t as TemplateName))
-      : [...pickTwoTemplates()];
+    const templates: TemplateName[] = isHomeServices
+      ? []
+      : requestedTemplates && requestedTemplates.length > 0
+        ? requestedTemplates.filter((t): t is TemplateName => ALL_TEMPLATES.includes(t as TemplateName))
+        : [...pickTwoTemplates()];
     const bookingServices = servicesFromBookingCategories(booking_categories);
     const resolvedServices = bookingServices.length > 0 ? bookingServices : services.filter((s) => s.name.trim());
     const resolvedCategories = categories && categories.length > 0
@@ -240,7 +249,7 @@ export async function POST(request: Request) {
       socialProof: buildSocialProofSummary(rating, review_count, google_reviews),
       bookingSummary: buildBookingSummary(booking_url, booking_categories),
       hoursSummary: buildHoursSummary(hours),
-      variantCount: templates.length,
+      variantCount: isHomeServices ? homeServicesVariantCount : templates.length,
     });
 
     // Default gallery = local per-service photos (owned) first, then remote
@@ -283,7 +292,48 @@ export async function POST(request: Request) {
     const variantLabels = ["A", "B", "C"];
 
     const supabase = createAdminClient();
-    const previewRows = templates.map((tmpl, i) => {
+    const homeServicesConfig = isHomeServices
+      ? buildHomeServicesConfigForPreview({
+          phone,
+          serviceAreaAddress: address,
+        })
+      : null;
+
+    const previewRows = isHomeServices
+      ? Array.from({ length: homeServicesVariantCount }, (_, i) => {
+          const variant = variants[i % variants.length];
+          return {
+            slug: generateSlug(business_name),
+            business_name,
+            business_type,
+            phone,
+            color_theme: "home_services_neighborhood",
+            services: resolvedServices,
+            categories: resolvedCategories,
+            products: [],
+            booking_url: null,
+            address: null,
+            images,
+            hours: hours || null,
+            imported_hours: hours || null,
+            rating: rating || null,
+            review_count: review_count || null,
+            generated_copy: {
+              en: variant.en,
+              es: variant.es,
+              ...(logo ? { logo } : {}),
+              ...(resolvedSocialLinks ? { social_links: resolvedSocialLinks } : {}),
+              ...(google_reviews && google_reviews.length > 0 ? { google_reviews } : {}),
+              ...(description ? { business_description: description } : {}),
+              home_services_config: homeServicesConfig,
+            },
+            template_variant: HOME_SERVICES_WIZARD_TEMPLATE,
+            group_id: groupId,
+            variant_label: variantLabels[i] || String.fromCharCode(65 + i),
+            ...(resolvedHeroVideo ? { hero_video_url: resolvedHeroVideo } : {}),
+          };
+        })
+      : templates.map((tmpl, i) => {
       const variant = variants[i % variants.length];
       // When keepColors: use the first theme for all variants (same look)
       const theme = keepColors ? allThemes[0] : pickThemeForTemplate(allThemes, tmpl, i);

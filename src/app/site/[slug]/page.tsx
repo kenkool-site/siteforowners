@@ -4,6 +4,11 @@ import Script from "next/script";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantUrl } from "@/lib/tenant-url";
 import { buildSharePreviewTitle } from "@/lib/share-preview-title";
+import type { GeneratedCopy } from "@/lib/ai/types";
+import {
+  buildHomeServicesHomepageMetadata,
+  hasSpanishHomepageCopy,
+} from "@/lib/home-services/homepage-metadata";
 import { buildLocalBusinessJsonLd, serializeJsonLd } from "@/lib/seo-localbusiness";
 import { getSiteData } from "./getSiteData";
 import { SiteClient } from "./SiteClient";
@@ -18,7 +23,7 @@ export async function generateMetadata({
   const supabase = createAdminClient();
   const { data } = await supabase
     .from("previews")
-    .select("business_name, generated_copy, images")
+    .select("business_name, business_type, generated_copy, images")
     .eq("slug", params.slug)
     .single();
 
@@ -29,24 +34,30 @@ export async function generateMetadata({
     .maybeSingle();
   const noindex = tenantMeta?.is_demo === true;
 
-  // Canonical must point at the tenant's own host. Without this, the homepage
-  // inherits the root layout's `alternates.canonical: "/"`, which resolves
-  // against metadataBase to https://www.siteforowners.com — telling Google the
-  // marketing site is canonical for every client homepage. Landing pages
-  // already set their own canonical via the same tenantUrl() helper.
-  const canonical = tenantUrl(
-    APP_URL,
-    {
-      custom_domain: (tenantMeta?.custom_domain as string | null) ?? null,
-      subdomain: (tenantMeta?.subdomain as string | null) ?? null,
-      preview_slug: params.slug,
-    },
-    "/",
-  );
+  const tenantHostFields = {
+    custom_domain: (tenantMeta?.custom_domain as string | null) ?? null,
+    subdomain: (tenantMeta?.subdomain as string | null) ?? null,
+    preview_slug: params.slug,
+  };
 
+  const copy = data?.generated_copy as GeneratedCopy | null | undefined;
   const name = data?.business_name || "Business";
-  const copy = data?.generated_copy as Record<string, unknown> | null;
-  const en = copy?.en as Record<string, string> | undefined;
+
+  if (data?.business_type === "home_services") {
+    return buildHomeServicesHomepageMetadata({
+      businessName: name,
+      generatedCopy: copy,
+      images: data?.images,
+      tenant: tenantHostFields,
+      appUrl: APP_URL,
+      locale: "en",
+      noindex,
+      includeHreflang: hasSpanishHomepageCopy(copy),
+    });
+  }
+
+  const canonical = tenantUrl(APP_URL, tenantHostFields, "/");
+  const en = copy?.en;
   const seoTitle =
     en?.seo_title?.trim() ||
     (en?.hero_headline?.trim() ? `${name} — ${en.hero_headline.trim()}` : name);
@@ -106,6 +117,7 @@ export default async function SitePage({
       ) : null}
       <SiteClient
         data={result.preview}
+        locale="en"
         bookingHours={result.bookingHours}
         blockedDates={result.blockedDates}
         tenantId={result.tenantId}

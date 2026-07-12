@@ -39,3 +39,19 @@ test("braids and locs fallback service images do not repeat", async () => {
     assert.equal(new Set(photoIds).size, photoIds.length, `${vertical} stock photos should be unique`);
   }
 });
+
+test("home-services defaults are registered without booking prices", async () => {
+  const types = await readFile("src/lib/ai/types.ts", "utf8");
+  const defaults = await readFile("src/lib/templates/default-services.ts", "utf8");
+  const stock = await readFile("src/lib/templates/stock-photos.ts", "utf8");
+  const themes = await readFile("src/lib/templates/themes.ts", "utf8");
+
+  assert.match(types, /["']home_services["']/);
+  assert.match(defaults, /home_services:/);
+  assert.match(stock, /home_services:/);
+  assert.match(themes, /home_services_neighborhood/);
+  assert.doesNotMatch(
+    defaults.match(/home_services:[\s\S]*?\n\s*\]\)/)?.[0] ?? "",
+    /price:\s*["']\$/,
+  );
+});

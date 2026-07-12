@@ -106,5 +106,105 @@
     "password": "Contraseña",
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "resetPassword": "Restablecer Contraseña"
+  },
+  "homeServices": {
+    "nav": {
+      "services": "Servicios",
+      "work": "Nuestro Trabajo",
+      "reviews": "Reseñas",
+      "serviceAreas": "Zonas de Servicio"
+    },
+    "actions": {
+      "call": "Llamar",
+      "message": "Mensaje",
+      "freeEstimate": "Estimado Gratis"
+    },
+    "sections": {
+      "services": "Servicios",
+      "work": "Nuestro Trabajo",
+      "whyUs": "Por Qué Elegirnos",
+      "reviews": "Opiniones de Clientes",
+      "serviceAreas": "Áreas que Atendemos",
+      "estimate": "Solicite un Estimado Gratis"
+    },
+    "gallery": {
+      "before": "Antes",
+      "after": "Después"
+    },
+    "reviews": {
+      "countLabel": "reseñas",
+      "attribution": "Reseñas de Google"
+    },
+    "estimate": {
+      "directTitle": "¿Listo para un estimado gratis?",
+      "directBody": "Llámenos o envíenos un mensaje con los detalles de su proyecto y le responderemos con precios y opciones de programación.",
+      "directCall": "Llamar para un estimado",
+      "directMessage": "Mensaje para un estimado",
+      "formTitle": "Solicite un estimado gratis",
+      "formSubtitle": "Cuéntenos sobre su proyecto y le responderemos con precios y opciones de programación.",
+      "honeypotLabel": "Sitio web de la empresa",
+      "submit": "Enviar solicitud de estimado",
+      "submitting": "Enviando…",
+      "rateLimited": "Demasiadas solicitudes. Espere un momento e inténtelo de nuevo.",
+      "unavailable": "Las solicitudes de estimado no están disponibles por ahora. Llámenos o envíenos un mensaje directamente.",
+      "photoWarning": "Recibimos su solicitud, pero algunas fotos no se pudieron adjuntar. Puede enviar las fotos faltantes por mensaje.",
+      "fields": {
+        "name": {
+          "label": "Su nombre",
+          "example": "p. ej. Ana Rivera"
+        },
+        "phone": {
+          "label": "Número de celular",
+          "example": "p. ej. (832) 555-0147"
+        },
+        "service": {
+          "label": "Servicio necesario",
+          "placeholder": "Seleccione un servicio",
+          "example": "p. ej. Reparación de aspersores"
+        },
+        "location": {
+          "label": "Ciudad o dirección del trabajo",
+          "example": "p. ej. Richmond, TX"
+        },
+        "description": {
+          "label": "Descripción del trabajo",
+          "example": "p. ej. Una zona no enciende después de la helada reciente."
+        },
+        "preferredResponse": {
+          "label": "Respuesta preferida"
+        }
+      },
+      "preferredResponse": {
+        "call": "Llamada telefónica",
+        "sms": "Mensaje de texto",
+        "whatsapp": "WhatsApp"
+      },
+      "photos": {
+        "label": "Fotos del trabajo (opcional)",
+        "add": "Agregar foto",
+        "remove": "Quitar",
+        "maxFive": "Máximo cinco fotos",
+        "maxSize": "8 MB cada una",
+        "acceptedTypes": "JPEG, PNG o WebP"
+      },
+      "errors": {
+        "required": "Este campo es obligatorio.",
+        "invalid": "Revise este campo e inténtelo de nuevo.",
+        "tooLong": "Este texto es demasiado largo.",
+        "fileTooLarge": "Cada foto debe ser de 8 MB o menos.",
+        "invalidImage": "Use una imagen JPEG, PNG o WebP.",
+        "tooManyFiles": "Puede adjuntar hasta cinco fotos.",
+        "totalTooLarge": "El tamaño total de las fotos debe ser de 25 MB o menos."
+      },
+      "success": {
+        "title": "Solicitud recibida",
+        "body": "Gracias. Recibimos su solicitud de estimado y le responderemos pronto."
+      }
+    },
+    "footer": {
+      "contact": "Contacto",
+      "hours": "Horario",
+      "closed": "Cerrado"
+    }
   }
 }

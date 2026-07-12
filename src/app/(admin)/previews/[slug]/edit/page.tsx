@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { SiteEditor } from "../../../clients/[tenantId]/edit/SiteEditor";
+import { VerticalSiteEditor } from "../../../clients/[tenantId]/edit/VerticalSiteEditor";
 import type { DepositSettingsState } from "@/app/site/[slug]/admin/services/DepositEditor";
 
 const DEFAULT_DEPOSIT: DepositSettingsState = {
@@ -93,5 +93,5 @@ export default async function PreviewEditPage({
     notFound();
   }
 
-  return <SiteEditor tenant={data.tenant} preview={data.preview} initialDeposit={data.deposit} />;
+  return <VerticalSiteEditor tenant={data.tenant} preview={data.preview} initialDeposit={data.deposit} />;
 }

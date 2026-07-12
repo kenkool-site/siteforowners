@@ -10,6 +10,7 @@ import {
   isGalleryVideoUrl,
   normalizeGalleryVideoTitle as normalizeGalleryVideoTitleValue,
 } from "@/lib/video/gallery-video";
+import { mergeGeneratedCopy } from "@/lib/generated-copy-merge";
 
 function normalizeGalleryVideoTitle(value: unknown): string | null {
   if (value === null || value === undefined) return null;
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
 
     if (updateFields.business_name !== undefined) allowed.business_name = updateFields.business_name;
     if (updateFields.phone !== undefined) allowed.phone = updateFields.phone;
+    if (updateFields.color_theme !== undefined) allowed.color_theme = updateFields.color_theme;
     if (updateFields.address !== undefined) allowed.address = updateFields.address;
     if (updateFields.seo_locality !== undefined) {
       const v =
@@ -129,28 +131,7 @@ export async function POST(request: NextRequest) {
     if (updateFields.generated_copy && typeof updateFields.generated_copy === "object" && !Array.isArray(updateFields.generated_copy)) {
       const generatedCopyUpdates = updateFields.generated_copy as Record<string, unknown>;
       const currentCopy = (current.generated_copy || {}) as Record<string, unknown>;
-      const mergedCopy = { ...currentCopy };
-
-      // Merge EN copy
-      if (generatedCopyUpdates.en && typeof generatedCopyUpdates.en === "object" && !Array.isArray(generatedCopyUpdates.en)) {
-        const currentEn = (currentCopy.en || {}) as Record<string, unknown>;
-        mergedCopy.en = { ...currentEn, ...(generatedCopyUpdates.en as Record<string, unknown>) };
-      }
-
-      // Merge ES copy
-      if (generatedCopyUpdates.es && typeof generatedCopyUpdates.es === "object" && !Array.isArray(generatedCopyUpdates.es)) {
-        const currentEs = (currentCopy.es || {}) as Record<string, unknown>;
-        mergedCopy.es = { ...currentEs, ...(generatedCopyUpdates.es as Record<string, unknown>) };
-      }
-
-      // Merge top-level copy fields (logo, custom_colors, section_settings, etc)
-      if (generatedCopyUpdates.logo !== undefined) mergedCopy.logo = generatedCopyUpdates.logo;
-      if (generatedCopyUpdates.section_settings !== undefined) mergedCopy.section_settings = generatedCopyUpdates.section_settings;
-      if (generatedCopyUpdates.custom_colors !== undefined) mergedCopy.custom_colors = generatedCopyUpdates.custom_colors;
-      if (generatedCopyUpdates.booking_categories !== undefined) mergedCopy.booking_categories = generatedCopyUpdates.booking_categories;
-      if (generatedCopyUpdates.social_links !== undefined) mergedCopy.social_links = generatedCopyUpdates.social_links;
-
-      allowed.generated_copy = mergedCopy;
+      allowed.generated_copy = mergeGeneratedCopy(currentCopy, generatedCopyUpdates);
     }
 
     // Deposit settings: canonical home is booking_settings (per-tenant). For

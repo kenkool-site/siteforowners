@@ -106,5 +106,105 @@
     "password": "Password",
     "forgotPassword": "Forgot password?",
     "resetPassword": "Reset Password"
+  },
+  "homeServices": {
+    "nav": {
+      "services": "Services",
+      "work": "Our Work",
+      "reviews": "Reviews",
+      "serviceAreas": "Service Areas"
+    },
+    "actions": {
+      "call": "Call",
+      "message": "Message",
+      "freeEstimate": "Free Estimate"
+    },
+    "sections": {
+      "services": "Services",
+      "work": "Our Work",
+      "whyUs": "Why Choose Us",
+      "reviews": "Customer Reviews",
+      "serviceAreas": "Areas We Serve",
+      "estimate": "Request a Free Estimate"
+    },
+    "gallery": {
+      "before": "Before",
+      "after": "After"
+    },
+    "reviews": {
+      "countLabel": "reviews",
+      "attribution": "Reviews from Google"
+    },
+    "estimate": {
+      "directTitle": "Ready for a free estimate?",
+      "directBody": "Call or message us with your project details and we will follow up with pricing and scheduling options.",
+      "directCall": "Call for an estimate",
+      "directMessage": "Message for an estimate",
+      "formTitle": "Request a free estimate",
+      "formSubtitle": "Tell us about your project and we will follow up with pricing and scheduling options.",
+      "honeypotLabel": "Company website",
+      "submit": "Send estimate request",
+      "submitting": "Sending…",
+      "rateLimited": "Too many requests. Please wait a little while and try again.",
+      "unavailable": "Estimate requests are temporarily unavailable. Please call or message us directly.",
+      "photoWarning": "We received your request, but some photos could not be attached. You can send the missing photos by message.",
+      "fields": {
+        "name": {
+          "label": "Your name",
+          "example": "e.g. Ana Rivera"
+        },
+        "phone": {
+          "label": "Mobile number",
+          "example": "e.g. (832) 555-0147"
+        },
+        "service": {
+          "label": "Service needed",
+          "placeholder": "Select a service",
+          "example": "e.g. Sprinkler repair"
+        },
+        "location": {
+          "label": "City or job address",
+          "example": "e.g. Richmond, TX"
+        },
+        "description": {
+          "label": "Job description",
+          "example": "e.g. One zone does not turn on after the recent freeze."
+        },
+        "preferredResponse": {
+          "label": "Preferred response"
+        }
+      },
+      "preferredResponse": {
+        "call": "Phone call",
+        "sms": "Text message",
+        "whatsapp": "WhatsApp"
+      },
+      "photos": {
+        "label": "Job photos (optional)",
+        "add": "Add photo",
+        "remove": "Remove",
+        "maxFive": "Maximum five photos",
+        "maxSize": "8 MB each",
+        "acceptedTypes": "JPEG, PNG, or WebP"
+      },
+      "errors": {
+        "required": "This field is required.",
+        "invalid": "Please check this field and try again.",
+        "tooLong": "This entry is too long.",
+        "fileTooLarge": "Each photo must be 8 MB or smaller.",
+        "invalidImage": "Use a JPEG, PNG, or WebP image.",
+        "tooManyFiles": "You can attach up to five photos.",
+        "totalTooLarge": "Combined photo size must be 25 MB or less."
+      },
+      "success": {
+        "title": "Request received",
+        "body": "Thank you. We received your estimate request and will follow up soon."
+      }
+    },
+    "footer": {
+      "contact": "Contact",
+      "hours": "Hours",
+      "closed": "Closed"
+    }
   }
 }

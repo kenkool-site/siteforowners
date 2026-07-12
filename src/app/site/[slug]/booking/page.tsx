@@ -59,6 +59,9 @@ export default async function BookingPage({
 }) {
   const result = await getSiteData(params.slug);
   if (!result) notFound();
+  if (result.preview.business_type === "home_services") {
+    notFound();
+  }
   const jsonLd = buildLocalBusinessJsonLd(result, result.canonicalUrl);
   return (
     <>
@@ -71,6 +74,7 @@ export default async function BookingPage({
       ) : null}
       <SiteClient
         data={result.preview}
+        locale="en"
         bookingHours={result.bookingHours}
         blockedDates={result.blockedDates}
         tenantId={result.tenantId}

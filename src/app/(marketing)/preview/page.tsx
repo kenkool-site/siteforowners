@@ -14,6 +14,10 @@ import {
   servicesFromBookingCategories,
 } from "@/lib/booking-import-services";
 import { buildSocialLinksPayload, socialLinkToDisplayValue } from "@/lib/social-links";
+import {
+  HOME_SERVICES_WIZARD_VARIANTS,
+  isHomeServicesBusinessType,
+} from "@/lib/home-services/wizard";
 import { useRouter, useSearchParams } from "next/navigation";
 
 const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = [
@@ -24,6 +28,7 @@ const BUSINESS_TYPES: { value: BusinessType; label: string; emoji: string }[] = 
   { value: "braids", label: "Braiding Salon", emoji: "✨" },
   { value: "locs", label: "Locs", emoji: "🌿" },
   { value: "locs_and_braids", label: "Locs & Braids", emoji: "👑" },
+  { value: "home_services", label: "Outdoor / Home Services", emoji: "🏡" },
 ];
 
 const TAGLINES: Record<BusinessType, string[]> = {
@@ -62,6 +67,11 @@ const TAGLINES: Record<BusinessType, string[]> = {
     "From fresh braids to healthy locs",
     "Your crown, your culture, your style",
   ],
+  home_services: [
+    "Outdoor care you can count on",
+    "Reliable service for every season",
+    "Your neighborhood outdoor pros",
+  ],
 };
 
 function getPreviewQualityTips({
@@ -71,6 +81,7 @@ function getPreviewQualityTips({
   address,
   rating,
   bookingUrl,
+  isHomeServices,
 }: {
   description: string;
   servicesCount: number;
@@ -78,14 +89,23 @@ function getPreviewQualityTips({
   address: string;
   rating: number | null;
   bookingUrl: string;
+  isHomeServices?: boolean;
 }) {
   const tips: string[] = [];
   if (description.trim().length < 40) tips.push("Add a short owner story so the preview feels personal.");
   if (servicesCount < 4) tips.push("Add at least 4 services so the services section has enough depth.");
   if (imagesCount < 3) tips.push("Add 3+ real photos or import from Google Maps for a stronger gallery.");
-  if (!address.trim()) tips.push("Add an address or neighborhood so the copy can feel local.");
+  if (!address.trim()) {
+    tips.push(
+      isHomeServices
+        ? "Add a service area or city so coverage copy feels local."
+        : "Add an address or neighborhood so the copy can feel local.",
+    );
+  }
   if (!rating) tips.push("Import Google details when possible so reviews and ratings can shape the copy.");
-  if (!bookingUrl.trim()) tips.push("Add a booking link so CTAs can point customers to action.");
+  if (!isHomeServices && !bookingUrl.trim()) {
+    tips.push("Add a booking link so CTAs can point customers to action.");
+  }
   return tips.slice(0, 4);
 }
 
@@ -202,6 +222,15 @@ function PreviewWizard() {
   ];
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>(["classic", "bold"]);
   const [keepColors, setKeepColors] = useState(false); // default OFF for new, ON for edit
+  const isHomeServices = isHomeServicesBusinessType(businessType);
+
+  useEffect(() => {
+    if (businessType === "home_services") {
+      setSelectedTemplates([...HOME_SERVICES_WIZARD_VARIANTS]);
+      setHasProducts(false);
+      setBookingUrl("");
+    }
+  }, [businessType]);
 
   const toggleTemplate = (id: string) => {
     setSelectedTemplates((prev) => {
@@ -220,6 +249,7 @@ function PreviewWizard() {
     address,
     rating: mapsRating,
     bookingUrl,
+    isHomeServices,
   });
 
   // Load existing preview data for editing
@@ -611,7 +641,7 @@ function PreviewWizard() {
       review_count: mapsReviewCount || undefined,
       google_reviews: mapsReviews.length > 0 ? mapsReviews : undefined,
       hours: mapsHours || undefined,
-      templates: selectedTemplates,
+      templates: isHomeServices ? [...HOME_SERVICES_WIZARD_VARIANTS] : selectedTemplates,
       keep_colors: keepColors || undefined,
       hero_video_url: heroVideoUrl.trim() || undefined,
       social_links: buildSocialLinksPayload({
@@ -727,7 +757,7 @@ function PreviewWizard() {
         <div className="text-center">
           <div className="mx-auto mb-8 h-16 w-16 animate-spin rounded-full border-4 border-amber-200 border-t-amber-600" />
           <h1 className="mb-3 text-2xl font-bold text-gray-900">
-            Building {selectedTemplates.length} website design{selectedTemplates.length > 1 ? "s" : ""} for you...
+            Building {isHomeServices ? 2 : selectedTemplates.length} website design{(isHomeServices || selectedTemplates.length > 1) ? "s" : ""} for you...
           </h1>
           <p className="text-gray-600">
             Our AI is writing your content in English and Spanish
@@ -783,7 +813,7 @@ function PreviewWizard() {
             </p>
 
             {/* Smart Import */}
-            {!imported && (
+            {!imported && !isHomeServices && (
               <div className="mb-8 rounded-xl border-2 border-amber-200 bg-amber-50/50 p-5">
                 <div className="mb-3 flex items-center gap-2">
                   <svg className="h-5 w-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -840,7 +870,14 @@ function PreviewWizard() {
                   {BUSINESS_TYPES.map((bt) => (
                     <button
                       key={bt.value}
-                      onClick={() => setBusinessType(bt.value)}
+                      onClick={() => {
+                        setBusinessType(bt.value);
+                        if (bt.value === "home_services") {
+                          setSelectedTemplates([...HOME_SERVICES_WIZARD_VARIANTS]);
+                          setHasProducts(false);
+                          setBookingUrl("");
+                        }
+                      }}
                       className={`rounded-xl border-2 p-4 text-center transition-all ${
                         businessType === bt.value
                           ? "border-amber-600 bg-amber-50"
@@ -870,14 +907,22 @@ function PreviewWizard() {
               </div>
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Business Address{" "}
-                  <span className="text-gray-400">(helps us find reviews, photos & services)</span>
+                  {isHomeServices ? "Service area" : "Business Address"}{" "}
+                  <span className="text-gray-400">
+                    {isHomeServices
+                      ? "(city or region — never shown as a street address)"
+                      : "(helps us find reviews, photos & services)"}
+                  </span>
                 </label>
                 <input
                   type="text"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g. 1430 Flatbush Ave, Brooklyn, NY 11210"
+                  placeholder={
+                    isHomeServices
+                      ? "e.g. Plano, TX or North Dallas"
+                      : "e.g. 1430 Flatbush Ave, Brooklyn, NY 11210"
+                  }
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-base focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
               </div>
@@ -889,7 +934,11 @@ function PreviewWizard() {
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  placeholder="e.g. Family-owned Dominican salon in Flatbush, been in the neighborhood for 12 years. We specialize in silk press, color treatments, and natural hair care. Our clients are like family."
+                  placeholder={
+                    isHomeServices
+                      ? "e.g. Family-owned lawn crew serving Plano and Frisco. We specialize in irrigation repair, seasonal cleanup, and weekly mowing."
+                      : "e.g. Family-owned Dominican salon in Flatbush, been in the neighborhood for 12 years. We specialize in silk press, color treatments, and natural hair care. Our clients are like family."
+                  }
                   rows={3}
                   className="w-full resize-none rounded-lg border border-gray-300 px-4 py-3 text-sm focus:border-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
                 />
@@ -920,6 +969,7 @@ function PreviewWizard() {
                     placeholder="Service name"
                     className="flex-1 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                   />
+                  {!isHomeServices && (
                   <input
                     type="text"
                     value={service.price}
@@ -927,6 +977,7 @@ function PreviewWizard() {
                     placeholder="$0"
                     className="w-24 rounded-lg border border-gray-300 px-3 py-2.5 text-sm focus:border-amber-500 focus:outline-none"
                   />
+                  )}
                   <button
                     onClick={() => removeService(i)}
                     className="text-gray-400 hover:text-red-500"
@@ -979,16 +1030,20 @@ function PreviewWizard() {
           </div>
         )}
 
-        {/* Step 3: Products & Booking */}
+        {/* Step 3: Products & Booking / Contact */}
         {step === 3 && (
           <div>
             <h1 className="mb-2 text-2xl font-bold text-gray-900">
-              Products & Booking
+              {isHomeServices ? "Contact & Social" : "Products & Booking"}
             </h1>
             <p className="mb-8 text-gray-600">
-              Optional — add products you sell and your booking link.
+              {isHomeServices
+                ? "Optional — add social links customers can tap to call or message you."
+                : "Optional — add products you sell and your booking link."}
             </p>
 
+            {!isHomeServices && (
+            <>
             {/* Booking URL */}
             <div className="mb-8">
               <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -1006,8 +1061,10 @@ function PreviewWizard() {
                 We&apos;ll add a &quot;Book Online&quot; button to your website. Supported platforms get embedded directly.
               </p>
             </div>
+            </>
+            )}
 
-            <div className="mb-8 rounded-xl border border-gray-200 p-5">
+            <div className={`rounded-xl border border-gray-200 p-5 ${isHomeServices ? "" : "mb-8"}`}>
               <h3 className="text-sm font-medium text-gray-900">Social links</h3>
               <p className="mt-1 text-xs text-gray-500">
                 Add only the platforms you use. We&apos;ll show icons for the links provided.
@@ -1046,7 +1103,7 @@ function PreviewWizard() {
               </div>
             </div>
 
-            {/* Products toggle */}
+            {!isHomeServices && (
             <div className="rounded-xl border border-gray-200 p-5">
               <div className="flex items-center justify-between">
                 <div>
@@ -1156,6 +1213,7 @@ function PreviewWizard() {
                 </div>
               )}
             </div>
+            )}
           </div>
         )}
 
@@ -1338,10 +1396,12 @@ function PreviewWizard() {
         {step === 5 && (
           <div>
             <h1 className="mb-2 text-2xl font-bold text-gray-900">
-              Choose Your Design Styles
+              {isHomeServices ? "Review & Generate" : "Choose Your Design Styles"}
             </h1>
             <p className="mb-8 text-gray-600">
-              Pick 1–3 templates. We&apos;ll generate each with unique colors and copy for {businessName || "your business"}.
+              {isHomeServices
+                ? `We'll generate two bilingual copy options using the Neighborhood Professional layout for ${businessName || "your business"}.`
+                : `Pick 1–3 templates. We'll generate each with unique colors and copy for ${businessName || "your business"}.`}
             </p>
 
             {previewQualityTips.length > 0 && (
@@ -1355,6 +1415,24 @@ function PreviewWizard() {
               </div>
             )}
 
+            {isHomeServices ? (
+              <div className="mb-8 rounded-xl border-2 border-amber-200 bg-amber-50/60 p-5">
+                <div className="flex items-start gap-4">
+                  <span className="text-3xl" aria-hidden>🏡</span>
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">Neighborhood Professional</p>
+                    <p className="mt-1 text-sm text-gray-600">
+                      Navy, green, and white layout built for outdoor contractors — free-estimate CTAs,
+                      service gallery, bilingual English/Spanish pages, no online booking.
+                    </p>
+                    <p className="mt-3 text-xs text-gray-500">
+                      You&apos;ll compare two AI-written copy variants on the same design.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+            <>
             {/* Template picker */}
             <div className="mb-8 space-y-3">
               {TEMPLATE_OPTIONS.map((tmpl) => {
@@ -1474,6 +1552,8 @@ function PreviewWizard() {
                 </div>
               )}
             </div>
+            </>
+            )}
 
             {/* Summary */}
             <div className="space-y-4 rounded-xl border border-gray-200 bg-white p-6">
@@ -1553,7 +1633,7 @@ function PreviewWizard() {
               onClick={handleGenerate}
               className="rounded-full bg-amber-600 px-8 text-white hover:bg-amber-700"
             >
-              Generate {selectedTemplates.length} Design{selectedTemplates.length > 1 ? "s" : ""}
+              Generate {isHomeServices ? 2 : selectedTemplates.length} Design{(isHomeServices || selectedTemplates.length > 1) ? "s" : ""}
             </Button>
           )}
         </div>

@@ -28,7 +28,7 @@ import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
 import { buildLandingSlug } from "@/lib/seo-landing";
 import { buildSocialLinksPayload, socialLinkToDisplayValue } from "@/lib/social-links";
 
-interface SiteEditorProps {
+export interface SiteEditorProps {
   tenant: Record<string, unknown>;
   preview: Record<string, unknown>;
   initialDeposit: DepositSettingsState;

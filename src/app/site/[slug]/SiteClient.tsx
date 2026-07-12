@@ -1,12 +1,13 @@
 "use client";
 
-import { TemplateOrchestrator } from "@/components/templates";
+import { TemplateRouter } from "@/components/templates";
 import type { PreviewData } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
 import { DemoCtaBanner } from "./DemoCtaBanner";
 
 interface SiteClientProps {
   data: PreviewData;
+  locale: "en" | "es";
   bookingHours?: Record<string, { open: string; close: string } | null> | null;
   blockedDates?: string[];
   tenantId?: string | null;
@@ -28,6 +29,7 @@ interface SiteClientProps {
 
 export function SiteClient({
   data,
+  locale,
   bookingHours = null,
   blockedDates = [],
   tenantId = null,
@@ -37,15 +39,14 @@ export function SiteClient({
   depositSettings,
   autoOpenBooking = false,
 }: SiteClientProps) {
-  // Published site — no preview chrome, just the raw template
   return (
     <div className="min-h-screen w-full overflow-x-hidden">
       {isDemo && (
         <DemoCtaBanner activateUrl={`https://siteforowners.com/preview/${data.slug ?? ""}`} />
       )}
-      <TemplateOrchestrator
+      <TemplateRouter
         data={data}
-        locale="en"
+        locale={locale}
         isLive
         bookingHours={bookingHours}
         blockedDates={blockedDates}
