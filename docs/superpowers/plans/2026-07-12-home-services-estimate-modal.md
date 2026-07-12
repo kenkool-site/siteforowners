@@ -29,7 +29,7 @@
 
 Create:
 
-- `supabase/migrations/034_estimate_delivery_channels.sql` — independent text/email delivery columns and constraints.
+- `supabase/migrations/035_estimate_delivery_channels.sql` — independent text/email delivery columns and constraints. Migration 034 remains reserved for home-service areas.
 - `src/lib/estimate-email.ts` — email formatting, owner-email selection, and Resend delivery.
 - `src/lib/estimate-email.test.ts` — pure email payload and destination tests.
 - `src/lib/estimate-delivery.ts` — combines channel results into durable update fields.
@@ -122,7 +122,7 @@ git commit -m "feat: simplify estimate request requirements"
 ### Task 2: Add independent text and email delivery state
 
 **Files:**
-- Create: `supabase/migrations/034_estimate_delivery_channels.sql`
+- Create: `supabase/migrations/035_estimate_delivery_channels.sql`
 - Create: `src/lib/estimate-delivery.ts`
 - Create: `src/lib/estimate-delivery.test.ts`
 
@@ -204,7 +204,7 @@ Expected: PASS. Apply migration only to the designated development environment, 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add supabase/migrations/034_estimate_delivery_channels.sql src/lib/estimate-delivery.ts src/lib/estimate-delivery.test.ts
+git add supabase/migrations/035_estimate_delivery_channels.sql src/lib/estimate-delivery.ts src/lib/estimate-delivery.test.ts
 git commit -m "feat: track estimate delivery by channel"
 ```
 
