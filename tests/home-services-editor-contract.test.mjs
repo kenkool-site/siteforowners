@@ -19,6 +19,18 @@ test("focused home-services content editor exposes bilingual section, process, a
   assert.match(source, /crypto\.randomUUID/);
 });
 
+test("ZIP input captures the DOM value before the deferred state updater runs", async () => {
+  const source = await readFile(
+    "src/app/(admin)/clients/[tenantId]/edit/HomeServicesContentEditor.tsx",
+    "utf8",
+  );
+  assert.match(source, /const zipDraftValue = event\.currentTarget\.value/);
+  assert.doesNotMatch(
+    source,
+    /setZipDrafts\(\(current\)[\s\S]{0,180}event\.currentTarget\.value/,
+  );
+});
+
 test("home-services save validates before fetch and server validates only touched config after merge", async () => {
   const editor = await readFile("src/app/(admin)/clients/[tenantId]/edit/HomeServicesSiteEditor.tsx", "utf8");
   assert.match(editor, /validateHomeServicesEditorConfig/);
