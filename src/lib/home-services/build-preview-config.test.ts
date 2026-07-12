@@ -37,4 +37,8 @@ test("buildHomeServicesConfigForPreview seeds trust points and keeps the estimat
   assert.equal(config.notification, undefined);
   assert.match(config.coverage_summary_en, /Plano/i);
   assert.equal(config.message_links.sms_e164, "+12145550100");
+  assert.equal(config.process_steps.length, 3);
+  assert.ok(config.section_copy.services?.title_en);
+  assert.ok(config.section_copy.services?.title_es);
+  assert.deepEqual(config.service_areas, []);
 });

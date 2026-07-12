@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildOutdoorServicesPreset } from "./preset-outdoor-services";
+import { parseHomeServicesConfig } from "./types";
 
 test("outdoor preset is bilingual and contains no unsupported claims", () => {
   const preset = buildOutdoorServicesPreset();
@@ -14,4 +15,14 @@ test("outdoor preset is bilingual and contains no unsupported claims", () => {
   for (const claim of ["insured", "licensed", "4.9", "15 years"]) {
     assert.equal(serialized.includes(claim), false);
   }
+});
+
+test("seeds three bilingual process steps but no invented areas", () => {
+  const config = parseHomeServicesConfig(
+    buildOutdoorServicesPreset().generated_copy?.home_services_config,
+  );
+
+  assert.equal(config.process_steps.length, 3);
+  assert.ok(config.process_steps.every((step) => step.title_en && step.title_es));
+  assert.deepEqual(config.service_areas, []);
 });
