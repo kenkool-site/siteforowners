@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { TemplateRouter } from "@/components/templates";
 import { GalleryEditor } from "@/app/site/[slug]/admin/_components/GalleryEditor";
@@ -549,6 +549,90 @@ function CoverageSection({
   );
 }
 
+/**
+ * One display image per Recent Work project. Legacy before/after pairs still
+ * render on the live site (the template prefers the pair), so uploading or
+ * removing here also clears before_image/after_image — otherwise the old pair
+ * would keep winning over the new upload.
+ */
+function ProjectImageControl({
+  project,
+  onChange,
+}: {
+  project: HomeServicesGalleryProject;
+  onChange: (patch: Partial<HomeServicesGalleryProject>) => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+  const displayImage = project.image || project.before_image || project.after_image;
+
+  const handlePick = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("images", file);
+      const res = await fetch("/api/upload-images", { method: "POST", body: fd });
+      const data: unknown = await res.json().catch(() => ({}));
+      const body = (data ?? {}) as { urls?: unknown; error?: unknown };
+      const url = Array.isArray(body.urls) ? body.urls[0] : undefined;
+      if (!res.ok || typeof url !== "string") {
+        setError(typeof body.error === "string" ? body.error : "Upload failed");
+        return;
+      }
+      onChange({ image: url, before_image: undefined, after_image: undefined });
+    } catch {
+      setError("Network error");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  return (
+    <div className="flex items-start gap-3">
+      {displayImage ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={displayImage} alt="" className="h-20 w-28 rounded-lg border border-gray-200 object-cover" />
+      ) : (
+        <div className="flex h-20 w-28 items-center justify-center rounded-lg border border-dashed border-gray-200 text-xs text-gray-400">
+          No image
+        </div>
+      )}
+      <div className="flex flex-col gap-1 text-sm">
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="text-left font-medium text-amber-700 hover:text-amber-900 disabled:opacity-50"
+        >
+          {uploading ? "Uploading…" : displayImage ? "Replace image" : "Upload image"}
+        </button>
+        {displayImage && (
+          <button
+            type="button"
+            onClick={() => onChange({ image: undefined, before_image: undefined, after_image: undefined })}
+            className="text-left text-xs text-red-600 hover:text-red-800"
+          >
+            Remove image
+          </button>
+        )}
+        {error && <p className="text-xs text-red-600">{error}</p>}
+      </div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handlePick}
+      />
+    </div>
+  );
+}
+
 function GalleryProjectsSection({
   config,
   onChange,
@@ -562,20 +646,19 @@ function GalleryProjectsSection({
   };
 
   return (
-    <SectionCard title="Gallery projects">
+    <SectionCard title="Recent work">
       <div className="space-y-3">
         {config.gallery_projects.map((project, index) => (
           <div key={project.id} className="space-y-2 rounded-lg border border-gray-100 p-3">
+            <ProjectImageControl
+              project={project}
+              onChange={(patch) => updateProject(index, patch)}
+            />
             <div className="grid gap-2 sm:grid-cols-2">
-              <TextInput value={project.before_image || ""} onChange={(before_image) => updateProject(index, { before_image })} placeholder="Before image URL" />
-              <TextInput value={project.after_image || ""} onChange={(after_image) => updateProject(index, { after_image })} placeholder="After image URL" />
-              <TextInput value={project.image || ""} onChange={(image) => updateProject(index, { image })} placeholder="Single image URL" />
-              <TextInput value={project.service_name || ""} onChange={(service_name) => updateProject(index, { service_name })} placeholder="Service name" />
+              <TextInput value={project.caption_en || ""} onChange={(caption_en) => updateProject(index, { caption_en })} placeholder="Description (English)" />
+              <TextInput value={project.caption_es || ""} onChange={(caption_es) => updateProject(index, { caption_es })} placeholder="Description (Español)" />
             </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <TextInput value={project.caption_en || ""} onChange={(caption_en) => updateProject(index, { caption_en })} placeholder="Caption (English)" />
-              <TextInput value={project.caption_es || ""} onChange={(caption_es) => updateProject(index, { caption_es })} placeholder="Caption (Español)" />
-            </div>
+            <TextInput value={project.service_name || ""} onChange={(service_name) => updateProject(index, { service_name })} placeholder="Service name (optional)" />
             <button
               type="button"
               onClick={() => onChange({ ...config, gallery_projects: config.gallery_projects.filter((_, i) => i !== index) })}
