@@ -37,7 +37,7 @@ type LocaleCopyDraft = {
   service_descriptions: Record<string, string>;
 };
 
-type EditorDraft = {
+export type EditorDraft = {
   business_name: string;
   phone: string;
   color_theme: ColorTheme;
@@ -322,7 +322,7 @@ function LocaleCopySection({
   );
 }
 
-function ServicesSection({
+export function ServicesSection({
   draft,
   contentLocale,
   tenantId,
@@ -338,14 +338,12 @@ function ServicesSection({
   const descriptions = draft.generated_copy[contentLocale].service_descriptions;
 
   const updateService = (index: number, patch: Partial<ServiceItem>) => {
-    const nextServices = draft.services.map((service, i) => {
-      if (i !== index) return service;
-      const updated = { ...service, ...patch };
-      if (patch.name !== undefined) {
-        updated.client_id = toClientId(patch.name);
-      }
-      return updated;
-    });
+    // client_id is a stable identity key (React row key + description-map
+    // key). Never re-derive it from the name: rekeying remounts the row so
+    // the input loses focus mid-typing, and it orphans saved descriptions.
+    const nextServices = draft.services.map((service, i) =>
+      i === index ? { ...service, ...patch } : service,
+    );
     onChange({ ...draft, services: nextServices });
   };
 
