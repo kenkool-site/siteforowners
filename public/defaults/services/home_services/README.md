@@ -2,7 +2,7 @@
 
 Drop one image per service here, named by the service-name slug:
 
-- "Lawn Mowing & Maintenance" → `lawn-mowing-maintenance.jpg`
+- "Lawn Mowing & Maintenance" → `lawn-mowing-and-maintenance.jpg`
 - "Tree Trimming" → `tree-trimming.webp`
 
 Slug rule: lowercase; `&` → `and`; apostrophes removed; every other run of
