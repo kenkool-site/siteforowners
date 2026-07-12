@@ -262,11 +262,14 @@ export async function POST(request: NextRequest) {
         .then((result): EstimateChannelResult => result.ok
           ? { state: "sent", providerId: result.providerId, destination: ownerEmail }
           : { state: "failed", error: result.error, destination: ownerEmail })
-        .catch((error: unknown): EstimateChannelResult => ({
-          state: "failed",
-          error: error instanceof Error ? error.message : "Email delivery failed",
-          destination: ownerEmail,
-        }))
+        .catch((error: unknown): EstimateChannelResult => {
+          console.error("[api/estimate] unexpected email delivery rejection", {
+            tenantId: tenant.id,
+            requestId,
+            error,
+          });
+          return { state: "failed", error: "Email delivery failed", destination: ownerEmail };
+        })
     : Promise.resolve(notConfigured);
   let textDelivery: Awaited<ReturnType<typeof deliverEstimateText>> | null = null;
   await orchestrateEstimateDelivery({

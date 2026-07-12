@@ -21,6 +21,14 @@ export async function POST(request: NextRequest) {
   let loadedRequest: Record<string, unknown> | null = null;
   let loadedTenant: Record<string, unknown> | null = null;
 
+  async function loadPhotoLinks(requestId: string, tenantId: string): Promise<string[]> {
+    const db = supabase();
+    const photoResult = await db.from("estimate_photos").select("storage_path")
+      .eq("tenant_id", tenantId).eq("estimate_request_id", requestId);
+    if (photoResult.error) throw new Error("Failed to load photos");
+    return createEstimatePhotoLinks(db, (photoResult.data ?? []).map((row) => row.storage_path as string));
+  }
+
   const result = await executeAdminEstimateResend(requireFounder(request), input, {
     findRequest: async (requestId, tenantId) => {
       const db = supabase();
@@ -36,11 +44,15 @@ export async function POST(request: NextRequest) {
       loadedTenant = tenantResult.data;
       return true;
     },
-    sendEmail: async () => {
+    sendEmail: async (requestId, tenantId) => {
       if (!loadedRequest || !loadedTenant) return null;
       const destination = selectEstimateOwnerEmail(loadedTenant);
       if (!destination) return null;
-      const delivery = await sendEstimateEmail(destination, messageInput(loadedRequest, loadedTenant));
+      const photoLinks = await loadPhotoLinks(requestId, tenantId);
+      const delivery = await sendEstimateEmail(destination, {
+        ...messageInput(loadedRequest, loadedTenant),
+        photoLinks,
+      });
       return { ok: delivery.ok, destination, providerId: delivery.ok ? delivery.providerId : undefined, error: delivery.ok ? undefined : delivery.error };
     },
     sendText: async (requestId, tenantId) => {
@@ -52,10 +64,7 @@ export async function POST(request: NextRequest) {
         ? previewResult.data.generated_copy as Record<string, unknown> : {};
       const notification = parseHomeServicesConfig(generatedCopy.home_services_config).notification;
       if (previewResult.error || !notification?.destination_e164) return null;
-      const photoResult = await db.from("estimate_photos").select("storage_path")
-        .eq("tenant_id", tenantId).eq("estimate_request_id", requestId);
-      if (photoResult.error) throw new Error("Failed to load photos");
-      const photoLinks = await createEstimatePhotoLinks(db, (photoResult.data ?? []).map((row) => row.storage_path as string));
+      const photoLinks = await loadPhotoLinks(requestId, tenantId);
       const message = formatEstimateMessage({
         ...messageInput(loadedRequest, loadedTenant),
         preferredResponse: loadedRequest.preferred_response as PreferredResponse,
@@ -90,5 +99,7 @@ function messageInput(estimateRequest: Record<string, unknown>, tenant: Record<s
     serviceNeeded: estimateRequest.service_needed as string,
     jobLocation: estimateRequest.job_location as string,
     description: estimateRequest.description as string,
+    preferredResponse: estimateRequest.preferred_response as PreferredResponse,
+    locale: estimateRequest.locale as "en" | "es",
   };
 }

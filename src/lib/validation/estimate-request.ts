@@ -42,8 +42,8 @@ function optionalString(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function parsePreferredResponse(value: string): PreferredResponse {
-  return value as PreferredResponse;
+function isPreferredResponse(value: string): value is PreferredResponse {
+  return PREFERRED_RESPONSES.has(value as PreferredResponse);
 }
 
 export function isEstimateHoneypotTripped(form: FormData): boolean {
@@ -65,9 +65,7 @@ export function parseEstimateFormFields(
   const location = formField(form, "location");
   const description = optionalString(form.get("description"));
   const preferredResponseRaw = optionalString(form.get("preferred_response"));
-  const preferredResponse: PreferredResponse = preferredResponseRaw
-    ? parsePreferredResponse(preferredResponseRaw)
-    : "sms";
+  const preferredResponseCandidate = preferredResponseRaw || "sms";
 
   const errors: { field: string; reason: "required" | "too_long" | "invalid" }[] = [];
 
@@ -91,7 +89,7 @@ export function parseEstimateFormFields(
     errors.push({ field: "description", reason: "too_long" });
   }
 
-  if (!PREFERRED_RESPONSES.has(preferredResponse)) {
+  if (!isPreferredResponse(preferredResponseCandidate)) {
     errors.push({ field: "preferred_response", reason: "invalid" });
   }
 
@@ -113,7 +111,9 @@ export function parseEstimateFormFields(
       service_needed: service,
       job_location: location,
       description,
-      preferred_response: preferredResponse,
+      preferred_response: isPreferredResponse(preferredResponseCandidate)
+        ? preferredResponseCandidate
+        : "sms",
       locale,
       source_path: sourcePath,
     },

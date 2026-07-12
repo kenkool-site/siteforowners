@@ -1,4 +1,6 @@
 import { Resend } from "resend";
+import type { HomeServicesLocale } from "@/lib/home-services/types";
+import type { PreferredResponse } from "@/lib/validation/estimate-request";
 
 export interface EstimateEmailInput {
   businessName: string;
@@ -7,6 +9,9 @@ export interface EstimateEmailInput {
   serviceNeeded: string;
   jobLocation: string;
   description: string;
+  preferredResponse: PreferredResponse;
+  locale: HomeServicesLocale;
+  photoLinks: string[];
 }
 
 interface EstimateEmailPayload {
@@ -56,18 +61,25 @@ export function formatEstimateEmail(input: EstimateEmailInput): {
   subject: string;
   text: string;
 } {
+  const spanish = input.locale === "es";
+  const responseLabels: Record<PreferredResponse, string> = spanish
+    ? { call: "Llamada", sms: "SMS", whatsapp: "WhatsApp" }
+    : { call: "Call", sms: "SMS", whatsapp: "WhatsApp" };
   const details = input.description.trim()
-    ? `\nDetails: ${sanitizeEstimateText(input.description)}`
+    ? `\n${spanish ? "Detalles" : "Details"}: ${sanitizeEstimateText(input.description)}`
     : "";
+  const photos = input.photoLinks.map((link, index) =>
+    `\n${spanish ? "Foto" : "Photo"} ${index + 1}: ${sanitizeEstimateText(link)}`,
+  ).join("");
   return {
     subject: `New estimate request — ${sanitizeEstimateText(input.businessName)}`,
-    text: `Customer: ${sanitizeEstimateText(input.customerName)}\nPhone: ${sanitizeEstimateText(input.customerPhone)}\nService: ${sanitizeEstimateText(input.serviceNeeded)}\nLocation: ${sanitizeEstimateText(input.jobLocation)}${details}`,
+    text: `${spanish ? "Cliente" : "Customer"}: ${sanitizeEstimateText(input.customerName)}\n${spanish ? "Teléfono" : "Phone"}: ${sanitizeEstimateText(input.customerPhone)}\n${spanish ? "Servicio" : "Service"}: ${sanitizeEstimateText(input.serviceNeeded)}\n${spanish ? "Ubicación" : "Location"}: ${sanitizeEstimateText(input.jobLocation)}\n${spanish ? "Respuesta preferida" : "Preferred response"}: ${responseLabels[input.preferredResponse]}${details}${photos}`,
   };
 }
 
 function configuredClient(): EstimateEmailClient | null {
   return process.env.RESEND_API_KEY
-    ? new Resend(process.env.RESEND_API_KEY) as EstimateEmailClient
+    ? new Resend(process.env.RESEND_API_KEY)
     : null;
 }
 
@@ -90,7 +102,8 @@ export async function sendEstimateEmail(
       return { ok: false, error: "Email delivery failed" };
     }
     return { ok: true, providerId: result.data.id };
-  } catch {
+  } catch (error: unknown) {
+    console.error("[estimate email] unexpected provider rejection", error);
     return { ok: false, error: "Email delivery failed" };
   }
 }

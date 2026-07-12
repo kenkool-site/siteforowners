@@ -15,6 +15,9 @@ const input = {
   serviceNeeded: " Leak\tRepair ",
   jobLocation: " 12 Main St ",
   description: " Kitchen\n sink ",
+  preferredResponse: "call" as const,
+  locale: "es" as const,
+  photoLinks: ["https://photos.example/one", "https://photos.example/two"],
 };
 
 test("prefers tenant email then admin email", () => {
@@ -26,7 +29,7 @@ test("prefers tenant email then admin email", () => {
 test("formats and sanitizes an estimate email", () => {
   const email = formatEstimateEmail(input);
   assert.equal(email.subject, "New estimate request — Acme Plumbing");
-  assert.equal(email.text, "Customer: Jane Doe\nPhone: +1 212 555 0100\nService: Leak Repair\nLocation: 12 Main St\nDetails: Kitchen sink");
+  assert.equal(email.text, "Cliente: Jane Doe\nTeléfono: +1 212 555 0100\nServicio: Leak Repair\nUbicación: 12 Main St\nRespuesta preferida: Llamada\nDetalles: Kitchen sink\nFoto 1: https://photos.example/one\nFoto 2: https://photos.example/two");
 });
 
 test("omits empty optional description", () => {
@@ -51,8 +54,25 @@ test("sends with an injected client and returns the provider id", async () => {
     from: "Estimates <estimates@example.com>",
     to: "owner@example.com",
     subject: "New estimate request — Acme Plumbing",
-    text: "Customer: Jane Doe\nPhone: +1 212 555 0100\nService: Leak Repair\nLocation: 12 Main St\nDetails: Kitchen sink",
+    text: "Cliente: Jane Doe\nTeléfono: +1 212 555 0100\nServicio: Leak Repair\nUbicación: 12 Main St\nRespuesta preferida: Llamada\nDetalles: Kitchen sink\nFoto 1: https://photos.example/one\nFoto 2: https://photos.example/two",
   });
+});
+
+test("logs an unexpected provider rejection but returns a stable safe error", async () => {
+  const logged: unknown[][] = [];
+  const original = console.error;
+  console.error = (...args: unknown[]) => { logged.push(args); };
+  try {
+    const client: EstimateEmailClient = {
+      emails: { send: async () => { throw new Error("secret provider rejection"); } },
+    };
+    assert.deepEqual(await sendEstimateEmail("owner@example.com", input, { client }), { ok: false, error: "Email delivery failed" });
+    assert.equal(logged.length, 1);
+    assert.match(String(logged[0][0]), /estimate email/i);
+    assert.match(String(logged[0][1]), /secret provider rejection/i);
+  } finally {
+    console.error = original;
+  }
 });
 
 test("returns a safe error when the provider rejects delivery", async () => {

@@ -16,6 +16,8 @@ function change(element: HTMLInputElement | HTMLSelectElement, value: string) {
 }
 
 test("correcting an invalid photo submits preview_mock successfully on the first click", async () => {
+  const globalNames = ["window", "document", "HTMLElement", "HTMLInputElement", "HTMLSelectElement", "Event", "File", "FormData", "React", "IS_REACT_ACT_ENVIRONMENT", "navigator"] as const;
+  const originalGlobals = new Map(globalNames.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   const originalConsoleError = console.error;
   console.error = (...args: unknown[]) => {
     if (String(args[0]).includes("controlled input to be uncontrolled")) return;
@@ -41,13 +43,16 @@ test("correcting an invalid photo submits preview_mock successfully on the first
     value: dom.window.navigator,
   });
 
-  const { createRoot } = await import("react-dom/client");
-  const container = document.querySelector("#root")!;
-  const root = createRoot(container);
-  let completions = 0;
+  let root: import("react-dom/client").Root | null = null;
+  try {
+    const { createRoot } = await import("react-dom/client");
+    const container = document.querySelector("#root")!;
+    const mountedRoot = createRoot(container);
+    root = mountedRoot;
+    let completions = 0;
 
   await act(async () => {
-    root.render(
+    mountedRoot.render(
       <NextIntlClientProvider locale="en" messages={messages} timeZone="America/New_York">
         <HomeServicesEstimateForm
           services={[{ client_id: "svc-1", name: "Roof repair" } as never]}
@@ -88,7 +93,15 @@ test("correcting an invalid photo submits preview_mock successfully on the first
   });
   assert.equal(completions, 1, "the first Submit click should reach preview success");
 
-  await act(async () => root.unmount());
-  dom.window.close();
-  console.error = originalConsoleError;
+  } finally {
+    const mountedRoot = root;
+    if (mountedRoot) await act(async () => mountedRoot.unmount());
+    dom.window.close();
+    console.error = originalConsoleError;
+    for (const name of globalNames) {
+      const descriptor = originalGlobals.get(name);
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else Reflect.deleteProperty(globalThis, name);
+    }
+  }
 });
