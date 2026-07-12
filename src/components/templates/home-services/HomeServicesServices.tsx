@@ -8,6 +8,7 @@ import type { HomeServicesLocale } from "@/lib/home-services/types";
 import { getHomeServicesReadable } from "./home-services-theme";
 import type { HomeServicesSectionCopy } from "@/lib/home-services/types";
 import { HomeServicesSectionHeading } from "./HomeServicesSectionHeading";
+import { serviceManifestImage } from "@/lib/templates/service-images";
 
 export interface HomeServicesServicesProps {
   services: ServiceItem[];
@@ -54,6 +55,7 @@ export function HomeServicesServices({
               serviceDescriptions[service.name] ||
               service.description ||
               "";
+            const image = service.image || serviceManifestImage("home_services", service.name);
             return (
               <button type="button"
                 key={service.client_id || service.name}
@@ -64,10 +66,10 @@ export function HomeServicesServices({
                   borderColor: `${colors.foreground}10`,
                 }}
               >
-                {service.image && (
+                {image && (
                   <div className="relative aspect-[16/10] w-full overflow-hidden">
                     <Image
-                      src={service.image}
+                      src={image}
                       alt=""
                       fill
                       className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
