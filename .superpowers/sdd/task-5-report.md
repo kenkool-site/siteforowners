@@ -29,3 +29,9 @@ Implemented tenant estimate fan-out to independently configured text and email c
 ## Concerns
 
 - Route-level provider combinations are contract-covered rather than executed through a full Next/Supabase integration harness; channel normalization and fallback have direct unit coverage.
+
+## Fix: behavioral orchestration coverage
+
+- Extracted the route's persistence/delivery/update sequencing into a dependency-injected orchestration helper and kept a route contract proving `POST` delegates to it.
+- Added executable coverage for text success/email failure, text failure/email success, both failures, and email-only delivery. Every case proves persistence precedes delivery, independent channel fields are mapped durably, and the post-persistence public result remains `{ ok: true }`.
+- Strengthened the Host lookup contract to require owner email fields in both custom-domain and subdomain query branches.

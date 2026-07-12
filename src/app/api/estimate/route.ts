@@ -14,7 +14,8 @@ import {
   sendEstimateNotification,
 } from "@/lib/estimate-notification";
 import { selectEstimateOwnerEmail, sendEstimateEmail } from "@/lib/estimate-email";
-import { estimateDeliveryUpdate, type EstimateChannelResult } from "@/lib/estimate-delivery";
+import type { EstimateChannelResult } from "@/lib/estimate-delivery";
+import { orchestrateEstimateDelivery } from "@/lib/estimate-delivery-orchestration";
 import {
   ESTIMATE_RATE_LIMIT,
   estimateRateLimitBucket,
@@ -267,38 +268,35 @@ export async function POST(request: NextRequest) {
           destination: ownerEmail,
         }))
     : Promise.resolve(notConfigured);
-  const [textDelivery, emailResult] = await Promise.all([
-    textNotification
-      ? deliverEstimateText(messageBody, textNotification, sendEstimateNotification)
-      : Promise.resolve(null),
-    emailDelivery,
-  ]);
-  const textResult = textDelivery?.result ?? notConfigured;
-  const usedChannel = textDelivery?.channel ?? null;
-  const usedDestination = textDelivery?.destination ?? null;
-
-  const { error: updateError } = await supabase
-    .from("estimate_requests")
-    .update({
-      ...estimateDeliveryUpdate(textResult, emailResult),
-      notification_state: textResult.state === "sent" ? "sent" : "failed",
-      notification_channel: usedChannel,
-      notification_destination: usedDestination,
-      provider_message_id: textResult.state === "sent" ? textResult.providerId : null,
-      provider_error: textResult.state === "failed" ? textResult.error : null,
-      photo_upload_warning: photoWarning,
-      notified_at: textResult.state === "sent" ? new Date().toISOString() : null,
-    })
-    .eq("id", requestId)
-    .eq("tenant_id", tenant.id);
-
-  if (updateError) {
-    console.error("[api/estimate] delivery state update failed", {
-      tenantId: tenant.id,
-      requestId,
-      error: updateError,
-    });
-  }
+  let textDelivery: Awaited<ReturnType<typeof deliverEstimateText>> | null = null;
+  await orchestrateEstimateDelivery({
+    persist: async () => requestId,
+    deliverText: async () => {
+      textDelivery = textNotification
+        ? await deliverEstimateText(messageBody, textNotification, sendEstimateNotification)
+        : null;
+      return textDelivery?.result ?? notConfigured;
+    },
+    deliverEmail: () => emailDelivery,
+    update: async (persistedId, channelUpdate) => {
+      const textResult = textDelivery?.result ?? notConfigured;
+      const { error: updateError } = await supabase
+        .from("estimate_requests")
+        .update({
+          ...channelUpdate,
+          notification_state: textResult.state === "sent" ? "sent" : "failed",
+          notification_channel: textDelivery?.channel ?? null,
+          notification_destination: textDelivery?.destination ?? null,
+          provider_message_id: textResult.state === "sent" ? textResult.providerId : null,
+          provider_error: textResult.state === "failed" ? textResult.error : null,
+          photo_upload_warning: photoWarning,
+          notified_at: textResult.state === "sent" ? new Date().toISOString() : null,
+        })
+        .eq("id", persistedId)
+        .eq("tenant_id", tenant.id);
+      if (updateError) console.error("[api/estimate] delivery state update failed", { tenantId: tenant.id, requestId: persistedId, error: updateError });
+    },
+  });
 
   return NextResponse.json({ ok: true, photoWarning });
 }
