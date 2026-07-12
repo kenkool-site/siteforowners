@@ -9,8 +9,18 @@ type EstimateRequestRow = {
   service_needed: string;
   notification_state: "pending" | "sent" | "failed";
   provider_error: string | null;
+  notification_destination: string | null;
+  text_notification_state: ChannelState;
+  text_provider_message_id: string | null;
+  text_provider_error: string | null;
+  email_notification_state: ChannelState;
+  email_notification_destination: string | null;
+  email_provider_message_id: string | null;
+  email_provider_error: string | null;
   photo_count: number;
 };
+type ChannelState = "not_configured" | "pending" | "sent" | "failed";
+type RetryChannel = "text" | "email";
 
 function sanitizeFailureSummary(error: string | null): string {
   if (!error) return "";
@@ -29,7 +39,7 @@ function formatTimestamp(iso: string): string {
   }
 }
 
-function StateBadge({ state }: { state: EstimateRequestRow["notification_state"] }) {
+function StateBadge({ state }: { state: ChannelState }) {
   if (state === "sent") {
     return (
       <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
@@ -44,11 +54,12 @@ function StateBadge({ state }: { state: EstimateRequestRow["notification_state"]
       </span>
     );
   }
-  return (
+  if (state === "pending") return (
     <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
       Pending
     </span>
   );
+  return <span className="text-xs text-gray-400">Not configured</span>;
 }
 
 export function NotificationSettingsSection({
@@ -124,7 +135,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
   const [requests, setRequests] = useState<EstimateRequestRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [resendingId, setResendingId] = useState<string | null>(null);
+  const [resendingKey, setResendingKey] = useState<string | null>(null);
 
   const loadRequests = useCallback(async () => {
     setLoading(true);
@@ -150,14 +161,15 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
     void loadRequests();
   }, [loadRequests]);
 
-  const handleResend = async (requestId: string) => {
-    setResendingId(requestId);
+  const handleResend = async (requestId: string, channel: RetryChannel) => {
+    const key = `${requestId}:${channel}`;
+    setResendingKey(key);
     setError("");
     try {
       const res = await fetch("/api/admin/estimate-requests/resend", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenantId, requestId }),
+        body: JSON.stringify({ tenantId, requestId, channel }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -167,7 +179,7 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
     } catch (err) {
       setError(err instanceof Error ? err.message : "Resend failed");
     } finally {
-      setResendingId(null);
+      setResendingKey(null);
     }
   };
 
@@ -192,23 +204,38 @@ export function EstimateDeliveryDiagnostics({ tenantId }: { tenantId: string }) 
                 {row.photo_count > 0 && (
                   <p className="text-xs text-gray-400">{row.photo_count} photo(s)</p>
                 )}
-                {row.notification_state === "failed" && row.provider_error && (
-                  <p className="mt-1 text-xs text-red-700">
-                    {sanitizeFailureSummary(row.provider_error)}
-                  </p>
-                )}
               </div>
-              <div className="flex items-center gap-2">
-                <StateBadge state={row.notification_state} />
-                {row.notification_state === "failed" && (
+              <div className="grid min-w-64 gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-gray-700">Text</span>
+                  <StateBadge state={row.text_notification_state} />
+                  {row.text_notification_state === "failed" && row.notification_destination && (
                   <button
                     type="button"
-                    onClick={() => void handleResend(row.id)}
-                    disabled={resendingId === row.id}
+                    onClick={() => void handleResend(row.id, "text")}
+                    disabled={resendingKey === `${row.id}:text`}
                     className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50"
                   >
-                    {resendingId === row.id ? "Sending..." : "Resend"}
+                    {resendingKey === `${row.id}:text` ? "Sending..." : "Retry"}
                   </button>
+                  )}
+                </div>
+                {row.text_notification_state === "failed" && row.text_provider_error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(row.text_provider_error)}</p>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-medium text-gray-700">Email</span>
+                  <StateBadge state={row.email_notification_state} />
+                  {row.email_notification_state === "failed" && row.email_notification_destination && (
+                    <button type="button" onClick={() => void handleResend(row.id, "email")}
+                      disabled={resendingKey === `${row.id}:email`}
+                      className="rounded-lg border border-amber-300 px-3 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 disabled:opacity-50">
+                      {resendingKey === `${row.id}:email` ? "Sending..." : "Retry"}
+                    </button>
+                  )}
+                </div>
+                {row.email_notification_state === "failed" && row.email_provider_error && (
+                  <p className="text-xs text-red-700">{sanitizeFailureSummary(row.email_provider_error)}</p>
                 )}
               </div>
             </li>

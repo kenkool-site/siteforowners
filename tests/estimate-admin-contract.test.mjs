@@ -27,7 +27,29 @@ test("estimate admin resend requires founder auth and tenant-scoped lookup", asy
   assert.match(source, /\.eq\(["']tenant_id["'],\s*tenantId\)/);
   assert.match(source, /createEstimatePhotoLinks/);
   assert.match(source, /sendEstimateNotification/);
+  assert.match(source, /sendEstimateEmail/);
+  assert.match(source, /channel !== ["']text["'] && channel !== ["']email["']/);
+  assert.match(source, /channel === ["']email["']/);
+  assert.match(source, /text_notification_state/);
+  assert.match(source, /email_notification_state/);
   assert.match(source, /status:\s*404/);
+});
+
+test("estimate admin list exposes independent channel diagnostics", async () => {
+  const source = await readFile(
+    "src/app/api/admin/estimate-requests/list/route.ts",
+    "utf8",
+  );
+  for (const field of [
+    "text_notification_state",
+    "notification_destination",
+    "text_provider_message_id",
+    "text_provider_error",
+    "email_notification_state",
+    "email_notification_destination",
+    "email_provider_message_id",
+    "email_provider_error",
+  ]) assert.match(source, new RegExp(field));
 });
 
 test("estimate delivery diagnostics is founder-only internal UI", async () => {
@@ -44,4 +66,9 @@ test("estimate delivery diagnostics is founder-only internal UI", async () => {
   assert.match(diagnosticsSource, /\/api\/admin\/estimate-requests\/list/);
   assert.match(diagnosticsSource, /\/api\/admin\/estimate-requests\/resend/);
   assert.match(diagnosticsSource, /Resend/);
+  assert.match(diagnosticsSource, />Text</);
+  assert.match(diagnosticsSource, />Email</);
+  assert.match(diagnosticsSource, /handleResend\(row\.id, ["']text["']\)/);
+  assert.match(diagnosticsSource, /handleResend\(row\.id, ["']email["']\)/);
+  assert.match(diagnosticsSource, /JSON\.stringify\(\{ tenantId, requestId, channel \}\)/);
 });
