@@ -6,6 +6,8 @@ import type { ServiceItem } from "@/lib/ai/types";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
 import { getHomeServicesReadable } from "./home-services-theme";
+import type { HomeServicesSectionCopy } from "@/lib/home-services/types";
+import { HomeServicesSectionHeading } from "./HomeServicesSectionHeading";
 
 export interface HomeServicesServicesProps {
   services: ServiceItem[];
@@ -13,6 +15,7 @@ export interface HomeServicesServicesProps {
   locale: HomeServicesLocale;
   colors: ThemeColors;
   onEstimate: (serviceName?: string) => void;
+  copy: Required<HomeServicesSectionCopy>;
 }
 
 function serviceDescriptionKey(service: ServiceItem): string {
@@ -24,6 +27,8 @@ export function HomeServicesServices({
   serviceDescriptions,
   colors,
   onEstimate,
+  copy,
+  locale,
 }: HomeServicesServicesProps) {
   const t = useTranslations("homeServices");
   const readable = getHomeServicesReadable(colors);
@@ -40,13 +45,7 @@ export function HomeServicesServices({
       aria-labelledby="services-heading"
     >
       <div className="mx-auto max-w-6xl">
-        <h2
-          id="services-heading"
-          className="mb-8 text-2xl font-bold tracking-tight sm:text-3xl"
-          style={{ color: readable.headingOnBg }}
-        >
-          {t("sections.services")}
-        </h2>
+        <HomeServicesSectionHeading id="services-heading" copy={copy} locale={locale} color={readable.headingOnBg} />
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {services.map((service) => {

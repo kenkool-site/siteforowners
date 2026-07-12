@@ -12,6 +12,7 @@ export interface HomeServicesHeroProps {
   heroImage?: string;
   phoneHref: string | null;
   messageHref: string | null;
+  serviceAreaNames: string[];
   onEstimate: (serviceName?: string) => void;
   colors: ThemeColors;
 }
@@ -23,6 +24,7 @@ export function HomeServicesHero({
   heroImage,
   phoneHref,
   messageHref,
+  serviceAreaNames,
   onEstimate,
   colors,
 }: HomeServicesHeroProps) {
@@ -71,6 +73,9 @@ export function HomeServicesHero({
         <p className="mt-4 max-w-2xl text-base leading-relaxed opacity-95 sm:text-lg">
           {subheadline}
         </p>
+        {serviceAreaNames.length > 0 && <p className="mt-4 text-sm font-semibold opacity-90">
+          {t("coverage.serving", { count: serviceAreaNames.length })}: {serviceAreaNames.slice(0, 3).join(" · ")}
+        </p>}
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
           <button type="button"

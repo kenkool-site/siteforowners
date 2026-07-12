@@ -4,12 +4,17 @@ import { useTranslations } from "next-intl";
 import type { ThemeColors } from "@/lib/templates/themes";
 import type { GoogleReview } from "../TemplateTestimonials";
 import { getHomeServicesReadable } from "./home-services-theme";
+import type { HomeServicesLocale, HomeServicesSectionCopy } from "@/lib/home-services/types";
+import { HomeServicesSectionHeading } from "./HomeServicesSectionHeading";
 
 export interface HomeServicesReviewsProps {
   reviews: GoogleReview[];
   rating?: number;
   reviewCount?: number;
   colors: ThemeColors;
+  copy: Required<HomeServicesSectionCopy>;
+  locale: HomeServicesLocale;
+  embedded?: boolean;
 }
 
 function StarRow({ rating, color }: { rating: number; color: string }) {
@@ -44,6 +49,9 @@ export function HomeServicesReviews({
   rating,
   reviewCount,
   colors,
+  copy,
+  locale,
+  embedded = false,
 }: HomeServicesReviewsProps) {
   const t = useTranslations("homeServices");
 
@@ -53,22 +61,15 @@ export function HomeServicesReviews({
 
   const readable = getHomeServicesReadable(colors);
 
-  return (
-    <section
+  const content = (
+    <div
       id="reviews"
-      className="px-4 py-16 sm:px-6"
-      style={{ backgroundColor: colors.muted }}
+      className={embedded ? "" : "px-4 py-16 sm:px-6"}
       aria-labelledby="reviews-heading"
     >
       <div className="mx-auto max-w-6xl">
+        <HomeServicesSectionHeading id="reviews-heading" copy={copy} locale={locale} color={readable.headingOnMuted} />
         <div className="mb-8 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <h2
-            id="reviews-heading"
-            className="text-2xl font-bold tracking-tight sm:text-3xl"
-            style={{ color: readable.headingOnMuted }}
-          >
-            {t("sections.reviews")}
-          </h2>
           {rating && (
             <div className="flex items-center gap-2">
               <StarRow rating={Math.round(rating)} color={readable.headingOnMuted} />
@@ -80,7 +81,7 @@ export function HomeServicesReviews({
           )}
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className={`grid gap-4 ${embedded ? "" : "md:grid-cols-2 lg:grid-cols-3"}`}>
           {reviews.map((review, index) => (
             <article
               key={`${review.authorName}-${index}`}
@@ -120,6 +121,7 @@ export function HomeServicesReviews({
           {t("reviews.attribution")}
         </p>
       </div>
-    </section>
+    </div>
   );
+  return embedded ? content : <section style={{ backgroundColor: colors.muted }}>{content}</section>;
 }
