@@ -640,8 +640,10 @@ function GalleryProjectsSection({
   config: HomeServicesConfig;
   onChange: (next: HomeServicesConfig) => void;
 }) {
-  const updateProject = (index: number, patch: Partial<HomeServicesGalleryProject>) => {
-    const next = config.gallery_projects.map((project, i) => (i === index ? { ...project, ...patch } : project));
+  const updateProject = (id: string, patch: Partial<HomeServicesGalleryProject>) => {
+    const next = config.gallery_projects.map((project) =>
+      project.id === id ? { ...project, ...patch } : project,
+    );
     onChange({ ...config, gallery_projects: next });
   };
 
@@ -652,13 +654,13 @@ function GalleryProjectsSection({
           <div key={project.id} className="space-y-2 rounded-lg border border-gray-100 p-3">
             <ProjectImageControl
               project={project}
-              onChange={(patch) => updateProject(index, patch)}
+              onChange={(patch) => updateProject(project.id, patch)}
             />
             <div className="grid gap-2 sm:grid-cols-2">
-              <TextInput value={project.caption_en || ""} onChange={(caption_en) => updateProject(index, { caption_en })} placeholder="Description (English)" />
-              <TextInput value={project.caption_es || ""} onChange={(caption_es) => updateProject(index, { caption_es })} placeholder="Description (Español)" />
+              <TextInput value={project.caption_en || ""} onChange={(caption_en) => updateProject(project.id, { caption_en })} placeholder="Description (English)" />
+              <TextInput value={project.caption_es || ""} onChange={(caption_es) => updateProject(project.id, { caption_es })} placeholder="Description (Español)" />
             </div>
-            <TextInput value={project.service_name || ""} onChange={(service_name) => updateProject(index, { service_name })} placeholder="Service name (optional)" />
+            <TextInput value={project.service_name || ""} onChange={(service_name) => updateProject(project.id, { service_name })} placeholder="Service name (optional)" />
             <button
               type="button"
               onClick={() => onChange({ ...config, gallery_projects: config.gallery_projects.filter((_, i) => i !== index) })}
