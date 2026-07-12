@@ -15,6 +15,7 @@ export interface HomeServicesNavProps {
   showReviews: boolean;
   estimateHref: string;
   colors: ThemeColors;
+  onLocaleChange?: (locale: HomeServicesLocale) => void;
 }
 
 export function HomeServicesNav({
@@ -24,11 +25,13 @@ export function HomeServicesNav({
   showReviews,
   estimateHref,
   colors,
+  onLocaleChange,
 }: HomeServicesNavProps) {
   const t = useTranslations("homeServices");
   const [open, setOpen] = useState(false);
   const languageHref = locale === "es" ? "/" : "/es";
   const languageLabel = locale === "es" ? "EN" : "ES";
+  const nextLocale: HomeServicesLocale = locale === "es" ? "en" : "es";
   const readable = getHomeServicesReadable(colors);
   const controlTextColor = readable.navControl;
   const drawerTextColor = readable.drawerBody;
@@ -70,13 +73,22 @@ export function HomeServicesNav({
                 {item.label}
               </a>
             ))}
-            <Link
+            {onLocaleChange ? (
+              <button
+                type="button"
+                onClick={() => onLocaleChange(nextLocale)}
+                className="min-h-11 rounded-full px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-80"
+                style={{ color: controlTextColor }}
+              >
+                {languageLabel}
+              </button>
+            ) : <Link
               href={languageHref}
               className="min-h-11 rounded-full px-3 py-2 text-sm font-semibold uppercase tracking-[0.14em] transition-opacity hover:opacity-80"
               style={{ color: controlTextColor }}
             >
               {languageLabel}
-            </Link>
+            </Link>}
             <a
               href={estimateHref}
               className="inline-flex min-h-11 items-center rounded-full px-4 text-sm font-semibold shadow-sm transition-opacity hover:opacity-90"
@@ -87,13 +99,22 @@ export function HomeServicesNav({
           </nav>
 
           <div className="flex items-center gap-2 md:hidden">
-            <Link
+            {onLocaleChange ? (
+              <button
+                type="button"
+                onClick={() => onLocaleChange(nextLocale)}
+                className="inline-flex h-11 min-w-11 items-center justify-center rounded-full border px-3 text-xs font-bold uppercase tracking-[0.14em]"
+                style={{ borderColor: shellBorder, color: controlTextColor, backgroundColor: colors.background }}
+              >
+                {languageLabel}
+              </button>
+            ) : <Link
               href={languageHref}
               className="inline-flex h-11 min-w-11 items-center justify-center rounded-full border px-3 text-xs font-bold uppercase tracking-[0.14em]"
               style={{ borderColor: shellBorder, color: controlTextColor, backgroundColor: colors.background }}
             >
               {languageLabel}
-            </Link>
+            </Link>}
             <button
               type="button"
               onClick={() => setOpen((value) => !value)}

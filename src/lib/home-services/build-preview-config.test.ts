@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   buildHomeServicesConfigForPreview,
   deriveServiceAreaSummary,
+  enableEstimateSectionForPreview,
 } from "./build-preview-config";
 
 test("deriveServiceAreaSummary extracts city from a full address", () => {
@@ -14,6 +15,15 @@ test("deriveServiceAreaSummary extracts city from a full address", () => {
     deriveServiceAreaSummary("123 Main St, Dallas, TX 75201", "es"),
     "Servicio en Dallas y zonas cercanas",
   );
+});
+
+test("enableEstimateSectionForPreview repairs previously saved preview configs", () => {
+  const config = enableEstimateSectionForPreview({
+    sections: { show_estimate: false, show_gallery: false },
+  });
+
+  assert.equal(config.sections.show_estimate, true);
+  assert.equal(config.sections.show_gallery, false);
 });
 
 test("buildHomeServicesConfigForPreview seeds trust points and keeps the estimate CTA functional", () => {
