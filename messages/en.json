@@ -114,11 +114,14 @@
       "reviews": "Reviews",
       "serviceAreas": "Service Areas"
     },
-    "actions": {
+  "actions": {
       "call": "Call",
       "message": "Message",
       "freeEstimate": "Free Estimate"
-    },
+  },
+  "coverage": {
+    "serving": "Serving {count, plural, one {# local area} other {# local areas}}"
+  },
     "sections": {
       "services": "Services",
       "work": "Our Work",

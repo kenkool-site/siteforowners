@@ -114,11 +114,14 @@
       "reviews": "Reseñas",
       "serviceAreas": "Zonas de Servicio"
     },
-    "actions": {
+  "actions": {
       "call": "Llamar",
       "message": "Mensaje",
       "freeEstimate": "Estimado Gratis"
-    },
+  },
+  "coverage": {
+    "serving": "Atendemos {count, plural, one {# área local} other {# áreas locales}}"
+  },
     "sections": {
       "services": "Servicios",
       "work": "Nuestro Trabajo",

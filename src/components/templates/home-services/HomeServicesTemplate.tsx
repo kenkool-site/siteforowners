@@ -1,13 +1,12 @@
 "use client";
 
 import { useReducer } from "react";
-import { useTranslations } from "next-intl";
 import { NextIntlClientProvider } from "next-intl";
 import type { PreviewData } from "@/lib/ai/types";
-import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
 import { parseHomeServicesConfig } from "@/lib/home-services/types";
 import { hasProjectMedia } from "@/lib/home-services/display";
+import { resolveHomeServicesProcessSteps, resolveHomeServicesSectionCopies } from "@/lib/home-services/content-defaults";
 import {
   buildSmsHref,
   buildTelHref,
@@ -16,18 +15,19 @@ import {
 import enMessages from "../../../../messages/en.json";
 import esMessages from "../../../../messages/es.json";
 import type { GoogleReview } from "../TemplateTestimonials";
-import { getHomeServicesColors, getHomeServicesReadable } from "./home-services-theme";
+import { getHomeServicesColors } from "./home-services-theme";
 import { HomeServicesFooter } from "./HomeServicesFooter";
 import { HomeServicesGallery } from "./HomeServicesGallery";
 import { HomeServicesHero } from "./HomeServicesHero";
 import { HomeServicesMobileActionBar } from "./HomeServicesMobileActionBar";
 import { HomeServicesNav } from "./HomeServicesNav";
-import { HomeServicesReviews } from "./HomeServicesReviews";
-import { HomeServicesServiceAreas } from "./HomeServicesServiceAreas";
 import { HomeServicesServices } from "./HomeServicesServices";
 import { HomeServicesTrustStrip } from "./HomeServicesTrustStrip";
 import { HomeServicesWhyUs } from "./HomeServicesWhyUs";
 import { HomeServicesEstimateModal } from "./HomeServicesEstimateModal";
+import { HomeServicesProcess } from "./HomeServicesProcess";
+import { HomeServicesProofAndAreas } from "./HomeServicesProofAndAreas";
+import { HomeServicesFinalCta } from "./HomeServicesFinalCta";
 import { estimateModalReducer, initialEstimateModalState, type EstimateDeliveryMode } from "./estimate-modal-state";
 
 interface HomeServicesTemplateProps {
@@ -45,49 +45,12 @@ interface HomeServicesPageProps {
   estimateDeliveryMode: EstimateDeliveryMode;
 }
 
-interface DirectEstimateCardProps {
-  colors: ThemeColors;
-  onEstimate: () => void;
-}
-
-function DirectEstimateCard({ colors, onEstimate }: DirectEstimateCardProps) {
-  const t = useTranslations("homeServices");
-  const readable = getHomeServicesReadable(colors);
-
-  return (
-    <div
-      className="mx-auto max-w-3xl rounded-[2rem] border p-6 text-center sm:p-8"
-      style={{
-        backgroundColor: colors.background,
-        borderColor: `${colors.foreground}12`,
-      }}
-    >
-      <h2
-        id="estimate-heading"
-        className="text-2xl font-bold tracking-tight sm:text-3xl"
-        style={{ color: readable.headingOnBg }}
-      >
-        {t("estimate.directTitle")}
-      </h2>
-      <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed" style={{ color: readable.bodyOnBg }}>
-        {t("estimate.directBody")}
-      </p>
-      <div className="mt-8 flex justify-center">
-          <button type="button" onClick={onEstimate}
-            className="inline-flex min-h-11 items-center justify-center rounded-full px-6 text-sm font-semibold shadow-sm transition-opacity hover:opacity-90"
-            style={{ backgroundColor: colors.secondary, color: readable.ctaOnSecondary }}
-          >
-            {t("actions.freeEstimate")}
-          </button>
-      </div>
-    </div>
-  );
-}
-
 function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }: HomeServicesPageProps) {
   const [estimateState, dispatchEstimate] = useReducer(estimateModalReducer, initialEstimateModalState);
   const onEstimate = (serviceName?: string) => dispatchEstimate({ type: "open", service: serviceName });
   const config = parseHomeServicesConfig(data.generated_copy?.home_services_config);
+  const sectionCopies = resolveHomeServicesSectionCopies(config.section_copy);
+  const processSteps = resolveHomeServicesProcessSteps(config.process_steps);
   const copy = data.generated_copy?.[locale];
   const colors = getHomeServicesColors(data);
   const phoneHref = data.phone ? buildTelHref(data.phone) : null;
@@ -112,7 +75,8 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
     );
   const showReviews = config.sections.show_reviews !== false && reviews.length > 0;
   const showServiceAreas =
-    config.sections.show_service_areas !== false && Boolean(coverageSummary.trim());
+    config.sections.show_service_areas !== false && (config.service_areas.length > 0 || Boolean(coverageSummary.trim()));
+  const showProcess = config.sections.show_process !== false;
   const showEstimate = config.sections.show_estimate !== false;
 
   return (
@@ -133,6 +97,7 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
         heroImage={data.images?.[0]}
         phoneHref={phoneHref}
         messageHref={messageHref}
+        serviceAreaNames={config.service_areas.map((area) => area.name)}
         onEstimate={onEstimate}
         colors={colors}
       />
@@ -149,14 +114,17 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
         locale={locale}
         colors={colors}
         onEstimate={onEstimate}
+        copy={sectionCopies.services}
       />
       {showGallery && (
         <HomeServicesGallery
           projects={config.gallery_projects}
           locale={locale}
           colors={colors}
+          copy={sectionCopies.recent_work}
         />
       )}
+      {showProcess && <HomeServicesProcess steps={processSteps} copy={sectionCopies.process} locale={locale} colors={colors} />}
       {showWhyUs && (
         <HomeServicesWhyUs
           points={config.why_us_points}
@@ -164,32 +132,9 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
           colors={colors}
         />
       )}
-      {showReviews && (
-        <HomeServicesReviews
-          reviews={reviews}
-          rating={data.rating}
-          reviewCount={data.review_count}
-          colors={colors}
-        />
-      )}
-      {showServiceAreas && (
-        <HomeServicesServiceAreas
-          coverageSummary={coverageSummary}
-          locale={locale}
-          colors={colors}
-        />
-      )}
+      {(showReviews || showServiceAreas) && <HomeServicesProofAndAreas reviews={showReviews ? reviews : []} areas={showServiceAreas ? config.service_areas : []} rating={data.rating} reviewCount={data.review_count} coverageSummary={showServiceAreas ? coverageSummary : ""} copies={{ reviews: sectionCopies.reviews, serviceAreas: sectionCopies.service_areas }} locale={locale} colors={colors} />}
       {showEstimate && (
-        <section
-          className="px-4 py-16 sm:px-6"
-          style={{ backgroundColor: colors.muted }}
-          aria-labelledby="estimate-heading"
-        >
-            <DirectEstimateCard
-              colors={colors}
-              onEstimate={() => onEstimate()}
-            />
-        </section>
+        <HomeServicesFinalCta copy={sectionCopies.final_cta} locale={locale} phoneHref={phoneHref} messageHref={messageHref} onEstimate={() => onEstimate()} colors={colors} />
       )}
       <HomeServicesFooter
         businessName={data.business_name}

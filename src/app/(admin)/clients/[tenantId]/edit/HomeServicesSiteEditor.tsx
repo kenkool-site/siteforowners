@@ -22,6 +22,8 @@ import {
   EstimateDeliveryDiagnostics,
   NotificationSettingsSection,
 } from "./EstimateDeliveryDiagnostics";
+import { HomeServicesContentEditor } from "./HomeServicesContentEditor";
+import { validateHomeServicesEditorConfig, type HomeServicesEditorError } from "@/lib/home-services/editor-validation";
 
 type LocaleCopyDraft = {
   hero_headline: string;
@@ -754,6 +756,7 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [configErrors, setConfigErrors] = useState<HomeServicesEditorError[]>([]);
   const [uploadingVideo, setUploadingVideo] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [twilioWarning, setTwilioWarning] = useState<string | null>(null);
@@ -813,9 +816,16 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
   };
 
   const handleSave = async () => {
-    setSaving(true);
     setError("");
     setSaved(false);
+    const validation = validateHomeServicesEditorConfig(draft.home_services_config);
+    if (!validation.ok) {
+      setConfigErrors(validation.errors);
+      setError("Fix the highlighted home-services content before saving.");
+      return;
+    }
+    setConfigErrors([]);
+    setSaving(true);
 
     try {
       const res = await fetch("/api/update-site", {
@@ -973,6 +983,7 @@ export function HomeServicesSiteEditor({ tenant, preview }: SiteEditorProps) {
           <TrustPointsSection config={draft.home_services_config} onChange={updateConfig} />
           <WhyUsSection config={draft.home_services_config} onChange={updateConfig} />
           <CoverageSection config={draft.home_services_config} onChange={updateConfig} />
+          <HomeServicesContentEditor config={draft.home_services_config} rowErrors={configErrors} onChange={updateConfig} />
           <GalleryProjectsSection config={draft.home_services_config} onChange={updateConfig} />
           <MessageLinksSection config={draft.home_services_config} onChange={updateConfig} />
           <NotificationSettingsSection

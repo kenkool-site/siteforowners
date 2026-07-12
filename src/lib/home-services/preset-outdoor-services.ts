@@ -1,4 +1,5 @@
 import type { PreviewData } from "@/lib/ai/types";
+import { HOME_SERVICES_CONTENT_DEFAULTS } from "./content-defaults";
 
 const SERVICES = [
   "Sprinkler Installation and Repair",
@@ -75,6 +76,9 @@ export function buildOutdoorServicesPreset(): PreviewData {
         ],
         gallery_projects: [],
         why_us_points: [],
+        section_copy: HOME_SERVICES_CONTENT_DEFAULTS.section_copy,
+        process_steps: HOME_SERVICES_CONTENT_DEFAULTS.process_steps,
+        service_areas: [],
         coverage_summary_en: "",
         coverage_summary_es: "",
         message_links: {},

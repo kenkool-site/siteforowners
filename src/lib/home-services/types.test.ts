@@ -7,6 +7,9 @@ test("parseHomeServicesConfig returns safe empty defaults", () => {
     trust_points: [],
     gallery_projects: [],
     why_us_points: [],
+    section_copy: {},
+    process_steps: [],
+    service_areas: [],
     coverage_summary_en: "",
     coverage_summary_es: "",
     message_links: {},
@@ -43,4 +46,60 @@ test("parseHomeServicesConfig accepts normalized notification destinations", () 
 test("parseHomeServicesConfig drops invalid notification config", () => {
   assert.equal(parseHomeServicesConfig({ notification: { channel: "email", destination_e164: "+18325550147" } }).notification, undefined);
   assert.equal(parseHomeServicesConfig({ notification: { channel: "sms", destination_e164: "bad" } }).notification, undefined);
+});
+
+test("parses structured process and areas while preserving legacy summary", () => {
+  const config = parseHomeServicesConfig({
+    coverage_summary_en: "Serving Richmond",
+    process_steps: [{ id: "one", title_en: "Tell us", body_en: "Send details", title_es: "Cuéntenos", body_es: "Envíe detalles" }],
+    service_areas: [{ id: "richmond", name: "Richmond", zip_codes: ["77406", "77469-1234"] }],
+  });
+  assert.equal(config.process_steps.length, 1);
+  assert.deepEqual(config.service_areas[0].zip_codes, ["77406", "77469-1234"]);
+  assert.equal(config.coverage_summary_en, "Serving Richmond");
+});
+
+test("defensively trims, limits, and removes invalid or duplicate public rows", () => {
+  const config = parseHomeServicesConfig({
+    section_copy: { services: { title_en: "  Our services  ", title_es: 12 } },
+    process_steps: Array.from({ length: 5 }, (_, index) => ({
+      id: ` step-${index} `, title_en: " English ", body_en: " Body ", title_es: " Español ", body_es: " Texto ",
+    })),
+    service_areas: [
+      { id: "one", name: " Richmond ", zip_codes: [" 77406 ", "bad", "77406"] },
+      { id: "two", name: "richmond", zip_codes: ["77469"] },
+      { id: "three", name: "Katy", zip_codes: ["77406", "77450"] },
+    ],
+    sections: { show_process: false, show_reviews: true },
+  });
+  assert.deepEqual(config.section_copy.services, { title_en: "Our services" });
+  assert.equal(config.process_steps.length, 3);
+  assert.deepEqual(config.service_areas, [
+    { id: "one", name: "Richmond", zip_codes: ["77406"] },
+    { id: "three", name: "Katy", zip_codes: ["77450"] },
+  ]);
+  assert.deepEqual(config.sections, { show_process: false, show_reviews: true });
+});
+
+test("public parser fills process and service-area caps from valid rows after invalid rows", () => {
+  const validStep = (index: number) => ({
+    id: `step-${index}`, title_en: `Step ${index}`, body_en: "Body",
+    title_es: `Paso ${index}`, body_es: "Texto",
+  });
+  const config = parseHomeServicesConfig({
+    process_steps: [
+      { id: "incomplete" },
+      ...Array.from({ length: 3 }, (_, index) => validStep(index)),
+    ],
+    service_areas: [
+      { id: "invalid", name: "", zip_codes: [] },
+      ...Array.from({ length: 20 }, (_, index) => ({
+        id: `area-${index}`, name: `Area ${index}`, zip_codes: [`${10000 + index}`],
+      })),
+    ],
+  });
+
+  assert.deepEqual(config.process_steps.map((step) => step.id), ["step-0", "step-1", "step-2"]);
+  assert.equal(config.service_areas.length, 20);
+  assert.equal(config.service_areas.at(-1)?.id, "area-19");
 });

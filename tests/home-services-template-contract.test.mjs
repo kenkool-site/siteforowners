@@ -111,3 +111,41 @@ test("estimate modal preserves accessible validation and upload contracts", asyn
   assert.equal(english.homeServices.estimate.modal.optional, "Optional");
   assert.equal(spanish.homeServices.estimate.modal.optional, "Opcional");
 });
+
+test("richer homepage follows the approved conversion-story order", async () => {
+  const source = await readFile("src/components/templates/home-services/HomeServicesTemplate.tsx", "utf8");
+  const order = ["HomeServicesHero", "HomeServicesTrustStrip", "HomeServicesServices", "HomeServicesGallery", "HomeServicesProcess", "HomeServicesWhyUs", "HomeServicesProofAndAreas", "HomeServicesFinalCta", "HomeServicesFooter"];
+  let cursor = -1;
+  for (const component of order) {
+    const next = source.indexOf(`<${component}`, cursor + 1);
+    assert.ok(next > cursor, `${component} should follow the prior public section`);
+    cursor = next;
+  }
+  assert.match(source, /const onEstimate = .*dispatchEstimate/);
+  assert.match(source, /<HomeServicesServices[\s\S]*onEstimate=\{onEstimate\}/);
+  assert.match(source, /<HomeServicesFinalCta[\s\S]*onEstimate=\{/);
+});
+
+test("process and proof composition expose responsive semantic contracts", async () => {
+  const process = await readFile("src/components/templates/home-services/HomeServicesProcess.tsx", "utf8");
+  const proof = await readFile("src/components/templates/home-services/HomeServicesProofAndAreas.tsx", "utf8");
+  const areas = await readFile("src/components/templates/home-services/HomeServicesServiceAreas.tsx", "utf8");
+  assert.match(process, /<ol/);
+  assert.match(process, /grid-cols-1 md:grid-cols-3/);
+  assert.match(proof, /grid-cols-1/);
+  assert.match(proof, /lg:grid-cols-2/);
+  assert.match(proof, /hasReviews && hasServiceAreas/);
+  assert.match(areas, /<ul/);
+  assert.match(areas, /area\.zip_codes\.join\(/);
+  assert.match(areas, /coverageSummary/);
+});
+
+test("hero coverage and final CTA avoid addresses and reuse estimate callback", async () => {
+  const hero = await readFile("src/components/templates/home-services/HomeServicesHero.tsx", "utf8");
+  const cta = await readFile("src/components/templates/home-services/HomeServicesFinalCta.tsx", "utf8");
+  assert.match(hero, /serviceAreaNames\.slice\(0, 3\)/);
+  assert.doesNotMatch(hero, /address/i);
+  assert.match(cta, /phoneHref &&/);
+  assert.match(cta, /messageHref &&/);
+  assert.match(cta, /onClick=\{onEstimate\}/);
+});

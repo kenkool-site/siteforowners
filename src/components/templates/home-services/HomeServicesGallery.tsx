@@ -6,11 +6,14 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import type { HomeServicesGalleryProject, HomeServicesLocale } from "@/lib/home-services/types";
 import { hasProjectMedia, localizedText } from "@/lib/home-services/display";
 import { getHomeServicesReadable } from "./home-services-theme";
+import type { HomeServicesSectionCopy } from "@/lib/home-services/types";
+import { HomeServicesSectionHeading } from "./HomeServicesSectionHeading";
 
 export interface HomeServicesGalleryProps {
   projects: HomeServicesGalleryProject[];
   locale: HomeServicesLocale;
   colors: ThemeColors;
+  copy: Required<HomeServicesSectionCopy>;
 }
 
 function GalleryImage({ src, alt }: { src: string; alt: string }) {
@@ -32,6 +35,7 @@ export function HomeServicesGallery({
   projects,
   locale,
   colors,
+  copy,
 }: HomeServicesGalleryProps) {
   const t = useTranslations("homeServices");
   const readable = getHomeServicesReadable(colors);
@@ -50,13 +54,7 @@ export function HomeServicesGallery({
       aria-labelledby="work-heading"
     >
       <div className="mx-auto max-w-6xl">
-        <h2
-          id="work-heading"
-          className="mb-8 text-2xl font-bold tracking-tight sm:text-3xl"
-          style={{ color: readable.headingOnMuted }}
-        >
-          {t("sections.work")}
-        </h2>
+        <HomeServicesSectionHeading id="work-heading" copy={copy} locale={locale} color={readable.headingOnMuted} />
 
         <div className="grid gap-6 md:grid-cols-2">
           {visibleProjects.map((project) => {
