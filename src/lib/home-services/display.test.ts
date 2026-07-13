@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { galleryFallbackPhotos, hasProjectMedia, localizedText } from "./display";
+import { galleryFallbackPhotos, hasProjectMedia, localizedText, mergeDescriptionsWithFallback } from "./display";
 
 test("localizedText returns Spanish copy when locale is es", () => {
   assert.equal(
@@ -47,4 +47,24 @@ test("galleryFallbackPhotos handles empty projects and non-array images", () => 
   assert.deepEqual(galleryFallbackPhotos([], ["https://example.com/a.jpg"]), ["https://example.com/a.jpg"]);
   assert.deepEqual(galleryFallbackPhotos([], undefined), []);
   assert.deepEqual(galleryFallbackPhotos([], "not-an-array"), []);
+});
+
+test("mergeDescriptionsWithFallback prefers primary values per key", () => {
+  assert.deepEqual(
+    mergeDescriptionsWithFallback({ a: "es-A" }, { a: "en-A", b: "en-B" }),
+    { a: "es-A", b: "en-B" },
+  );
+});
+
+test("mergeDescriptionsWithFallback ignores empty primary values", () => {
+  assert.deepEqual(
+    mergeDescriptionsWithFallback({ a: "", b: "  " }, { a: "en-A", b: "en-B" }),
+    { a: "en-A", b: "en-B" },
+  );
+});
+
+test("mergeDescriptionsWithFallback tolerates missing maps", () => {
+  assert.deepEqual(mergeDescriptionsWithFallback(undefined, { a: "en-A" }), { a: "en-A" });
+  assert.deepEqual(mergeDescriptionsWithFallback({ a: "es-A" }, undefined), { a: "es-A" });
+  assert.deepEqual(mergeDescriptionsWithFallback(undefined, undefined), {});
 });

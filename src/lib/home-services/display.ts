@@ -31,3 +31,19 @@ export function galleryFallbackPhotos(
     (img): img is string => typeof img === "string" && img.trim() !== "",
   );
 }
+
+/**
+ * Locale fallback for service descriptions: fallback entries first, overlaid
+ * by primary entries with non-empty values — an empty Spanish value must not
+ * mask the English fallback.
+ */
+export function mergeDescriptionsWithFallback(
+  primary: Record<string, string> | undefined,
+  fallback: Record<string, string> | undefined,
+): Record<string, string> {
+  const merged: Record<string, string> = { ...(fallback ?? {}) };
+  for (const [key, value] of Object.entries(primary ?? {})) {
+    if (typeof value === "string" && value.trim() !== "") merged[key] = value;
+  }
+  return merged;
+}

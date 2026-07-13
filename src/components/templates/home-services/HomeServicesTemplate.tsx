@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import type { PreviewData } from "@/lib/ai/types";
 import type { HomeServicesLocale } from "@/lib/home-services/types";
 import { parseHomeServicesConfig } from "@/lib/home-services/types";
-import { galleryFallbackPhotos, hasProjectMedia } from "@/lib/home-services/display";
+import { galleryFallbackPhotos, hasProjectMedia, mergeDescriptionsWithFallback } from "@/lib/home-services/display";
 import { resolveHomeServicesProcessSteps, resolveHomeServicesSectionCopies } from "@/lib/home-services/content-defaults";
 import {
   buildSmsHref,
@@ -52,6 +52,11 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
   const sectionCopies = resolveHomeServicesSectionCopies(config.section_copy);
   const processSteps = resolveHomeServicesProcessSteps(config.process_steps);
   const copy = data.generated_copy?.[locale];
+  const fallbackLocaleCopy = data.generated_copy?.[locale === "es" ? "en" : "es"];
+  const serviceDescriptions = mergeDescriptionsWithFallback(
+    copy?.service_descriptions,
+    fallbackLocaleCopy?.service_descriptions,
+  );
   const colors = getHomeServicesColors(data);
   const phoneHref = data.phone ? buildTelHref(data.phone) : null;
   const messageHref =
@@ -111,7 +116,7 @@ function HomeServicesPage({ data, locale, onLocaleChange, estimateDeliveryMode }
       )}
       <HomeServicesServices
         services={data.services}
-        serviceDescriptions={copy?.service_descriptions ?? {}}
+        serviceDescriptions={serviceDescriptions}
         locale={locale}
         colors={colors}
         onEstimate={onEstimate}
