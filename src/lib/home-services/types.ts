@@ -101,7 +101,7 @@ const rows = (value: unknown): Record<string, unknown>[] =>
     : [];
 
 const ZIP_PATTERN = /^\d{5}(?:-\d{4})?$/;
-const SECTION_KEYS: HomeServicesSectionKey[] = [
+export const HOME_SERVICES_SECTION_KEYS: HomeServicesSectionKey[] = [
   "services", "recent_work", "process", "reviews", "service_areas", "final_cta",
 ];
 const COPY_KEYS: (keyof HomeServicesSectionCopy)[] = [
@@ -127,7 +127,7 @@ export function parseHomeServicesConfig(raw: unknown): HomeServicesConfig {
     ? source.section_copy as Record<string, unknown>
     : {};
   const section_copy: HomeServicesSectionCopyConfig = {};
-  for (const section of SECTION_KEYS) {
+  for (const section of HOME_SERVICES_SECTION_KEYS) {
     const rawCopy = sectionCopySource[section];
     if (!rawCopy || typeof rawCopy !== "object") continue;
     const copySource = rawCopy as Record<string, unknown>;
