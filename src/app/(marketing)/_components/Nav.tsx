@@ -3,8 +3,8 @@ import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 import { Button } from "@/components/ui/button";
 
 const NAV_LINKS = [
-  { href: "#examples", label: "Examples" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/#examples", label: "Examples" },
+  { href: "/#pricing", label: "Pricing" },
 ];
 
 const ADMIN_LINKS = [
@@ -101,7 +101,7 @@ export function Nav() {
           size="sm"
           className="rounded-full bg-pop-pink text-pop-cream hover:bg-pop-pink/90"
         >
-          <Link href="#request-site">Request site</Link>
+          <Link href="/request-site">Request site</Link>
         </Button>
       </div>
     </nav>
