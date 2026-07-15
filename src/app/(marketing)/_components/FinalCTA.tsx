@@ -30,7 +30,7 @@ export function FinalCTA() {
             size="lg"
             className="rounded-full bg-black px-8 py-6 text-base font-extrabold text-pop-cream hover:bg-black/85"
           >
-            <Link href="#request-site">Send me your details →</Link>
+            <Link href="/request-site">Send me your details →</Link>
           </Button>
           <p className="mt-4 text-xs opacity-90">
             No tech setup · I build the preview · Free for 1 month

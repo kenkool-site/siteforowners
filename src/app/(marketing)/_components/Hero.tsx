@@ -34,7 +34,7 @@ export function Hero() {
               size="lg"
               className="rounded-full bg-black px-6 py-5 text-sm font-bold text-pop-cream hover:bg-black/85"
             >
-              <Link href="#request-site">Request my site →</Link>
+              <Link href="/request-site">Request my site →</Link>
             </Button>
             {TEXT_US_HREF && (
               <Button
