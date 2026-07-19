@@ -21,12 +21,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { tenant_id?: unknown; site_published?: unknown };
+  let parsed: unknown;
   try {
-    body = await request.json();
+    parsed = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
+  if (typeof parsed !== "object" || parsed === null) {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const body = parsed as { tenant_id?: unknown; site_published?: unknown };
 
   const tenantId =
     typeof body.tenant_id === "string" ? body.tenant_id.trim() : "";
@@ -41,12 +45,16 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createAdminClient();
-  const { data: tenant } = await supabase
+  const { data: tenant, error: lookupError } = await supabase
     .from("tenants")
     .select("is_demo")
     .eq("id", tenantId)
     .maybeSingle();
 
+  if (lookupError) {
+    console.error("toggle-site-offline lookup failed:", lookupError);
+    return NextResponse.json({ error: "Failed to update site" }, { status: 500 });
+  }
   if (!tenant) {
     return NextResponse.json({ error: "Tenant not found" }, { status: 404 });
   }
