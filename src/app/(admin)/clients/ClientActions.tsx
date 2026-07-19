@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SiteOfflineToggle } from "../_components/SiteOfflineToggle";
 
 interface ClientActionsProps {
   tenantId: string;
@@ -26,37 +27,10 @@ export function ClientActions({
   const [customSubdomain, setCustomSubdomain] = useState(subdomain || "");
   const [moving, setMoving] = useState(false);
   const [movedToProspect, setMovedToProspect] = useState(false);
-  const [toggling, setToggling] = useState(false);
 
   // A demo taken offline still has its subdomain — distinguish from a
   // never-published demo, which should keep the normal Publish flow.
   const offline = isDemo && !published && !!siteSubdomain;
-
-  const handleToggleOffline = async () => {
-    const next = !published;
-    const message = published
-      ? `Take "${businessName}" offline? Visitors to its URL will see a 404. You can bring it back online anytime.`
-      : `Bring "${businessName}" back online at its existing URL?`;
-    if (!confirm(message)) return;
-    setToggling(true);
-    try {
-      const res = await fetch("/api/admin/toggle-site-offline", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tenant_id: tenantId, site_published: next }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        alert(data.error || "Failed to update site");
-        return;
-      }
-      setPublished(data.site_published);
-    } catch {
-      alert("Failed to update site");
-    } finally {
-      setToggling(false);
-    }
-  };
 
   const handlePublish = async () => {
     setPublishing(true);
@@ -170,24 +144,12 @@ export function ClientActions({
       )}
 
       {isDemo && (published || offline) && (
-        <button
-          type="button"
-          onClick={handleToggleOffline}
-          disabled={toggling}
-          className={`rounded-lg border px-3 py-1.5 text-xs font-medium disabled:opacity-50 ${
-            published
-              ? "text-red-700 hover:bg-red-50"
-              : "text-green-700 hover:bg-green-50"
-          }`}
-        >
-          {toggling
-            ? published
-              ? "Taking offline..."
-              : "Bringing online..."
-            : published
-              ? "Take Offline"
-              : "Bring Online"}
-        </button>
+        <SiteOfflineToggle
+          tenantId={tenantId}
+          businessName={businessName}
+          published={published}
+          onToggled={setPublished}
+        />
       )}
 
       {published && (customDomainUrl || subdomainUrl) ? (

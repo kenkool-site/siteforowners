@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SiteOfflineToggle } from "../_components/SiteOfflineToggle";
 
 interface LeadActionsProps {
   leadId: string;
@@ -10,6 +11,8 @@ interface LeadActionsProps {
   phone: string;
   email: string | null;
   converted: boolean;
+  /** The lead's promoted live demo, if any — enables the offline toggle. */
+  demoTenant: { id: string; site_published: boolean } | null;
 }
 
 export function LeadActions({
@@ -20,6 +23,7 @@ export function LeadActions({
   phone,
   email,
   converted,
+  demoTenant,
 }: LeadActionsProps) {
   const [loading, setLoading] = useState(false);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
@@ -27,6 +31,9 @@ export function LeadActions({
   const [promoCode, setPromoCode] = useState("");
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [demoPublished, setDemoPublished] = useState(
+    demoTenant?.site_published ?? false,
+  );
 
   const handleOnboard = async () => {
     setLoading(true);
@@ -95,6 +102,15 @@ export function LeadActions({
       >
         Edit
       </a>
+
+      {demoTenant && (
+        <SiteOfflineToggle
+          tenantId={demoTenant.id}
+          businessName={businessName}
+          published={demoPublished}
+          onToggled={setDemoPublished}
+        />
+      )}
 
       {!paymentUrl ? (
         <>

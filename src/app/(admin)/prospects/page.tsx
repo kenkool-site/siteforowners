@@ -30,6 +30,40 @@ async function getLeads(): Promise<Lead[]> {
   return (data || []) as Lead[];
 }
 
+type DemoTenant = { id: string; site_published: boolean };
+
+/**
+ * Map preview_slug → promoted demo tenant for the given leads, so lead rows
+ * can offer the same Take Offline / Bring Online toggle as the Demos page.
+ * Leads whose preview was never promoted have no tenant and get no toggle.
+ */
+async function getDemoTenantsBySlug(
+  slugs: string[],
+): Promise<Map<string, DemoTenant>> {
+  if (slugs.length === 0) return new Map();
+  const supabase = createAdminClient();
+  const { data, error } = await supabase
+    .from("tenants")
+    .select("id, preview_slug, site_published")
+    .in("preview_slug", slugs)
+    .eq("is_demo", true);
+
+  if (error) {
+    console.error("Failed to fetch demo tenants for leads:", error);
+    return new Map();
+  }
+  const map = new Map<string, DemoTenant>();
+  for (const t of data || []) {
+    if (t.preview_slug) {
+      map.set(t.preview_slug, {
+        id: t.id,
+        site_published: !!t.site_published,
+      });
+    }
+  }
+  return map;
+}
+
 async function getLeadStats() {
   const supabase = createAdminClient();
 
@@ -80,6 +114,9 @@ export const revalidate = 0; // always fresh
 
 export default async function ProspectsPage() {
   const [leads, stats] = await Promise.all([getLeads(), getLeadStats()]);
+  const demoTenants = await getDemoTenantsBySlug(
+    leads.map((l) => l.preview_slug),
+  );
 
   return (
     <div>
@@ -172,6 +209,7 @@ export default async function ProspectsPage() {
                         phone={lead.phone}
                         email={lead.email}
                         converted={lead.converted}
+                        demoTenant={demoTenants.get(lead.preview_slug) ?? null}
                       />
                     </td>
                   </tr>
@@ -222,6 +260,7 @@ export default async function ProspectsPage() {
                     phone={lead.phone}
                     email={lead.email}
                     converted={lead.converted}
+                    demoTenant={demoTenants.get(lead.preview_slug) ?? null}
                   />
                 </div>
               </div>
