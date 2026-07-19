@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isPublicSiteLive, isOwnerAdminReachable, canTeardownDemo } from "./tenant-access";
+import { isPublicSiteLive, isOwnerAdminReachable, canTeardownDemo, canToggleSiteOffline } from "./tenant-access";
 
 const live = {
   preview_slug: "letstrylocs-bvnuou",
@@ -58,4 +58,12 @@ test("isPublicSiteLive: trialing demo with published site + preview is live", ()
     isPublicSiteLive({ preview_slug: "s", site_published: true, subscription_status: "trialing" }),
     true,
   );
+});
+
+test("canToggleSiteOffline: only demo tenants may be toggled offline from admin", () => {
+  assert.equal(canToggleSiteOffline({ is_demo: true }), true);
+  // A paying client's site must never be takeable-down through this switch.
+  assert.equal(canToggleSiteOffline({ is_demo: false }), false);
+  assert.equal(canToggleSiteOffline({ is_demo: null }), false);
+  assert.equal(canToggleSiteOffline(null), false);
 });

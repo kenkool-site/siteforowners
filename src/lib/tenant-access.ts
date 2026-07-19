@@ -57,3 +57,14 @@ export function canTeardownDemo(
 ): boolean {
   return !!tenant && tenant.is_demo === true;
 }
+
+/**
+ * A demo tenant's public site may be toggled offline/online from founder
+ * admin (e.g. the prospect never responded). Real/paying tenants are refused:
+ * their public availability is governed by subscription_status only.
+ */
+export function canToggleSiteOffline(
+  tenant: { is_demo?: boolean | null } | null,
+): boolean {
+  return !!tenant && tenant.is_demo === true;
+}
