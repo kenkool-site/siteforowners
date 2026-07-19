@@ -97,6 +97,16 @@ component change covers every surface where demos are listed.
   site restored; verify no toggle renders on a real-client row and that the
   endpoint 403s for a non-demo `tenant_id`.
 
+## Addendum (2026-07-19, post-ship)
+
+The Prospects page (`interested_leads` rows via `LeadActions`) is a third
+surface the original design missed. Shipped follow-up: the toggle button is
+extracted to a shared `src/app/(admin)/_components/SiteOfflineToggle.tsx`
+used by both `ClientActions` and `LeadActions`; the prospects page resolves
+each lead's promoted demo tenant by `preview_slug` (single batched query,
+`is_demo = true` only) and passes it as `demoTenant`. Leads without a
+promoted demo show no toggle. Same API, same server-side guard.
+
 ## Out of scope
 
 - Bulk offline actions, auto-expiry of stale demos, a branded "demo expired"
