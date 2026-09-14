@@ -228,7 +228,7 @@ Owners receive clear validation rather than raw provider or database errors. Con
 
 - `draft`: owner/founder preview only; public URL shows not available
 - `published`: invitation and RSVP form are available, subject to deadline and capacity
-- `rsvp_closed`: invitation remains visible but new responses are disabled; authenticated edits remain available unless explicitly disabled by the owner
+- `rsvp_closed`: invitation remains visible but new responses are disabled; authenticated edits remain available
 - `expired`: a friendly event-ended page replaces event details and disables all RSVP activity
 - `offline`: the public endpoint behaves as not found and exposes no event metadata
 
