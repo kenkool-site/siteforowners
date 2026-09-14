@@ -17,8 +17,15 @@ test("an event end time requires a later start time", () => {
 test("RSVP contact constraint rejects blank contact values", () => {
   assert.match(
     migration,
-    /CHECK \( ?NULLIF\(BTRIM\(email\), ''\) IS NOT NULL OR NULLIF\(BTRIM\(phone\), ''\) IS NOT NULL ?\)/,
+    /CHECK \( ?NULLIF\(regexp_replace\(email, '\[\[:space:\]\]', '', 'g'\), ''\) IS NOT NULL OR NULLIF\(regexp_replace\(phone, '\[\[:space:\]\]', '', 'g'\), ''\) IS NOT NULL ?\)/,
   );
+  assert.doesNotMatch(migration, /NULLIF\(BTRIM\((email|phone), ''\)/);
+});
+
+test("representative whitespace-only contact values normalize to empty", () => {
+  for (const value of [" ", "\t", "\n", "\r", "\f", "\v"]) {
+    assert.equal(value.replace(/\s/g, ""), "");
+  }
 });
 
 test("notifications reference an RSVP belonging to the same event", () => {

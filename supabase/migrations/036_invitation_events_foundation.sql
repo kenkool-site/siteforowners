@@ -93,8 +93,8 @@ CREATE TABLE IF NOT EXISTS invitation_rsvps (
   updated_at timestamptz NOT NULL DEFAULT now(),
   UNIQUE (event_id, id),
   CHECK (
-    NULLIF(BTRIM(email), '') IS NOT NULL
-    OR NULLIF(BTRIM(phone), '') IS NOT NULL
+    NULLIF(regexp_replace(email, '[[:space:]]', '', 'g'), '') IS NOT NULL
+    OR NULLIF(regexp_replace(phone, '[[:space:]]', '', 'g'), '') IS NOT NULL
   ),
   CHECK ((attending AND party_size >= 1) OR (NOT attending AND party_size = 0))
 );
