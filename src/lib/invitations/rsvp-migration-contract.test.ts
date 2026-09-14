@@ -44,6 +44,19 @@ test("RSVP mutation and serialized limiter are service-role-only with pinned sea
   assert.match(migration, /GRANT EXECUTE ON FUNCTION public\.attempt_invitation_rsvp_rate_limit\([^)]+\) TO service_role/);
 });
 
+test("capacity check is gated on p_attending so declines and non-increasing edits cannot trigger it", () => {
+  assert.match(
+    migration,
+    /IF\s+p_attending\s+AND\s+v_event\.capacity IS NOT NULL\s+AND\s+v_attending_total \+ p_party_size > v_event\.capacity\s+THEN\s+RAISE EXCEPTION USING MESSAGE = 'INVITE_CAPACITY_REACHED';/,
+  );
+
+  const capacityIndex = migration.indexOf("INVITE_CAPACITY_REACHED");
+  const guardStart = migration.lastIndexOf("IF ", capacityIndex);
+  const guard = migration.slice(guardStart, capacityIndex);
+  assert.match(guard, /\bp_attending\b/);
+  assert.doesNotMatch(guard, /NOT\s+p_attending/);
+});
+
 test("migration documents reproducible final-seat and party-increase concurrency smoke commands", () => {
   assert.match(migration, /Concurrency smoke: final seat/i);
   assert.match(migration, /Concurrency smoke: simultaneous party increases/i);
