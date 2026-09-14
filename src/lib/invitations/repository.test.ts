@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  buildInvitationEventUpdateRow,
+  buildInvitationOwnerUpdateRow,
   createInvitationOwnerAndEvent,
   generateInvitationPin,
   generateInvitationSlug,
   getInvitationEventForManagement,
   listFounderEvents,
 } from "./repository-core";
+import type { InvitationEventUpdate } from "./validation";
 
 test("provisioning normalizes email, hashes the PIN, and applies founder limits", async () => {
   const inserted: unknown[] = [];
@@ -167,4 +170,41 @@ test("management projection omits owner PIN and event passcode hashes", async ()
   assert.equal("pinHash" in event.owner, false);
   assert.equal(JSON.stringify(event).includes("must-not-leak"), false);
   assert.equal(event.endsAt, null);
+});
+
+test("event update rows map editable fields without inventing passcode changes", () => {
+  const update: InvitationEventUpdate = {
+    title: "Updated",
+    endsAt: "2026-10-04T01:00:00.000Z",
+    showPublicRsvpCount: true,
+  };
+  const row = buildInvitationEventUpdateRow(update);
+  const { updated_at: updatedAt, ...persisted } = row;
+  assert.deepEqual(persisted, {
+    title: "Updated",
+    ends_at: "2026-10-04T01:00:00.000Z",
+    show_public_rsvp_count: true,
+  });
+  assert.equal(typeof updatedAt, "string");
+  assert.equal("passcode_hash" in row, false);
+  assert.equal(buildInvitationEventUpdateRow({ removePasscode: true }).passcode_hash, null);
+  assert.equal(buildInvitationEventUpdateRow({ passcode: "secret" }, "hashed").passcode_hash, "hashed");
+});
+
+test("owner credential rows persist only founder-normalized values and a supplied PIN hash", () => {
+  const row = buildInvitationOwnerUpdateRow({
+    ownerName: "Ana Rivera",
+    ownerEmail: "ana@example.com",
+    ownerPhone: "+19175551212",
+    newOwnerPin: "654321",
+  }, "hashed-pin");
+  const { updated_at: updatedAt, ...persisted } = row;
+  assert.deepEqual(persisted, {
+    name: "Ana Rivera",
+    email: "ana@example.com",
+    phone: "+19175551212",
+    pin_hash: "hashed-pin",
+  });
+  assert.equal(typeof updatedAt, "string");
+  assert.equal(JSON.stringify(row).includes("654321"), false);
 });

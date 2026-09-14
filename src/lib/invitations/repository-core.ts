@@ -1,5 +1,6 @@
 import { randomInt } from "node:crypto";
 import { normalizeInvitationEmail } from "./validation";
+import type { InvitationEventUpdate } from "./validation";
 import type {
   InvitationEvent,
   InvitationEventStatus,
@@ -44,6 +45,8 @@ export type InvitationProvisionRows = {
 };
 
 export type InvitationProvisionIds = { ownerId: string; eventId: string };
+
+export type InvitationEventUpdateRow = Record<string, string | number | boolean | null>;
 
 export type InvitationProvisionDependencies = {
   hashPin(pin: string): Promise<string>;
@@ -274,4 +277,61 @@ export async function getInvitationEventForManagement(
       updatedAt: owner.updated_at,
     },
   };
+}
+
+const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>> = {
+  eventType: "event_type",
+  locale: "locale",
+  title: "title",
+  honoreeNames: "honoree_names",
+  description: "description",
+  startsAt: "starts_at",
+  endsAt: "ends_at",
+  timezone: "timezone",
+  venueName: "venue_name",
+  address: "address",
+  mapUrl: "map_url",
+  themeKey: "theme_key",
+  primaryColor: "primary_color",
+  accentColor: "accent_color",
+  fontPairKey: "font_pair_key",
+  showPublicRsvpCount: "show_public_rsvp_count",
+  capacity: "capacity",
+  rsvpDeadline: "rsvp_deadline",
+  submissionLimit: "submission_limit",
+  emailNotificationLimit: "email_notification_limit",
+  smsNotificationLimit: "sms_notification_limit",
+  ownerEmailNotifications: "owner_email_notifications",
+  ownerSmsNotifications: "owner_sms_notifications",
+  notificationEmail: "notification_email",
+  notificationPhone: "notification_phone",
+  guestEmailConfirmations: "guest_email_confirmations",
+  expireAt: "expire_at",
+};
+
+export function buildInvitationEventUpdateRow(
+  update: InvitationEventUpdate,
+  passcodeHash?: string,
+): InvitationEventUpdateRow {
+  const row: InvitationEventUpdateRow = { updated_at: new Date().toISOString() };
+  for (const [key, column] of Object.entries(EVENT_UPDATE_COLUMNS)) {
+    const field = key as keyof InvitationEventUpdate;
+    const fieldValue = update[field];
+    if (column && fieldValue !== undefined) row[column] = fieldValue as string | number | boolean | null;
+  }
+  if (update.removePasscode) row.passcode_hash = null;
+  else if (update.passcode !== undefined && passcodeHash !== undefined) row.passcode_hash = passcodeHash;
+  return row;
+}
+
+export function buildInvitationOwnerUpdateRow(
+  update: InvitationEventUpdate,
+  pinHash?: string,
+): InvitationEventUpdateRow {
+  const row: InvitationEventUpdateRow = { updated_at: new Date().toISOString() };
+  if (update.ownerName !== undefined) row.name = update.ownerName;
+  if (update.ownerEmail !== undefined) row.email = update.ownerEmail;
+  if (update.ownerPhone !== undefined) row.phone = update.ownerPhone;
+  if (update.newOwnerPin !== undefined && pinHash !== undefined) row.pin_hash = pinHash;
+  return row;
 }

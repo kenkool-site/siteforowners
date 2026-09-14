@@ -7,6 +7,8 @@ import {
   generateInvitationPin,
   generateInvitationSlug,
   getInvitationEventForManagement as getInvitationEventForManagementWithRepository,
+  buildInvitationEventUpdateRow,
+  buildInvitationOwnerUpdateRow,
   listFounderEvents as listFounderEventsWithRepository,
   type CreateInvitationOwnerAndEventInput,
   type InvitationFounderListRow,
@@ -15,6 +17,8 @@ import {
   type InvitationProvisionDependencies,
   type InvitationRepository,
 } from "./repository-core";
+import type { InvitationEventUpdate } from "./validation";
+import type { InvitationEventStatus } from "./types";
 
 export type {
   CreateInvitationOwnerAndEventInput,
@@ -27,6 +31,13 @@ export type {
   InvitationRepository,
 } from "./repository-core";
 export { generateInvitationPin, generateInvitationSlug } from "./repository-core";
+
+export type InvitationManagementRepository = {
+  listByOwner(ownerId: string): Promise<InvitationManagementRow[]>;
+  updateEvent(eventId: string, row: Record<string, string | number | boolean | null>): Promise<void>;
+  updateStatus(eventId: string, status: InvitationEventStatus): Promise<void>;
+  updateOwner(ownerId: string, row: Record<string, string | number | boolean | null>): Promise<void>;
+};
 
 type RpcProvisionRow = { owner_id: string; event_id: string };
 
@@ -48,7 +59,7 @@ const MANAGEMENT_SELECT = [
   "invitation_owners!inner(id,name,email,phone,is_active,created_at,updated_at)",
 ].join(",");
 
-export const invitationRepository: InvitationRepository = {
+export const invitationRepository: InvitationRepository & InvitationManagementRepository = {
   async insert(rows: InvitationProvisionRows) {
     const supabase = createAdminClient();
     const { data, error } = await supabase.rpc("create_invitation_owner_and_event", {
@@ -83,6 +94,38 @@ export const invitationRepository: InvitationRepository = {
     if (error) throw new Error("Unable to load invitation", { cause: error });
     return data as unknown as InvitationManagementRow | null;
   },
+
+  async listByOwner(ownerId: string) {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("invitation_events")
+      .select(MANAGEMENT_SELECT)
+      .eq("owner_id", ownerId)
+      .order("created_at", { ascending: false });
+    if (error) throw new Error("Unable to list owner invitations", { cause: error });
+    return (data ?? []) as unknown as InvitationManagementRow[];
+  },
+
+  async updateEvent(eventId, row) {
+    const supabase = createAdminClient();
+    const { error } = await supabase.from("invitation_events").update(row).eq("id", eventId);
+    if (error) throw new Error("Unable to update invitation", { cause: error });
+  },
+
+  async updateStatus(eventId, status) {
+    const supabase = createAdminClient();
+    const { error } = await supabase
+      .from("invitation_events")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", eventId);
+    if (error) throw new Error("Unable to change invitation status", { cause: error });
+  },
+
+  async updateOwner(ownerId, row) {
+    const supabase = createAdminClient();
+    const { error } = await supabase.from("invitation_owners").update(row).eq("id", ownerId);
+    if (error) throw new Error("Unable to update invitation owner", { cause: error });
+  },
 };
 
 export async function createInvitationOwnerAndEvent(
@@ -106,4 +149,42 @@ export async function getInvitationEventForManagement(
   repository = invitationRepository,
 ) {
   return getInvitationEventForManagementWithRepository(eventId, repository);
+}
+
+export async function listOwnerInvitationEvents(
+  ownerId: string,
+  repository: InvitationRepository & InvitationManagementRepository = invitationRepository,
+) {
+  const rows = await repository.listByOwner(ownerId);
+  return Promise.all(rows.map((row) => getInvitationEventForManagementWithRepository(row.id, {
+    ...repository,
+    get: async () => row,
+  })));
+}
+
+export async function updateInvitationEvent(
+  eventId: string,
+  update: InvitationEventUpdate,
+  passcodeHash?: string,
+  repository: InvitationManagementRepository = invitationRepository,
+): Promise<void> {
+  await repository.updateEvent(eventId, buildInvitationEventUpdateRow(update, passcodeHash));
+}
+
+export async function updateInvitationEventStatus(
+  eventId: string,
+  status: InvitationEventStatus,
+  repository: InvitationManagementRepository = invitationRepository,
+): Promise<void> {
+  await repository.updateStatus(eventId, status);
+}
+
+export async function updateInvitationOwnerCredentials(
+  ownerId: string,
+  update: InvitationEventUpdate,
+  pinHash?: string,
+  repository: InvitationManagementRepository = invitationRepository,
+): Promise<void> {
+  const row = buildInvitationOwnerUpdateRow(update, pinHash);
+  if (Object.keys(row).length > 1) await repository.updateOwner(ownerId, row);
 }

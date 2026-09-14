@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseRsvpInput } from "./validation";
+import { isStatusCommandAllowed, parseEventUpdate, parseRsvpInput, parseStatusCommand, validatePublishableEvent } from "./validation";
 
 test("an RSVP requires a name and one normalized contact", () => {
   assert.deepEqual(
@@ -38,4 +38,123 @@ test("declines normalize party size to zero", () => {
     partySize: 4,
   });
   assert.equal(parsed.ok && parsed.value.partySize, 0);
+});
+
+test("owners cannot change founder-controlled limits", () => {
+  const parsed = parseEventUpdate({ submissionLimit: 900, ownerEmail: "other@example.com", newOwnerPin: "654321", title: "Updated" }, "owner");
+  assert.equal(parsed.ok, true);
+  assert.equal(parsed.ok && "submissionLimit" in parsed.value, false);
+  assert.equal(parsed.ok && "ownerEmail" in parsed.value, false);
+  assert.equal(parsed.ok && "newOwnerPin" in parsed.value, false);
+  assert.equal(parsed.ok && parsed.value.title, "Updated");
+});
+
+test("founders can normalize owner credentials", () => {
+  const parsed = parseEventUpdate({
+    ownerName: " Ana Rivera ",
+    ownerEmail: " ANA@EXAMPLE.COM ",
+    ownerPhone: "(917) 555-1212",
+    newOwnerPin: "654321",
+  }, "founder");
+  assert.deepEqual(parsed, {
+    ok: true,
+    value: {
+      ownerName: "Ana Rivera",
+      ownerEmail: "ana@example.com",
+      ownerPhone: "+19175551212",
+      newOwnerPin: "654321",
+    },
+  });
+});
+
+test("SMS requires a normalized notification phone", () => {
+  const invalid = parseEventUpdate(
+    { ownerSmsNotifications: true, notificationPhone: "bad" },
+    "founder",
+  );
+  assert.equal(invalid.ok, false);
+
+  const valid = parseEventUpdate(
+    { ownerSmsNotifications: true, notificationPhone: "(917) 555-1212" },
+    "owner",
+  );
+  assert.equal(valid.ok && valid.value.notificationPhone, "+19175551212");
+});
+
+test("event times are ordered and an end requires a later instant", () => {
+  const parsed = parseEventUpdate({
+    startsAt: "2026-10-20T18:00:00.000Z",
+    endsAt: "2026-10-20T17:00:00.000Z",
+    rsvpDeadline: "2026-10-21T18:00:00.000Z",
+    expireAt: "2026-10-19T18:00:00.000Z",
+  }, "owner");
+  assert.equal(parsed.ok, false);
+  assert.deepEqual(parsed.ok ? {} : Object.keys(parsed.errors).sort(), [
+    "endsAt",
+    "expireAt",
+    "rsvpDeadline",
+  ]);
+});
+
+test("passcode removal must be explicit", () => {
+  const absent = parseEventUpdate({ title: "Keep protected" }, "owner");
+  const removed = parseEventUpdate({ removePasscode: true }, "owner");
+  assert.equal(absent.ok && "passcode" in absent.value, false);
+  assert.equal(absent.ok && "removePasscode" in absent.value, false);
+  assert.equal(removed.ok && removed.value.removePasscode, true);
+});
+
+test("publish validation returns actionable field errors", () => {
+  const errors = validatePublishableEvent({
+    title: "",
+    honoreeNames: "",
+    startsAt: "2020-01-01T12:00:00.000Z",
+    endsAt: null,
+    rsvpDeadline: null,
+    expireAt: null,
+    timezone: "America/New_York",
+    venueName: null,
+    address: null,
+    notificationEmail: null,
+    designedInvitePath: null,
+    coverImagePath: null,
+    videoPath: null,
+  }, { now: new Date("2026-01-01T00:00:00.000Z") });
+
+  assert.deepEqual(Object.keys(errors).sort(), [
+    "address",
+    "honoreeNames",
+    "media",
+    "notificationEmail",
+    "startsAt",
+    "title",
+    "venueName",
+  ]);
+});
+
+test("status commands are allowlisted and map to persisted states", () => {
+  assert.deepEqual(parseStatusCommand({ command: "close" }), { ok: true, command: "close", status: "rsvp_closed" });
+  assert.deepEqual(parseStatusCommand({ command: "reopen" }), { ok: true, command: "reopen", status: "published" });
+  assert.equal(parseStatusCommand({ command: "archive" }).ok, false);
+  assert.equal(isStatusCommandAllowed("draft", "reopen"), false);
+  assert.equal(isStatusCommandAllowed("rsvp_closed", "reopen"), true);
+});
+
+test("publish validation blocks incoherent event timing", () => {
+  const errors = validatePublishableEvent({
+    title: "Ana & Luis",
+    honoreeNames: "Ana and Luis",
+    startsAt: "2026-10-20T22:00:00.000Z",
+    endsAt: "2026-10-20T21:00:00.000Z",
+    rsvpDeadline: "2026-10-21T22:00:00.000Z",
+    expireAt: "2026-10-19T22:00:00.000Z",
+    timezone: "America/New_York",
+    venueName: "The Foundry",
+    address: "42 Celebration Way",
+    notificationEmail: "ana@example.com",
+    designedInvitePath: "event-1/invite.jpg",
+    coverImagePath: null,
+    videoPath: null,
+  }, { now: new Date("2026-01-01T00:00:00.000Z") });
+  assert.deepEqual(Object.keys(errors).sort(), ["endsAt", "expireAt", "rsvpDeadline"]);
 });
