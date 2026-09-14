@@ -19,6 +19,7 @@ No public signup, invitation delivery to a guest list, or payment flow is includ
 - Let guests RSVP for a party and revise their response securely.
 - Notify the owner immediately by email and, when enabled, SMS.
 - Give the owner and founder a simple editor and RSVP dashboard.
+- Provide all owner and guest interface copy in English and Spanish.
 - Bound messaging cost and protect the public endpoint from abuse.
 - Close or deactivate an invitation manually or automatically.
 - Preserve a clean path to extracting the module into a separate product.
@@ -82,6 +83,7 @@ All tables use UUID primary keys and `created_at timestamptz default now()`. Mut
 - `owner_id` referencing `invitation_owners`
 - `slug` (unique, unguessable enough to resist casual enumeration)
 - `event_type` (free-form display category with curated defaults)
+- `locale`: `en` or `es` (default `en`)
 - `title`
 - `honoree_names`
 - `description`
@@ -167,7 +169,7 @@ The server validates MIME type and size. Video duration is validated before publ
 
 ## Public invitation experience
 
-The page is designed mobile-first at 375 px and scales to desktop. A selected curated theme controls layout, typography, colors, and transitions; the owner edits structured fields instead of freely positioning elements.
+The page is designed mobile-first at 375 px and scales to desktop. A selected curated theme controls layout, typography, colors, and transitions; the owner edits structured fields instead of freely positioning elements. The event locale selects English or Spanish system copy for the public page, RSVP form, confirmation, owner login, and owner dashboard. Event-authored names and descriptions render exactly as entered and are not machine-translated.
 
 The invitation can contain:
 
