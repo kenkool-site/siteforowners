@@ -2,12 +2,17 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  INVITATION_PASSCODE_SESSION_MAX_AGE_SECONDS,
   INVITATION_OWNER_SESSION_COOKIE,
   clearOwnerSessionCookie,
   createEditToken,
+  getInvitationPasscodeCookieName,
   isSameOrigin,
+  setInvitationPasscodeCookie,
   setOwnerSessionCookie,
+  signInvitationPasscodeSession,
   signOwnerSession,
+  verifyInvitationPasscodeSession,
   verifyEditToken,
   verifyOwnerSession,
 } from "./auth";
@@ -82,4 +87,58 @@ test("same-origin checks require an exact forwarded scheme and host", () => {
   assert.equal(isSameOrigin(matching), true);
   assert.equal(isSameOrigin(differentScheme), false);
   assert.equal(isSameOrigin(missingOrigin), false);
+});
+
+test("passcode sessions are signed, event-scoped, and reject cross-event replay", () => {
+  const signed = signInvitationPasscodeSession(
+    { eventId: "event-1", expiresAt: 2_000 },
+    "x".repeat(32),
+  );
+  assert.equal(verifyInvitationPasscodeSession(signed, "event-1", "x".repeat(32), 1_999), true);
+  assert.equal(verifyInvitationPasscodeSession(signed, "event-2", "x".repeat(32), 1_999), false);
+  assert.equal(verifyInvitationPasscodeSession(`${signed}x`, "event-1", "x".repeat(32), 1_999), false);
+  assert.equal(verifyInvitationPasscodeSession(signed, "event-1", "x".repeat(32), 2_000), false);
+});
+
+test("passcode cookies are HTTP-only and never outlive the event expiry", () => {
+  const originalSecret = process.env.SESSION_COOKIE_SECRET;
+  process.env.SESSION_COOKIE_SECRET = "x".repeat(32);
+  try {
+    const now = new Date("2026-10-10T20:00:00.000Z");
+    const response = NextResponse.json({ ok: true });
+    setInvitationPasscodeCookie(
+      response,
+      { id: "event-1", slug: "mia-and-lee", expireAt: "2026-10-10T21:00:00.000Z" },
+      now,
+    );
+    const cookie = response.headers.get("set-cookie") ?? "";
+    assert.match(cookie, new RegExp(`${getInvitationPasscodeCookieName("event-1") }=`));
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /Path=\/invite\/mia-and-lee/);
+    assert.match(cookie, /Max-Age=3600/);
+    assert.doesNotMatch(cookie, new RegExp(`Max-Age=${INVITATION_PASSCODE_SESSION_MAX_AGE_SECONDS}`));
+  } finally {
+    if (originalSecret === undefined) delete process.env.SESSION_COOKIE_SECRET;
+    else process.env.SESSION_COOKIE_SECRET = originalSecret;
+  }
+});
+
+test("passcode cookies have a twelve-hour ceiling when an event has no earlier expiry", () => {
+  const originalSecret = process.env.SESSION_COOKIE_SECRET;
+  process.env.SESSION_COOKIE_SECRET = "x".repeat(32);
+  try {
+    const response = NextResponse.json({ ok: true });
+    setInvitationPasscodeCookie(
+      response,
+      { id: "event-1", slug: "mia-and-lee", expireAt: null },
+      new Date("2026-10-10T20:00:00.000Z"),
+    );
+    assert.match(
+      response.headers.get("set-cookie") ?? "",
+      new RegExp(`Max-Age=${INVITATION_PASSCODE_SESSION_MAX_AGE_SECONDS}`),
+    );
+  } finally {
+    if (originalSecret === undefined) delete process.env.SESSION_COOKIE_SECRET;
+    else process.env.SESSION_COOKIE_SECRET = originalSecret;
+  }
 });

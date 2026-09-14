@@ -7,6 +7,7 @@ import {
   generateInvitationPin,
   generateInvitationSlug,
   getInvitationEventForManagement as getInvitationEventForManagementWithRepository,
+  getPublicInvitationBySlug as getPublicInvitationBySlugWithRepository,
   buildInvitationEventUpdateRow,
   buildInvitationOwnerUpdateRow,
   updateInvitationOwnerCredentials as updateInvitationOwnerCredentialsWithRepository,
@@ -16,6 +17,7 @@ import {
   type InvitationManagementRow,
   type InvitationProvisionRows,
   type InvitationProvisionDependencies,
+  type InvitationPublicRepository,
   type InvitationRepository,
 } from "./repository-core";
 import type { InvitationEventUpdate, InvitationOwnerCredentialUpdate } from "./validation";
@@ -29,6 +31,8 @@ export type {
   InvitationProvisionDependencies,
   InvitationProvisionIds,
   InvitationProvisionRows,
+  PublicInvitationEvent,
+  PublicInvitationLookup,
   InvitationRepository,
 } from "./repository-core";
 export { generateInvitationPin, generateInvitationSlug } from "./repository-core";
@@ -60,7 +64,16 @@ const MANAGEMENT_SELECT = [
   "invitation_owners!inner(id,name,email,phone,is_active,created_at,updated_at)",
 ].join(",");
 
-export const invitationRepository: InvitationRepository & InvitationManagementRepository = {
+const PUBLIC_SELECT = [
+  "id", "slug", "event_type", "locale", "title", "honoree_names", "description",
+  "starts_at", "ends_at", "timezone", "venue_name", "address", "map_url",
+  "theme_key", "primary_color", "accent_color", "font_pair_key",
+  "designed_invite_path", "cover_image_path", "video_path", "passcode_hash",
+  "show_public_rsvp_count", "rsvp_deadline", "status", "expire_at",
+  "invitation_owners!inner(is_active)", "invitation_rsvps(attending,party_size)",
+].join(",");
+
+export const invitationRepository: InvitationRepository & InvitationManagementRepository & InvitationPublicRepository = {
   async insert(rows: InvitationProvisionRows) {
     const supabase = createAdminClient();
     const { data, error } = await supabase.rpc("create_invitation_owner_and_event", {
@@ -94,6 +107,18 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
       .maybeSingle();
     if (error) throw new Error("Unable to load invitation", { cause: error });
     return data as unknown as InvitationManagementRow | null;
+  },
+
+  async findBySlug(slug: string) {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("invitation_events")
+      .select(PUBLIC_SELECT)
+      .eq("slug", slug)
+      .eq("invitation_owners.is_active", true)
+      .maybeSingle();
+    if (error) throw new Error("Unable to load public invitation", { cause: error });
+    return data as unknown as import("./repository-core").InvitationPublicRow | null;
   },
 
   async listByOwner(ownerId: string) {
@@ -150,6 +175,13 @@ export async function getInvitationEventForManagement(
   repository = invitationRepository,
 ) {
   return getInvitationEventForManagementWithRepository(eventId, repository);
+}
+
+export async function getPublicInvitationBySlug(
+  slug: string,
+  repository: InvitationPublicRepository = invitationRepository,
+) {
+  return getPublicInvitationBySlugWithRepository(slug, repository);
 }
 
 export async function listOwnerInvitationEvents(

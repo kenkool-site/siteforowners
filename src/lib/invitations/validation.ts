@@ -17,7 +17,7 @@ export type ParseResult<T> =
   | { ok: true; value: T }
   | { ok: false; errors: Record<string, string> };
 
-export const INVITATION_THEME_KEYS = ["classic", "editorial", "garden"] as const;
+export const INVITATION_THEME_KEYS = ["classic", "romantic", "celebration"] as const;
 export const INVITATION_FONT_PAIR_KEYS = ["fraunces-geist", "geist-geist"] as const;
 
 export type InvitationThemeKey = typeof INVITATION_THEME_KEYS[number];

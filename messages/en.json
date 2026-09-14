@@ -222,8 +222,8 @@
         "english": "English",
         "spanish": "Spanish",
         "themeClassic": "Classic frame",
-        "themeEditorial": "Modern editorial",
-        "themeGarden": "Night garden",
+        "themeRomantic": "Romantic portrait",
+        "themeCelebration": "Bold celebration",
         "fontExpressive": "Fraunces + Geist",
         "fontClean": "Geist + Geist"
       },
@@ -304,6 +304,47 @@
         "ownerEmailTaken": "That owner sign-in email is already in use.",
         "ownerPhone": "Enter a valid owner phone number or leave it blank.",
         "newOwnerPin": "Use exactly six digits for the new owner PIN."
+      }
+    },
+    "public": {
+      "unavailable": {
+        "title": "This invitation is unavailable",
+        "body": "Please check back later or contact the host."
+      },
+      "ended": {
+        "title": "This event has ended",
+        "body": "Thank you for being part of the occasion."
+      },
+      "passcode": {
+        "title": "A private invitation awaits",
+        "body": "Enter the passcode shared by your host to continue.",
+        "label": "Invitation passcode",
+        "submit": "Open invitation",
+        "checking": "Checking…",
+        "invalid": "That passcode did not match. Try again.",
+        "rateLimited": "Too many attempts. Please wait and try again.",
+        "error": "The passcode could not be checked. Try again."
+      },
+      "datePending": "Date and time to come",
+      "designedInviteAlt": "Designed event invitation",
+      "coverAlt": "Cover for {title}",
+      "details": "The details",
+      "when": "When",
+      "where": "Where",
+      "openMap": "Open map",
+      "googleCalendar": "Add to Google Calendar",
+      "downloadCalendar": "Download calendar file",
+      "gallery": "A glimpse of the celebration",
+      "galleryAlt": "Event photo {number}",
+      "videoLabel": "Event video",
+      "countsLabel": "Response totals",
+      "attending": "{count, plural, one {# attending} other {# attending}}",
+      "declined": "{count, plural, one {# party unable to attend} other {# parties unable to attend}}",
+      "rsvp": {
+        "title": "Respond to this invitation",
+        "placeholder": "The response form will be available here shortly.",
+        "closedTitle": "Responses are closed",
+        "closedBody": "The host is no longer accepting new responses."
       }
     },
     "validation": {

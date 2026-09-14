@@ -7,6 +7,7 @@ import {
   generateInvitationPin,
   generateInvitationSlug,
   getInvitationEventForManagement,
+  getPublicInvitationBySlug,
   listFounderEvents,
   updateInvitationOwnerCredentials,
 } from "./repository-core";
@@ -171,6 +172,55 @@ test("management projection omits owner PIN and event passcode hashes", async ()
   assert.equal("pinHash" in event.owner, false);
   assert.equal(JSON.stringify(event).includes("must-not-leak"), false);
   assert.equal(event.endsAt, null);
+});
+
+test("public lookup preserves the exact slug and returns only presentation fields plus aggregates", async () => {
+  const lookedUp: string[] = [];
+  const invitation = await getPublicInvitationBySlug("Mia-And-Lee ", {
+    findBySlug: async (slug) => {
+      lookedUp.push(slug);
+      return {
+        id: "event-1",
+        slug: "Mia-And-Lee ",
+        event_type: "wedding",
+        locale: "en",
+        title: "Mia & Lee",
+        honoree_names: "Mia and Lee",
+        description: "Celebrate with us",
+        starts_at: "2026-10-03T20:00:00.000Z",
+        ends_at: null,
+        timezone: "America/New_York",
+        venue_name: "The Garden",
+        address: "42 Celebration Way",
+        map_url: null,
+        theme_key: "classic",
+        primary_color: "#18253A",
+        accent_color: "#9B6A44",
+        font_pair_key: "fraunces-geist",
+        designed_invite_path: null,
+        cover_image_path: null,
+        video_path: null,
+        passcode_hash: "stored-passcode-hash",
+        show_public_rsvp_count: true,
+        rsvp_deadline: null,
+        status: "published",
+        expire_at: null,
+        invitation_rsvps: [
+          { attending: true, party_size: 4 },
+          { attending: false, party_size: 0 },
+          { attending: false, party_size: 0 },
+        ],
+      };
+    },
+  });
+
+  assert.deepEqual(lookedUp, ["Mia-And-Lee "]);
+  assert.ok(invitation);
+  assert.equal(invitation.passcodeHash, "stored-passcode-hash");
+  assert.deepEqual(invitation.rsvpSummary, { attendingPeople: 4, declinedParties: 2 });
+  assert.equal("ownerId" in invitation.event, false);
+  assert.equal("notificationEmail" in invitation.event, false);
+  assert.equal("passcodeHash" in invitation.event, false);
 });
 
 test("event update rows map editable fields without inventing passcode changes", () => {

@@ -222,8 +222,8 @@
         "english": "Inglés",
         "spanish": "Español",
         "themeClassic": "Marco clásico",
-        "themeEditorial": "Editorial moderno",
-        "themeGarden": "Jardín nocturno",
+        "themeRomantic": "Retrato romántico",
+        "themeCelebration": "Celebración vibrante",
         "fontExpressive": "Fraunces + Geist",
         "fontClean": "Geist + Geist"
       },
@@ -304,6 +304,47 @@
         "ownerEmailTaken": "Ese correo de acceso del propietario ya está en uso.",
         "ownerPhone": "Ingrese un teléfono válido o déjelo en blanco.",
         "newOwnerPin": "Use exactamente seis dígitos para el nuevo PIN."
+      }
+    },
+    "public": {
+      "unavailable": {
+        "title": "Esta invitación no está disponible",
+        "body": "Vuelva más tarde o comuníquese con el anfitrión."
+      },
+      "ended": {
+        "title": "Este evento ha finalizado",
+        "body": "Gracias por formar parte de esta ocasión."
+      },
+      "passcode": {
+        "title": "Le espera una invitación privada",
+        "body": "Ingrese la clave que compartió su anfitrión para continuar.",
+        "label": "Clave de la invitación",
+        "submit": "Abrir invitación",
+        "checking": "Verificando…",
+        "invalid": "La clave no coincide. Inténtelo de nuevo.",
+        "rateLimited": "Demasiados intentos. Espere y vuelva a intentarlo.",
+        "error": "No se pudo verificar la clave. Inténtelo de nuevo."
+      },
+      "datePending": "Fecha y hora por confirmar",
+      "designedInviteAlt": "Invitación diseñada para el evento",
+      "coverAlt": "Portada de {title}",
+      "details": "Los detalles",
+      "when": "Cuándo",
+      "where": "Dónde",
+      "openMap": "Abrir mapa",
+      "googleCalendar": "Agregar a Google Calendar",
+      "downloadCalendar": "Descargar archivo de calendario",
+      "gallery": "Un vistazo a la celebración",
+      "galleryAlt": "Foto del evento {number}",
+      "videoLabel": "Video del evento",
+      "countsLabel": "Totales de respuestas",
+      "attending": "{count, plural, one {# asistirá} other {# asistirán}}",
+      "declined": "{count, plural, one {# grupo no podrá asistir} other {# grupos no podrán asistir}}",
+      "rsvp": {
+        "title": "Responder a esta invitación",
+        "placeholder": "El formulario de respuesta estará disponible aquí próximamente.",
+        "closedTitle": "Las respuestas están cerradas",
+        "closedBody": "El anfitrión ya no acepta respuestas nuevas."
       }
     },
     "validation": {

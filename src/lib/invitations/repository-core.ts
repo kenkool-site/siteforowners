@@ -120,6 +120,72 @@ export type InvitationManagementOwnerRow = {
   updated_at: string;
 };
 
+export type InvitationPublicRow = {
+  id: string;
+  slug: string;
+  event_type: string;
+  locale: InvitationLocale;
+  title: string;
+  honoree_names: string;
+  description: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  timezone: string;
+  venue_name: string | null;
+  address: string | null;
+  map_url: string | null;
+  theme_key: string;
+  primary_color: string;
+  accent_color: string;
+  font_pair_key: string;
+  designed_invite_path: string | null;
+  cover_image_path: string | null;
+  video_path: string | null;
+  passcode_hash: string | null;
+  show_public_rsvp_count: boolean;
+  rsvp_deadline: string | null;
+  status: InvitationEventStatus;
+  expire_at: string | null;
+  invitation_rsvps: Array<{ attending: boolean; party_size: number }> | null;
+};
+
+export type PublicInvitationEvent = {
+  id: string;
+  slug: string;
+  eventType: string;
+  locale: InvitationLocale;
+  title: string;
+  honoreeNames: string;
+  description: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  timezone: string;
+  venueName: string | null;
+  address: string | null;
+  mapUrl: string | null;
+  themeKey: string;
+  primaryColor: string;
+  accentColor: string;
+  fontPairKey: string;
+  designedInvitePath: string | null;
+  coverImagePath: string | null;
+  videoPath: string | null;
+  showPublicRsvpCount: boolean;
+  rsvpDeadline: string | null;
+  status: InvitationEventStatus;
+  expireAt: string | null;
+};
+
+export type PublicInvitationLookup = {
+  event: PublicInvitationEvent;
+  passcodeHash: string | null;
+  rsvpSummary: { attendingPeople: number; declinedParties: number };
+};
+
+export interface InvitationPublicRepository {
+  findBySlug(slug: string): Promise<InvitationPublicRow | null>;
+}
+
 export interface InvitationRepository {
   insert(rows: InvitationProvisionRows): Promise<InvitationProvisionIds>;
   list(): Promise<InvitationFounderListRow[]>;
@@ -275,6 +341,51 @@ export async function getInvitationEventForManagement(
       isActive: owner.is_active,
       createdAt: owner.created_at,
       updatedAt: owner.updated_at,
+    },
+  };
+}
+
+export async function getPublicInvitationBySlug(
+  slug: string,
+  repository: InvitationPublicRepository,
+): Promise<PublicInvitationLookup | null> {
+  const row = await repository.findBySlug(slug);
+  if (!row) return null;
+  const rsvps = row.invitation_rsvps ?? [];
+  return {
+    event: {
+      id: row.id,
+      slug: row.slug,
+      eventType: row.event_type,
+      locale: row.locale,
+      title: row.title,
+      honoreeNames: row.honoree_names,
+      description: row.description,
+      startsAt: row.starts_at,
+      endsAt: row.ends_at,
+      timezone: row.timezone,
+      venueName: row.venue_name,
+      address: row.address,
+      mapUrl: row.map_url,
+      themeKey: row.theme_key,
+      primaryColor: row.primary_color,
+      accentColor: row.accent_color,
+      fontPairKey: row.font_pair_key,
+      designedInvitePath: row.designed_invite_path,
+      coverImagePath: row.cover_image_path,
+      videoPath: row.video_path,
+      showPublicRsvpCount: row.show_public_rsvp_count,
+      rsvpDeadline: row.rsvp_deadline,
+      status: row.status,
+      expireAt: row.expire_at,
+    },
+    passcodeHash: row.passcode_hash,
+    rsvpSummary: {
+      attendingPeople: rsvps.reduce(
+        (total, rsvp) => total + (rsvp.attending ? rsvp.party_size : 0),
+        0,
+      ),
+      declinedParties: rsvps.filter((rsvp) => !rsvp.attending).length,
     },
   };
 }

@@ -112,6 +112,16 @@ test("passcode removal must be explicit", () => {
   assert.equal(removed.ok && removed.value.removePasscode, true);
 });
 
+test("public theme validation accepts the three curated layouts and rejects legacy aliases", () => {
+  for (const themeKey of ["classic", "romantic", "celebration"]) {
+    const parsed = parseEventUpdate({ themeKey }, "owner");
+    assert.equal(parsed.ok && parsed.value.themeKey, themeKey);
+  }
+  for (const themeKey of ["editorial", "garden"]) {
+    assert.equal(parseEventUpdate({ themeKey }, "owner").ok, false);
+  }
+});
+
 test("publish validation returns actionable field errors", () => {
   const errors = validatePublishableEvent({
     title: "",

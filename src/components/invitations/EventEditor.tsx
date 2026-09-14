@@ -463,8 +463,8 @@ export function EventEditor({
     );
   }
 
-  const previewBackground = previewTheme === "garden" ? previewPrimary : "#FBFAFC";
-  const previewText = previewTheme === "garden" ? "#FBFAFC" : previewPrimary;
+  const previewBackground = previewTheme === "celebration" ? previewPrimary : "#FBFAFC";
+  const previewText = previewTheme === "celebration" ? "#FBFAFC" : previewPrimary;
 
   return (
     <div className="min-h-screen bg-[#FBFAFC] pb-28 text-[#2B2231] lg:pb-10">
@@ -528,9 +528,9 @@ export function EventEditor({
             <fieldset>
               <legend className={labelClass}>{t("fields.theme")}</legend>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                {(["classic", "editorial", "garden"] as const).map((theme) => (
+                {(["classic", "romantic", "celebration"] as const).map((theme) => (
                   <label key={theme} className="flex min-h-12 cursor-pointer items-center gap-2 rounded-md border border-[#d8cedc] bg-white px-3 py-2 text-sm font-medium has-[:checked]:border-[#6D456F] has-[:checked]:bg-[#F1EDF4]">
-                    <input type="radio" name="themeKey" value={theme} defaultChecked={currentEvent.themeKey === theme || (theme === "classic" && !["editorial", "garden"].includes(currentEvent.themeKey))} onChange={() => setPreviewTheme(theme)} />
+                    <input type="radio" name="themeKey" value={theme} defaultChecked={currentEvent.themeKey === theme || (theme === "classic" && !["romantic", "celebration"].includes(currentEvent.themeKey))} onChange={() => setPreviewTheme(theme)} />
                     {t(`options.theme${theme[0]?.toUpperCase()}${theme.slice(1)}`)}
                   </label>
                 ))}
