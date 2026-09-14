@@ -28,6 +28,19 @@ export type PublicInvitationResolutionDependencies = {
   loadMedia(event: PublicInvitationEvent): Promise<InvitationMediaSnapshot>;
 };
 
+export type PublicInvitationClientDetails = Extract<PublicInvitationResolution, { kind: "details" }>;
+
+export function toPublicInvitationClientDetails(
+  resolution: PublicInvitationClientDetails,
+): PublicInvitationClientDetails {
+  return {
+    ...resolution,
+    rsvpSummary: resolution.event.showPublicRsvpCount
+      ? resolution.rsvpSummary
+      : { attendingPeople: 0, declinedParties: 0 },
+  };
+}
+
 export async function resolvePublicInvitationPage(
   slug: string,
   now: Date,

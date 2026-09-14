@@ -51,6 +51,7 @@ type ThemeDefinition = {
   page: string;
   stage: string;
   opening: string;
+  designedOpening: string;
   title: string;
   message: string;
   details: string;
@@ -65,6 +66,7 @@ const THEMES: Record<ThemeKey, ThemeDefinition> = {
     page: "bg-[#F7F5EF] text-[#172238]",
     stage: "mx-auto max-w-5xl px-4 py-5 sm:px-8 sm:py-10",
     opening: "border border-[#B9B5AB] bg-[#FCFBF7] p-3 text-center shadow-[inset_0_0_0_7px_#F7F5EF] sm:p-8",
+    designedOpening: "border border-[#B9B5AB] bg-[#FCFBF7] p-3 text-center shadow-[inset_0_0_0_7px_#F7F5EF] sm:p-8",
     title: "mx-auto max-w-3xl text-center",
     message: "mx-auto max-w-2xl text-center",
     details: "mx-auto max-w-3xl border-y border-[#C9C5BB]",
@@ -77,6 +79,7 @@ const THEMES: Record<ThemeKey, ThemeDefinition> = {
     page: "bg-[#E8DEEC] text-[#341D3B]",
     stage: "mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-10",
     opening: "overflow-hidden rounded-[4rem_1.25rem_4rem_1.25rem] bg-[#D8C5DF] p-2 shadow-[0_28px_90px_rgba(72,39,82,0.18)] md:mr-[12%]",
+    designedOpening: "bg-[#D8C5DF] p-2 shadow-[0_28px_90px_rgba(72,39,82,0.18)] md:mr-[12%]",
     title: "relative z-10 -mt-8 ml-auto max-w-3xl rounded-[2.75rem_0.75rem_2.75rem_0.75rem] bg-[#F6F0F7] px-6 py-9 text-left shadow-[0_20px_60px_rgba(72,39,82,0.14)] sm:px-10 md:-mt-24 md:w-[58%]",
     message: "max-w-2xl px-2 md:ml-[8%]",
     details: "ml-auto max-w-3xl rounded-[2.5rem_0.75rem_2.5rem_0.75rem] bg-[#F6F0F7] shadow-[0_18px_55px_rgba(72,39,82,0.12)]",
@@ -87,8 +90,9 @@ const THEMES: Record<ThemeKey, ThemeDefinition> = {
   celebration: {
     layout: "offset-blocks",
     page: "bg-[#F4F0E8] text-[#132765]",
-    stage: "mx-auto max-w-6xl overflow-hidden px-4 py-5 sm:px-8 sm:py-10",
+    stage: "mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-10",
     opening: "relative ml-auto border-[10px] border-[#2753C7] bg-white p-1 shadow-[-18px_18px_0_#F06449] md:w-[82%]",
+    designedOpening: "relative ml-auto border-[10px] border-[#2753C7] bg-white p-1 shadow-[-18px_18px_0_#F06449] md:w-[82%]",
     title: "relative max-w-4xl bg-[#2753C7] px-6 py-9 text-left text-white sm:px-10 md:-mt-12 md:w-[70%]",
     message: "ml-auto max-w-3xl border-l-[10px] border-[#F06449] pl-6",
     details: "max-w-4xl border-2 border-[#2753C7] bg-white shadow-[14px_14px_0_#F4C849]",
@@ -169,12 +173,12 @@ export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInv
     <main
       data-invitation-theme={event.themeKey}
       data-invitation-layout={theme.layout}
-      className={`min-h-screen overflow-hidden font-sans ${theme.page}`}
+      className={`min-h-screen overflow-x-hidden font-sans ${theme.page}`}
       style={variables}
     >
       <article className={theme.stage}>
         {heroMedia && (
-          <div className={theme.opening} style={{ borderColor: event.primaryColor }}>
+          <div className={media.designedInvite ? theme.designedOpening : theme.opening} style={{ borderColor: event.primaryColor }}>
             <InvitationImage
               src={heroMedia.url}
               alt={media.designedInvite ? t("designedInviteAlt") : t("coverAlt", { title: event.title })}

@@ -114,9 +114,14 @@ test("the three public themes produce structurally different invitation layouts"
   assert.match(celebration, /data-invitation-layout="offset-blocks"/);
 });
 
-test("a designed invitation preserves its complete portrait artwork", () => {
-  const html = render("published");
+test("a designed invitation uses a non-clipping wrapper across every theme", () => {
+  for (const themeKey of ["classic", "romantic", "celebration"] as const) {
+    const html = render("published", { themeKey });
+    const opening = html.match(/<div class="([^"]+)"[^>]*><img src="https:\/\/signed\.example\.test\/invite"[^>]*class="([^"]+)"/);
 
-  assert.match(html, /https:\/\/signed\.example\.test\/invite[^>]*object-contain/);
-  assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/invite[^>]*max-h-\[/);
+    assert.ok(opening, `${themeKey} renders the designed invite opening`);
+    assert.match(opening[2] ?? "", /object-contain/);
+    assert.doesNotMatch(opening[1] ?? "", /overflow-hidden|rounded-/);
+    assert.doesNotMatch(opening[1] ?? "", /max-h-\[/);
+  }
 });

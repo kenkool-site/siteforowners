@@ -9,7 +9,11 @@ import {
   verifyInvitationPasscodeSession,
 } from "@/lib/invitations/auth";
 import { getInvitationMediaForManagement } from "@/lib/invitations/media";
-import { invitationPageMetadata, resolvePublicInvitationPage } from "@/lib/invitations/public-access";
+import {
+  invitationPageMetadata,
+  resolvePublicInvitationPage,
+  toPublicInvitationClientDetails,
+} from "@/lib/invitations/public-access";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 
@@ -57,13 +61,14 @@ export default async function PublicInvitationPage({ params }: { params: { slug:
     );
   }
 
+  const clientDetails = toPublicInvitationClientDetails(resolution);
   return (
-    <InvitationPublicProvider locale={resolution.event.locale} timeZone={resolution.event.timezone}>
+    <InvitationPublicProvider locale={clientDetails.event.locale} timeZone={clientDetails.event.timezone}>
       <PublicInvitation
-        event={resolution.event}
-        state={resolution.state}
-        media={resolution.media}
-        rsvpSummary={resolution.rsvpSummary}
+        event={clientDetails.event}
+        state={clientDetails.state}
+        media={clientDetails.media}
+        rsvpSummary={clientDetails.rsvpSummary}
       />
     </InvitationPublicProvider>
   );
