@@ -67,6 +67,90 @@ type MediaFormat = {
 const startsWith = (bytes: Uint8Array, expected: readonly number[]): boolean =>
   expected.every((value, index) => bytes[index] === value);
 
+const textAt = (bytes: Uint8Array, offset: number, length: number): string =>
+  String.fromCharCode(...Array.from(bytes.subarray(offset, offset + length)));
+
+const MP4_BRANDS = new Set([
+  "isom", "iso2", "iso3", "iso4", "iso5", "iso6", "iso7", "iso8", "iso9",
+  "mp41", "mp42", "avc1", "M4V ", "MSNV",
+]);
+
+function readUint32(bytes: Uint8Array, offset: number): number | undefined {
+  if (offset < 0 || offset + 4 > bytes.length) return undefined;
+  return new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0);
+}
+
+type IsoBox = { type: string; payloadStart: number; end: number };
+
+function isoBoxes(bytes: Uint8Array, start: number, end: number): IsoBox[] | null {
+  const boxes: IsoBox[] = [];
+  for (let offset = start; offset < end;) {
+    const size = readUint32(bytes, offset);
+    if (size === undefined || size < 8 || offset + size > end) return null;
+    boxes.push({ type: textAt(bytes, offset + 4, 4), payloadStart: offset + 8, end: offset + size });
+    offset += size;
+  }
+  return boxes;
+}
+
+function matchesMp4(bytes: Uint8Array): boolean {
+  const boxes = isoBoxes(bytes, 0, bytes.length);
+  const ftyp = boxes?.[0];
+  return Boolean(
+    ftyp
+    && ftyp.type === "ftyp"
+    && ftyp.end - ftyp.payloadStart >= 8
+    && MP4_BRANDS.has(textAt(bytes, ftyp.payloadStart, 4)),
+  );
+}
+
+function readEbmlSize(bytes: Uint8Array, offset: number): { value: number; length: number } | null {
+  const first = bytes[offset];
+  if (first === undefined || first === 0) return null;
+  let length = 1;
+  let marker = 0x80;
+  while (length <= 8 && (first & marker) === 0) {
+    marker >>= 1;
+    length += 1;
+  }
+  if (length > 8 || offset + length > bytes.length) return null;
+  let value = first & (marker - 1);
+  for (let index = 1; index < length; index += 1) value = value * 256 + bytes[offset + index]!;
+  return Number.isSafeInteger(value) ? { value, length } : null;
+}
+
+function ebmlIdLength(first: number | undefined): number | null {
+  if (first === undefined || first === 0) return null;
+  if (first & 0x80) return 1;
+  if (first & 0x40) return 2;
+  if (first & 0x20) return 3;
+  if (first & 0x10) return 4;
+  return null;
+}
+
+function matchesWebm(bytes: Uint8Array): boolean {
+  if (!startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3])) return false;
+  const headerSize = readEbmlSize(bytes, 4);
+  if (!headerSize) return false;
+  let offset = 4 + headerSize.length;
+  const end = offset + headerSize.value;
+  if (end > bytes.length) return false;
+  while (offset < end) {
+    const idLength = ebmlIdLength(bytes[offset]);
+    if (!idLength || offset + idLength > end) return false;
+    const isDocType = idLength === 2 && bytes[offset] === 0x42 && bytes[offset + 1] === 0x82;
+    offset += idLength;
+    const size = readEbmlSize(bytes, offset);
+    if (!size) return false;
+    offset += size.length;
+    const payloadEnd = offset + size.value;
+    if (payloadEnd > end) return false;
+    if (isDocType) return textAt(bytes, offset, size.value) === "webm";
+    offset = payloadEnd;
+  }
+  return false;
+}
+
 const MEDIA_FORMATS: readonly MediaFormat[] = [
   {
     contentType: "image/jpeg",
@@ -95,14 +179,13 @@ const MEDIA_FORMATS: readonly MediaFormat[] = [
     contentType: "video/mp4",
     extensions: ["mp4"],
     isVideo: true,
-    matchesMagic: (bytes) =>
-      bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70,
+    matchesMagic: matchesMp4,
   },
   {
     contentType: "video/webm",
     extensions: ["webm"],
     isVideo: true,
-    matchesMagic: (bytes) => startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3]),
+    matchesMagic: matchesWebm,
   },
 ] as const;
 
@@ -110,13 +193,67 @@ async function readDurationWithMusicMetadata(
   bytes: Uint8Array,
   contentType: string,
 ): Promise<number | undefined> {
+  const mp4Timeline = contentType === "video/mp4" ? readMp4VideoTimelineDuration(bytes) : undefined;
+  if (contentType === "video/mp4" && mp4Timeline === undefined) return undefined;
   const { parseBuffer } = await import("music-metadata");
-  const metadata = await parseBuffer(
-    bytes,
-    { mimeType: contentType, size: bytes.byteLength },
-    { duration: true, skipCovers: true },
-  );
-  return metadata.format.duration;
+  try {
+    const metadata = await parseBuffer(
+      bytes,
+      { mimeType: contentType, size: bytes.byteLength },
+      { duration: true, skipCovers: true },
+    );
+    return contentType === "video/mp4" ? mp4Timeline : metadata.format.duration;
+  } catch (error) {
+    // The ISO-BMFF timeline parser is stricter about the video duration but also
+    // supports deterministic/silent MP4s that music-metadata treats as audio-less.
+    if (contentType === "video/mp4") return mp4Timeline;
+    throw error;
+  }
+}
+
+function timelineDuration(bytes: Uint8Array, payloadStart: number, end: number): number | undefined {
+  const version = bytes[payloadStart];
+  const timescaleOffset = version === 1 ? payloadStart + 20 : payloadStart + 12;
+  const durationOffset = version === 1 ? payloadStart + 24 : payloadStart + 16;
+  const timescale = readUint32(bytes, timescaleOffset);
+  if (!timescale) return undefined;
+  if (version === 1) {
+    if (durationOffset + 8 > end) return undefined;
+    const duration = new DataView(bytes.buffer, bytes.byteOffset + durationOffset, 8).getBigUint64(0);
+    const seconds = Number(duration) / timescale;
+    return Number.isFinite(seconds) ? seconds : undefined;
+  }
+  const duration = readUint32(bytes, durationOffset);
+  return duration === undefined ? undefined : duration / timescale;
+}
+
+/** Reads MP4 movie/video timelines because music-metadata derives MP4 duration from audio. */
+export function readMp4VideoTimelineDuration(bytes: Uint8Array): number | undefined {
+  const topLevel = isoBoxes(bytes, 0, bytes.length);
+  const moov = topLevel?.find((box) => box.type === "moov");
+  if (!moov) return undefined;
+  const moovChildren = isoBoxes(bytes, moov.payloadStart, moov.end);
+  if (!moovChildren) return undefined;
+  const durations: number[] = [];
+  const mvhd = moovChildren.find((box) => box.type === "mvhd");
+  const movieDuration = mvhd && timelineDuration(bytes, mvhd.payloadStart, mvhd.end);
+  if (movieDuration !== undefined) durations.push(movieDuration);
+
+  let foundVideo = false;
+  for (const trak of moovChildren.filter((box) => box.type === "trak")) {
+    const trakChildren = isoBoxes(bytes, trak.payloadStart, trak.end);
+    const mdia = trakChildren?.find((box) => box.type === "mdia");
+    if (!mdia) continue;
+    const mediaChildren = isoBoxes(bytes, mdia.payloadStart, mdia.end);
+    const hdlr = mediaChildren?.find((box) => box.type === "hdlr");
+    const mdhd = mediaChildren?.find((box) => box.type === "mdhd");
+    if (!hdlr || textAt(bytes, hdlr.payloadStart + 8, 4) !== "vide") continue;
+    foundVideo = true;
+    const duration = mdhd && timelineDuration(bytes, mdhd.payloadStart, mdhd.end);
+    if (duration !== undefined) durations.push(duration);
+  }
+  if (!foundVideo || durations.length === 0) return undefined;
+  return Math.max(...durations);
 }
 
 export async function validateInvitationMedia(
@@ -313,6 +450,18 @@ export async function finalizeInvitationMediaUpload(input: {
       // The database points at the new object; orphan cleanup handles the old one.
     }
   }
+}
+
+export async function removeInvitationSingletonMedia(input: {
+  eventId: string;
+  kind: Exclude<InvitationMediaKind, "gallery">;
+  expectedPath: string;
+  clearReference(eventId: string, kind: Exclude<InvitationMediaKind, "gallery">, expectedPath: string): Promise<boolean>;
+  removeObject(path: string): Promise<void>;
+}): Promise<"removed" | "conflict"> {
+  if (!await input.clearReference(input.eventId, input.kind, input.expectedPath)) return "conflict";
+  await input.removeObject(input.expectedPath);
+  return "removed";
 }
 
 export function isInvitationMediaOrphan(

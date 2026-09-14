@@ -138,6 +138,7 @@ export function EventEditor({
   const t = useTranslations("invitations.editor");
   const locale = useLocale();
   const [currentEvent, setCurrentEvent] = useState(event);
+  const [formVersion, setFormVersion] = useState(0);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -260,6 +261,7 @@ export function EventEditor({
         return;
       }
       setCurrentEvent(result.event);
+      setFormVersion((version) => version + 1);
       setStatus(result.event.status);
       setPreviewTitle(result.event.title);
       setPreviewDescription(result.event.description);
@@ -489,7 +491,7 @@ export function EventEditor({
         </nav>
       </div>
 
-      <form key={`${currentEvent.id}:${currentEvent.updatedAt}`} data-event-form="true" onSubmit={save} onChange={markDirty} className="mx-auto grid max-w-[1380px] lg:grid-cols-[180px_minmax(0,680px)_minmax(280px,1fr)] lg:gap-10 lg:px-8">
+      <form key={`${currentEvent.id}:${formVersion}`} data-event-form="true" onSubmit={save} onChange={markDirty} className="mx-auto grid max-w-[1380px] lg:grid-cols-[180px_minmax(0,680px)_minmax(280px,1fr)] lg:gap-10 lg:px-8">
         <fieldset disabled={saving} className="contents border-0 p-0">
         <aside className="hidden py-8 lg:block">
           <nav className="sticky top-6 border-l border-[#cfc3d3]" aria-label={t("sectionNavigation")}>

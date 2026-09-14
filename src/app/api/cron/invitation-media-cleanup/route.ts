@@ -1,4 +1,5 @@
-import { INVITATION_MEDIA_BUCKET, isInvitationMediaOrphan } from "@/lib/invitations/media";
+import { cleanupInvitationMedia } from "@/lib/invitations/media-cleanup";
+import { INVITATION_MEDIA_BUCKET } from "@/lib/invitations/media";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { NextResponse } from "next/server";
 
@@ -47,45 +48,48 @@ export async function GET(request: Request) {
 
   const client = createAdminClient();
   try {
-    const [objects, eventResult, galleryResult] = await Promise.all([
-      listInvitationObjects(client),
-      client.from("invitation_events").select("designed_invite_path,cover_image_path,video_path"),
-      client.from("invitation_media").select("storage_path"),
-    ]);
-    if (eventResult.error) throw new Error("Unable to load event media references", { cause: eventResult.error });
-    if (galleryResult.error) throw new Error("Unable to load gallery media references", { cause: galleryResult.error });
-
-    const eventRows = (eventResult.data ?? []) as unknown as Array<{
-      designed_invite_path: string | null;
-      cover_image_path: string | null;
-      video_path: string | null;
-    }>;
-    const galleryRows = (galleryResult.data ?? []) as unknown as Array<{ storage_path: string }>;
-    const referenced = new Set<string>();
-    for (const event of eventRows) {
-      for (const path of [event.designed_invite_path, event.cover_image_path, event.video_path]) {
-        if (path) referenced.add(path);
-      }
-    }
-    for (const row of galleryRows) referenced.add(row.storage_path);
-
-    const now = new Date();
-    let deleted = 0;
-    let failed = 0;
-    for (const object of objects) {
-      if (!isInvitationMediaOrphan({
-        createdAt: object.createdAt,
-        referenced: referenced.has(object.path),
-      }, now)) continue;
-      const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).remove([object.path]);
-      if (error) {
-        failed += 1;
-        console.error("[cron/invitation-media-cleanup] removal failed", { path: object.path, error });
-      } else {
-        deleted += 1;
-      }
-    }
-    return NextResponse.json({ scanned: objects.length, deleted, failed });
+    const result = await cleanupInvitationMedia({
+      listObjects: async () => listInvitationObjects(client),
+      listEventReferences: async (from, to) => {
+        const { data, error, count } = await client
+          .from("invitation_events")
+          .select("id,designed_invite_path,cover_image_path,video_path", { count: "exact" })
+          .order("id", { ascending: true })
+          .range(from, to);
+        if (error) throw new Error("Unable to load event media references", { cause: error });
+        const rows = (data ?? []) as unknown as Array<{
+          designed_invite_path: string | null;
+          cover_image_path: string | null;
+          video_path: string | null;
+        }>;
+        return {
+          total: count,
+          rows: rows.map((row) => ({
+            designedInvitePath: row.designed_invite_path,
+            coverImagePath: row.cover_image_path,
+            videoPath: row.video_path,
+          })),
+        };
+      },
+      listGalleryReferences: async (from, to) => {
+        const { data, error, count } = await client
+          .from("invitation_media")
+          .select("id,storage_path", { count: "exact" })
+          .order("id", { ascending: true })
+          .range(from, to);
+        if (error) throw new Error("Unable to load gallery media references", { cause: error });
+        const rows = (data ?? []) as unknown as Array<{ storage_path: string }>;
+        return { total: count, rows: rows.map((row) => ({ storagePath: row.storage_path })) };
+      },
+      removeObject: async (path) => {
+        const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).remove([path]);
+        if (error) {
+          console.error("[cron/invitation-media-cleanup] removal failed", { path, error });
+          throw new Error("Unable to remove invitation media", { cause: error });
+        }
+      },
+    });
+    return NextResponse.json(result);
   } catch (error) {
     console.error("[cron/invitation-media-cleanup] failed", { error });
     return NextResponse.json({ error: "Cleanup failed" }, { status: 500 });

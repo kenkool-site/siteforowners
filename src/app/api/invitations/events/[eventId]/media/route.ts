@@ -7,7 +7,7 @@ import {
   getSignedInvitationMedia,
   INVITATION_MEDIA_BUCKET,
   isInvitationMediaPathForEvent,
-  validateInvitationGalleryCount,
+  removeInvitationSingletonMedia,
   validateInvitationMedia,
   type InvitationMediaKind,
   type InvitationMediaSnapshot,
@@ -27,6 +27,8 @@ type GalleryRow = {
   alt_text: string;
   sort_order: number;
 };
+
+class InvitationGalleryFullError extends Error {}
 
 const EVENT_PATH_FIELD = {
   designed_invite: "designed_invite_path",
@@ -148,21 +150,12 @@ export async function POST(
   }
 
   const client = createAdminClient();
-  let galleryRows: GalleryRow[] = [];
   let replacedGalleryRow: GalleryRow | null = null;
   try {
-    if (kind === "gallery") {
-      galleryRows = await listGallery(client, params.eventId);
-      if (mediaId) {
-        replacedGalleryRow = galleryRows.find((row) => row.id === mediaId) ?? null;
-        if (!replacedGalleryRow) {
-          return NextResponse.json({ errors: { media: "invalid_media_reference" } }, { status: 404 });
-        }
-      } else {
-        const capacity = validateInvitationGalleryCount(galleryRows.length);
-        if (!capacity.ok) {
-          return NextResponse.json({ errors: { media: capacity.code } }, { status: 409 });
-        }
+    if (kind === "gallery" && mediaId) {
+      replacedGalleryRow = (await listGallery(client, params.eventId)).find((row) => row.id === mediaId) ?? null;
+      if (!replacedGalleryRow) {
+        return NextResponse.json({ errors: { media: "invalid_media_reference" } }, { status: 404 });
       }
     }
     const validation = await validateInvitationMedia(file, kind);
@@ -200,15 +193,12 @@ export async function POST(
             if (error || !data) throw new Error("Unable to replace invitation gallery image", { cause: error });
             return;
           }
-          const sortOrder = galleryRows.reduce((maximum, row) => Math.max(maximum, row.sort_order), -1) + 1;
-          const { error } = await client.from("invitation_media").insert({
-            event_id: params.eventId,
-            kind: "gallery_image",
-            storage_path: newPath,
-            alt_text: altText,
-            sort_order: sortOrder,
-            updated_at: new Date().toISOString(),
+          const { error } = await client.rpc("insert_invitation_gallery_media", {
+            p_event_id: params.eventId,
+            p_storage_path: newPath,
+            p_alt_text: altText,
           });
+          if (error?.message.includes("invitation_gallery_full")) throw new InvitationGalleryFullError();
           if (error) throw new Error("Unable to save invitation gallery image", { cause: error });
           return;
         }
@@ -228,6 +218,9 @@ export async function POST(
     return NextResponse.json({ event, media: await loadMediaSnapshot(client, event) });
   } catch (error) {
     console.error("[invitations/media] upload failed", { eventId: params.eventId, kind, error });
+    if (error instanceof InvitationGalleryFullError) {
+      return NextResponse.json({ errors: { media: "gallery_full" } }, { status: 409 });
+    }
     return NextResponse.json({ errors: { media: "upload_failed" } }, { status: 500 });
   }
 }
@@ -288,14 +281,36 @@ export async function DELETE(
       if (currentPath !== requestedPath) {
         return NextResponse.json({ errors: { media: "invalid_media_reference" } }, { status: 404 });
       }
-      await invitationRepository.updateEvent(params.eventId, {
-        [EVENT_PATH_FIELD[kind]]: null,
-        updated_at: new Date().toISOString(),
+      const outcome = await removeInvitationSingletonMedia({
+        eventId: params.eventId,
+        kind,
+        expectedPath: requestedPath,
+        clearReference: async (eventId, clearKind, expectedPath) => {
+          const field = EVENT_PATH_FIELD[clearKind];
+          const { data, error } = await client
+            .from("invitation_events")
+            .update({ [field]: null, updated_at: new Date().toISOString() })
+            .eq("id", eventId)
+            .eq(field, expectedPath)
+            .select("id")
+            .maybeSingle();
+          if (error) throw new Error("Unable to clear invitation media reference", { cause: error });
+          return Boolean(data);
+        },
+        removeObject: async (path) => {
+          const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).remove([path]);
+          if (error) throw new Error("Unable to remove invitation media object", { cause: error });
+        },
       });
+      if (outcome === "conflict") {
+        return NextResponse.json({ errors: { media: "media_changed" } }, { status: 409 });
+      }
     }
 
-    const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).remove([requestedPath]);
-    if (error) throw new Error("Unable to remove invitation media object", { cause: error });
+    if (kind === "gallery") {
+      const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).remove([requestedPath]);
+      if (error) throw new Error("Unable to remove invitation media object", { cause: error });
+    }
     const event = await getInvitationEventForManagement(params.eventId);
     if (!event) throw new Error("Invitation disappeared after media removal");
     return NextResponse.json({ event, media: await loadMediaSnapshot(client, event) });

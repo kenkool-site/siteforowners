@@ -5,6 +5,7 @@ import React, { act } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
 import type { EditorEvent } from "./EventEditor";
+import type { InvitationMediaSnapshot } from "../../lib/invitations/media";
 
 (globalThis as Record<string, unknown>).React = React;
 
@@ -62,11 +63,12 @@ async function withEditor(
   mode: "owner" | "founder",
   fetchImpl: typeof fetch,
   run: (container: HTMLElement, dom: JSDOM) => Promise<void>,
+  options: { media?: InvitationMediaSnapshot; XMLHttpRequest?: typeof XMLHttpRequest } = {},
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.example.test" });
   const names = [
     "window", "document", "HTMLElement", "HTMLInputElement", "HTMLButtonElement",
-    "HTMLFormElement", "Event", "FormData", "navigator", "fetch", "IS_REACT_ACT_ENVIRONMENT",
+    "HTMLFormElement", "Event", "FormData", "File", "XMLHttpRequest", "navigator", "fetch", "IS_REACT_ACT_ENVIRONMENT",
   ] as const;
   const originals = new Map(names.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
   Object.assign(globalThis, {
@@ -78,6 +80,8 @@ async function withEditor(
     HTMLFormElement: dom.window.HTMLFormElement,
     Event: dom.window.Event,
     FormData: dom.window.FormData,
+    File: dom.window.File,
+    XMLHttpRequest: options.XMLHttpRequest ?? dom.window.XMLHttpRequest,
     fetch: fetchImpl,
     IS_REACT_ACT_ENVIRONMENT: true,
   });
@@ -91,7 +95,7 @@ async function withEditor(
     root = createRoot(container) as Root;
     await act(async () => root!.render(
       <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
-        <EventEditor event={baseEvent} mode={mode} />
+        <EventEditor event={baseEvent} mode={mode} media={options.media} />
       </NextIntlClientProvider>,
     ));
     await run(container, dom);
@@ -243,4 +247,72 @@ test("accepted credential save clears credential dirtiness and the sensitive PIN
     assert.equal(savedCredentialsForm.querySelector<HTMLInputElement>('input[name="newOwnerPin"]')?.value, "");
     assert.match(savedEventForm.textContent ?? "", /No unsaved changes/);
   });
+});
+
+const coverMedia: InvitationMediaSnapshot = {
+  designedInvite: null,
+  cover: { kind: "cover", path: "event-1/cover/old.png", url: "https://signed.test/old" },
+  video: null,
+  gallery: [],
+};
+
+function mediaMutation(cover: InvitationMediaSnapshot["cover"], updatedAt: string) {
+  return {
+    event: { ...baseEvent, coverImagePath: cover?.path ?? null, updatedAt },
+    media: { ...coverMedia, cover },
+  };
+}
+
+test("removing singleton media preserves dirty title and venue drafts", async () => {
+  await withEditor("owner", async () => response(mediaMutation(null, "2026-09-05T00:00:00.000Z")), async (container, dom) => {
+    const title = container.querySelector<HTMLInputElement>('input[name="title"]')!;
+    const venue = container.querySelector<HTMLInputElement>('input[name="venueName"]')!;
+    await act(async () => {
+      setInput(dom, title, "Dirty title");
+      setInput(dom, venue, "Dirty venue");
+    });
+    const remove = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Remove")!;
+    await act(async () => {
+      remove.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(container.querySelector<HTMLInputElement>('input[name="title"]')?.value, "Dirty title");
+    assert.equal(container.querySelector<HTMLInputElement>('input[name="venueName"]')?.value, "Dirty venue");
+    assert.match(container.querySelector<HTMLFormElement>('form[data-event-form="true"]')?.textContent ?? "", /Unsaved changes/);
+  }, { media: coverMedia });
+});
+
+test("uploading singleton media preserves dirty title and venue drafts", async () => {
+  const uploadedCover = { kind: "cover" as const, path: "event-1/cover/new.png", url: "https://signed.test/new" };
+  class SuccessfulUploadRequest {
+    status = 200;
+    responseText = JSON.stringify(mediaMutation(uploadedCover, "2026-09-06T00:00:00.000Z"));
+    withCredentials = false;
+    private listeners = new Map<string, EventListener>();
+    upload = { addEventListener: (_type: string, _listener: EventListener) => undefined };
+    open(_method: string, _url: string) {}
+    addEventListener(type: string, listener: EventListener) { this.listeners.set(type, listener); }
+    send(_body: Document | XMLHttpRequestBodyInit | null) {
+      queueMicrotask(() => this.listeners.get("load")?.(new Event("load")));
+    }
+  }
+  await withEditor("owner", async () => response({}), async (container, dom) => {
+    const title = container.querySelector<HTMLInputElement>('input[name="title"]')!;
+    const venue = container.querySelector<HTMLInputElement>('input[name="venueName"]')!;
+    await act(async () => {
+      setInput(dom, title, "Dirty title");
+      setInput(dom, venue, "Dirty venue");
+    });
+    const input = container.querySelector<HTMLInputElement>("#invitation-media-cover")!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new dom.window.File(["png"], "cover.png", { type: "image/png" })] });
+    await act(async () => {
+      input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(container.querySelector<HTMLInputElement>('input[name="title"]')?.value, "Dirty title");
+    assert.equal(container.querySelector<HTMLInputElement>('input[name="venueName"]')?.value, "Dirty venue");
+    assert.match(container.querySelector<HTMLFormElement>('form[data-event-form="true"]')?.textContent ?? "", /Unsaved changes/);
+  }, { XMLHttpRequest: SuccessfulUploadRequest as unknown as typeof XMLHttpRequest });
 });

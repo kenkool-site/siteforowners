@@ -7,6 +7,8 @@ import {
   getSignedInvitationMedia,
   isInvitationMediaPathForEvent,
   isInvitationMediaOrphan,
+  readMp4VideoTimelineDuration,
+  removeInvitationSingletonMedia,
   validateInvitationGalleryCount,
   validateInvitationMedia,
   type InvitationMediaFile,
@@ -17,8 +19,54 @@ const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const WEBP = Uint8Array.from([
   0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
 ]);
-const MP4 = Uint8Array.from([0, 0, 0, 20, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d]);
-const WEBM = Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3]);
+const ascii = (value: string) => Uint8Array.from(value, (character) => character.charCodeAt(0));
+
+function concat(...parts: Uint8Array[]): Uint8Array {
+  const bytes = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    bytes.set(part, offset);
+    offset += part.length;
+  }
+  return bytes;
+}
+
+function u32(value: number): Uint8Array {
+  return Uint8Array.from([
+    (value >>> 24) & 0xff,
+    (value >>> 16) & 0xff,
+    (value >>> 8) & 0xff,
+    value & 0xff,
+  ]);
+}
+
+function box(type: string, payload: Uint8Array): Uint8Array {
+  return concat(u32(payload.length + 8), ascii(type), payload);
+}
+
+function timelineHeader(timescale: number, duration: number): Uint8Array {
+  return concat(new Uint8Array(12), u32(timescale), u32(duration), new Uint8Array(4));
+}
+
+function track(handler: "vide" | "soun", seconds: number): Uint8Array {
+  const mdhd = box("mdhd", timelineHeader(1_000, seconds * 1_000));
+  const hdlr = box("hdlr", concat(new Uint8Array(8), ascii(handler), new Uint8Array(4)));
+  return box("trak", box("mdia", concat(mdhd, hdlr)));
+}
+
+function mp4Fixture(input: { movieSeconds: number; videoSeconds: number; audioSeconds?: number; brand?: string }): Uint8Array {
+  const ftyp = box("ftyp", concat(ascii(input.brand ?? "isom"), u32(0), ascii("isom")));
+  const tracks = input.audioSeconds === undefined
+    ? [track("vide", input.videoSeconds)]
+    : [track("soun", input.audioSeconds), track("vide", input.videoSeconds)];
+  return concat(ftyp, box("moov", concat(box("mvhd", timelineHeader(1_000, input.movieSeconds * 1_000)), ...tracks)));
+}
+
+const MP4 = mp4Fixture({ movieSeconds: 30, videoSeconds: 30 });
+const WEBM = concat(
+  Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, 0x87, 0x42, 0x82, 0x84]),
+  ascii("webm"),
+);
 
 function fakeFile(
   type: string,
@@ -54,6 +102,42 @@ test("accepts MP4 and WebM only when readable duration is at most sixty seconds"
   const readDurationSeconds = async () => 60;
   assert.equal((await validateInvitationMedia(fakeFile("video/mp4", 1024, "clip.mp4"), "video", { readDurationSeconds })).ok, true);
   assert.equal((await validateInvitationMedia(fakeFile("video/webm", 1024, "clip.webm"), "video", { readDurationSeconds })).ok, true);
+});
+
+test("reads the MP4 movie and video timelines when the file has no audio track", () => {
+  assert.equal(readMp4VideoTimelineDuration(mp4Fixture({ movieSeconds: 45, videoSeconds: 45 })), 45);
+});
+
+test("does not let a short audio track hide a long MP4 movie and video timeline", () => {
+  assert.equal(readMp4VideoTimelineDuration(mp4Fixture({ movieSeconds: 120, videoSeconds: 120, audioSeconds: 10 })), 120);
+});
+
+test("server validation accepts silent MP4 and rejects mismatched long-video short-audio MP4", async () => {
+  assert.equal((await validateInvitationMedia(
+    fakeFile("video/mp4", 1024, "silent.mp4", mp4Fixture({ movieSeconds: 45, videoSeconds: 45 })),
+    "video",
+  )).ok, true);
+  assert.deepEqual(await validateInvitationMedia(
+    fakeFile("video/mp4", 1024, "mismatch.mp4", mp4Fixture({ movieSeconds: 120, videoSeconds: 120, audioSeconds: 10 })),
+    "video",
+  ), { ok: false, code: "video_too_long" });
+});
+
+test("rejects non-MP4 ISO-BMFF brands and Matroska renamed as WebM", async () => {
+  assert.deepEqual(await validateInvitationMedia(
+    fakeFile("video/mp4", 1024, "clip.mp4", mp4Fixture({ movieSeconds: 10, videoSeconds: 10, brand: "heic" })),
+    "video",
+    { readDurationSeconds: async () => 10 },
+  ), { ok: false, code: "invalid_media_type" });
+  const matroska = concat(
+    Uint8Array.from([0x1a, 0x45, 0xdf, 0xa3, 0x8b, 0x42, 0x82, 0x88]),
+    ascii("matroska"),
+  );
+  assert.deepEqual(await validateInvitationMedia(
+    fakeFile("video/webm", 1024, "clip.webm", matroska),
+    "video",
+    { readDurationSeconds: async () => 10 },
+  ), { ok: false, code: "invalid_media_type" });
 });
 
 test("rejects video longer than sixty seconds", async () => {
@@ -146,6 +230,18 @@ test("database failure removes the new object and preserves the replaced object"
   assert.deepEqual(Array.from(stored), ["event-1/cover/old.jpg"]);
 });
 
+test("atomic gallery-cap failure removes the newly uploaded object", async () => {
+  const stored = new Set<string>();
+  await assert.rejects(finalizeInvitationMediaUpload({
+    newPath: "event-1/gallery/new.jpg",
+    oldPath: null,
+    upload: async (path) => { stored.add(path); },
+    finalize: async () => { throw new Error("invitation_gallery_full"); },
+    remove: async (path) => { stored.delete(path); },
+  }), /invitation_gallery_full/);
+  assert.deepEqual(Array.from(stored), []);
+});
+
 test("successful replacement deletes the old object only after database finalization", async () => {
   const calls: string[] = [];
   await finalizeInvitationMediaUpload({
@@ -156,6 +252,37 @@ test("successful replacement deletes the old object only after database finaliza
     remove: async () => { calls.push("remove-old"); },
   });
   assert.deepEqual(calls, ["upload", "finalize", "remove-old"]);
+});
+
+test("singleton removal is conditional on the exact persisted path before storage deletion", async () => {
+  let persistedPath: string | null = "event-1/cover/new.jpg";
+  const removed: string[] = [];
+  const outcome = await removeInvitationSingletonMedia({
+    eventId: "event-1",
+    kind: "cover",
+    expectedPath: "event-1/cover/old.jpg",
+    clearReference: async (_eventId, _kind, expectedPath) => {
+      if (persistedPath !== expectedPath) return false;
+      persistedPath = null;
+      return true;
+    },
+    removeObject: async (path) => { removed.push(path); },
+  });
+  assert.equal(outcome, "conflict");
+  assert.equal(persistedPath, "event-1/cover/new.jpg");
+  assert.deepEqual(removed, []);
+});
+
+test("singleton removal clears the exact database reference before deleting storage", async () => {
+  const calls: string[] = [];
+  assert.equal(await removeInvitationSingletonMedia({
+    eventId: "event-1",
+    kind: "video",
+    expectedPath: "event-1/video/old.mp4",
+    clearReference: async () => { calls.push("conditional-clear"); return true; },
+    removeObject: async () => { calls.push("storage-delete"); },
+  }), "removed");
+  assert.deepEqual(calls, ["conditional-clear", "storage-delete"]);
 });
 
 test("only old unreferenced objects are cleanup candidates", () => {
