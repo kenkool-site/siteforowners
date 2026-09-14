@@ -1,6 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { isStatusCommandAllowed, parseEventUpdate, parseRsvpInput, parseStatusCommand, validatePublishableEvent } from "./validation";
+import {
+  isStatusCommandAllowed,
+  parseEventUpdate,
+  parseOwnerCredentialUpdate,
+  parseRsvpInput,
+  parseStatusCommand,
+  validatePublishableEvent,
+  validateStatusTransition,
+} from "./validation";
 
 test("an RSVP requires a name and one normalized contact", () => {
   assert.deepEqual(
@@ -50,12 +58,12 @@ test("owners cannot change founder-controlled limits", () => {
 });
 
 test("founders can normalize owner credentials", () => {
-  const parsed = parseEventUpdate({
+  const parsed = parseOwnerCredentialUpdate({
     ownerName: " Ana Rivera ",
     ownerEmail: " ANA@EXAMPLE.COM ",
     ownerPhone: "(917) 555-1212",
     newOwnerPin: "654321",
-  }, "founder");
+  });
   assert.deepEqual(parsed, {
     ok: true,
     value: {
@@ -157,4 +165,49 @@ test("publish validation blocks incoherent event timing", () => {
     videoPath: null,
   }, { now: new Date("2026-01-01T00:00:00.000Z") });
   assert.deepEqual(Object.keys(errors).sort(), ["endsAt", "expireAt", "rsvpDeadline"]);
+});
+
+test("reopen validates every transition back to published", () => {
+  const event = {
+    title: "",
+    honoreeNames: "Ana and Luis",
+    startsAt: "2026-10-20T22:00:00.000Z",
+    endsAt: null,
+    rsvpDeadline: null,
+    expireAt: null,
+    timezone: "America/New_York",
+    venueName: "The Foundry",
+    address: "42 Celebration Way",
+    notificationEmail: "ana@example.com",
+    designedInvitePath: "event-1/invite.jpg",
+    coverImagePath: null,
+    videoPath: null,
+    status: "rsvp_closed" as const,
+  };
+  assert.deepEqual(
+    validateStatusTransition(event, "reopen", "owner", { now: new Date("2026-01-01T00:00:00.000Z") }),
+    { title: "Add an event title before publishing." },
+  );
+});
+
+test("only founders can allow a past transition into published", () => {
+  const event = {
+    title: "Ana & Luis",
+    honoreeNames: "Ana and Luis",
+    startsAt: "2025-10-20T22:00:00.000Z",
+    endsAt: null,
+    rsvpDeadline: null,
+    expireAt: null,
+    timezone: "America/New_York",
+    venueName: "The Foundry",
+    address: "42 Celebration Way",
+    notificationEmail: "ana@example.com",
+    designedInvitePath: "event-1/invite.jpg",
+    coverImagePath: null,
+    videoPath: null,
+    status: "rsvp_closed" as const,
+  };
+  const now = new Date("2026-01-01T00:00:00.000Z");
+  assert.equal("startsAt" in validateStatusTransition(event, "reopen", "owner", { now, allowPastEvent: true }), true);
+  assert.deepEqual(validateStatusTransition(event, "reopen", "founder", { now, allowPastEvent: true }), {});
 });

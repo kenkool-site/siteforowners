@@ -26,10 +26,6 @@ export type InvitationEditorMode = "founder" | "owner";
 export type InvitationStatusCommand = "publish" | "close" | "reopen" | "expire" | "offline" | "draft";
 
 export type InvitationEventUpdate = {
-  ownerName?: string;
-  ownerEmail?: string;
-  ownerPhone?: string | null;
-  newOwnerPin?: string;
   eventType?: string;
   locale?: InvitationLocale;
   title?: string;
@@ -59,6 +55,13 @@ export type InvitationEventUpdate = {
   notificationPhone?: string | null;
   guestEmailConfirmations?: boolean;
   expireAt?: string | null;
+};
+
+export type InvitationOwnerCredentialUpdate = {
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string | null;
+  newOwnerPin?: string;
 };
 
 type EventTimingContext = Pick<
@@ -251,27 +254,6 @@ export function parseEventUpdate(
     parsePositiveInteger(body, "submissionLimit", value, errors, false);
     parsePositiveInteger(body, "emailNotificationLimit", value, errors, false);
     parsePositiveInteger(body, "smsNotificationLimit", value, errors, false);
-    if ("ownerName" in body) {
-      if (typeof body.ownerName === "string" && body.ownerName.trim()) value.ownerName = body.ownerName.trim();
-      else errors.ownerName = "Enter the owner's name.";
-    }
-    if ("ownerEmail" in body) {
-      const email = typeof body.ownerEmail === "string" ? normalizeInvitationEmail(body.ownerEmail) : "";
-      if (isEmail(email)) value.ownerEmail = email;
-      else errors.ownerEmail = "Enter a valid owner email address.";
-    }
-    if ("ownerPhone" in body) {
-      if (body.ownerPhone === null || body.ownerPhone === "") value.ownerPhone = null;
-      else if (typeof body.ownerPhone === "string") {
-        const phone = normalizeInvitationPhone(body.ownerPhone);
-        if (phone) value.ownerPhone = phone;
-        else errors.ownerPhone = "Enter a valid owner phone number.";
-      } else errors.ownerPhone = "Enter a valid owner phone number.";
-    }
-    if ("newOwnerPin" in body) {
-      if (typeof body.newOwnerPin === "string" && /^\d{6}$/.test(body.newOwnerPin)) value.newOwnerPin = body.newOwnerPin;
-      else errors.newOwnerPin = "Use exactly six digits for the new owner PIN.";
-    }
   }
 
   const startsAt = value.startsAt !== undefined ? value.startsAt : current?.startsAt;
@@ -292,6 +274,38 @@ export function parseEventUpdate(
   }
   if (smsEnabled && !phone) errors.notificationPhone = "Enter a valid phone number before turning on text notifications.";
 
+  return Object.keys(errors).length ? { ok: false, errors } : { ok: true, value };
+}
+
+export function parseOwnerCredentialUpdate(input: unknown): ParseResult<InvitationOwnerCredentialUpdate> {
+  if (!isPlainObject(input)) return { ok: false, errors: { form: "Send valid owner details." } };
+  const value: InvitationOwnerCredentialUpdate = {};
+  const errors: Record<string, string> = {};
+
+  if ("ownerName" in input) {
+    if (typeof input.ownerName === "string" && input.ownerName.trim()) value.ownerName = input.ownerName.trim();
+    else errors.ownerName = "Enter the owner's name.";
+  }
+  if ("ownerEmail" in input) {
+    const email = typeof input.ownerEmail === "string" ? normalizeInvitationEmail(input.ownerEmail) : "";
+    if (isEmail(email)) value.ownerEmail = email;
+    else errors.ownerEmail = "Enter a valid owner email address.";
+  }
+  if ("ownerPhone" in input) {
+    if (input.ownerPhone === null || input.ownerPhone === "") value.ownerPhone = null;
+    else if (typeof input.ownerPhone === "string") {
+      const phone = normalizeInvitationPhone(input.ownerPhone);
+      if (phone) value.ownerPhone = phone;
+      else errors.ownerPhone = "Enter a valid owner phone number.";
+    } else errors.ownerPhone = "Enter a valid owner phone number.";
+  }
+  if ("newOwnerPin" in input) {
+    if (typeof input.newOwnerPin === "string" && /^\d{6}$/.test(input.newOwnerPin)) value.newOwnerPin = input.newOwnerPin;
+    else errors.newOwnerPin = "Use exactly six digits for the new owner PIN.";
+  }
+  if (Object.keys(value).length === 0 && Object.keys(errors).length === 0) {
+    errors.form = "Enter at least one owner credential change.";
+  }
   return Object.keys(errors).length ? { ok: false, errors } : { ok: true, value };
 }
 
@@ -346,6 +360,23 @@ export function isStatusCommandAllowed(
   command: InvitationStatusCommand,
 ): boolean {
   return STATUS_COMMANDS[currentStatus].includes(command);
+}
+
+export function validateStatusTransition(
+  event: PublishableEvent & { status: InvitationEventStatus },
+  command: InvitationStatusCommand,
+  actor: InvitationEditorMode,
+  options: { now?: Date; allowPastEvent?: boolean; mediaValid?: boolean } = {},
+): Record<string, string> {
+  if (!isStatusCommandAllowed(event.status, command)) {
+    return { command: "That action is not available from the current status." };
+  }
+  if (STATUS_BY_COMMAND[command] !== "published") return {};
+  return validatePublishableEvent(event, {
+    now: options.now,
+    mediaValid: options.mediaValid,
+    allowPastEvent: actor === "founder" && options.allowPastEvent === true,
+  });
 }
 
 export function parseStatusCommand(input: unknown):

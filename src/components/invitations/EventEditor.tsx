@@ -19,7 +19,7 @@ const LOCALIZED_ERROR_KEYS = new Set([
   "capacity", "rsvpDeadline", "passcode", "removePasscode", "notificationEmail",
   "notificationPhone", "expireAt", "submissionLimit", "emailNotificationLimit",
   "smsNotificationLimit", "media", "command",
-  "ownerName", "ownerEmail", "ownerPhone", "newOwnerPin",
+  "ownerName", "ownerEmail", "ownerEmailTaken", "ownerPhone", "newOwnerPin",
 ]);
 
 const inputClass = "mt-2 min-h-11 w-full rounded-md border border-[#d8cedc] bg-white px-3 py-2 text-[16px] text-[#2B2231] outline-none transition focus:border-[#6D456F] focus:ring-2 focus:ring-[#6D456F]/20";
@@ -77,12 +77,16 @@ function FieldError({ name, errors }: { name: string; errors: FieldErrors }) {
 export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEditorMode }) {
   const t = useTranslations("invitations.editor");
   const locale = useLocale();
+  const [currentEvent, setCurrentEvent] = useState(event);
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState(event.status);
   const [statusBusy, setStatusBusy] = useState(false);
+  const [credentialSaving, setCredentialSaving] = useState(false);
+  const [credentialSaved, setCredentialSaved] = useState(false);
+  const [credentialErrors, setCredentialErrors] = useState<FieldErrors>({});
   const [previewTitle, setPreviewTitle] = useState(event.title);
   const [previewDescription, setPreviewDescription] = useState(event.description);
   const [previewTheme, setPreviewTheme] = useState(event.themeKey);
@@ -91,13 +95,13 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
   const initialFont = event.fontPairKey === "geist-geist" ? "geist-geist" : "fraunces-geist";
   const [previewFont, setPreviewFont] = useState(initialFont);
 
-  const dateLabel = useMemo(() => event.startsAt
+  const dateLabel = useMemo(() => currentEvent.startsAt
     ? new Intl.DateTimeFormat(locale, {
         dateStyle: "long",
         timeStyle: "short",
-        timeZone: event.timezone,
-      }).format(new Date(event.startsAt))
-    : t("previewDatePending"), [event.startsAt, event.timezone, locale, t]);
+        timeZone: currentEvent.timezone,
+      }).format(new Date(currentEvent.startsAt))
+    : t("previewDatePending"), [currentEvent.startsAt, currentEvent.timezone, locale, t]);
 
   function markDirty() {
     setDirty(true);
@@ -157,10 +161,6 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
         payload.submissionLimit = numberOrNull(data.get("submissionLimit"));
         payload.emailNotificationLimit = numberOrNull(data.get("emailNotificationLimit"));
         payload.smsNotificationLimit = numberOrNull(data.get("smsNotificationLimit"));
-        payload.ownerName = stringValue(data, "ownerName");
-        payload.ownerEmail = stringValue(data, "ownerEmail");
-        payload.ownerPhone = stringValue(data, "ownerPhone");
-        payload.newOwnerPin = stringValue(data, "newOwnerPin") || undefined;
       }
     } catch {
       setErrors({ startsAt: t("errors.startsAt") });
@@ -170,16 +170,24 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
     setSaving(true);
     setErrors({});
     try {
-      const response = await fetch(`/api/invitations/events/${event.id}`, {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}`, {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const result = await response.json() as { errors?: FieldErrors };
-      if (!response.ok) {
+      const result = await response.json() as { event?: EditorEvent; errors?: FieldErrors };
+      if (!response.ok || !result.event) {
         setErrors(localizeErrors(result.errors, "save"));
         return;
       }
+      setCurrentEvent(result.event);
+      setStatus(result.event.status);
+      setPreviewTitle(result.event.title);
+      setPreviewDescription(result.event.description);
+      setPreviewTheme(result.event.themeKey);
+      setPreviewPrimary(result.event.primaryColor);
+      setPreviewAccent(result.event.accentColor);
+      setPreviewFont(result.event.fontPairKey === "geist-geist" ? "geist-geist" : "fraunces-geist");
       setDirty(false);
       setSaved(true);
     } catch {
@@ -190,10 +198,14 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
   }
 
   async function changeStatus(command: StatusCommand) {
+    if (dirty || saving) {
+      setErrors({ status: t("saveBeforeStatus") });
+      return;
+    }
     setStatusBusy(true);
     setErrors({});
     try {
-      const response = await fetch(`/api/invitations/events/${event.id}/status`, {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/status`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ command }),
@@ -211,6 +223,38 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
     }
   }
 
+  async function saveCredentials(eventSubmit: FormEvent<HTMLFormElement>) {
+    eventSubmit.preventDefault();
+    const data = new FormData(eventSubmit.currentTarget);
+    const payload = {
+      ownerName: stringValue(data, "ownerName"),
+      ownerEmail: stringValue(data, "ownerEmail"),
+      ownerPhone: stringValue(data, "ownerPhone"),
+      newOwnerPin: stringValue(data, "newOwnerPin") || undefined,
+    };
+    setCredentialSaving(true);
+    setCredentialSaved(false);
+    setCredentialErrors({});
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/credentials`, {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = await response.json() as { event?: EditorEvent; errors?: FieldErrors };
+      if (!response.ok || !result.event) {
+        setCredentialErrors(localizeErrors(result.errors, "save"));
+        return;
+      }
+      setCurrentEvent(result.event);
+      setCredentialSaved(true);
+    } catch {
+      setCredentialErrors({ form: t("credentialSaveError") });
+    } finally {
+      setCredentialSaving(false);
+    }
+  }
+
   const previewBackground = previewTheme === "garden" ? previewPrimary : "#FBFAFC";
   const previewText = previewTheme === "garden" ? "#FBFAFC" : previewPrimary;
 
@@ -219,7 +263,7 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
       <header className="border-b border-[#ddd4e1] bg-white/90 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
         <div className="mx-auto flex max-w-[1380px] items-center justify-between gap-4">
           <div className="min-w-0">
-            <p className="truncate text-sm text-[#675d6a]">{t("ownerContext", { name: event.owner.name })}</p>
+            <p className="truncate text-sm text-[#675d6a]">{t("ownerContext", { name: currentEvent.owner.name })}</p>
             <h1 className="truncate text-xl font-semibold tracking-[-0.02em] sm:text-2xl">{previewTitle || t("placeholders.title")}</h1>
           </div>
           <div className="shrink-0 border-l border-[#ddd4e1] pl-4 text-right">
@@ -239,7 +283,8 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
         </nav>
       </div>
 
-      <form onSubmit={save} onChange={markDirty} className="mx-auto grid max-w-[1380px] lg:grid-cols-[180px_minmax(0,680px)_minmax(280px,1fr)] lg:gap-10 lg:px-8">
+      <form key={`${currentEvent.id}:${currentEvent.updatedAt}`} data-event-form="true" onSubmit={save} onChange={markDirty} className="mx-auto grid max-w-[1380px] lg:grid-cols-[180px_minmax(0,680px)_minmax(280px,1fr)] lg:gap-10 lg:px-8">
+        <fieldset disabled={saving} className="contents border-0 p-0">
         <aside className="hidden py-8 lg:block">
           <nav className="sticky top-6 border-l border-[#cfc3d3]" aria-label={t("sectionNavigation")}>
             {SECTION_KEYS.map((key) => (
@@ -256,17 +301,17 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
           <section id="event" className={sectionClass}>
             <SectionHeading title={t("sections.event")} help={t("sectionHelp.event")} />
             <div className="grid gap-5 sm:grid-cols-2">
-              <label className={labelClass}>{t("fields.eventType")}<input name="eventType" defaultValue={event.eventType} placeholder={t("placeholders.eventType")} className={inputClass} /></label>
-              <label className={labelClass}>{t("fields.locale")}<select name="locale" defaultValue={event.locale} className={inputClass}><option value="en">{t("options.english")}</option><option value="es">{t("options.spanish")}</option></select></label>
-              <label className={`${labelClass} sm:col-span-2`}>{t("fields.title")}<input name="title" defaultValue={event.title} placeholder={t("placeholders.title")} onInput={(e) => setPreviewTitle(e.currentTarget.value)} className={inputClass} /><FieldError name="title" errors={errors} /></label>
-              <label className={`${labelClass} sm:col-span-2`}>{t("fields.honorees")}<input name="honoreeNames" defaultValue={event.honoreeNames} placeholder={t("placeholders.honorees")} className={inputClass} /><FieldError name="honoreeNames" errors={errors} /></label>
-              <label className={`${labelClass} sm:col-span-2`}>{t("fields.description")}<textarea name="description" defaultValue={event.description} placeholder={t("placeholders.description")} onInput={(e) => setPreviewDescription(e.currentTarget.value)} rows={4} className={inputClass} /></label>
-              <label className={`${labelClass} sm:col-span-2`}>{t("fields.timezone")}<input name="timezone" defaultValue={event.timezone} placeholder={t("placeholders.timezone")} className={inputClass} /><FieldError name="timezone" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.startsAt")}<input type="datetime-local" name="startsAt" defaultValue={toLocalInput(event.startsAt, event.timezone)} className={inputClass} /><FieldError name="startsAt" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.endsAt")}<input type="datetime-local" name="endsAt" defaultValue={toLocalInput(event.endsAt, event.timezone)} className={inputClass} /><FieldError name="endsAt" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.venue")}<input name="venueName" defaultValue={event.venueName ?? ""} placeholder={t("placeholders.venue")} className={inputClass} /><FieldError name="venueName" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={event.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
-              <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={event.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
+              <label className={labelClass}>{t("fields.eventType")}<input name="eventType" defaultValue={currentEvent.eventType} placeholder={t("placeholders.eventType")} className={inputClass} /></label>
+              <label className={labelClass}>{t("fields.locale")}<select name="locale" defaultValue={currentEvent.locale} className={inputClass}><option value="en">{t("options.english")}</option><option value="es">{t("options.spanish")}</option></select></label>
+              <label className={`${labelClass} sm:col-span-2`}>{t("fields.title")}<input name="title" defaultValue={currentEvent.title} placeholder={t("placeholders.title")} onInput={(e) => setPreviewTitle(e.currentTarget.value)} className={inputClass} /><FieldError name="title" errors={errors} /></label>
+              <label className={`${labelClass} sm:col-span-2`}>{t("fields.honorees")}<input name="honoreeNames" defaultValue={currentEvent.honoreeNames} placeholder={t("placeholders.honorees")} className={inputClass} /><FieldError name="honoreeNames" errors={errors} /></label>
+              <label className={`${labelClass} sm:col-span-2`}>{t("fields.description")}<textarea name="description" defaultValue={currentEvent.description} placeholder={t("placeholders.description")} onInput={(e) => setPreviewDescription(e.currentTarget.value)} rows={4} className={inputClass} /></label>
+              <label className={`${labelClass} sm:col-span-2`}>{t("fields.timezone")}<input name="timezone" defaultValue={currentEvent.timezone} placeholder={t("placeholders.timezone")} className={inputClass} /><FieldError name="timezone" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.startsAt")}<input type="datetime-local" name="startsAt" defaultValue={toLocalInput(currentEvent.startsAt, currentEvent.timezone)} className={inputClass} /><FieldError name="startsAt" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.endsAt")}<input type="datetime-local" name="endsAt" defaultValue={toLocalInput(currentEvent.endsAt, currentEvent.timezone)} className={inputClass} /><FieldError name="endsAt" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.venue")}<input name="venueName" defaultValue={currentEvent.venueName ?? ""} placeholder={t("placeholders.venue")} className={inputClass} /><FieldError name="venueName" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
+              <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
           </section>
 
@@ -277,7 +322,7 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 {(["classic", "editorial", "garden"] as const).map((theme) => (
                   <label key={theme} className="flex min-h-12 cursor-pointer items-center gap-2 rounded-md border border-[#d8cedc] bg-white px-3 py-2 text-sm font-medium has-[:checked]:border-[#6D456F] has-[:checked]:bg-[#F1EDF4]">
-                    <input type="radio" name="themeKey" value={theme} defaultChecked={event.themeKey === theme || (theme === "classic" && !["editorial", "garden"].includes(event.themeKey))} onChange={() => setPreviewTheme(theme)} />
+                    <input type="radio" name="themeKey" value={theme} defaultChecked={currentEvent.themeKey === theme || (theme === "classic" && !["editorial", "garden"].includes(currentEvent.themeKey))} onChange={() => setPreviewTheme(theme)} />
                     {t(`options.theme${theme[0]?.toUpperCase()}${theme.slice(1)}`)}
                   </label>
                 ))}
@@ -293,41 +338,34 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
           <section id="rsvp" className={sectionClass}>
             <SectionHeading title={t("sections.rsvp")} help={t("sectionHelp.rsvp")} />
             <div className="grid gap-5 sm:grid-cols-2">
-              <label className={labelClass}>{t("fields.deadline")}<input type="datetime-local" name="rsvpDeadline" defaultValue={toLocalInput(event.rsvpDeadline, event.timezone)} className={inputClass} /><FieldError name="rsvpDeadline" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.capacity")}<input type="number" min="1" step="1" name="capacity" defaultValue={event.capacity ?? ""} className={inputClass} /><FieldError name="capacity" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.deadline")}<input type="datetime-local" name="rsvpDeadline" defaultValue={toLocalInput(currentEvent.rsvpDeadline, currentEvent.timezone)} className={inputClass} /><FieldError name="rsvpDeadline" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.capacity")}<input type="number" min="1" step="1" name="capacity" defaultValue={currentEvent.capacity ?? ""} className={inputClass} /><FieldError name="capacity" errors={errors} /></label>
               <label className={labelClass}>{t("fields.passcode")}<input type="password" name="passcode" minLength={4} autoComplete="new-password" placeholder={t("placeholders.passcode")} className={inputClass} /><span className="mt-1.5 block text-xs font-normal leading-5 text-[#675d6a]">{t("passcodeHelp")}</span><FieldError name="passcode" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.expireAt")}<input type="datetime-local" name="expireAt" defaultValue={toLocalInput(event.expireAt, event.timezone)} className={inputClass} /><FieldError name="expireAt" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.expireAt")}<input type="datetime-local" name="expireAt" defaultValue={toLocalInput(currentEvent.expireAt, currentEvent.timezone)} className={inputClass} /><FieldError name="expireAt" errors={errors} /></label>
             </div>
             <div className="mt-5 divide-y divide-[#ddd4e1] border-y border-[#ddd4e1]">
               {[
-                ["showPublicRsvpCount", "publicCount", event.showPublicRsvpCount],
-                ["ownerEmailNotifications", "emailNotifications", event.ownerEmailNotifications],
-                ["ownerSmsNotifications", "smsNotifications", event.ownerSmsNotifications],
-                ["guestEmailConfirmations", "guestConfirmations", event.guestEmailConfirmations],
+                ["showPublicRsvpCount", "publicCount", currentEvent.showPublicRsvpCount],
+                ["ownerEmailNotifications", "emailNotifications", currentEvent.ownerEmailNotifications],
+                ["ownerSmsNotifications", "smsNotifications", currentEvent.ownerSmsNotifications],
+                ["guestEmailConfirmations", "guestConfirmations", currentEvent.guestEmailConfirmations],
               ].map(([name, label, checked]) => (
                 <label key={String(name)} className="flex min-h-12 items-center justify-between gap-4 py-3 text-sm font-medium"><span>{t(`fields.${label}`)}</span><input type="checkbox" name={String(name)} defaultChecked={Boolean(checked)} className="h-5 w-5 accent-[#6D456F]" /></label>
               ))}
               <label className="block py-3 text-sm font-semibold">{t("fields.removePasscode")}<input type="checkbox" name="removePasscode" className="ml-3 h-5 w-5 align-middle accent-[#6D456F]" /></label>
             </div>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
-              <label className={labelClass}>{t("fields.notificationEmail")}<input type="email" name="notificationEmail" defaultValue={event.notificationEmail ?? ""} className={inputClass} /><FieldError name="notificationEmail" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.notificationPhone")}<input type="tel" name="notificationPhone" defaultValue={event.notificationPhone ?? ""} className={inputClass} /><FieldError name="notificationPhone" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.notificationEmail")}<input type="email" name="notificationEmail" defaultValue={currentEvent.notificationEmail ?? ""} className={inputClass} /><FieldError name="notificationEmail" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.notificationPhone")}<input type="tel" name="notificationPhone" defaultValue={currentEvent.notificationPhone ?? ""} className={inputClass} /><FieldError name="notificationPhone" errors={errors} /></label>
             </div>
             {mode === "founder" && (
               <fieldset className="mt-7 border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-5">
                 <legend className="px-1 text-sm font-semibold">{t("founderControls")}</legend>
-                <p className="mb-4 text-sm leading-6 text-[#675d6a]">{t("credentialsHelp")}</p>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <label className={labelClass}>{t("fields.ownerName")}<input name="ownerName" defaultValue={event.owner.name} className={inputClass} /><FieldError name="ownerName" errors={errors} /></label>
-                  <label className={labelClass}>{t("fields.ownerEmail")}<input type="email" name="ownerEmail" defaultValue={event.owner.email} className={inputClass} /><FieldError name="ownerEmail" errors={errors} /></label>
-                  <label className={labelClass}>{t("fields.ownerPhone")}<input type="tel" name="ownerPhone" defaultValue={event.owner.phone ?? ""} className={inputClass} /><FieldError name="ownerPhone" errors={errors} /></label>
-                  <label className={labelClass}>{t("fields.newOwnerPin")}<input type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} name="newOwnerPin" autoComplete="new-password" className={inputClass} /><FieldError name="newOwnerPin" errors={errors} /></label>
-                </div>
-                <p className="mb-3 mt-6 text-sm font-semibold text-[#55485a]">{t("founderLimitsHelp")}</p>
+                <p className="mb-3 text-sm font-semibold text-[#55485a]">{t("founderLimitsHelp")}</p>
                 <div className="grid gap-4 sm:grid-cols-3">
-                  <label className={labelClass}>{t("fields.submissionLimit")}<input type="number" min="1" name="submissionLimit" defaultValue={event.submissionLimit} className={inputClass} /></label>
-                  <label className={labelClass}>{t("fields.emailLimit")}<input type="number" min="1" name="emailNotificationLimit" defaultValue={event.emailNotificationLimit} className={inputClass} /></label>
-                  <label className={labelClass}>{t("fields.smsLimit")}<input type="number" min="1" name="smsNotificationLimit" defaultValue={event.smsNotificationLimit} className={inputClass} /></label>
+                  <label className={labelClass}>{t("fields.submissionLimit")}<input type="number" min="1" name="submissionLimit" defaultValue={currentEvent.submissionLimit} className={inputClass} /></label>
+                  <label className={labelClass}>{t("fields.emailLimit")}<input type="number" min="1" name="emailNotificationLimit" defaultValue={currentEvent.emailNotificationLimit} className={inputClass} /></label>
+                  <label className={labelClass}>{t("fields.smsLimit")}<input type="number" min="1" name="smsNotificationLimit" defaultValue={currentEvent.smsNotificationLimit} className={inputClass} /></label>
                 </div>
               </fieldset>
             )}
@@ -338,15 +376,16 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
             <div data-mobile-preview="true" className="mb-6 overflow-hidden rounded-lg border border-[#cfc3d3] bg-white lg:hidden">
               <div className="h-2" style={{ backgroundColor: previewAccent }} />
               <div className="flex min-h-[320px] flex-col items-center justify-center px-6 py-8 text-center" style={{ backgroundColor: previewBackground, color: previewText }}>
-                <p className="text-sm opacity-70">{event.eventType}</p>
+                <p className="text-sm opacity-70">{currentEvent.eventType}</p>
                 <h2 className={`mt-5 text-3xl leading-tight ${previewFont === "fraunces-geist" ? "font-[family-name:var(--font-fraunces)]" : "font-sans"}`}>{previewTitle || t("placeholders.title")}</h2>
                 <div className="my-5 h-px w-12" style={{ backgroundColor: previewAccent }} />
                 <p className="text-sm leading-6 opacity-80">{previewDescription || t("placeholders.description")}</p>
                 <p className="mt-7 text-sm font-semibold">{dateLabel}</p>
-                <p className="mt-1 text-sm">{event.venueName || t("previewVenuePending")}</p>
+                <p className="mt-1 text-sm">{currentEvent.venueName || t("previewVenuePending")}</p>
               </div>
             </div>
             {errors.status && <p role="alert" className="mb-4 text-sm text-[#A33A3A]">{errors.status}</p>}
+            {(dirty || saving) && <p className="mb-4 text-sm text-[#675d6a]">{t("saveBeforeStatus")}</p>}
             {Object.entries(errors).filter(([key]) => !["form", "status"].includes(key)).length > 0 && (
               <ul className="mb-4 border-l-4 border-[#A33A3A] bg-red-50 px-4 py-3 text-sm text-[#7f2929]">
                 {Object.entries(errors).filter(([key]) => !["form", "status"].includes(key)).map(([key, message]) => <li key={key}>{message}</li>)}
@@ -354,12 +393,12 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
             )}
             <div className="flex flex-wrap gap-2">
               {statusCommands(status).map((command) => (
-                <button key={command} type="button" disabled={statusBusy} onClick={() => changeStatus(command)} className="min-h-11 rounded-md border border-[#b9aabc] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{t(`actions.${command}`)}</button>
+                <button key={command} type="button" disabled={statusBusy || saving || dirty} onClick={() => changeStatus(command)} className="min-h-11 rounded-md border border-[#b9aabc] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{t(`actions.${command}`)}</button>
               ))}
             </div>
             <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold">
-              <a href={`/invite/${event.slug}`} target="_blank" rel="noreferrer" className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.openPreview")}</a>
-              <button type="button" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/invite/${event.slug}`)} className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.copyLink")}</button>
+              <a href={`/invite/${currentEvent.slug}`} target="_blank" rel="noreferrer" className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.openPreview")}</a>
+              <button type="button" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/invite/${currentEvent.slug}`)} className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.copyLink")}</button>
             </div>
           </section>
 
@@ -378,17 +417,18 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
             <div className="overflow-hidden rounded-lg border border-[#cfc3d3] bg-white shadow-[0_12px_40px_rgba(67,43,71,0.09)]">
               <div className="h-2" style={{ backgroundColor: previewAccent }} />
               <div className="flex min-h-[430px] flex-col items-center justify-center px-7 py-10 text-center" style={{ backgroundColor: previewBackground, color: previewText }}>
-                <p className="text-sm opacity-70">{event.eventType}</p>
+                <p className="text-sm opacity-70">{currentEvent.eventType}</p>
                 <h2 className={`mt-6 text-4xl leading-tight ${previewFont === "fraunces-geist" ? "font-[family-name:var(--font-fraunces)]" : "font-sans"}`}>{previewTitle || t("placeholders.title")}</h2>
                 <div className="my-6 h-px w-12" style={{ backgroundColor: previewAccent }} />
                 <p className="text-sm leading-6 opacity-80">{previewDescription || t("placeholders.description")}</p>
                 <p className="mt-8 text-sm font-semibold">{dateLabel}</p>
-                <p className="mt-1 text-sm">{event.venueName || t("previewVenuePending")}</p>
+                <p className="mt-1 text-sm">{currentEvent.venueName || t("previewVenuePending")}</p>
               </div>
             </div>
           </div>
         </aside>
 
+        </fieldset>
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-[#cfc3d3] bg-white/95 px-4 py-3 backdrop-blur lg:static lg:col-start-2 lg:border-0 lg:bg-transparent lg:px-0 lg:py-0">
           <div className="mx-auto flex max-w-[680px] items-center justify-between gap-4 lg:pb-8">
             <p aria-live="polite" className={`text-sm font-medium ${dirty ? "text-[#A33A3A]" : saved ? "text-[#2F6B4F]" : "text-[#675d6a]"}`}>{dirty ? t("dirty") : saved ? t("actions.saved") : t("clean")}</p>
@@ -396,6 +436,25 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
           </div>
         </div>
       </form>
+      {mode === "founder" && (
+        <form key={`${currentEvent.owner.id}:${currentEvent.owner.updatedAt}`} data-credentials-form="true" onSubmit={saveCredentials} className="mx-auto mt-8 max-w-[680px] border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-5 sm:px-6">
+          <fieldset disabled={credentialSaving} className="border-0 p-0">
+            <h2 className="text-lg font-semibold text-[#2B2231]">{t("founderControls")}</h2>
+            <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("credentialsHelp")}</p>
+            {credentialErrors.form && <p role="alert" className="mt-4 text-sm text-[#A33A3A]">{credentialErrors.form}</p>}
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <label className={labelClass}>{t("fields.ownerName")}<input name="ownerName" defaultValue={currentEvent.owner.name} className={inputClass} /><FieldError name="ownerName" errors={credentialErrors} /></label>
+              <label className={labelClass}>{t("fields.ownerEmail")}<input type="email" name="ownerEmail" defaultValue={currentEvent.owner.email} className={inputClass} /><FieldError name="ownerEmail" errors={credentialErrors} /><FieldError name="ownerEmailTaken" errors={credentialErrors} /></label>
+              <label className={labelClass}>{t("fields.ownerPhone")}<input type="tel" name="ownerPhone" defaultValue={currentEvent.owner.phone ?? ""} className={inputClass} /><FieldError name="ownerPhone" errors={credentialErrors} /></label>
+              <label className={labelClass}>{t("fields.newOwnerPin")}<input type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} name="newOwnerPin" autoComplete="new-password" className={inputClass} /><FieldError name="newOwnerPin" errors={credentialErrors} /></label>
+            </div>
+          </fieldset>
+          <div className="mt-5 flex items-center justify-between gap-4">
+            <p aria-live="polite" className="text-sm font-medium text-[#675d6a]">{credentialSaved ? t("actions.saved") : t("clean")}</p>
+            <button type="submit" disabled={credentialSaving} className="min-h-11 shrink-0 rounded-md bg-[#6D456F] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-45">{credentialSaving ? t("actions.saving") : t("actions.save")}</button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

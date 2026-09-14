@@ -8,6 +8,7 @@ import {
   generateInvitationSlug,
   getInvitationEventForManagement,
   listFounderEvents,
+  updateInvitationOwnerCredentials,
 } from "./repository-core";
 import type { InvitationEventUpdate } from "./validation";
 
@@ -207,4 +208,23 @@ test("owner credential rows persist only founder-normalized values and a supplie
   });
   assert.equal(typeof updatedAt, "string");
   assert.equal(JSON.stringify(row).includes("654321"), false);
+});
+
+test("duplicate owner email failure stays inside the credential repository boundary", async () => {
+  let ownerWrites = 0;
+  await assert.rejects(
+    async () => updateInvitationOwnerCredentials(
+      "owner-1",
+      { ownerEmail: "duplicate@example.com" },
+      undefined,
+      {
+        updateOwner: async () => {
+          ownerWrites += 1;
+          throw new Error("duplicate owner email");
+        },
+      },
+    ),
+    /duplicate owner email/,
+  );
+  assert.equal(ownerWrites, 1);
 });

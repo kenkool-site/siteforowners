@@ -4,7 +4,7 @@ import {
   getInvitationEventForManagement,
   updateInvitationEventStatus,
 } from "@/lib/invitations/repository";
-import { isStatusCommandAllowed, parseStatusCommand, validatePublishableEvent } from "@/lib/invitations/validation";
+import { parseStatusCommand, validateStatusTransition } from "@/lib/invitations/validation";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(
@@ -28,16 +28,12 @@ export async function POST(
 
   const current = await getInvitationEventForManagement(params.eventId);
   if (!current) return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
-  if (!isStatusCommandAllowed(current.status, parsed.command)) {
-    return NextResponse.json({ errors: { command: "That action is not available from the current status." } }, { status: 409 });
-  }
-
-  if (parsed.command === "publish") {
-    const allowPastEvent = access.kind === "founder" && Boolean(
-      body && typeof body === "object" && "allowPastEvent" in body && body.allowPastEvent === true,
-    );
-    const errors = validatePublishableEvent(current, { allowPastEvent });
-    if (Object.keys(errors).length) return NextResponse.json({ errors }, { status: 400 });
+  const allowPastEvent = Boolean(
+    body && typeof body === "object" && "allowPastEvent" in body && body.allowPastEvent === true,
+  );
+  const errors = validateStatusTransition(current, parsed.command, access.kind, { allowPastEvent });
+  if (Object.keys(errors).length) {
+    return NextResponse.json({ errors }, { status: "command" in errors ? 409 : 400 });
   }
 
   try {

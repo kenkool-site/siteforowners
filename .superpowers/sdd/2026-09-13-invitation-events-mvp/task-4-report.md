@@ -44,3 +44,32 @@ The frontend-design pass follows the approved cool-plum event-binder direction: 
 - Media validity in this task is limited to a safe, non-empty persisted media path. Task 5 owns MIME/size/duration validation and should pass its richer media result into publish validation.
 - Event and founder-only owner-credential updates use two service-role writes; a rare second-write failure can leave event content saved while credentials remain unchanged. If cross-table atomic editing becomes operationally important, add a narrowly scoped database RPC.
 - No live Supabase database was used; repository contracts and TypeScript integration were exercised locally.
+
+## Fix Round 1 — concurrency, lifecycle validation, and credential isolation
+
+### Changes
+
+- `src/components/invitations/EventEditor.tsx` now disables the event form during a save, blocks all lifecycle controls until an explicit save completes, displays localized save-first guidance, and reconciles the returned normalized event into inputs and both previews (including event type, timezone/date, and venue).
+- `src/components/invitations/EventEditor.interaction.test.tsx` adds browser-level regressions for save-time locking, dirty lifecycle blocking, normalized-save preview reconciliation, and isolated duplicate-email credential errors.
+- `src/app/api/invitations/events/[eventId]/status/route.ts` now calls `validateStatusTransition`, so every transition back to `published` (including `reopen`) validates the current persisted event and applies `allowPastEvent` only for founders.
+- `src/app/api/invitations/events/[eventId]/credentials/route.ts` is a founder-only credential operation. Event PATCH no longer performs owner writes, so a duplicate owner email cannot make a successful event write appear to have failed. Duplicate conflicts return an owner-email field error.
+- `src/lib/invitations/validation.ts`, `repository-core.ts`, and `repository.ts` separate event updates from `InvitationOwnerCredentialUpdate`; repository tests exercise the independent owner-write failure boundary.
+- `messages/en.json` and `messages/es.json` add matching save-first, credential-save, and duplicate-email copy.
+
+### RED / GREEN evidence
+
+- Inherited RED evidence in the original report remains historical evidence for the original Task 4 implementation; it was not rerun in this round.
+- Observed RED in this round: `npx tsx --test src/components/invitations/EventEditor.interaction.test.tsx src/lib/invitations/validation.test.ts src/lib/invitations/repository.test.ts` initially produced **19 passed, 4 failed**. The failures were exactly the unimplemented inherited interaction regressions: inputs remained editable during save, dirty lifecycle controls were enabled, normalized save responses left the preview stale, and no independent credential form existed.
+- Observed GREEN: the same focused command subsequently produced **23 passed, 0 failed**. `npx tsc --noEmit` exited **0**. The complete source-test run below produced **556 passed, 0 failed**.
+
+### Commands and results
+
+- `npx tsx --test src/components/invitations/EventEditor.interaction.test.tsx src/lib/invitations/validation.test.ts src/lib/invitations/repository.test.ts` — 23 passed, 0 failed.
+- `npx tsc --noEmit` — exit 0.
+- `node -e '…compare invitations.editor keys in messages/en.json and messages/es.json…'` — editor locale keys synchronized.
+- `rg --files src -g '*.test.ts' -g '*.test.tsx' -0 | xargs -0 npx tsx --test` — 556 passed, 0 failed. Existing `next-intl` `ENVIRONMENT_FALLBACK` diagnostics remained non-failing.
+- `git diff --check` — clean.
+
+### Remaining concern
+
+- This fix intentionally uses an independent credential request instead of a cross-table transaction. A credential failure leaves the independently saved event untouched and accurately reported; a future all-or-nothing combined editing experience would require a dedicated database RPC.

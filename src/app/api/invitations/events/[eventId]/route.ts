@@ -4,7 +4,6 @@ import { requireInvitationAccess } from "@/lib/invitations/access";
 import {
   getInvitationEventForManagement,
   updateInvitationEvent,
-  updateInvitationOwnerCredentials,
 } from "@/lib/invitations/repository";
 import { parseEventUpdate } from "@/lib/invitations/validation";
 import { NextRequest, NextResponse } from "next/server";
@@ -32,14 +31,8 @@ export async function PATCH(
   if (!parsed.ok) return NextResponse.json({ errors: parsed.errors }, { status: 400 });
 
   try {
-    const [passcodeHash, ownerPinHash] = await Promise.all([
-      parsed.value.passcode ? hashPin(parsed.value.passcode) : undefined,
-      parsed.value.newOwnerPin ? hashPin(parsed.value.newOwnerPin) : undefined,
-    ]);
+    const passcodeHash = parsed.value.passcode ? await hashPin(parsed.value.passcode) : undefined;
     await updateInvitationEvent(params.eventId, parsed.value, passcodeHash);
-    if (access.kind === "founder") {
-      await updateInvitationOwnerCredentials(current.ownerId, parsed.value, ownerPinHash);
-    }
     const event = await getInvitationEventForManagement(params.eventId);
     if (!event) return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
     return NextResponse.json({ event });

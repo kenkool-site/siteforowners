@@ -230,7 +230,9 @@
       "dirty": "Cambios sin guardar",
       "clean": "No hay cambios sin guardar",
       "saveError": "Los cambios no se guardaron. Corrija los campos marcados e inténtelo de nuevo.",
+      "credentialSaveError": "Las credenciales del propietario no se guardaron. Corrija los campos marcados e inténtelo de nuevo.",
       "statusError": "No se pudo cambiar el estado. Corrija los campos indicados e inténtelo de nuevo.",
+      "saveBeforeStatus": "Guarde los cambios antes de modificar el estado de la invitación.",
       "responsePlaceholderTitle": "Las respuestas aparecerán aquí",
       "responsePlaceholderBody": "Cuando los invitados respondan, esta sección mostrará los totales y detalles.",
       "previewDatePending": "Fecha y hora no establecidas",
@@ -267,6 +269,7 @@
         "command": "Elija una acción de estado válida.",
         "ownerName": "Ingrese el nombre del propietario.",
         "ownerEmail": "Ingrese un correo de acceso válido.",
+        "ownerEmailTaken": "Ese correo de acceso del propietario ya está en uso.",
         "ownerPhone": "Ingrese un teléfono válido o déjelo en blanco.",
         "newOwnerPin": "Use exactamente seis dígitos para el nuevo PIN."
       }

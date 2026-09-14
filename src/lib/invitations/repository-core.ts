@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { normalizeInvitationEmail } from "./validation";
-import type { InvitationEventUpdate } from "./validation";
+import type { InvitationEventUpdate, InvitationOwnerCredentialUpdate } from "./validation";
 import type {
   InvitationEvent,
   InvitationEventStatus,
@@ -325,7 +325,7 @@ export function buildInvitationEventUpdateRow(
 }
 
 export function buildInvitationOwnerUpdateRow(
-  update: InvitationEventUpdate,
+  update: InvitationOwnerCredentialUpdate,
   pinHash?: string,
 ): InvitationEventUpdateRow {
   const row: InvitationEventUpdateRow = { updated_at: new Date().toISOString() };
@@ -334,4 +334,14 @@ export function buildInvitationOwnerUpdateRow(
   if (update.ownerPhone !== undefined) row.phone = update.ownerPhone;
   if (update.newOwnerPin !== undefined && pinHash !== undefined) row.pin_hash = pinHash;
   return row;
+}
+
+export async function updateInvitationOwnerCredentials(
+  ownerId: string,
+  update: InvitationOwnerCredentialUpdate,
+  pinHash: string | undefined,
+  repository: { updateOwner(ownerId: string, row: InvitationEventUpdateRow): Promise<void> },
+): Promise<void> {
+  const row = buildInvitationOwnerUpdateRow(update, pinHash);
+  await repository.updateOwner(ownerId, row);
 }

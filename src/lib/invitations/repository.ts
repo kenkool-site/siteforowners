@@ -9,6 +9,7 @@ import {
   getInvitationEventForManagement as getInvitationEventForManagementWithRepository,
   buildInvitationEventUpdateRow,
   buildInvitationOwnerUpdateRow,
+  updateInvitationOwnerCredentials as updateInvitationOwnerCredentialsWithRepository,
   listFounderEvents as listFounderEventsWithRepository,
   type CreateInvitationOwnerAndEventInput,
   type InvitationFounderListRow,
@@ -17,7 +18,7 @@ import {
   type InvitationProvisionDependencies,
   type InvitationRepository,
 } from "./repository-core";
-import type { InvitationEventUpdate } from "./validation";
+import type { InvitationEventUpdate, InvitationOwnerCredentialUpdate } from "./validation";
 import type { InvitationEventStatus } from "./types";
 
 export type {
@@ -181,10 +182,9 @@ export async function updateInvitationEventStatus(
 
 export async function updateInvitationOwnerCredentials(
   ownerId: string,
-  update: InvitationEventUpdate,
+  update: InvitationOwnerCredentialUpdate,
   pinHash?: string,
   repository: InvitationManagementRepository = invitationRepository,
 ): Promise<void> {
-  const row = buildInvitationOwnerUpdateRow(update, pinHash);
-  if (Object.keys(row).length > 1) await repository.updateOwner(ownerId, row);
+  await updateInvitationOwnerCredentialsWithRepository(ownerId, update, pinHash, repository);
 }

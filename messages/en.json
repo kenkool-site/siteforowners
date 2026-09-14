@@ -230,7 +230,9 @@
       "dirty": "Unsaved changes",
       "clean": "No unsaved changes",
       "saveError": "Changes were not saved. Fix the highlighted fields and try again.",
+      "credentialSaveError": "Owner credentials were not saved. Fix the highlighted fields and try again.",
       "statusError": "The invitation status could not be changed. Fix the listed fields and try again.",
+      "saveBeforeStatus": "Save your changes before changing the invitation status.",
       "responsePlaceholderTitle": "Responses will appear here",
       "responsePlaceholderBody": "After guests reply, this section will show totals and response details.",
       "previewDatePending": "Date and time not set",
@@ -267,6 +269,7 @@
         "command": "Choose a valid invitation status action.",
         "ownerName": "Enter the owner's name.",
         "ownerEmail": "Enter a valid owner sign-in email.",
+        "ownerEmailTaken": "That owner sign-in email is already in use.",
         "ownerPhone": "Enter a valid owner phone number or leave it blank.",
         "newOwnerPin": "Use exactly six digits for the new owner PIN."
       }
