@@ -59,6 +59,7 @@ export type SubmitRsvpRpcInput = {
   eventId: string;
   existingRsvpId: string | null;
   editTokenHash: string;
+  administrative: boolean;
   input: ParsedRsvpInput;
 };
 
@@ -80,6 +81,7 @@ export type SubmitRsvpRequest = {
   eventId: string;
   rsvpId?: string;
   editToken?: string;
+  credentialMode?: "guest" | "administrative";
   input: ParsedRsvpInput;
 };
 
@@ -101,18 +103,25 @@ export async function submitRsvp(
   request: SubmitRsvpRequest,
   dependencies: SubmitRsvpDependencies,
 ): Promise<SubmitRsvpResult> {
+  const administrative = request.credentialMode === "administrative";
   const isUpdate = request.rsvpId !== undefined || request.editToken !== undefined;
-  if (isUpdate && (!request.rsvpId || !request.editToken)) {
+  if (administrative && !request.rsvpId) {
+    return { ok: false, code: "invalid_edit_token" };
+  }
+  if (!administrative && isUpdate && (!request.rsvpId || !request.editToken)) {
     return { ok: false, code: "invalid_edit_token" };
   }
 
-  const credential = isUpdate
+  const credential = administrative
+    ? { token: null, hash: "" }
+    : isUpdate
     ? { token: null, hash: dependencies.hashToken(request.editToken!) }
     : dependencies.createToken();
   const rpcInput: SubmitRsvpRpcInput = {
     eventId: request.eventId,
     existingRsvpId: request.rsvpId ?? null,
     editTokenHash: credential.hash,
+    administrative,
     input: request.input,
   };
   const result = await dependencies.mutate(rpcInput);
@@ -142,7 +151,7 @@ export async function submitInvitationRsvp(request: SubmitRsvpRequest): Promise<
   return submitRsvp(request, {
     createToken: createEditToken,
     hashToken: hashEditToken,
-    mutate: async ({ eventId, existingRsvpId, editTokenHash, input }) => {
+    mutate: async ({ eventId, existingRsvpId, editTokenHash, administrative, input }) => {
       const { data, error } = await createAdminClient().rpc("submit_invitation_rsvp", {
         p_event_id: eventId,
         p_primary_name: input.primaryName,
@@ -155,6 +164,7 @@ export async function submitInvitationRsvp(request: SubmitRsvpRequest): Promise<
         p_message: input.message,
         p_edit_token_hash: editTokenHash,
         p_existing_rsvp_id: existingRsvpId,
+        p_administrative: administrative,
       });
       return { data, error };
     },

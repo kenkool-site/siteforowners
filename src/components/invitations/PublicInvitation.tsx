@@ -132,6 +132,24 @@ function StateView({ children }: { children: ReactNode }) {
   );
 }
 
+export function PublicRsvpAggregate({
+  summary,
+  titleClass,
+  className,
+}: {
+  summary: { attendingPeople: number; declinedParties: number };
+  titleClass: string;
+  className?: string;
+}) {
+  const t = useTranslations("invitations.public");
+  return (
+    <section className={`${className ?? ""} grid grid-cols-2 gap-4 px-5 py-7 text-center sm:px-9`} aria-label={t("countsLabel")}>
+      <p><strong className={`${titleClass} block text-4xl`}>{summary.attendingPeople}</strong><span className="mt-1 block text-sm leading-5">{t("attending", { count: summary.attendingPeople })}</span></p>
+      <p><strong className={`${titleClass} block text-4xl`}>{summary.declinedParties}</strong><span className="mt-1 block text-sm leading-5">{t("declined", { count: summary.declinedParties })}</span></p>
+    </section>
+  );
+}
+
 export function InvitationStateView({ state }: { state: "draft" | "expired" }) {
   const t = useTranslations("invitations.public");
   if (state === "draft") {
@@ -238,12 +256,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInv
           </section>
         )}
 
-        {event.showPublicRsvpCount && (
-          <section className={`${theme.count} mt-12 grid grid-cols-2 gap-4 px-5 py-7 text-center sm:mt-16 sm:px-9`} aria-label={t("countsLabel")}>
-            <p><strong className={`${titleFont} block text-4xl`}>{rsvpSummary.attendingPeople}</strong><span className="mt-1 block text-sm leading-5">{t("attending", { count: rsvpSummary.attendingPeople })}</span></p>
-            <p><strong className={`${titleFont} block text-4xl`}>{rsvpSummary.declinedParties}</strong><span className="mt-1 block text-sm leading-5">{t("declined", { count: rsvpSummary.declinedParties })}</span></p>
-          </section>
-        )}
+        {event.showPublicRsvpCount && <PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${theme.count} mt-12 sm:mt-16`} />}
 
         <section id="rsvp" className={`${theme.rsvp} mb-8 mt-12 px-6 py-9 sm:mb-12 sm:mt-16 sm:px-10`}>
           <h2 className={`${titleFont} text-3xl sm:text-4xl`}>{state === "rsvp_closed" ? t("rsvp.closedTitle") : t("rsvp.title")}</h2>

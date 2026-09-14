@@ -1,0 +1,108 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { NextIntlClientProvider } from "next-intl";
+import enMessages from "../../../messages/en.json";
+import { PublicRsvpAggregate } from "./PublicInvitation";
+import {
+  ResponsesDashboard,
+  type InvitationResponsesDashboard,
+} from "./ResponsesDashboard";
+
+Object.assign(globalThis, { React });
+
+const privateResponse = {
+  id: "rsvp-1",
+  eventId: "event-1",
+  primaryName: "Private Guest",
+  email: "private@example.test",
+  phone: "+19175550199",
+  attending: true,
+  partySize: 3,
+  additionalGuestNames: ["Guest Two", "Guest Three"],
+  dietaryOrAccessibilityNotes: "Peanut allergy",
+  message: "Please keep this private",
+  createdAt: "2026-09-13T12:00:00.000Z",
+  updatedAt: "2026-09-14T12:00:00.000Z",
+};
+
+const dashboard: InvitationResponsesDashboard = {
+  responses: [privateResponse],
+  filteredTotal: 1,
+  page: 1,
+  perPage: 25,
+  summary: {
+    attendingPeople: 3,
+    attendingParties: 1,
+    declinedParties: 2,
+    remainingCapacity: 7,
+    totalSubmissions: 3,
+  },
+  notificationWarningCount: 1,
+  warnings: [
+    { code: "failed_delivery", count: 1 },
+    { code: "capacity_reached", count: 0 },
+  ],
+  failedNotifications: [{ id: "notification-1", channel: "email" }],
+};
+
+function provider(children: React.ReactNode) {
+  return (
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
+      {children}
+    </NextIntlClientProvider>
+  );
+}
+
+test("owner dashboard renders private response details, all totals, warnings, and editing controls", () => {
+  const html = renderToStaticMarkup(provider(
+    <ResponsesDashboard eventId="event-1" mode="owner" initialData={dashboard} />,
+  ));
+
+  for (const value of [
+    "Private Guest", "private@example.test", "+19175550199", "Guest Two",
+    "Peanut allergy", "3 attending", "1 attending party", "2 declined parties",
+    "7 seats remaining", "3 total responses", "1 delivery warning", "Edit response",
+  ]) {
+    assert.match(html, new RegExp(value.replace("+", "\\+"), "i"));
+  }
+  assert.match(html, /data-response-ledger="true"/);
+  assert.match(html, /Download CSV/);
+  assert.doesNotMatch(html, /Retry delivery/);
+});
+
+test("founder dashboard exposes retry controls without rendering notification recipients", () => {
+  const html = renderToStaticMarkup(provider(
+    <ResponsesDashboard eventId="event-1" mode="founder" initialData={dashboard} />,
+  ));
+
+  assert.match(html, /Retry delivery/);
+  assert.doesNotMatch(html, /notification-recipient@example\.test/);
+});
+
+test("public aggregate renders the same totals without any private response fields", () => {
+  const html = renderToStaticMarkup(provider(
+    <PublicRsvpAggregate
+      summary={{
+        attendingPeople: dashboard.summary.attendingPeople,
+        declinedParties: dashboard.summary.declinedParties,
+      }}
+      titleClass="font-sans"
+      className="public-counts"
+    />,
+  ));
+
+  assert.match(html, /3 attending/);
+  assert.match(html, /2 parties unable to attend/);
+  for (const value of [
+    privateResponse.primaryName,
+    privateResponse.email,
+    privateResponse.phone,
+    privateResponse.additionalGuestNames[0],
+    privateResponse.dietaryOrAccessibilityNotes,
+    privateResponse.message,
+  ]) {
+    assert.doesNotMatch(html, new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
+  }
+});

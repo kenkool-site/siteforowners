@@ -144,15 +144,18 @@ test("editing is disabled while a save request is pending", async () => {
 });
 
 test("dirty editor blocks lifecycle actions until Save completes", async () => {
-  let calls = 0;
-  await withEditor("owner", async () => { calls += 1; return response({}); }, async (container, dom) => {
+  let statusCalls = 0;
+  await withEditor("owner", async (input) => {
+    if (String(input).endsWith("/status")) statusCalls += 1;
+    return response({});
+  }, async (container, dom) => {
     const title = container.querySelector<HTMLInputElement>('input[name="title"]')!;
     await act(async () => setInput(dom, title, "Unsaved title"));
     const publish = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Publish invitation")!;
     assert.equal(publish.disabled, true);
     assert.match(container.textContent ?? "", /Save your changes before changing the invitation status/);
     await act(async () => publish.click());
-    assert.equal(calls, 0);
+    assert.equal(statusCalls, 0);
   });
 });
 

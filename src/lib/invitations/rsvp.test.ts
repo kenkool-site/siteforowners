@@ -108,6 +108,47 @@ test("update hashes the supplied credential and never returns it", async () => {
   assert.equal(result.ok && result.value.created, false);
 });
 
+test("administrative updates explicitly bypass guest tokens without creating responses", async () => {
+  const calls: SubmitRsvpRpcInput[] = [];
+  const result = await submitRsvp(
+    {
+      eventId: "event-1",
+      rsvpId: "rsvp-1",
+      credentialMode: "administrative",
+      input: normalizedInput,
+    },
+    {
+      createToken: () => { throw new Error("administrative updates must not create tokens"); },
+      hashToken: () => { throw new Error("administrative updates must not hash guest tokens"); },
+      mutate: async (input) => {
+        calls.push(input);
+        return {
+          data: [{ rsvp_id: "rsvp-1", mutation_kind: "updated", attending_total: 2, declined_party_total: 0, remaining_capacity: 8 }],
+          error: null,
+        };
+      },
+    },
+  );
+
+  assert.equal(calls[0]?.administrative, true);
+  assert.equal(calls[0]?.existingRsvpId, "rsvp-1");
+  assert.equal(calls[0]?.editTokenHash, "");
+  assert.equal(result.ok, true);
+  assert.equal(result.ok && result.value.editToken, null);
+
+  assert.deepEqual(
+    await submitRsvp(
+      { eventId: "event-1", credentialMode: "administrative", input: normalizedInput },
+      {
+        createToken: () => { throw new Error("must not create"); },
+        hashToken: () => { throw new Error("must not hash"); },
+        mutate: async () => { throw new Error("must not mutate"); },
+      },
+    ),
+    { ok: false, code: "invalid_edit_token" },
+  );
+});
+
 test("an update requires both RSVP ID and edit token", async () => {
   const dependencies = {
     createToken: () => ({ token: "private-token", hash: "stored-hash" }),

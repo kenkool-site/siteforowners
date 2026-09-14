@@ -22,6 +22,14 @@ import {
 } from "./repository-core";
 import type { InvitationEventUpdate, InvitationOwnerCredentialUpdate } from "./validation";
 import type { InvitationEventStatus } from "./types";
+import {
+  buildInvitationResponsesDashboard,
+  type InvitationNotificationWarningRow,
+  type InvitationResponseQuery,
+  type InvitationResponseRow,
+  type InvitationResponsesDashboard,
+  type InvitationResponsesEventRow,
+} from "./responses";
 
 export type {
   CreateInvitationOwnerAndEventInput,
@@ -42,6 +50,12 @@ export type InvitationManagementRepository = {
   updateEvent(eventId: string, row: Record<string, string | number | boolean | null>): Promise<void>;
   updateStatus(eventId: string, status: InvitationEventStatus): Promise<void>;
   updateOwner(ownerId: string, row: Record<string, string | number | boolean | null>): Promise<void>;
+};
+
+export type InvitationResponsesRepository = {
+  getResponsesEvent(eventId: string): Promise<InvitationResponsesEventRow | null>;
+  listResponseRows(eventId: string): Promise<InvitationResponseRow[]>;
+  listResponseNotifications(eventId: string): Promise<InvitationNotificationWarningRow[]>;
 };
 
 type RpcProvisionRow = { owner_id: string; event_id: string };
@@ -73,7 +87,7 @@ const PUBLIC_SELECT = [
   "invitation_owners!inner(is_active)", "invitation_rsvps(attending,party_size)",
 ].join(",");
 
-export const invitationRepository: InvitationRepository & InvitationManagementRepository & InvitationPublicRepository = {
+export const invitationRepository: InvitationRepository & InvitationManagementRepository & InvitationPublicRepository & InvitationResponsesRepository = {
   async insert(rows: InvitationProvisionRows) {
     const supabase = createAdminClient();
     const { data, error } = await supabase.rpc("create_invitation_owner_and_event", {
@@ -152,6 +166,37 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
     const { error } = await supabase.from("invitation_owners").update(row).eq("id", ownerId);
     if (error) throw new Error("Unable to update invitation owner", { cause: error });
   },
+
+  async getResponsesEvent(eventId) {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("invitation_events")
+      .select("status,capacity,rsvp_deadline,expire_at,email_notification_limit,sms_notification_limit")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (error) throw new Error("Unable to load response totals", { cause: error });
+    return data as InvitationResponsesEventRow | null;
+  },
+
+  async listResponseRows(eventId) {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("invitation_rsvps")
+      .select("id,event_id,primary_name,email,phone,attending,party_size,additional_guest_names,dietary_or_accessibility_notes,message,created_at,updated_at")
+      .eq("event_id", eventId);
+    if (error) throw new Error("Unable to load invitation responses", { cause: error });
+    return (data ?? []) as InvitationResponseRow[];
+  },
+
+  async listResponseNotifications(eventId) {
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("invitation_notifications")
+      .select("id,channel,status")
+      .eq("event_id", eventId);
+    if (error) throw new Error("Unable to load response notifications", { cause: error });
+    return (data ?? []) as InvitationNotificationWarningRow[];
+  },
 };
 
 export async function createInvitationOwnerAndEvent(
@@ -219,4 +264,26 @@ export async function updateInvitationOwnerCredentials(
   repository: InvitationManagementRepository = invitationRepository,
 ): Promise<void> {
   await updateInvitationOwnerCredentialsWithRepository(ownerId, update, pinHash, repository);
+}
+
+export async function getInvitationResponsesDashboard(
+  eventId: string,
+  query: Partial<Record<keyof InvitationResponseQuery, string | number>>,
+  repository: InvitationResponsesRepository = invitationRepository,
+  now = new Date(),
+): Promise<InvitationResponsesDashboard | null> {
+  const [event, rows, notifications] = await Promise.all([
+    repository.getResponsesEvent(eventId),
+    repository.listResponseRows(eventId),
+    repository.listResponseNotifications(eventId),
+  ]);
+  if (!event) return null;
+  return buildInvitationResponsesDashboard({ event, rows, notifications, query, now });
+}
+
+export async function listInvitationResponseRows(
+  eventId: string,
+  repository: InvitationResponsesRepository = invitationRepository,
+): Promise<InvitationResponseRow[]> {
+  return repository.listResponseRows(eventId);
 }

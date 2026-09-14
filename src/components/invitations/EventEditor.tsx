@@ -10,6 +10,7 @@ import type {
 } from "@/lib/invitations/media";
 import type { InvitationEventForManagement } from "@/lib/invitations/repository";
 import type { InvitationEventStatus } from "@/lib/invitations/types";
+import { ResponsesDashboard } from "./ResponsesDashboard";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -698,10 +699,7 @@ export function EventEditor({
 
           <section id="responses" className={sectionClass}>
             <SectionHeading title={t("sections.responses")} help={t("sectionHelp.responses")} />
-            <div className="border-l-2 border-[#cfc3d3] py-2 pl-4">
-              <h3 className="font-semibold">{t("responsePlaceholderTitle")}</h3>
-              <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("responsePlaceholderBody")}</p>
-            </div>
+            <ResponsesDashboard eventId={currentEvent.id} mode={mode} />
           </section>
         </div>
 
