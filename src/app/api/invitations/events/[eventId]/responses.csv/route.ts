@@ -26,7 +26,7 @@ export async function GET(
       search: query.get("search") ?? undefined,
       sort: query.get("sort") ?? undefined,
     });
-    const csv = responsesToCsv(responses);
+    const csv = responsesToCsv(responses, event.locale);
     return new NextResponse(csv, {
       headers: {
         "cache-control": "private, no-store",

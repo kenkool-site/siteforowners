@@ -210,7 +210,9 @@ export function buildInvitationResponsesDashboard(input: {
     totalSubmissions: input.rows.length,
   };
   const filtered = filterSortInvitationResponses(input.rows, query);
-  const start = (query.page - 1) * query.perPage;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / query.perPage));
+  const page = Math.min(query.page, totalPages);
+  const start = (page - 1) * query.perPage;
   const failed = input.notifications.filter((row) => row.status === "failed");
   const suppressed = input.notifications.filter((row) => row.status === "suppressed");
   const now = (input.now ?? new Date()).getTime();
@@ -238,7 +240,7 @@ export function buildInvitationResponsesDashboard(input: {
   return {
     responses: filtered.slice(start, start + query.perPage),
     filteredTotal: filtered.length,
-    page: query.page,
+    page,
     perPage: query.perPage,
     summary,
     notificationWarningCount: failed.length + suppressed.length,

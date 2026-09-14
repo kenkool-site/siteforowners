@@ -697,10 +697,6 @@ export function EventEditor({
             </div>
           </section>
 
-          <section id="responses" className={sectionClass}>
-            <SectionHeading title={t("sections.responses")} help={t("sectionHelp.responses")} />
-            <ResponsesDashboard eventId={currentEvent.id} mode={mode} />
-          </section>
         </div>
 
         <aside className="hidden py-8 lg:block">
@@ -728,6 +724,12 @@ export function EventEditor({
           </div>
         </div>
       </form>
+      <div className="mx-auto grid max-w-[1380px] lg:grid-cols-[180px_minmax(0,680px)_minmax(280px,1fr)] lg:gap-10 lg:px-8">
+        <section id="responses" className="scroll-mt-24 px-4 py-7 sm:px-6 lg:col-start-2 lg:col-span-2 lg:px-0 lg:py-8">
+          <SectionHeading title={t("sections.responses")} help={t("sectionHelp.responses")} />
+          <ResponsesDashboard eventId={currentEvent.id} mode={mode} />
+        </section>
+      </div>
       {mode === "founder" && (
         <form key={`${currentEvent.owner.id}:${currentEvent.owner.updatedAt}`} data-credentials-form="true" onSubmit={saveCredentials} onChange={markCredentialDirty} className="mx-auto mt-8 max-w-[680px] border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-5 sm:px-6">
           <fieldset disabled={credentialSaving} className="border-0 p-0">

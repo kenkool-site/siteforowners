@@ -155,3 +155,17 @@ test("newest and oldest sorts use ids as a stable tie-breaker", () => {
   assert.deepEqual(newest.responses.map((row) => row.id), [rows[2]!.id, rows[1]!.id, rows[0]!.id]);
   assert.deepEqual(oldest.responses.map((row) => row.id), [rows[0]!.id, rows[1]!.id, rows[2]!.id]);
 });
+
+test("an out-of-range response page clamps to the last non-empty page", () => {
+  const dashboard = buildInvitationResponsesDashboard({
+    event: { ...event, rsvp_deadline: null },
+    rows,
+    notifications: [],
+    query: { status: "attending", search: "", sort: "oldest", page: 9, perPage: 1 },
+    now: new Date("2026-08-01T00:00:00.000Z"),
+  });
+
+  assert.equal(dashboard.filteredTotal, 2);
+  assert.equal(dashboard.page, 2);
+  assert.deepEqual(dashboard.responses.map((row) => row.id), [rows[2]!.id]);
+});

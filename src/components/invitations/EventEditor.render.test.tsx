@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { JSDOM } from "jsdom";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
 import { EventEditor, type EditorEvent } from "./EventEditor";
@@ -72,6 +73,17 @@ test("the event editor exposes five clearly labeled sections", () => {
   }
   assert.match(html, />Save changes</);
   assert.match(html, /No unsaved changes/);
+});
+
+test("the response dashboard is outside the event settings form and disabled fieldset", () => {
+  const document = new JSDOM(render("owner")).window.document;
+  const eventForm = document.querySelector<HTMLFormElement>('form[data-event-form="true"]');
+  const dashboard = document.querySelector<HTMLElement>('[data-response-ledger="true"]');
+
+  assert.ok(eventForm);
+  assert.ok(dashboard);
+  assert.equal(eventForm.contains(dashboard), false);
+  assert.equal(dashboard.closest("fieldset"), null);
 });
 
 test("only founders see cost limit controls", () => {

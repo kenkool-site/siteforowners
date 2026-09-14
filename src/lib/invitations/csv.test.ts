@@ -51,3 +51,15 @@ test("CSV follows RFC 4180 for quotes, newlines, nulls, and CRLF rows", () => {
   assert.match(csv, /Declined,Ana Rivera,,,0,,,"She said ""yes""\nthen declined"/);
   assert.equal(csv.endsWith("\r\n"), true);
 });
+
+test("CSV localizes headers and response status to the event language", () => {
+  const csv = responsesToCsv([
+    row,
+    { ...row, attending: false, partySize: 0 },
+  ], "es");
+
+  assert.match(csv, /^Estado de respuesta,Nombre principal,Correo,Teléfono,Tamaño del grupo,Invitados adicionales,Notas de dieta o accesibilidad,Mensaje,Fecha de creación,Fecha de actualización\r\n/);
+  assert.match(csv, /^Asistirá,/m);
+  assert.match(csv, /^No asistirá,/m);
+  assert.doesNotMatch(csv, /Response status|Attending|Declined/);
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { EventEditorMode } from "./EventEditor";
 import type {
@@ -72,13 +72,14 @@ export function ResponsesDashboard({
   const [status, setStatus] = useState<InvitationResponseStatusFilter>("all");
   const [sort, setSort] = useState<InvitationResponseSort>("newest");
   const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(initialData?.page ?? 1);
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState<InvitationResponse | null>(null);
   const [draft, setDraft] = useState<ResponseDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const editHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const query = useMemo(() => new URLSearchParams({
     status,
@@ -96,6 +97,7 @@ export function ResponsesDashboard({
       const result: unknown = await response.json();
       if (!response.ok || !isDashboardData(result)) throw new Error("responses unavailable");
       setData(result);
+      setPage((current) => current === result.page ? current : result.page);
     } catch (loadError) {
       if (!(loadError instanceof DOMException && loadError.name === "AbortError")) setError(t("loadError"));
     } finally {
@@ -108,6 +110,10 @@ export function ResponsesDashboard({
     void load(controller.signal);
     return () => controller.abort();
   }, [load]);
+
+  useEffect(() => {
+    if (editing) editHeadingRef.current?.focus();
+  }, [editing]);
 
   function beginEdit(response: InvitationResponse) {
     setEditing(response);
@@ -154,6 +160,11 @@ export function ResponsesDashboard({
     }
   }
 
+  function submitResponse(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void saveResponse();
+  }
+
   async function retry(notificationId: string) {
     if (mode !== "founder" || retrying) return;
     setRetrying(notificationId);
@@ -181,6 +192,7 @@ export function ResponsesDashboard({
     [data.notificationWarningCount, t("summary.deliveryWarnings", { count: data.notificationWarningCount })],
   ] as const : [];
   const totalPages = data ? Math.max(1, Math.ceil(data.filteredTotal / data.perPage)) : 1;
+  const displayedPage = data?.page ?? page;
 
   return (
     <div
@@ -257,27 +269,27 @@ export function ResponsesDashboard({
 
       {data && totalPages > 1 && (
         <div className="flex items-center justify-between gap-4 border-t border-[#ddd4e1] px-4 py-3 text-sm">
-          <button type="button" disabled={page <= 1 || loading} onClick={() => setPage((value) => Math.max(1, value - 1))} className="min-h-11 font-semibold text-[#6D456F] disabled:opacity-40">{t("previous")}</button>
-          <span className="text-[#675d6a]">{t("page", { page, total: totalPages })}</span>
-          <button type="button" disabled={page >= totalPages || loading} onClick={() => setPage((value) => value + 1)} className="min-h-11 font-semibold text-[#6D456F] disabled:opacity-40">{t("next")}</button>
+          <button type="button" disabled={displayedPage <= 1 || loading} onClick={() => setPage(Math.max(1, displayedPage - 1))} className="min-h-11 font-semibold text-[#6D456F] disabled:opacity-40">{t("previous")}</button>
+          <span className="text-[#675d6a]">{t("page", { page: displayedPage, total: totalPages })}</span>
+          <button type="button" disabled={displayedPage >= totalPages || loading} onClick={() => setPage(displayedPage + 1)} className="min-h-11 font-semibold text-[#6D456F] disabled:opacity-40">{t("next")}</button>
         </div>
       )}
 
       {editing && draft && (
-        <div className="border-t-2 border-[#6D456F] bg-[#F7F4F8] p-4 sm:p-6" role="group" aria-labelledby="response-edit-heading">
-          <div className="flex items-start justify-between gap-4"><div><h3 id="response-edit-heading" className="text-lg font-semibold text-[#2B2231]">{t("edit.title")}</h3><p className="mt-1 text-sm text-[#675d6a]">{t("edit.help")}</p></div><button type="button" onClick={() => { setEditing(null); setDraft(null); }} className="min-h-11 text-sm font-semibold text-[#6D456F] underline underline-offset-4">{t("edit.cancel")}</button></div>
+        <form data-response-edit-form="true" onSubmit={submitResponse} className="border-t-2 border-[#6D456F] bg-[#F7F4F8] p-4 sm:p-6" aria-labelledby="response-edit-heading">
+          <div className="flex items-start justify-between gap-4"><div><h3 ref={editHeadingRef} tabIndex={-1} id="response-edit-heading" className="text-lg font-semibold text-[#2B2231] outline-none focus-visible:ring-2 focus-visible:ring-[#6D456F]">{t("edit.title")}</h3><p className="mt-1 text-sm text-[#675d6a]">{t("edit.help")}</p></div><button type="button" onClick={() => { setEditing(null); setDraft(null); }} className="min-h-11 text-sm font-semibold text-[#6D456F] underline underline-offset-4">{t("edit.cancel")}</button></div>
           <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-semibold">{t("edit.primaryName")}<input value={draft.primaryName} onChange={(event) => setDraft({ ...draft, primaryName: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
-            <label className="text-sm font-semibold">{t("edit.email")}<input type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
-            <label className="text-sm font-semibold">{t("edit.phone")}<input type="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
-            <fieldset><legend className="text-sm font-semibold">{t("edit.response")}</legend><div className="mt-3 flex gap-4"><label className="flex min-h-11 items-center gap-2 text-sm"><input type="radio" checked={draft.attending} onChange={() => setDraft({ ...draft, attending: true, partySize: Math.max(1, draft.partySize) })} />{t("status.attending")}</label><label className="flex min-h-11 items-center gap-2 text-sm"><input type="radio" checked={!draft.attending} onChange={() => setDraft({ ...draft, attending: false, partySize: 0 })} />{t("status.declined")}</label></div></fieldset>
-            {draft.attending && <label className="text-sm font-semibold">{t("edit.partySize")}<input type="number" min="1" value={draft.partySize} onChange={(event) => setDraft({ ...draft, partySize: Number(event.target.value) })} className={`mt-2 w-full ${controlClass}`} /></label>}
-            {draft.attending && <label className="text-sm font-semibold">{t("edit.additionalGuests")}<textarea rows={3} value={draft.additionalGuestNames} onChange={(event) => setDraft({ ...draft, additionalGuestNames: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>}
-            <label className="text-sm font-semibold sm:col-span-2">{t("edit.notes")}<textarea rows={3} value={draft.dietaryOrAccessibilityNotes} onChange={(event) => setDraft({ ...draft, dietaryOrAccessibilityNotes: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
-            <label className="text-sm font-semibold sm:col-span-2">{t("edit.message")}<textarea rows={3} value={draft.message} onChange={(event) => setDraft({ ...draft, message: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
+            <label className="text-sm font-semibold">{t("edit.primaryName")}<input name="primaryName" required value={draft.primaryName} onChange={(event) => setDraft({ ...draft, primaryName: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
+            <label className="text-sm font-semibold">{t("edit.email")}<input name="email" type="email" value={draft.email} onChange={(event) => setDraft({ ...draft, email: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
+            <label className="text-sm font-semibold">{t("edit.phone")}<input name="phone" type="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
+            <fieldset><legend className="text-sm font-semibold">{t("edit.response")}</legend><div className="mt-3 flex gap-4"><label className="flex min-h-11 items-center gap-2 text-sm"><input name="attending" type="radio" checked={draft.attending} onChange={() => setDraft({ ...draft, attending: true, partySize: Math.max(1, draft.partySize) })} />{t("status.attending")}</label><label className="flex min-h-11 items-center gap-2 text-sm"><input name="attending" type="radio" checked={!draft.attending} onChange={() => setDraft({ ...draft, attending: false, partySize: 0 })} />{t("status.declined")}</label></div></fieldset>
+            {draft.attending && <label className="text-sm font-semibold">{t("edit.partySize")}<input name="partySize" type="number" min="1" required value={draft.partySize} onChange={(event) => setDraft({ ...draft, partySize: Number(event.target.value) })} className={`mt-2 w-full ${controlClass}`} /></label>}
+            {draft.attending && <label className="text-sm font-semibold">{t("edit.additionalGuests")}<textarea name="additionalGuestNames" rows={3} value={draft.additionalGuestNames} onChange={(event) => setDraft({ ...draft, additionalGuestNames: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>}
+            <label className="text-sm font-semibold sm:col-span-2">{t("edit.notes")}<textarea name="dietaryOrAccessibilityNotes" rows={3} value={draft.dietaryOrAccessibilityNotes} onChange={(event) => setDraft({ ...draft, dietaryOrAccessibilityNotes: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
+            <label className="text-sm font-semibold sm:col-span-2">{t("edit.message")}<textarea name="message" rows={3} value={draft.message} onChange={(event) => setDraft({ ...draft, message: event.target.value })} className={`mt-2 w-full ${controlClass}`} /></label>
           </div>
-          <button type="button" disabled={saving} onClick={() => void saveResponse()} className="mt-5 min-h-11 rounded-md bg-[#6D456F] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? t("edit.saving") : t("edit.save")}</button>
-        </div>
+          <button type="submit" disabled={saving} className="mt-5 min-h-11 rounded-md bg-[#6D456F] px-5 py-2 text-sm font-semibold text-white disabled:opacity-50">{saving ? t("edit.saving") : t("edit.save")}</button>
+        </form>
       )}
     </div>
   );
