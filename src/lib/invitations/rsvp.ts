@@ -242,6 +242,20 @@ type ProcessPublicRsvpDependencies = {
 export type PublicRsvpResponse = {
   status: number;
   body: Record<string, unknown>;
+  /**
+   * Set only on a successful mutation (status 200). Carries what Task 8's
+   * notification dispatcher needs that the public projection deliberately
+   * omits (owner notification settings aren't fetched here — see
+   * PublicRsvpEventLookup) and that only this function can supply (the
+   * plaintext edit token, which is never persisted and would otherwise be
+   * unrecoverable once this call returns). This field is never part of
+   * `body`, so it never reaches the JSON response sent to the guest.
+   */
+  notification?: {
+    eventId: string;
+    mutation: RsvpMutationResult;
+    editUrl: string | null;
+  };
 };
 
 type ParsedPublicRsvpRequest = {
@@ -364,5 +378,13 @@ export async function processPublicRsvpRequest(
       remainingCapacity: result.value.remainingCapacity,
     };
   }
-  return { status: 200, body: response };
+  return {
+    status: 200,
+    body: response,
+    notification: {
+      eventId: invitation.event.id,
+      mutation: result.value,
+      editUrl: (response.editUrl as string | undefined) ?? null,
+    },
+  };
 }

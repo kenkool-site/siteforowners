@@ -1,0 +1,674 @@
+// Capped email/SMS delivery for invitation RSVPs. Two pure, dependency-injected
+// entry points mirror the split already established in rsvp.ts
+// (submitRsvp/submitInvitationRsvp): a pure policy function that is unit
+// tested with fake providers, and a "real" wired convenience that the route
+// handlers call directly.
+//
+//   dispatchRsvpNotifications(...)              — pure, tested directly
+//   dispatchInvitationRsvpNotifications(...)     — wired: real DB + providers
+//
+//   processInvitationNotificationRetry(...)      — pure, tested directly
+//   retryInvitationNotification(...)             — wired: real DB + providers
+//
+// Provider failure (or even a bug in the dispatch/retry wiring itself) must
+// never turn a successful RSVP into an error response for the guest — see
+// dispatchInvitationRsvpNotifications's outer try/catch.
+
+import { Resend } from "resend";
+import twilio from "twilio";
+import { escapeHtml } from "@/lib/marketing-lead";
+import { createAdminClient } from "@/lib/supabase/admin";
+import type {
+  InvitationNotificationAudience,
+  InvitationNotificationChannel,
+  InvitationNotificationKind,
+  RsvpMutationResult,
+} from "./types";
+
+// ---------------------------------------------------------------------------
+// Provider-neutral sender interface
+// ---------------------------------------------------------------------------
+
+export type NotificationSendResult =
+  | { ok: true; providerId: string }
+  | { ok: false; error: string };
+
+export interface NotificationSender<TInput> {
+  send(input: TInput): Promise<NotificationSendResult>;
+}
+
+export type EmailSendInput = {
+  to: string;
+  subject: string;
+  html: string;
+  idempotencyKey: string;
+};
+
+export type SmsSendInput = {
+  to: string;
+  body: string;
+  idempotencyKey: string;
+};
+
+export type EmailSender = NotificationSender<EmailSendInput>;
+export type SmsSender = NotificationSender<SmsSendInput>;
+
+function sanitizeFailureReason(error: unknown): string {
+  if (typeof error === "string" && error.trim()) return error.trim().slice(0, 500);
+  if (error && typeof error === "object") {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === "string" && message.trim()) return message.trim().slice(0, 500);
+  }
+  return "Notification delivery failed";
+}
+
+// ---------------------------------------------------------------------------
+// Content builders — every authored field is escaped for the HTML email.
+// ---------------------------------------------------------------------------
+
+type NotificationRsvpFields = {
+  primaryName: string;
+  email: string | null;
+  phone: string | null;
+  attending: boolean;
+  partySize: number;
+  dietaryOrAccessibilityNotes: string | null;
+  message: string | null;
+};
+
+function ownerLabel(created: boolean, attending: boolean): string {
+  const verb = created ? "New RSVP" : "RSVP Updated";
+  return attending ? verb : `${verb} — Declined`;
+}
+
+function ownerEmailSubject(input: { eventTitle: string; created: boolean; rsvp: NotificationRsvpFields }): string {
+  return `${ownerLabel(input.created, input.rsvp.attending)} — ${input.eventTitle}`;
+}
+
+function renderOwnerEmailHtml(input: {
+  eventTitle: string;
+  created: boolean;
+  rsvp: NotificationRsvpFields;
+  dashboardUrl: string;
+}): string {
+  const { rsvp } = input;
+  const contact = rsvp.email || rsvp.phone || "No contact provided";
+  const notesLine = rsvp.dietaryOrAccessibilityNotes
+    ? `<p style="margin:0 0 8px;"><strong>Notes:</strong> ${escapeHtml(rsvp.dietaryOrAccessibilityNotes)}</p>`
+    : "";
+  const messageLine = rsvp.message
+    ? `<p style="margin:0 0 8px;"><strong>Message:</strong> ${escapeHtml(rsvp.message)}</p>`
+    : "";
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">${escapeHtml(ownerLabel(input.created, rsvp.attending))}</h2>
+      <p style="margin: 0 0 8px; font-size: 15px;"><strong>${escapeHtml(input.eventTitle)}</strong></p>
+      <p style="margin: 0 0 8px; font-size: 14px;">
+        <strong>${escapeHtml(rsvp.primaryName)}</strong> — ${rsvp.attending ? `party of ${rsvp.partySize}` : "not attending"}
+      </p>
+      <p style="margin: 0 0 8px; font-size: 14px; color: #4B5563;">Contact: ${escapeHtml(contact)}</p>
+      ${notesLine}
+      ${messageLine}
+      <p style="margin: 16px 0 0;">
+        <a href="${input.dashboardUrl}" style="color: #2563EB; text-decoration: none; font-weight: 600;">View in your dashboard &rarr;</a>
+      </p>
+    </div>
+  `;
+}
+
+function renderOwnerSmsBody(input: { eventTitle: string; rsvp: NotificationRsvpFields; dashboardUrl: string }): string {
+  const status = input.rsvp.attending ? `Attending (${input.rsvp.partySize})` : "Declined";
+  return `${input.eventTitle}: ${input.rsvp.primaryName} — ${status}. ${input.dashboardUrl}`;
+}
+
+function guestEmailSubject(eventTitle: string): string {
+  return `Your RSVP for ${eventTitle}`;
+}
+
+function renderGuestConfirmationEmailHtml(input: {
+  eventTitle: string;
+  rsvp: Pick<NotificationRsvpFields, "primaryName" | "attending" | "partySize">;
+  editUrl: string | null;
+  inviteUrl: string;
+}): string {
+  const status = input.rsvp.attending ? `attending (party of ${input.rsvp.partySize})` : "unable to attend";
+  const editSection = input.editUrl
+    ? `<p style="margin: 16px 0 0;"><a href="${input.editUrl}" style="color: #2563EB; text-decoration: none; font-weight: 600;">Update your RSVP &rarr;</a></p>`
+    : `<p style="margin: 16px 0 0; font-size: 13px; color: #6B7280;">Need to change your response? Use the link from your original confirmation, or visit <a href="${input.inviteUrl}" style="color: #2563EB;">the invitation page</a>.</p>`;
+  return `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">Thanks, ${escapeHtml(input.rsvp.primaryName)}!</h2>
+      <p style="margin: 0 0 8px; font-size: 15px;">
+        We've recorded that you're ${escapeHtml(status)} for <strong>${escapeHtml(input.eventTitle)}</strong>.
+      </p>
+      ${editSection}
+    </div>
+  `;
+}
+
+// ---------------------------------------------------------------------------
+// dispatchRsvpNotifications — pure policy, tested with fake providers.
+// ---------------------------------------------------------------------------
+
+export type NotificationEventContext = {
+  id: string;
+  slug: string;
+  title: string;
+  ownerEmailNotifications: boolean;
+  ownerSmsNotifications: boolean;
+  notificationEmail: string | null;
+  notificationPhone: string | null;
+  guestEmailConfirmations: boolean;
+};
+
+export type DispatchRsvpNotificationsInput = {
+  event: NotificationEventContext;
+  rsvp: RsvpMutationResult["rsvp"];
+  created: boolean;
+  editUrl: string | null;
+  dashboardUrl: string;
+  inviteUrl: string;
+};
+
+export type ReserveNotificationInput = {
+  eventId: string;
+  rsvpId: string;
+  audience: InvitationNotificationAudience;
+  recipient: string;
+  kind: InvitationNotificationKind;
+};
+
+export type ReserveNotificationResult = { id: string; allowed: boolean };
+
+export type NotificationDispatchDependencies = {
+  reserve(
+    channel: InvitationNotificationChannel,
+    input: ReserveNotificationInput,
+  ): Promise<ReserveNotificationResult>;
+  markSent(notificationId: string, providerMessageId: string | null): Promise<void>;
+  markFailed(notificationId: string, reason: string): Promise<void>;
+  email: EmailSender;
+  sms: SmsSender;
+};
+
+export type DispatchRsvpNotificationsResult = {
+  rsvpId: string;
+  suppressedChannels: InvitationNotificationChannel[];
+  notificationsDelayed: boolean;
+};
+
+type PlannedAttempt = {
+  channel: InvitationNotificationChannel;
+  audience: InvitationNotificationAudience;
+  kind: InvitationNotificationKind;
+  recipient: string;
+  send(idempotencyKey: string): Promise<NotificationSendResult>;
+};
+
+export async function dispatchRsvpNotifications(
+  input: DispatchRsvpNotificationsInput,
+  dependencies: NotificationDispatchDependencies,
+): Promise<DispatchRsvpNotificationsResult> {
+  const { event, rsvp, created, editUrl, dashboardUrl, inviteUrl } = input;
+  const kind: InvitationNotificationKind = created ? "rsvp_created" : "rsvp_updated";
+  const attempts: PlannedAttempt[] = [];
+
+  if (event.ownerEmailNotifications && event.notificationEmail) {
+    const to = event.notificationEmail;
+    attempts.push({
+      channel: "email",
+      audience: "owner",
+      kind,
+      recipient: to,
+      send: (idempotencyKey) => dependencies.email.send({
+        to,
+        subject: ownerEmailSubject({ eventTitle: event.title, created, rsvp }),
+        html: renderOwnerEmailHtml({ eventTitle: event.title, created, rsvp, dashboardUrl }),
+        idempotencyKey,
+      }),
+    });
+  }
+
+  if (event.ownerSmsNotifications && event.notificationPhone) {
+    const to = event.notificationPhone;
+    attempts.push({
+      channel: "sms",
+      audience: "owner",
+      kind,
+      recipient: to,
+      send: (idempotencyKey) => dependencies.sms.send({
+        to,
+        body: renderOwnerSmsBody({ eventTitle: event.title, rsvp, dashboardUrl }),
+        idempotencyKey,
+      }),
+    });
+  }
+
+  // Guest confirmations are email-only by design (schema has no
+  // guest-SMS setting) and only ever sent when explicitly enabled.
+  if (event.guestEmailConfirmations && rsvp.email) {
+    const to = rsvp.email;
+    attempts.push({
+      channel: "email",
+      audience: "guest",
+      kind: "guest_confirmation",
+      recipient: to,
+      send: (idempotencyKey) => dependencies.email.send({
+        to,
+        subject: guestEmailSubject(event.title),
+        html: renderGuestConfirmationEmailHtml({ eventTitle: event.title, rsvp, editUrl, inviteUrl }),
+        idempotencyKey,
+      }),
+    });
+  }
+
+  const suppressedChannels: InvitationNotificationChannel[] = [];
+  let notificationsDelayed = false;
+
+  for (const attempt of attempts) {
+    const reservation = await dependencies.reserve(attempt.channel, {
+      eventId: event.id,
+      rsvpId: rsvp.id,
+      audience: attempt.audience,
+      recipient: attempt.recipient,
+      kind: attempt.kind,
+    });
+
+    if (!reservation.allowed) {
+      suppressedChannels.push(attempt.channel);
+      notificationsDelayed = true;
+      continue;
+    }
+
+    try {
+      const result = await attempt.send(reservation.id);
+      if (result.ok) {
+        await dependencies.markSent(reservation.id, result.providerId);
+      } else {
+        notificationsDelayed = true;
+        await dependencies.markFailed(reservation.id, sanitizeFailureReason(result.error));
+      }
+    } catch (error) {
+      notificationsDelayed = true;
+      await dependencies.markFailed(reservation.id, sanitizeFailureReason(error));
+    }
+  }
+
+  return { rsvpId: rsvp.id, suppressedChannels, notificationsDelayed };
+}
+
+// ---------------------------------------------------------------------------
+// Real provider adapters — degrade gracefully when credentials are absent,
+// same convention as src/lib/email.ts and src/lib/sms.ts.
+// ---------------------------------------------------------------------------
+
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const EMAIL_FROM = process.env.EMAIL_FROM || "SiteForOwners <hello@siteforowners.com>";
+
+const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
+const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
+const twilioFromNumber = process.env.TWILIO_FROM;
+const twilioClient = twilioAccountSid && twilioAuthToken
+  ? twilio(twilioAccountSid, twilioAuthToken)
+  : null;
+
+export const resendEmailSender: EmailSender = {
+  async send(input) {
+    if (!resend) return { ok: false, error: "Email delivery is not configured" };
+    try {
+      const result = await resend.emails.send(
+        { from: EMAIL_FROM, to: input.to, subject: input.subject, html: input.html },
+        { idempotencyKey: input.idempotencyKey },
+      );
+      if (!result.data?.id) {
+        return { ok: false, error: sanitizeFailureReason(result.error ?? "Email provider returned no message id") };
+      }
+      return { ok: true, providerId: result.data.id };
+    } catch (error) {
+      return { ok: false, error: sanitizeFailureReason(error) };
+    }
+  },
+};
+
+export const twilioSmsSender: SmsSender = {
+  async send(input) {
+    if (!twilioClient || !twilioFromNumber) return { ok: false, error: "SMS delivery is not configured" };
+    try {
+      // Note: Twilio's Messages resource has no idempotency-key parameter in
+      // the installed SDK (unlike Payments/UserDefinedMessage); idempotencyKey
+      // is accepted here for interface symmetry with EmailSender and is not
+      // forwarded to the API.
+      const message = await twilioClient.messages.create({
+        from: twilioFromNumber,
+        to: input.to,
+        body: input.body,
+      });
+      return { ok: true, providerId: message.sid };
+    } catch (error) {
+      return { ok: false, error: sanitizeFailureReason(error) };
+    }
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Wired reservation + status dependencies (RPC + direct table writes).
+// invitation_notifications is service-role-only, same as every other
+// invitation table, so the admin client's direct .update() calls (already
+// used throughout repository.ts) are sufficient for the two simple status
+// flips; only the capacity-counting reservation and retry need a
+// SECURITY DEFINER RPC for atomicity (see 042_invitation_notification_reservation.sql).
+// ---------------------------------------------------------------------------
+
+type ReserveRpcRow = { notification_id: string; allowed: boolean };
+
+function isReserveRpcRow(value: unknown): value is ReserveRpcRow {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.notification_id === "string" && typeof row.allowed === "boolean";
+}
+
+export async function reserveInvitationNotification(
+  channel: InvitationNotificationChannel,
+  input: ReserveNotificationInput,
+): Promise<ReserveNotificationResult> {
+  const { data, error } = await createAdminClient().rpc("reserve_invitation_notification", {
+    p_event_id: input.eventId,
+    p_rsvp_id: input.rsvpId,
+    p_audience: input.audience,
+    p_channel: channel,
+    p_recipient: input.recipient,
+    p_kind: input.kind,
+  });
+  if (error) throw new Error("Unable to reserve invitation notification", { cause: error });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!isReserveRpcRow(row)) throw new Error("Invalid invitation notification reservation response");
+  return { id: row.notification_id, allowed: row.allowed };
+}
+
+export async function markInvitationNotificationSent(
+  notificationId: string,
+  providerMessageId: string | null,
+): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("invitation_notifications")
+    .update({
+      status: "sent",
+      provider_message_id: providerMessageId,
+      failure_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", notificationId);
+  if (error) throw new Error("Unable to mark invitation notification sent", { cause: error });
+}
+
+export async function markInvitationNotificationFailed(
+  notificationId: string,
+  reason: string,
+): Promise<void> {
+  const { error } = await createAdminClient()
+    .from("invitation_notifications")
+    .update({ status: "failed", failure_reason: reason, updated_at: new Date().toISOString() })
+    .eq("id", notificationId);
+  if (error) throw new Error("Unable to mark invitation notification failed", { cause: error });
+}
+
+async function getInvitationNotificationEventContext(eventId: string): Promise<NotificationEventContext | null> {
+  const { data, error } = await createAdminClient()
+    .from("invitation_events")
+    .select("id,slug,title,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    id: data.id,
+    slug: data.slug,
+    title: data.title,
+    ownerEmailNotifications: data.owner_email_notifications,
+    ownerSmsNotifications: data.owner_sms_notifications,
+    notificationEmail: data.notification_email,
+    notificationPhone: data.notification_phone,
+    guestEmailConfirmations: data.guest_email_confirmations,
+  };
+}
+
+export type DispatchInvitationRsvpNotificationsInput = {
+  eventId: string;
+  mutation: RsvpMutationResult;
+  editUrl: string | null;
+  origin: string;
+};
+
+/**
+ * Real wiring for dispatchRsvpNotifications, called from the RSVP route
+ * after the RPC has already committed the guest's response. This function
+ * must never throw: a provider outage, a missing event row, or a bug in
+ * this wiring is a "notifications delayed" outcome, never an error the
+ * guest sees for a submission that already succeeded.
+ */
+export async function dispatchInvitationRsvpNotifications(
+  input: DispatchInvitationRsvpNotificationsInput,
+): Promise<{ notificationsDelayed: boolean }> {
+  try {
+    const event = await getInvitationNotificationEventContext(input.eventId);
+    if (!event) return { notificationsDelayed: false };
+
+    const dashboardUrl = new URL(`/invitations/manage/${input.eventId}`, input.origin).toString();
+    const inviteUrl = new URL(`/invite/${encodeURIComponent(event.slug)}`, input.origin).toString();
+    const result = await dispatchRsvpNotifications(
+      {
+        event,
+        rsvp: input.mutation.rsvp,
+        created: input.mutation.created,
+        editUrl: input.editUrl,
+        dashboardUrl,
+        inviteUrl,
+      },
+      {
+        reserve: reserveInvitationNotification,
+        markSent: markInvitationNotificationSent,
+        markFailed: markInvitationNotificationFailed,
+        email: resendEmailSender,
+        sms: twilioSmsSender,
+      },
+    );
+    return { notificationsDelayed: result.notificationsDelayed };
+  } catch (error) {
+    console.error("[invitations/notifications] dispatch failed", { eventId: input.eventId, error });
+    return { notificationsDelayed: true };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// processInvitationNotificationRetry — pure policy, tested with fakes.
+// ---------------------------------------------------------------------------
+
+export type RetryReservation =
+  | {
+      allowed: true;
+      eventId: string;
+      eventTitle: string;
+      eventSlug: string;
+      rsvpId: string;
+      audience: InvitationNotificationAudience;
+      channel: InvitationNotificationChannel;
+      recipient: string;
+      kind: InvitationNotificationKind;
+    }
+  | { allowed: false; code: "not_found" | "limit_reached" };
+
+export type RetryRsvpSnapshot = NotificationRsvpFields;
+
+export type RetryDependencies = {
+  reserveRetry(notificationId: string): Promise<RetryReservation>;
+  getRsvpSnapshot(rsvpId: string): Promise<RetryRsvpSnapshot | null>;
+  markSent(notificationId: string, providerMessageId: string | null): Promise<void>;
+  markFailed(notificationId: string, reason: string): Promise<void>;
+  email: EmailSender;
+  sms: SmsSender;
+};
+
+export type RetryOutcome =
+  | { ok: true; status: "sent" | "failed" }
+  | { ok: false; code: "not_found" | "limit_reached" };
+
+export async function processInvitationNotificationRetry(
+  input: { notificationId: string; origin: string },
+  dependencies: RetryDependencies,
+): Promise<RetryOutcome> {
+  const reservation = await dependencies.reserveRetry(input.notificationId);
+  if (!reservation.allowed) return { ok: false, code: reservation.code };
+
+  // From this point on, the RPC has already flipped the row to 'pending'
+  // as an atomic side effect of returning `allowed: true`. Every exit path
+  // below must resolve it to 'sent' or 'failed' — an uncaught exception
+  // here (a missing RSVP, a provider throwing instead of returning
+  // {ok:false}) must not strand the row in 'pending' forever, since retry
+  // only re-accepts rows whose status is already 'failed'.
+  try {
+    const rsvp = await dependencies.getRsvpSnapshot(reservation.rsvpId);
+    if (!rsvp) {
+      await dependencies.markFailed(input.notificationId, "RSVP record no longer available");
+      return { ok: true, status: "failed" };
+    }
+
+    const dashboardUrl = new URL(`/invitations/manage/${reservation.eventId}`, input.origin).toString();
+    const created = reservation.kind === "rsvp_created";
+
+    let sendResult: NotificationSendResult;
+    if (reservation.kind === "guest_confirmation") {
+      // The plaintext edit token is never persisted (by design — see
+      // src/lib/invitations/auth.ts createEditToken/hashEditToken), so a
+      // retried guest-confirmation email cannot recover the original
+      // private edit link. The guest already received that link
+      // synchronously in the original RSVP API response regardless of this
+      // email's fate, so the retry falls back to the public invitation page.
+      sendResult = await dependencies.email.send({
+        to: reservation.recipient,
+        subject: guestEmailSubject(reservation.eventTitle),
+        html: renderGuestConfirmationEmailHtml({
+          eventTitle: reservation.eventTitle,
+          rsvp,
+          editUrl: null,
+          inviteUrl: new URL(`/invite/${encodeURIComponent(reservation.eventSlug)}`, input.origin).toString(),
+        }),
+        idempotencyKey: input.notificationId,
+      });
+    } else if (reservation.channel === "sms") {
+      sendResult = await dependencies.sms.send({
+        to: reservation.recipient,
+        body: renderOwnerSmsBody({ eventTitle: reservation.eventTitle, rsvp, dashboardUrl }),
+        idempotencyKey: input.notificationId,
+      });
+    } else {
+      sendResult = await dependencies.email.send({
+        to: reservation.recipient,
+        subject: ownerEmailSubject({ eventTitle: reservation.eventTitle, created, rsvp }),
+        html: renderOwnerEmailHtml({ eventTitle: reservation.eventTitle, created, rsvp, dashboardUrl }),
+        idempotencyKey: input.notificationId,
+      });
+    }
+
+    if (sendResult.ok) {
+      await dependencies.markSent(input.notificationId, sendResult.providerId);
+      return { ok: true, status: "sent" };
+    }
+    await dependencies.markFailed(input.notificationId, sanitizeFailureReason(sendResult.error));
+    return { ok: true, status: "failed" };
+  } catch (error) {
+    await dependencies.markFailed(input.notificationId, sanitizeFailureReason(error));
+    return { ok: true, status: "failed" };
+  }
+}
+
+type RetryRpcRow = {
+  allowed: boolean;
+  reason: string | null;
+  event_id: string | null;
+  event_title: string | null;
+  event_slug: string | null;
+  rsvp_id: string | null;
+  audience: string | null;
+  channel: string | null;
+  recipient: string | null;
+  kind: string | null;
+};
+
+function isRetryRpcRow(value: unknown): value is RetryRpcRow {
+  return Boolean(value) && typeof value === "object" && typeof (value as Record<string, unknown>).allowed === "boolean";
+}
+
+async function reserveInvitationNotificationRetry(notificationId: string): Promise<RetryReservation> {
+  const { data, error } = await createAdminClient().rpc("retry_invitation_notification", {
+    p_notification_id: notificationId,
+  });
+  if (error) throw new Error("Unable to retry invitation notification", { cause: error });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!isRetryRpcRow(row)) throw new Error("Invalid invitation notification retry response");
+
+  if (!row.allowed) {
+    return { allowed: false, code: row.reason === "limit_reached" ? "limit_reached" : "not_found" };
+  }
+  if (
+    typeof row.event_id !== "string"
+    || typeof row.event_title !== "string"
+    || typeof row.event_slug !== "string"
+    || typeof row.rsvp_id !== "string"
+    || typeof row.recipient !== "string"
+    || (row.audience !== "owner" && row.audience !== "guest")
+    || (row.channel !== "email" && row.channel !== "sms")
+    || (row.kind !== "rsvp_created" && row.kind !== "rsvp_updated" && row.kind !== "guest_confirmation")
+  ) {
+    throw new Error("Invalid invitation notification retry response");
+  }
+  return {
+    allowed: true,
+    eventId: row.event_id,
+    eventTitle: row.event_title,
+    eventSlug: row.event_slug,
+    rsvpId: row.rsvp_id,
+    audience: row.audience,
+    channel: row.channel,
+    recipient: row.recipient,
+    kind: row.kind,
+  };
+}
+
+async function getInvitationRsvpSnapshot(rsvpId: string): Promise<RetryRsvpSnapshot | null> {
+  const { data, error } = await createAdminClient()
+    .from("invitation_rsvps")
+    .select("primary_name,email,phone,attending,party_size,dietary_or_accessibility_notes,message")
+    .eq("id", rsvpId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    primaryName: data.primary_name,
+    email: data.email,
+    phone: data.phone,
+    attending: data.attending,
+    partySize: data.party_size,
+    dietaryOrAccessibilityNotes: data.dietary_or_accessibility_notes,
+    message: data.message,
+  };
+}
+
+/**
+ * Real wiring for processInvitationNotificationRetry — the founder-only
+ * retry route calls this directly, mirroring how the RSVP route calls
+ * submitInvitationRsvp for the analogous pure/wired split in rsvp.ts.
+ */
+export async function retryInvitationNotification(
+  notificationId: string,
+  origin: string,
+): Promise<RetryOutcome> {
+  return processInvitationNotificationRetry(
+    { notificationId, origin },
+    {
+      reserveRetry: reserveInvitationNotificationRetry,
+      getRsvpSnapshot: getInvitationRsvpSnapshot,
+      markSent: markInvitationNotificationSent,
+      markFailed: markInvitationNotificationFailed,
+      email: resendEmailSender,
+      sms: twilioSmsSender,
+    },
+  );
+}

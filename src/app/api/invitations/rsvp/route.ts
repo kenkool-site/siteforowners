@@ -5,6 +5,7 @@ import {
   isSameOrigin,
   verifyInvitationPasscodeSession,
 } from "@/lib/invitations/auth";
+import { dispatchInvitationRsvpNotifications } from "@/lib/invitations/notifications";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import {
   allowInvitationRsvpAttempt,
@@ -44,6 +45,28 @@ export async function POST(request: NextRequest) {
       allowAttempt: allowInvitationRsvpAttempt,
       submit: submitInvitationRsvp,
     });
+
+    if (result.notification) {
+      // A provider outage or notification-layer bug must never turn this
+      // already-successful RSVP into an error response for the guest —
+      // dispatchInvitationRsvpNotifications already guarantees it resolves
+      // rather than rejects, and this try/catch is a second, deliberate
+      // safety net against that same failure mode.
+      let notificationsDelayed = true;
+      try {
+        const dispatch = await dispatchInvitationRsvpNotifications({
+          eventId: result.notification.eventId,
+          mutation: result.notification.mutation,
+          editUrl: result.notification.editUrl,
+          origin: request.nextUrl.origin,
+        });
+        notificationsDelayed = dispatch.notificationsDelayed;
+      } catch (error) {
+        console.error("[invitations/rsvp] notification dispatch failed", { error });
+      }
+      result.body.notificationsDelayed = notificationsDelayed;
+    }
+
     return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
     // Keep edit tokens and full guest contacts out of logs.
