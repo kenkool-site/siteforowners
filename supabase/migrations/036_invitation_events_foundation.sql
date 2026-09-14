@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS invitation_events (
   expire_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (ends_at IS NULL OR starts_at IS NULL OR ends_at > starts_at)
+  CHECK (ends_at IS NULL OR (starts_at IS NOT NULL AND ends_at > starts_at))
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS invitation_events_slug_idx
@@ -91,7 +91,11 @@ CREATE TABLE IF NOT EXISTS invitation_rsvps (
   last_notified_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CHECK (email IS NOT NULL OR phone IS NOT NULL),
+  UNIQUE (event_id, id),
+  CHECK (
+    NULLIF(BTRIM(email), '') IS NOT NULL
+    OR NULLIF(BTRIM(phone), '') IS NOT NULL
+  ),
   CHECK ((attending AND party_size >= 1) OR (NOT attending AND party_size = 0))
 );
 
@@ -104,7 +108,7 @@ CREATE INDEX IF NOT EXISTS invitation_rsvps_event_created_at_idx
 CREATE TABLE IF NOT EXISTS invitation_notifications (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id uuid NOT NULL REFERENCES invitation_events(id) ON DELETE CASCADE,
-  rsvp_id uuid NOT NULL REFERENCES invitation_rsvps(id) ON DELETE CASCADE,
+  rsvp_id uuid NOT NULL,
   audience text NOT NULL CHECK (audience IN ('owner', 'guest')),
   channel text NOT NULL CHECK (channel IN ('email', 'sms')),
   recipient text NOT NULL,
@@ -115,7 +119,9 @@ CREATE TABLE IF NOT EXISTS invitation_notifications (
   provider_message_id text,
   failure_reason text,
   created_at timestamptz NOT NULL DEFAULT now(),
-  updated_at timestamptz NOT NULL DEFAULT now()
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (event_id, rsvp_id)
+    REFERENCES invitation_rsvps (event_id, id) ON DELETE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS invitation_notifications_event_id_idx
