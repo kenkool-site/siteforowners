@@ -1,0 +1,277 @@
+import { randomInt } from "node:crypto";
+import { normalizeInvitationEmail } from "./validation";
+import type {
+  InvitationEvent,
+  InvitationEventStatus,
+  InvitationLocale,
+  InvitationOwner,
+} from "./types";
+
+export const INVITATION_SUBMISSION_LIMIT = 250;
+export const INVITATION_EMAIL_NOTIFICATION_LIMIT = 250;
+export const INVITATION_SMS_NOTIFICATION_LIMIT = 50;
+
+export type CreateInvitationOwnerAndEventInput = {
+  ownerName: string;
+  ownerEmail: string;
+  ownerPhone: string | null;
+  title: string;
+  eventType: string;
+  locale: InvitationLocale;
+  startsAt?: string | null;
+  timezone?: string;
+};
+
+export type InvitationProvisionRows = {
+  owner: {
+    name: string;
+    email: string;
+    phone: string | null;
+    pin_hash: string;
+  };
+  event: {
+    slug: string;
+    event_type: string;
+    locale: InvitationLocale;
+    title: string;
+    starts_at: string | null;
+    timezone: string;
+    submission_limit: number;
+    email_notification_limit: number;
+    sms_notification_limit: number;
+    notification_email: string;
+  };
+};
+
+export type InvitationProvisionIds = { ownerId: string; eventId: string };
+
+export type InvitationProvisionDependencies = {
+  hashPin(pin: string): Promise<string>;
+  generatePin(): string;
+  generateSlug(title: string): string;
+  insert(rows: InvitationProvisionRows): Promise<InvitationProvisionIds>;
+};
+
+export type InvitationFounderListRow = {
+  id: string;
+  slug: string;
+  title: string;
+  starts_at: string | null;
+  status: InvitationEventStatus;
+  invitation_owners: { name: string; email: string } | Array<{ name: string; email: string }>;
+  invitation_rsvps: Array<{ attending: boolean; party_size: number }> | null;
+  invitation_notifications: Array<{ status: string }> | null;
+};
+
+export type InvitationManagementRow = {
+  id: string;
+  owner_id: string;
+  slug: string;
+  event_type: string;
+  locale: InvitationLocale;
+  title: string;
+  honoree_names: string;
+  description: string;
+  starts_at: string | null;
+  ends_at: string | null;
+  timezone: string;
+  venue_name: string | null;
+  address: string | null;
+  map_url: string | null;
+  theme_key: string;
+  primary_color: string;
+  accent_color: string;
+  font_pair_key: string;
+  designed_invite_path: string | null;
+  cover_image_path: string | null;
+  video_path: string | null;
+  passcode_hash?: string | null;
+  show_public_rsvp_count: boolean;
+  capacity: number | null;
+  rsvp_deadline: string | null;
+  submission_limit: number;
+  email_notification_limit: number;
+  sms_notification_limit: number;
+  owner_email_notifications: boolean;
+  owner_sms_notifications: boolean;
+  notification_email: string | null;
+  notification_phone: string | null;
+  guest_email_confirmations: boolean;
+  status: InvitationEventStatus;
+  expire_at: string | null;
+  created_at: string;
+  updated_at: string;
+  invitation_owners:
+    | InvitationManagementOwnerRow
+    | InvitationManagementOwnerRow[];
+};
+
+export type InvitationManagementOwnerRow = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  pin_hash?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export interface InvitationRepository {
+  insert(rows: InvitationProvisionRows): Promise<InvitationProvisionIds>;
+  list(): Promise<InvitationFounderListRow[]>;
+  get(eventId: string): Promise<InvitationManagementRow | null>;
+}
+
+export type FounderInvitationEventSummary = {
+  id: string;
+  slug: string;
+  title: string;
+  ownerName: string;
+  ownerEmail: string;
+  startsAt: string | null;
+  status: InvitationEventStatus;
+  attendingPeople: number;
+  declinedParties: number;
+  notificationWarningCount: number;
+};
+
+export type InvitationOwnerForManagement = Omit<InvitationOwner, "pinHash">;
+export type InvitationEventForManagement = Omit<InvitationEvent, "passcodeHash"> & {
+  owner: InvitationOwnerForManagement;
+};
+
+function firstRelation<T>(value: T | T[]): T {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export function generateInvitationPin(): string {
+  return randomInt(0, 1_000_000).toString().padStart(6, "0");
+}
+
+export function generateInvitationSlug(title: string): string {
+  const prefix = title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48)
+    .replace(/-+$/g, "") || "event";
+  const suffix = Array.from({ length: 6 }, () => randomInt(36).toString(36)).join("");
+  return `${prefix}-${suffix}`;
+}
+
+export async function createInvitationOwnerAndEvent(
+  input: CreateInvitationOwnerAndEventInput,
+  dependencies: InvitationProvisionDependencies,
+): Promise<InvitationProvisionIds & { slug: string; pin: string }> {
+  const pin = dependencies.generatePin();
+  const slug = dependencies.generateSlug(input.title);
+  const email = normalizeInvitationEmail(input.ownerEmail);
+  const ids = await dependencies.insert({
+    owner: {
+      name: input.ownerName.trim(),
+      email,
+      phone: input.ownerPhone?.trim() || null,
+      pin_hash: await dependencies.hashPin(pin),
+    },
+    event: {
+      slug,
+      event_type: input.eventType.trim(),
+      locale: input.locale,
+      title: input.title.trim(),
+      starts_at: input.startsAt ?? null,
+      timezone: input.timezone?.trim() || "America/New_York",
+      submission_limit: INVITATION_SUBMISSION_LIMIT,
+      email_notification_limit: INVITATION_EMAIL_NOTIFICATION_LIMIT,
+      sms_notification_limit: INVITATION_SMS_NOTIFICATION_LIMIT,
+      notification_email: email,
+    },
+  });
+  return { ...ids, slug, pin };
+}
+
+export async function listFounderEvents(
+  repository: InvitationRepository,
+): Promise<FounderInvitationEventSummary[]> {
+  const rows = await repository.list();
+  return rows.map((row) => {
+    const owner = firstRelation(row.invitation_owners);
+    const rsvps = row.invitation_rsvps ?? [];
+    const notifications = row.invitation_notifications ?? [];
+    return {
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      ownerName: owner.name,
+      ownerEmail: owner.email,
+      startsAt: row.starts_at,
+      status: row.status,
+      attendingPeople: rsvps.reduce(
+        (total, rsvp) => total + (rsvp.attending ? rsvp.party_size : 0),
+        0,
+      ),
+      declinedParties: rsvps.filter((rsvp) => !rsvp.attending).length,
+      notificationWarningCount: notifications.filter(
+        (notification) => notification.status === "failed" || notification.status === "suppressed",
+      ).length,
+    };
+  });
+}
+
+export async function getInvitationEventForManagement(
+  eventId: string,
+  repository: InvitationRepository,
+): Promise<InvitationEventForManagement | null> {
+  const row = await repository.get(eventId);
+  if (!row) return null;
+  const owner = firstRelation(row.invitation_owners);
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    slug: row.slug,
+    eventType: row.event_type,
+    locale: row.locale,
+    title: row.title,
+    honoreeNames: row.honoree_names,
+    description: row.description,
+    startsAt: row.starts_at,
+    endsAt: row.ends_at,
+    timezone: row.timezone,
+    venueName: row.venue_name,
+    address: row.address,
+    mapUrl: row.map_url,
+    themeKey: row.theme_key,
+    primaryColor: row.primary_color,
+    accentColor: row.accent_color,
+    fontPairKey: row.font_pair_key,
+    designedInvitePath: row.designed_invite_path,
+    coverImagePath: row.cover_image_path,
+    videoPath: row.video_path,
+    showPublicRsvpCount: row.show_public_rsvp_count,
+    capacity: row.capacity,
+    rsvpDeadline: row.rsvp_deadline,
+    submissionLimit: row.submission_limit,
+    emailNotificationLimit: row.email_notification_limit,
+    smsNotificationLimit: row.sms_notification_limit,
+    ownerEmailNotifications: row.owner_email_notifications,
+    ownerSmsNotifications: row.owner_sms_notifications,
+    notificationEmail: row.notification_email,
+    notificationPhone: row.notification_phone,
+    guestEmailConfirmations: row.guest_email_confirmations,
+    status: row.status,
+    expireAt: row.expire_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    owner: {
+      id: owner.id,
+      name: owner.name,
+      email: owner.email,
+      phone: owner.phone,
+      isActive: owner.is_active,
+      createdAt: owner.created_at,
+      updatedAt: owner.updated_at,
+    },
+  };
+}

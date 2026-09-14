@@ -16,6 +16,21 @@ export type ShellTenant = {
   profile_image_url?: string | null;
 };
 
+export type FounderAdminLink = {
+  href: string;
+  label: string;
+};
+
+// Ordered by founder workflow: build the asset, operate it, then manage the funnel.
+export const FOUNDER_ADMIN_LINKS: readonly FounderAdminLink[] = [
+  { href: "/previews", label: "Previews" },
+  { href: "/demos", label: "Demos" },
+  { href: "/admin/invitations", label: "Invitations" },
+  { href: "/requests", label: "Requests" },
+  { href: "/prospects", label: "Prospects" },
+  { href: "/clients", label: "Clients" },
+];
+
 export function buildAdminTabs(tenant: ShellTenant): AdminTab[] {
   const showSchedule =
     !tenant.booking_tool ||

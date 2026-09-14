@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildAdminTabs } from "./admin-navigation";
+import { buildAdminTabs, FOUNDER_ADMIN_LINKS } from "./admin-navigation";
 
 const tenant = {
   business_name: "Bella Studio",
@@ -35,4 +35,12 @@ test("conditional schedule, services, and orders behavior is preserved", () => {
   assert.equal(external.includes("Schedule"), false);
   assert.equal(external.includes("Services"), false);
   assert.equal(external.includes("Orders"), true);
+});
+
+test("founder navigation exposes invitation operations without changing owner tabs", () => {
+  assert.deepEqual(
+    FOUNDER_ADMIN_LINKS.find((link) => link.href === "/admin/invitations"),
+    { href: "/admin/invitations", label: "Invitations" },
+  );
+  assert.equal(buildAdminTabs(tenant).some((tab) => tab.label === "Invitations"), false);
 });

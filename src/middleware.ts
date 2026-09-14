@@ -4,7 +4,14 @@ import { createClient } from "@supabase/supabase-js";
 import { isPublicSiteLive, isOwnerAdminReachable } from "@/lib/tenant-access";
 
 // Admin routes that require authentication
-const ADMIN_ROUTES = ["/prospects", "/clients", "/previews", "/requests", "/onboard"];
+const ADMIN_ROUTES = [
+  "/admin/invitations",
+  "/prospects",
+  "/clients",
+  "/previews",
+  "/requests",
+  "/onboard",
+];
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
