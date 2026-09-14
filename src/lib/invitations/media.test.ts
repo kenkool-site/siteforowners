@@ -44,14 +44,30 @@ function box(type: string, payload: Uint8Array): Uint8Array {
   return concat(u32(payload.length + 8), ascii(type), payload);
 }
 
-function timelineHeader(timescale: number, duration: number): Uint8Array {
-  return concat(new Uint8Array(12), u32(timescale), u32(duration), new Uint8Array(4));
+function timelineHeader(timescale: number, duration: number, version = 0): Uint8Array {
+  const bytes = concat(new Uint8Array(12), u32(timescale), u32(duration), new Uint8Array(4));
+  bytes[0] = version;
+  return bytes;
 }
 
-function track(handler: "vide" | "soun", seconds: number): Uint8Array {
+function movieHeader(timescale: number, duration: number, version = 0): Uint8Array {
+  return concat(timelineHeader(timescale, duration, version), new Uint8Array(76));
+}
+
+function handlerBox(type: "vide" | "soun"): Uint8Array {
+  return box("hdlr", concat(new Uint8Array(8), ascii(type), new Uint8Array(16)));
+}
+
+function trackHeader(id: number): Uint8Array {
+  const payload = new Uint8Array(40);
+  payload.set(u32(id), 12);
+  return box("tkhd", payload);
+}
+
+function track(handlerType: "vide" | "soun", seconds: number): Uint8Array {
   const mdhd = box("mdhd", timelineHeader(1_000, seconds * 1_000));
-  const hdlr = box("hdlr", concat(new Uint8Array(8), ascii(handler), new Uint8Array(4)));
-  return box("trak", box("mdia", concat(mdhd, hdlr)));
+  const mdia = box("mdia", concat(mdhd, handlerBox(handlerType), box("stsd", new Uint8Array(8))));
+  return box("trak", concat(trackHeader(handlerType === "vide" ? 1 : 2), mdia));
 }
 
 function mp4Fixture(input: { movieSeconds: number; videoSeconds: number; audioSeconds?: number; brand?: string }): Uint8Array {
@@ -59,7 +75,39 @@ function mp4Fixture(input: { movieSeconds: number; videoSeconds: number; audioSe
   const tracks = input.audioSeconds === undefined
     ? [track("vide", input.videoSeconds)]
     : [track("soun", input.audioSeconds), track("vide", input.videoSeconds)];
-  return concat(ftyp, box("moov", concat(box("mvhd", timelineHeader(1_000, input.movieSeconds * 1_000)), ...tracks)));
+  return concat(ftyp, box("moov", concat(box("mvhd", movieHeader(1_000, input.movieSeconds * 1_000)), ...tracks)));
+}
+
+function mp4WithAtoms(moviePayload: Uint8Array, mdhdPayload: Uint8Array, sibling?: Uint8Array): Uint8Array {
+  const ftyp = box("ftyp", concat(ascii("isom"), u32(0), ascii("isom")));
+  const mdia = box("mdia", concat(
+    box("mdhd", mdhdPayload),
+    sibling ?? new Uint8Array(),
+    handlerBox("vide"),
+    box("stsd", new Uint8Array(8)),
+  ));
+  return concat(ftyp, box("moov", concat(box("mvhd", moviePayload), box("trak", concat(trackHeader(1), mdia)))));
+}
+
+function mp4WithoutTrackHeader(): Uint8Array {
+  const ftyp = box("ftyp", concat(ascii("isom"), u32(0), ascii("isom")));
+  const mdia = box("mdia", concat(
+    box("mdhd", timelineHeader(1_000, 30_000)),
+    handlerBox("vide"),
+    box("stsd", new Uint8Array(8)),
+  ));
+  return concat(ftyp, box("moov", concat(box("mvhd", movieHeader(1_000, 30_000)), box("trak", mdia))));
+}
+
+function ebmlSize(value: number): Uint8Array {
+  if (value < 0x7f) return Uint8Array.of(0x80 | value);
+  if (value < 0x3fff) return Uint8Array.of(0x40 | (value >>> 8), value & 0xff);
+  return Uint8Array.of(0x20 | (value >>> 16), (value >>> 8) & 0xff, value & 0xff);
+}
+
+function webmDocTypeFixture(payload: Uint8Array, declaredSize = payload.length): Uint8Array {
+  const docType = concat(Uint8Array.of(0x42, 0x82), ebmlSize(declaredSize), payload);
+  return concat(Uint8Array.of(0x1a, 0x45, 0xdf, 0xa3), ebmlSize(docType.length), docType);
 }
 
 const MP4 = mp4Fixture({ movieSeconds: 30, videoSeconds: 30 });
@@ -112,9 +160,33 @@ test("does not let a short audio track hide a long MP4 movie and video timeline"
   assert.equal(readMp4VideoTimelineDuration(mp4Fixture({ movieSeconds: 120, videoSeconds: 120, audioSeconds: 10 })), 120);
 });
 
+test("rejects a four-byte mdhd even when a sibling atom contains usable-looking timeline bytes", () => {
+  const sibling = box("free", concat(u32(1_000), u32(30_000), new Uint8Array(16)));
+  assert.equal(readMp4VideoTimelineDuration(mp4WithAtoms(movieHeader(1_000, 30_000), new Uint8Array(4), sibling)), undefined);
+});
+
+test("rejects unsupported MP4 movie and media timeline versions", () => {
+  assert.equal(readMp4VideoTimelineDuration(mp4WithAtoms(
+    movieHeader(1_000, 30_000, 2),
+    timelineHeader(1_000, 30_000, 2),
+  )), undefined);
+});
+
+test("does not accept a fabricated custom timeline after music-metadata rejects the MP4", async () => {
+  const malformedForMusicMetadata = mp4WithoutTrackHeader();
+  assert.equal(readMp4VideoTimelineDuration(malformedForMusicMetadata), 30);
+  assert.deepEqual(await validateInvitationMedia(
+    fakeFile("video/mp4", malformedForMusicMetadata.length, "malformed.mp4", malformedForMusicMetadata),
+    "video",
+  ), { ok: false, code: "video_duration_unreadable" });
+});
+
 test("server validation accepts silent MP4 and rejects mismatched long-video short-audio MP4", async () => {
+  const silent = mp4Fixture({ movieSeconds: 45, videoSeconds: 45 });
+  const { parseBuffer } = await import("music-metadata");
+  await parseBuffer(silent, { mimeType: "video/mp4", size: silent.length }, { duration: true, skipCovers: true });
   assert.equal((await validateInvitationMedia(
-    fakeFile("video/mp4", 1024, "silent.mp4", mp4Fixture({ movieSeconds: 45, videoSeconds: 45 })),
+    fakeFile("video/mp4", silent.length, "silent.mp4", silent),
     "video",
   )).ok, true);
   assert.deepEqual(await validateInvitationMedia(
@@ -138,6 +210,18 @@ test("rejects non-MP4 ISO-BMFF brands and Matroska renamed as WebM", async () =>
     "video",
     { readDurationSeconds: async () => 10 },
   ), { ok: false, code: "invalid_media_type" });
+});
+
+test("malformed oversized or truncated WebM DocType fields return validation failure", async () => {
+  const oversized = webmDocTypeFixture(new Uint8Array(150_000).fill(0x77));
+  const truncated = concat(Uint8Array.of(0x1a, 0x45, 0xdf, 0xa3, 0x88, 0x42, 0x82, 0x84), ascii("we"));
+  for (const bytes of [oversized, truncated]) {
+    assert.deepEqual(await validateInvitationMedia(
+      fakeFile("video/webm", bytes.length, "clip.webm", bytes),
+      "video",
+      { readDurationSeconds: async () => 10 },
+    ), { ok: false, code: "invalid_media_type" });
+  }
 });
 
 test("rejects video longer than sixty seconds", async () => {

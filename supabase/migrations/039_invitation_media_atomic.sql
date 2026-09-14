@@ -62,3 +62,39 @@ $$;
 REVOKE ALL ON FUNCTION insert_invitation_gallery_media(uuid, text, text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION insert_invitation_gallery_media(uuid, text, text) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION insert_invitation_gallery_media(uuid, text, text) TO service_role;
+
+-- A scalar aggregate is returned from one SQL statement and one MVCC snapshot.
+-- PostgREST row caps and offset-page churn therefore cannot omit a live path.
+CREATE OR REPLACE FUNCTION get_invitation_media_reference_snapshot()
+RETURNS jsonb
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT jsonb_build_object(
+    'paths',
+    COALESCE(jsonb_agg(storage_path), '[]'::jsonb)
+  )
+  FROM (
+    SELECT paths.storage_path
+    FROM public.invitation_events
+    CROSS JOIN LATERAL (
+      VALUES
+        (designed_invite_path),
+        (cover_image_path),
+        (video_path)
+    ) AS paths(storage_path)
+    WHERE paths.storage_path IS NOT NULL
+
+    UNION ALL
+
+    SELECT storage_path
+    FROM public.invitation_media
+    WHERE storage_path IS NOT NULL
+  ) AS live_references;
+$$;
+
+REVOKE ALL ON FUNCTION get_invitation_media_reference_snapshot() FROM PUBLIC;
+REVOKE ALL ON FUNCTION get_invitation_media_reference_snapshot() FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION get_invitation_media_reference_snapshot() TO service_role;

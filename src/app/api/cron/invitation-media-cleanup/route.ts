@@ -50,36 +50,10 @@ export async function GET(request: Request) {
   try {
     const result = await cleanupInvitationMedia({
       listObjects: async () => listInvitationObjects(client),
-      listEventReferences: async (from, to) => {
-        const { data, error, count } = await client
-          .from("invitation_events")
-          .select("id,designed_invite_path,cover_image_path,video_path", { count: "exact" })
-          .order("id", { ascending: true })
-          .range(from, to);
-        if (error) throw new Error("Unable to load event media references", { cause: error });
-        const rows = (data ?? []) as unknown as Array<{
-          designed_invite_path: string | null;
-          cover_image_path: string | null;
-          video_path: string | null;
-        }>;
-        return {
-          total: count,
-          rows: rows.map((row) => ({
-            designedInvitePath: row.designed_invite_path,
-            coverImagePath: row.cover_image_path,
-            videoPath: row.video_path,
-          })),
-        };
-      },
-      listGalleryReferences: async (from, to) => {
-        const { data, error, count } = await client
-          .from("invitation_media")
-          .select("id,storage_path", { count: "exact" })
-          .order("id", { ascending: true })
-          .range(from, to);
-        if (error) throw new Error("Unable to load gallery media references", { cause: error });
-        const rows = (data ?? []) as unknown as Array<{ storage_path: string }>;
-        return { total: count, rows: rows.map((row) => ({ storagePath: row.storage_path })) };
+      loadReferenceSnapshot: async () => {
+        const { data, error } = await client.rpc("get_invitation_media_reference_snapshot");
+        if (error) throw new Error("Unable to load invitation media reference snapshot", { cause: error });
+        return data;
       },
       removeObject: async (path) => {
         const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).remove([path]);

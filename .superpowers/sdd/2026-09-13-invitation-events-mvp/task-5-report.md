@@ -102,3 +102,45 @@ Resolved all six blocking review findings. Cleanup now proves complete, exact-co
 
 - No live Supabase instance was available. The transactional SQL is covered by migration contract tests and route-independent behavioral tests, but deployment smoke testing should execute migration 039 and race two gallery insert RPC calls at a count of eleven.
 - The original report's statements that no migration was needed and that uniqueness alone enforced the concurrent gallery cap are superseded by this fix round.
+
+## Fix Round 2 — 2026-09-14
+
+### Outcome
+
+Resolved the remaining cleanup-snapshot and malformed-container findings. Cron reference discovery is now one service-role RPC returning a scalar aggregate from one PostgreSQL statement/MVCC snapshot, eliminating both PostgREST row caps and offset-page churn. MP4 atom reads are version- and payload-bounded and require `music-metadata` to accept the container. WebM DocType handling is fixed-size, directly compared, fully bounded, and protected by fail-safe magic validation.
+
+### RED / GREEN evidence
+
+- **MP4/WebM RED:** `npx tsx --test src/lib/invitations/media.test.ts` exited 1 — 20 passed, 4 failed. The four-byte `mdhd` leaked into a sibling atom, version 2 was treated as version 0, parser-rejected MP4 fell back to the custom timeline, and oversized WebM DocType threw `RangeError`.
+- **Snapshot behavior RED:** `npx tsx --test src/lib/invitations/media-cleanup.test.ts` exited 1 — 0 passed, 3 failed because cleanup still expected offset-page readers rather than one validated snapshot.
+- **Snapshot migration RED:** `npx tsx --test src/lib/invitations/media-migration-contract.test.ts` exited 1 — 3 passed, 1 failed because migration 039 did not define the snapshot RPC.
+- **Focused GREEN:** `npx tsx --test src/lib/invitations/media.test.ts src/lib/invitations/media-cleanup.test.ts src/lib/invitations/media-migration-contract.test.ts` exited 0 — 31 passed, 0 failed.
+
+### Verification commands and exact results
+
+| Command | Result |
+| --- | --- |
+| Focused command above | exit 0 — 31 passed, 0 failed |
+| `rg --files src -g '*.test.ts' -g '*.test.tsx' -0 \| xargs -0 npx tsx --test` | exit 0 — 594 passed, 0 failed |
+| `npx tsc --noEmit` | exit 0 |
+| `git diff --check` | exit 0 — no whitespace errors |
+
+### Files changed
+
+- Updated `supabase/migrations/039_invitation_media_atomic.sql` with `get_invitation_media_reference_snapshot()`, a stable SQL/security-definer/empty-search-path JSONB aggregate RPC granted only to `service_role`.
+- Updated the cron route and `media-cleanup.ts` to consume exactly one snapshot object, reject malformed/error results before deletion, and avoid database row pagination entirely.
+- Updated cleanup and migration tests for a single 1,001-path snapshot, one-call semantics, malformed/error fail-closed behavior, the singleton/gallery aggregate contract, and RPC privilege isolation.
+- Updated `media.ts` and deterministic fixtures/tests for atom-local field bounds, supported versions only, valid silent/mismatched MP4 containers, parser rejection precedence, and oversized/truncated EBML handling.
+
+### Self-review
+
+- The RPC returns every non-null designed-invite, cover, video, and gallery storage path through one `UNION ALL` subquery and one `jsonb_agg`; the cron never pages database references. PostgreSQL executes the scalar SQL function against one statement snapshot, so same-count delete/insert churn cannot shift an unseen boundary row.
+- Cleanup validates that the RPC result is a non-array object with a `paths` array containing only non-empty strings. RPC errors or malformed values reject before the first call to storage removal.
+- MP4 `mvhd`/`mdhd` accept only versions 0 and 1 and enforce their complete version-specific atom payload sizes before reading timescale/duration. `hdlr` requires its handler field to be atom-local and version 0. A malformed video timeline invalidates the whole custom result rather than falling back to movie duration.
+- `music-metadata` must successfully parse every MP4 before the custom movie/video duration is trusted. Tests prove a custom-readable MP4 without the track header is rejected when the library rejects it, while a structurally valid silent MP4 remains accepted and a long-video/short-audio MP4 remains over-limit.
+- WebM DocType must declare exactly four bytes and those bytes must equal `webm`; oversized and truncated EBML return `invalid_media_type`. Magic checks are also catch-guarded so no malformed header can escape as a route-level 500.
+- The new RPC has a pinned empty search path and revokes PUBLIC, anon, and authenticated execution; no service-role capability crosses the server boundary and no `any` was introduced.
+
+### Concerns / handoff
+
+- No live PostgreSQL/Supabase instance was available. Migration contract and boundary behavior tests are green; deployment should smoke-test the scalar JSONB shape returned by Supabase RPC once migration 039 is applied.

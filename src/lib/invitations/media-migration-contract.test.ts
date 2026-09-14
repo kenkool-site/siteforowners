@@ -26,3 +26,13 @@ test("atomic gallery RPC is service-role-only with a pinned search path", () => 
   assert.match(migration, /REVOKE ALL ON FUNCTION insert_invitation_gallery_media\([^)]+\) FROM anon, authenticated/);
   assert.match(migration, /GRANT EXECUTE ON FUNCTION insert_invitation_gallery_media\([^)]+\) TO service_role/);
 });
+
+test("cleanup receives every live path from one database snapshot aggregate", () => {
+  assert.match(migration, /CREATE OR REPLACE FUNCTION get_invitation_media_reference_snapshot\(\)/);
+  assert.match(migration, /RETURNS jsonb/);
+  assert.match(migration, /jsonb_build_object\(\s*'paths',\s*COALESCE\(jsonb_agg\(storage_path\), '\[\]'::jsonb\)\s*\)/);
+  assert.match(migration, /designed_invite_path[\s\S]+cover_image_path[\s\S]+video_path[\s\S]+UNION ALL[\s\S]+FROM public\.invitation_media/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION get_invitation_media_reference_snapshot\(\) FROM PUBLIC/);
+  assert.match(migration, /REVOKE ALL ON FUNCTION get_invitation_media_reference_snapshot\(\) FROM anon, authenticated/);
+  assert.match(migration, /GRANT EXECUTE ON FUNCTION get_invitation_media_reference_snapshot\(\) TO service_role/);
+});

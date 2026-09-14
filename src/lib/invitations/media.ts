@@ -145,7 +145,13 @@ function matchesWebm(bytes: Uint8Array): boolean {
     offset += size.length;
     const payloadEnd = offset + size.value;
     if (payloadEnd > end) return false;
-    if (isDocType) return textAt(bytes, offset, size.value) === "webm";
+    if (isDocType) {
+      return size.value === 4
+        && bytes[offset] === 0x77
+        && bytes[offset + 1] === 0x65
+        && bytes[offset + 2] === 0x62
+        && bytes[offset + 3] === 0x6d;
+    }
     offset = payloadEnd;
   }
   return false;
@@ -196,23 +202,25 @@ async function readDurationWithMusicMetadata(
   const mp4Timeline = contentType === "video/mp4" ? readMp4VideoTimelineDuration(bytes) : undefined;
   if (contentType === "video/mp4" && mp4Timeline === undefined) return undefined;
   const { parseBuffer } = await import("music-metadata");
-  try {
-    const metadata = await parseBuffer(
-      bytes,
-      { mimeType: contentType, size: bytes.byteLength },
-      { duration: true, skipCovers: true },
-    );
-    return contentType === "video/mp4" ? mp4Timeline : metadata.format.duration;
-  } catch (error) {
-    // The ISO-BMFF timeline parser is stricter about the video duration but also
-    // supports deterministic/silent MP4s that music-metadata treats as audio-less.
-    if (contentType === "video/mp4") return mp4Timeline;
-    throw error;
-  }
+  const metadata = await parseBuffer(
+    bytes,
+    { mimeType: contentType, size: bytes.byteLength },
+    { duration: true, skipCovers: true },
+  );
+  return contentType === "video/mp4" ? mp4Timeline : metadata.format.duration;
 }
 
-function timelineDuration(bytes: Uint8Array, payloadStart: number, end: number): number | undefined {
+function timelineDuration(
+  bytes: Uint8Array,
+  atom: IsoBox,
+  kind: "mdhd" | "mvhd",
+): number | undefined {
+  const { payloadStart, end } = atom;
+  if (payloadStart >= end) return undefined;
   const version = bytes[payloadStart];
+  if (version !== 0 && version !== 1) return undefined;
+  const requiredLength = version === 1 ? (kind === "mdhd" ? 36 : 112) : (kind === "mdhd" ? 24 : 100);
+  if (end - payloadStart < requiredLength) return undefined;
   const timescaleOffset = version === 1 ? payloadStart + 20 : payloadStart + 12;
   const durationOffset = version === 1 ? payloadStart + 24 : payloadStart + 16;
   const timescale = readUint32(bytes, timescaleOffset);
@@ -236,8 +244,10 @@ export function readMp4VideoTimelineDuration(bytes: Uint8Array): number | undefi
   if (!moovChildren) return undefined;
   const durations: number[] = [];
   const mvhd = moovChildren.find((box) => box.type === "mvhd");
-  const movieDuration = mvhd && timelineDuration(bytes, mvhd.payloadStart, mvhd.end);
-  if (movieDuration !== undefined) durations.push(movieDuration);
+  if (!mvhd) return undefined;
+  const movieDuration = timelineDuration(bytes, mvhd, "mvhd");
+  if (movieDuration === undefined) return undefined;
+  durations.push(movieDuration);
 
   let foundVideo = false;
   for (const trak of moovChildren.filter((box) => box.type === "trak")) {
@@ -245,12 +255,16 @@ export function readMp4VideoTimelineDuration(bytes: Uint8Array): number | undefi
     const mdia = trakChildren?.find((box) => box.type === "mdia");
     if (!mdia) continue;
     const mediaChildren = isoBoxes(bytes, mdia.payloadStart, mdia.end);
+    if (!mediaChildren) return undefined;
     const hdlr = mediaChildren?.find((box) => box.type === "hdlr");
     const mdhd = mediaChildren?.find((box) => box.type === "mdhd");
-    if (!hdlr || textAt(bytes, hdlr.payloadStart + 8, 4) !== "vide") continue;
+    if (!hdlr || hdlr.end - hdlr.payloadStart < 12 || bytes[hdlr.payloadStart] !== 0) return undefined;
+    if (textAt(bytes, hdlr.payloadStart + 8, 4) !== "vide") continue;
     foundVideo = true;
-    const duration = mdhd && timelineDuration(bytes, mdhd.payloadStart, mdhd.end);
-    if (duration !== undefined) durations.push(duration);
+    if (!mdhd) return undefined;
+    const duration = timelineDuration(bytes, mdhd, "mdhd");
+    if (duration === undefined) return undefined;
+    durations.push(duration);
   }
   if (!foundVideo || durations.length === 0) return undefined;
   return Math.max(...durations);
@@ -279,7 +293,11 @@ export async function validateInvitationMedia(
   } catch {
     return { ok: false, code: "invalid_media_type" };
   }
-  if (!format.matchesMagic(bytes)) return { ok: false, code: "invalid_media_type" };
+  try {
+    if (!format.matchesMagic(bytes)) return { ok: false, code: "invalid_media_type" };
+  } catch {
+    return { ok: false, code: "invalid_media_type" };
+  }
 
   if (format.isVideo) {
     try {
