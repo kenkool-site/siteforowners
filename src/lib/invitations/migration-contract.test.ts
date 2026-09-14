@@ -22,6 +22,10 @@ test("RSVP contact constraint rejects blank contact values", () => {
   assert.doesNotMatch(migration, /NULLIF\(BTRIM\((email|phone), ''\)/);
 });
 
+test("owner emails are stored in canonical lowercase trimmed form", () => {
+  assert.match(migration, /email text NOT NULL CHECK \(email = lower\(btrim\(email\)\)\)/);
+});
+
 test("representative whitespace-only contact values normalize to empty", () => {
   for (const value of [" ", "\t", "\n", "\r", "\f", "\v"]) {
     assert.equal(value.replace(/\s/g, ""), "");

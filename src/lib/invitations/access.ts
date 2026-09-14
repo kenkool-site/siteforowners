@@ -1,10 +1,18 @@
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { readOwnerSession } from "./auth";
+import { readOwnerSession, type OwnerSession } from "./auth";
 
 export type InvitationAccess =
   | { kind: "founder" }
   | { kind: "owner"; ownerId: string };
+
+export type InvitationAccessInput = {
+  adminSessionValue: string | undefined;
+  adminPassword: string | undefined;
+  ownerSession: OwnerSession | null;
+  eventId: string;
+  ownerOwnsEvent(ownerId: string, eventId: string): Promise<boolean>;
+};
 
 export async function invitationOwnerOwnsEvent(
   ownerId: string,
@@ -25,18 +33,30 @@ export async function invitationOwnerOwnsEvent(
   return data !== null;
 }
 
+export async function resolveInvitationAccess(
+  input: InvitationAccessInput,
+): Promise<InvitationAccess | null> {
+  if (input.adminPassword && input.adminSessionValue === input.adminPassword) {
+    return { kind: "founder" };
+  }
+  if (!input.ownerSession) return null;
+  const ownsEvent = await input.ownerOwnsEvent(input.ownerSession.ownerId, input.eventId);
+  return ownsEvent ? { kind: "owner", ownerId: input.ownerSession.ownerId } : null;
+}
+
 export async function requireInvitationAccess(
   request: NextRequest,
   eventId: string,
 ): Promise<InvitationAccess | null> {
-  if (
-    process.env.ADMIN_PASSWORD &&
-    request.cookies.get("admin_session")?.value === process.env.ADMIN_PASSWORD
-  ) {
-    return { kind: "founder" };
-  }
-  const session = readOwnerSession(request);
-  if (!session) return null;
-  const ownsEvent = await invitationOwnerOwnsEvent(session.ownerId, eventId);
-  return ownsEvent ? { kind: "owner", ownerId: session.ownerId } : null;
+  const adminSessionValue = request.cookies.get("admin_session")?.value;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (adminPassword && adminSessionValue === adminPassword) return { kind: "founder" };
+
+  return resolveInvitationAccess({
+    adminSessionValue,
+    adminPassword,
+    ownerSession: readOwnerSession(request),
+    eventId,
+    ownerOwnsEvent: invitationOwnerOwnsEvent,
+  });
 }

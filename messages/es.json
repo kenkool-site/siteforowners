@@ -121,6 +121,7 @@
       "submit": "Iniciar sesión",
       "signingIn": "Iniciando sesión…",
       "invalidCredentials": "La dirección de correo electrónico o el PIN son incorrectos.",
+      "rateLimited": "Demasiados intentos de inicio de sesión. Espere e inténtelo de nuevo.",
       "genericError": "No pudimos iniciar su sesión. Inténtelo de nuevo."
     },
     "validation": {

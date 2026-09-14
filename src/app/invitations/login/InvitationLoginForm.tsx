@@ -4,6 +4,12 @@ import type { FormEvent } from "react";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 
+export function loginErrorMessageKey(status: number): "invalidCredentials" | "rateLimited" | "genericError" {
+  if (status === 401) return "invalidCredentials";
+  if (status === 429) return "rateLimited";
+  return "genericError";
+}
+
 export function InvitationLoginForm() {
   const t = useTranslations("invitations.login");
   const [email, setEmail] = useState("");
@@ -22,7 +28,7 @@ export function InvitationLoginForm() {
         body: JSON.stringify({ email, pin }),
       });
       if (!response.ok) {
-        setError(t("invalidCredentials"));
+        setError(t(loginErrorMessageKey(response.status)));
         return;
       }
       window.location.assign("/invitations");

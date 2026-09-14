@@ -109,9 +109,16 @@ export function readOwnerSession(request: NextRequest): OwnerSession | null {
 
 export function isSameOrigin(request: NextRequest): boolean {
   const origin = request.headers.get("origin");
-  if (!origin) return true;
+  if (!origin) return false;
   try {
-    return new URL(origin).host === request.headers.get("host");
+    const originUrl = new URL(origin);
+    if (originUrl.protocol !== "http:" && originUrl.protocol !== "https:") return false;
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim();
+    const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",")[0]?.trim();
+    const host = forwardedHost || request.headers.get("host");
+    const protocol = forwardedProtocol || new URL(request.url).protocol.replace(":", "");
+    if (!host || (protocol !== "http" && protocol !== "https")) return false;
+    return originUrl.origin === new URL(`${protocol}://${host}`).origin;
   } catch {
     return false;
   }

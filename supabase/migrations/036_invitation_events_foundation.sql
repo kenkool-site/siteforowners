@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS invitation_owners (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name text NOT NULL,
-  email text NOT NULL,
+  email text NOT NULL CHECK (email = lower(btrim(email))),
   phone text,
   pin_hash text NOT NULL,
   is_active boolean NOT NULL DEFAULT true,
