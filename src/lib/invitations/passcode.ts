@@ -13,19 +13,15 @@ export type InvitationPasscodeAttempt = {
 export type InvitationPasscodeResult = "success" | "invalid" | "rate_limited";
 
 export type InvitationPasscodeDependencies = {
-  allowAttempt(bucket: string): Promise<boolean>;
+  allowAttempt(eventId: string, ipHash: string): Promise<boolean>;
   verifyPasscode(passcode: string, storedHash: string): Promise<boolean>;
 };
-
-export function invitationPasscodeBucket(eventId: string, ip: string): string {
-  return `invitation_passcode:${eventId}:${hashIp(ip)}`;
-}
 
 export async function attemptInvitationPasscode(
   input: InvitationPasscodeAttempt,
   dependencies: InvitationPasscodeDependencies,
 ): Promise<InvitationPasscodeResult> {
-  const allowed = await dependencies.allowAttempt(invitationPasscodeBucket(input.eventId, input.ip));
+  const allowed = await dependencies.allowAttempt(input.eventId, hashIp(input.ip));
   if (!allowed) return "rate_limited";
   return await dependencies.verifyPasscode(input.passcode, input.storedHash)
     ? "success"

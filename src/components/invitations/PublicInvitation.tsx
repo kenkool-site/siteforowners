@@ -1,3 +1,5 @@
+"use client";
+
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { CalendarDays, Clock3, MapPin, Navigation } from "lucide-react";
@@ -36,7 +38,7 @@ export type PublicInvitationEvent = Pick<
 
 type PublicInvitationProps = {
   event: PublicInvitationEvent;
-  state: Exclude<EffectiveEventState, "offline">;
+  state: Extract<EffectiveEventState, "published" | "rsvp_closed">;
   media: InvitationMediaSnapshot;
   rsvpSummary: { attendingPeople: number; declinedParties: number };
 };
@@ -100,8 +102,18 @@ function themeFor(key: string): ThemeDefinition {
   return key === "romantic" || key === "celebration" ? THEMES[key] : THEMES.classic;
 }
 
-function InvitationImage({ src, alt, className }: { src: string; alt: string; className?: string }) {
-  return <img src={src} alt={alt} className={`block h-auto w-full object-cover ${className ?? ""}`} />;
+function InvitationImage({
+  src,
+  alt,
+  className,
+  fit = "cover",
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  fit?: "contain" | "cover";
+}) {
+  return <img src={src} alt={alt} className={`block h-auto w-full ${fit === "contain" ? "object-contain" : "object-cover"} ${className ?? ""}`} />;
 }
 
 function StateView({ children }: { children: ReactNode }) {
@@ -115,14 +127,16 @@ function StateView({ children }: { children: ReactNode }) {
   );
 }
 
-export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInvitationProps) {
+export function InvitationStateView({ state }: { state: "draft" | "expired" }) {
   const t = useTranslations("invitations.public");
   if (state === "draft") {
     return <StateView><h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{t("unavailable.title")}</h1><p className="mt-4 text-base leading-7 text-[#665C69]">{t("unavailable.body")}</p></StateView>;
   }
-  if (state === "expired") {
-    return <StateView><h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{t("ended.title")}</h1><p className="mt-4 text-base leading-7 text-[#665C69]">{t("ended.body")}</p></StateView>;
-  }
+  return <StateView><h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{t("ended.title")}</h1><p className="mt-4 text-base leading-7 text-[#665C69]">{t("ended.body")}</p></StateView>;
+}
+
+export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInvitationProps) {
+  const t = useTranslations("invitations.public");
 
   const theme = themeFor(event.themeKey);
   const titleFont = event.fontPairKey === "fraunces-geist"
@@ -164,7 +178,12 @@ export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInv
             <InvitationImage
               src={heroMedia.url}
               alt={media.designedInvite ? t("designedInviteAlt") : t("coverAlt", { title: event.title })}
-              className={theme.layout === "image-asymmetry" ? "max-h-[78vh] rounded-[3.5rem_1rem_3.5rem_1rem]" : "max-h-[82vh]"}
+              fit={media.designedInvite ? "contain" : "cover"}
+              className={media.designedInvite
+                ? "max-w-full"
+                : theme.layout === "image-asymmetry"
+                  ? "max-h-[78vh] rounded-[3.5rem_1rem_3.5rem_1rem]"
+                  : "max-h-[82vh]"}
             />
           </div>
         )}

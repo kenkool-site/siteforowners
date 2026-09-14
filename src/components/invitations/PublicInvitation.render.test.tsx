@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
 import esMessages from "../../../messages/es.json";
-import { PublicInvitation, type PublicInvitationEvent } from "./PublicInvitation";
+import { InvitationStateView, PublicInvitation, type PublicInvitationEvent } from "./PublicInvitation";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 
 Object.assign(globalThis, { React });
@@ -49,12 +49,16 @@ function render(
       messages={locale === "es" ? esMessages : enMessages}
       timeZone={event.timezone}
     >
-      <PublicInvitation
-        event={{ ...event, locale, ...overrides }}
-        state={state}
-        media={media}
-        rsvpSummary={{ attendingPeople: 17, declinedParties: 3 }}
-      />
+      {state === "draft" || state === "expired" ? (
+        <InvitationStateView state={state} />
+      ) : (
+        <PublicInvitation
+          event={{ ...event, locale, ...overrides }}
+          state={state}
+          media={media}
+          rsvpSummary={{ attendingPeople: 17, declinedParties: 3 }}
+        />
+      )}
     </NextIntlClientProvider>,
   );
 }
@@ -108,4 +112,11 @@ test("the three public themes produce structurally different invitation layouts"
   assert.match(classic, /data-invitation-layout="centered-frame"/);
   assert.match(romantic, /data-invitation-layout="image-asymmetry"/);
   assert.match(celebration, /data-invitation-layout="offset-blocks"/);
+});
+
+test("a designed invitation preserves its complete portrait artwork", () => {
+  const html = render("published");
+
+  assert.match(html, /https:\/\/signed\.example\.test\/invite[^>]*object-contain/);
+  assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/invite[^>]*max-h-\[/);
 });

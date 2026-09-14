@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyPin } from "@/lib/admin-auth";
-import { checkRateLimit, getClientIp } from "@/lib/api-rate-limit";
+import { getClientIp } from "@/lib/api-rate-limit";
 import {
   isSameOrigin,
   setInvitationPasscodeCookie,
 } from "@/lib/invitations/auth";
 import {
   attemptInvitationPasscode,
-  INVITATION_PASSCODE_MAX_ATTEMPTS,
-  INVITATION_PASSCODE_WINDOW_SECONDS,
 } from "@/lib/invitations/passcode";
+import { allowInvitationPasscodeAttempt } from "@/lib/invitations/passcode-rate-limit";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 
@@ -59,11 +58,7 @@ export async function POST(request: NextRequest) {
         ip: getClientIp(request.headers),
       },
       {
-        allowAttempt: (bucket) => checkRateLimit(
-          bucket,
-          INVITATION_PASSCODE_WINDOW_SECONDS,
-          INVITATION_PASSCODE_MAX_ATTEMPTS,
-        ),
+        allowAttempt: allowInvitationPasscodeAttempt,
         verifyPasscode: verifyPin,
       },
     );

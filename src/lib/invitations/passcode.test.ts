@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { attemptInvitationPasscode } from "./passcode";
 
-test("passcode attempts use one event-and-hashed-IP bucket without leaking credentials", async () => {
-  const buckets: string[] = [];
+test("passcode attempts give the serialized limiter an event ID and hashed IP without leaking credentials", async () => {
+  const limiterInputs: string[][] = [];
   const result = await attemptInvitationPasscode(
     { eventId: "event-1", passcode: "orchid", storedHash: "stored", ip: "203.0.113.17" },
     {
-      allowAttempt: async (bucket) => {
-        buckets.push(bucket);
+      allowAttempt: async (...parts) => {
+        limiterInputs.push(parts);
         return true;
       },
       verifyPasscode: async (passcode, hash) => passcode === "orchid" && hash === "stored",
@@ -16,9 +16,9 @@ test("passcode attempts use one event-and-hashed-IP bucket without leaking crede
   );
 
   assert.equal(result, "success");
-  assert.equal(buckets.length, 1);
-  assert.match(buckets[0] ?? "", /^invitation_passcode:event-1:[a-f0-9]{64}$/);
-  assert.doesNotMatch(buckets[0] ?? "", /orchid|203\.0\.113\.17/);
+  assert.deepEqual(limiterInputs.map((parts) => parts[0]), ["event-1"]);
+  assert.match(limiterInputs[0]?.[1] ?? "", /^[a-f0-9]{64}$/);
+  assert.doesNotMatch(limiterInputs.flat().join(":"), /orchid|203\.0\.113\.17/);
 });
 
 test("an exhausted passcode bucket blocks verification", async () => {
