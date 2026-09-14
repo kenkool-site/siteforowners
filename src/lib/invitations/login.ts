@@ -24,11 +24,30 @@ export interface InvitationLoginDependencies {
   rateLimiter: InvitationLoginRateLimiter;
 }
 
-function loginBuckets(ip: string, email: string): [string, string] {
+function hasValidLoginEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function loginBuckets(ip: string, rawEmail: string, normalizedEmail: string): [string, string] {
+  const emailBucketInput = hasValidLoginEmail(normalizedEmail)
+    ? normalizedEmail
+    : "invalid-email";
   return [
-    `invitation_owner_login:ip_email:${hashIp(`${ip}:${email}`)}`,
-    `invitation_owner_login:email:${hashIp(email)}`,
+    `invitation_owner_login:ip_email:${hashIp(`${ip}:${normalizeInvitationEmail(rawEmail)}`)}`,
+    `invitation_owner_login:email:${hashIp(emailBucketInput)}`,
   ];
+}
+
+async function recordFailure(
+  dependencies: InvitationLoginDependencies,
+  ipEmailBucket: string,
+  emailBucket: string,
+): Promise<InvitationLoginResult> {
+  const [ipEmailRecorded, emailRecorded] = await Promise.all([
+    dependencies.rateLimiter.recordFailure(ipEmailBucket, LOGIN_WINDOW_SECONDS, IP_EMAIL_MAX_ATTEMPTS),
+    dependencies.rateLimiter.recordFailure(emailBucket, LOGIN_WINDOW_SECONDS, EMAIL_MAX_ATTEMPTS),
+  ]);
+  return ipEmailRecorded && emailRecorded ? { kind: "invalid" } : { kind: "rate_limited" };
 }
 
 export async function attemptInvitationOwnerLogin(
@@ -36,14 +55,15 @@ export async function attemptInvitationOwnerLogin(
   dependencies: InvitationLoginDependencies,
 ): Promise<InvitationLoginResult> {
   const email = normalizeInvitationEmail(input.email);
-  if (!email || !/^\d{4,8}$/.test(input.pin)) return { kind: "invalid" };
-
-  const [ipEmailBucket, emailBucket] = loginBuckets(input.ip, email);
+  const [ipEmailBucket, emailBucket] = loginBuckets(input.ip, input.email, email);
   const [ipEmailAllowed, emailAllowed] = await Promise.all([
     dependencies.rateLimiter.canAttempt(ipEmailBucket, LOGIN_WINDOW_SECONDS, IP_EMAIL_MAX_ATTEMPTS),
     dependencies.rateLimiter.canAttempt(emailBucket, LOGIN_WINDOW_SECONDS, EMAIL_MAX_ATTEMPTS),
   ]);
   if (!ipEmailAllowed || !emailAllowed) return { kind: "rate_limited" };
+  if (!hasValidLoginEmail(email) || !/^\d{4,8}$/.test(input.pin)) {
+    return recordFailure(dependencies, ipEmailBucket, emailBucket);
+  }
 
   const owner = await dependencies.findActiveOwner(email);
   const pinMatches = await dependencies.verifyPin(
@@ -52,9 +72,5 @@ export async function attemptInvitationOwnerLogin(
   );
   if (owner && pinMatches) return { kind: "success", ownerId: owner.id };
 
-  const [ipEmailRecorded, emailRecorded] = await Promise.all([
-    dependencies.rateLimiter.recordFailure(ipEmailBucket, LOGIN_WINDOW_SECONDS, IP_EMAIL_MAX_ATTEMPTS),
-    dependencies.rateLimiter.recordFailure(emailBucket, LOGIN_WINDOW_SECONDS, EMAIL_MAX_ATTEMPTS),
-  ]);
-  return ipEmailRecorded && emailRecorded ? { kind: "invalid" } : { kind: "rate_limited" };
+  return recordFailure(dependencies, ipEmailBucket, emailBucket);
 }

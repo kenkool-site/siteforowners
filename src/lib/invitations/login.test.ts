@@ -100,3 +100,103 @@ test("a pre-verification rate limit prevents an owner lookup", async () => {
   assert.deepEqual(result, { kind: "rate_limited" });
   assert.equal(lookedUp, false);
 });
+
+test("a malformed PIN is preflighted and records failures when buckets are available", async () => {
+  let preflighted = 0;
+  const recorded: string[] = [];
+  let lookedUp = false;
+  const result = await attemptInvitationOwnerLogin(
+    { email: "ana@example.com", pin: "bad", ip: "203.0.113.10" },
+    dependencies({
+      findActiveOwner: async () => {
+        lookedUp = true;
+        return null;
+      },
+      rateLimiter: {
+        canAttempt: async () => {
+          preflighted += 1;
+          return true;
+        },
+        recordFailure: async (bucket) => {
+          recorded.push(bucket);
+          return true;
+        },
+      },
+    }),
+  );
+
+  assert.deepEqual(result, { kind: "invalid" });
+  assert.equal(preflighted, 2);
+  assert.equal(recorded.length, 2);
+  assert.equal(lookedUp, false);
+});
+
+test("a malformed email uses hashed fallback buckets and records failures when available", async () => {
+  const recorded: string[] = [];
+  const result = await attemptInvitationOwnerLogin(
+    { email: " not-an-email ", pin: "1234", ip: "203.0.113.10" },
+    dependencies({
+      rateLimiter: {
+        canAttempt: async () => true,
+        recordFailure: async (bucket) => {
+          recorded.push(bucket);
+          return true;
+        },
+      },
+    }),
+  );
+
+  assert.deepEqual(result, { kind: "invalid" });
+  assert.equal(recorded.length, 2);
+  assert.ok(recorded.every((bucket) => !bucket.includes("not-an-email")));
+});
+
+test("an exhausted bucket blocks malformed PINs before recording or lookup", async () => {
+  let recorded = 0;
+  let lookedUp = false;
+  const result = await attemptInvitationOwnerLogin(
+    { email: "ana@example.com", pin: "bad", ip: "203.0.113.10" },
+    dependencies({
+      findActiveOwner: async () => {
+        lookedUp = true;
+        return null;
+      },
+      rateLimiter: {
+        canAttempt: async () => false,
+        recordFailure: async () => {
+          recorded += 1;
+          return true;
+        },
+      },
+    }),
+  );
+
+  assert.deepEqual(result, { kind: "rate_limited" });
+  assert.equal(recorded, 0);
+  assert.equal(lookedUp, false);
+});
+
+test("an exhausted bucket blocks malformed emails before recording or lookup", async () => {
+  let recorded = 0;
+  let lookedUp = false;
+  const result = await attemptInvitationOwnerLogin(
+    { email: " ", pin: "1234", ip: "203.0.113.10" },
+    dependencies({
+      findActiveOwner: async () => {
+        lookedUp = true;
+        return null;
+      },
+      rateLimiter: {
+        canAttempt: async () => false,
+        recordFailure: async () => {
+          recorded += 1;
+          return true;
+        },
+      },
+    }),
+  );
+
+  assert.deepEqual(result, { kind: "rate_limited" });
+  assert.equal(recorded, 0);
+  assert.equal(lookedUp, false);
+});
