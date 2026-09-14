@@ -70,7 +70,9 @@ test("a published invitation exposes useful public details and only aggregate RS
     assert.match(html, new RegExp(expected));
   }
   assert.match(html, /https:\/\/calendar\.google\.com\/calendar\/render/);
-  assert.doesNotMatch(html, /email|phone|dietary|notes/i);
+  for (const privateGuestValue of ["guest@example.com", "+19175550199", "peanut allergy", "Guest Two"]) {
+    assert.doesNotMatch(html, new RegExp(privateGuestValue.replace("+", "\\+"), "i"));
+  }
 });
 
 test("expired and draft states reveal no authored details or signed media", () => {

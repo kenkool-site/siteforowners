@@ -129,7 +129,9 @@ export function setInvitationPasscodeCookie(
       sameSite: "lax",
       maxAge,
       expires: new Date(expiresAt * 1_000),
-      path: `/invite/${encodeURIComponent(event.slug)}`,
+      // The signed, event-scoped cookie must reach both the public page and
+      // /api/invitations/rsvp, which do not share a narrower URL prefix.
+      path: "/",
     },
   );
 }

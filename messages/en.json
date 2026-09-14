@@ -342,9 +342,43 @@
       "declined": "{count, plural, one {# party unable to attend} other {# parties unable to attend}}",
       "rsvp": {
         "title": "Respond to this invitation",
-        "placeholder": "The response form will be available here shortly.",
         "closedTitle": "Responses are closed",
-        "closedBody": "The host is no longer accepting new responses."
+        "closedBody": "The host is no longer accepting new responses.",
+        "closedEditHint": "You can still revise a response using the private edit link saved on this device.",
+        "editing": "You are securely updating an existing response.",
+        "fields": {
+          "primaryName": "Your name",
+          "attendance": "Will you attend?",
+          "attending": "Yes, I’ll attend",
+          "declining": "No, I can’t attend",
+          "partySize": "Total people",
+          "additionalNames": "Additional guest names",
+          "additionalNamesHelp": "Enter one name per line. Total people includes you.",
+          "email": "Email",
+          "phone": "Phone",
+          "contactHelp": "Provide at least an email or phone number.",
+          "notes": "Dietary or accessibility notes",
+          "message": "Message for the host"
+        },
+        "submit": "Send response",
+        "update": "Update response",
+        "submitting": "Saving…",
+        "success": "Your response has been saved.",
+        "copyEditLink": "Copy edit link",
+        "copied": "Edit link copied",
+        "updatedCounts": "Now {attending} attending and {declined} unable to attend.",
+        "errors": {
+          "invalid_request": "Check the highlighted response details and try again.",
+          "event_unavailable": "This invitation is not available.",
+          "rsvp_closed": "New responses are closed. An existing response can still be updated from its private edit link.",
+          "capacity_reached": "There is not enough remaining capacity for this party size.",
+          "submission_limit_reached": "This invitation cannot accept another response.",
+          "duplicate_contact": "A response already uses that contact. Please use its private edit link.",
+          "invalid_edit_token": "This edit link is invalid or incomplete.",
+          "rate_limited": "Too many response attempts. Please wait and try again.",
+          "copy_failed": "The edit link could not be copied. Use your browser’s address bar instead.",
+          "server_error": "Your response could not be saved. Please try again."
+        }
       }
     },
     "validation": {

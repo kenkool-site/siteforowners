@@ -8,6 +8,7 @@ import {
   googleEventCalendarUrl,
   type EventCalendarInput,
 } from "@/lib/invitations/calendar";
+import { RsvpForm } from "./RsvpForm";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 import type {
   EffectiveEventState,
@@ -246,7 +247,11 @@ export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInv
 
         <section id="rsvp" className={`${theme.rsvp} mb-8 mt-12 px-6 py-9 sm:mb-12 sm:mt-16 sm:px-10`}>
           <h2 className={`${titleFont} text-3xl sm:text-4xl`}>{state === "rsvp_closed" ? t("rsvp.closedTitle") : t("rsvp.title")}</h2>
-          <p className="mt-3 max-w-xl text-base leading-7 opacity-85">{state === "rsvp_closed" ? t("rsvp.closedBody") : t("rsvp.placeholder")}</p>
+          <RsvpForm
+            slug={event.slug}
+            allowCreate={state === "published"}
+            showPublicRsvpCount={event.showPublicRsvpCount}
+          />
         </section>
       </article>
     </main>

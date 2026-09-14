@@ -114,7 +114,8 @@ test("passcode cookies are HTTP-only and never outlive the event expiry", () => 
     const cookie = response.headers.get("set-cookie") ?? "";
     assert.match(cookie, new RegExp(`${getInvitationPasscodeCookieName("event-1") }=`));
     assert.match(cookie, /HttpOnly/);
-    assert.match(cookie, /Path=\/invite\/mia-and-lee/);
+    assert.match(cookie, /Path=\//);
+    assert.doesNotMatch(cookie, /Path=\/invite\/mia-and-lee/);
     assert.match(cookie, /Max-Age=3600/);
     assert.doesNotMatch(cookie, new RegExp(`Max-Age=${INVITATION_PASSCODE_SESSION_MAX_AGE_SECONDS}`));
   } finally {

@@ -135,7 +135,10 @@ export interface RsvpSummary {
 }
 
 export interface RsvpMutationResult {
-  rsvp: InvitationRsvp;
+  rsvp: Omit<
+    InvitationRsvp,
+    "editTokenHash" | "lastNotifiedAt" | "createdAt" | "updatedAt"
+  >;
   rsvpId: string;
   created: boolean;
   attendingTotal: number;

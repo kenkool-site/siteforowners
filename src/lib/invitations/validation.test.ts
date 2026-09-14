@@ -48,6 +48,33 @@ test("declines normalize party size to zero", () => {
   assert.equal(parsed.ok && parsed.value.partySize, 0);
 });
 
+test("RSVP email and additional names must be coherent with the party size", () => {
+  const invalidEmail = parseRsvpInput({
+    primaryName: "Ana",
+    email: "not-an-email",
+    attending: true,
+    partySize: 1,
+  });
+  assert.equal(invalidEmail.ok, false);
+
+  const tooManyNames = parseRsvpInput({
+    primaryName: "Ana",
+    email: "ana@example.com",
+    attending: true,
+    partySize: 2,
+    additionalGuestNames: ["Luis", "María"],
+  });
+  assert.equal(tooManyNames.ok, false);
+
+  const decline = parseRsvpInput({
+    primaryName: "Ana",
+    email: "ana@example.com",
+    attending: false,
+    additionalGuestNames: ["Luis"],
+  });
+  assert.deepEqual(decline.ok && decline.value.additionalGuestNames, []);
+});
+
 test("owners cannot change founder-controlled limits", () => {
   const parsed = parseEventUpdate({ submissionLimit: 900, ownerEmail: "other@example.com", newOwnerPin: "654321", title: "Updated" }, "owner");
   assert.equal(parsed.ok, true);

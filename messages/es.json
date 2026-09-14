@@ -342,9 +342,43 @@
       "declined": "{count, plural, one {# grupo no podrá asistir} other {# grupos no podrán asistir}}",
       "rsvp": {
         "title": "Responder a esta invitación",
-        "placeholder": "El formulario de respuesta estará disponible aquí próximamente.",
         "closedTitle": "Las respuestas están cerradas",
-        "closedBody": "El anfitrión ya no acepta respuestas nuevas."
+        "closedBody": "El anfitrión ya no acepta respuestas nuevas.",
+        "closedEditHint": "Aún puede modificar una respuesta con el enlace privado guardado en este dispositivo.",
+        "editing": "Está actualizando de forma segura una respuesta existente.",
+        "fields": {
+          "primaryName": "Tu nombre",
+          "attendance": "¿Asistirás?",
+          "attending": "Sí, asistiré",
+          "declining": "No, no podré asistir",
+          "partySize": "Total de personas",
+          "additionalNames": "Nombres de invitados adicionales",
+          "additionalNamesHelp": "Ingrese un nombre por línea. El total de personas te incluye.",
+          "email": "Correo electrónico",
+          "phone": "Teléfono",
+          "contactHelp": "Proporcione al menos un correo electrónico o teléfono.",
+          "notes": "Notas dietéticas o de accesibilidad",
+          "message": "Mensaje para el anfitrión"
+        },
+        "submit": "Enviar respuesta",
+        "update": "Actualizar respuesta",
+        "submitting": "Guardando…",
+        "success": "Su respuesta ha sido guardada.",
+        "copyEditLink": "Copiar enlace de edición",
+        "copied": "Enlace de edición copiado",
+        "updatedCounts": "Ahora asistirán {attending} y no podrán asistir {declined}.",
+        "errors": {
+          "invalid_request": "Revise los detalles de la respuesta e inténtelo de nuevo.",
+          "event_unavailable": "Esta invitación no está disponible.",
+          "rsvp_closed": "Las respuestas nuevas están cerradas. Aún puede modificar una respuesta con su enlace privado.",
+          "capacity_reached": "No queda suficiente capacidad para este grupo.",
+          "submission_limit_reached": "Esta invitación no puede aceptar otra respuesta.",
+          "duplicate_contact": "Ya existe una respuesta con ese contacto. Use su enlace privado.",
+          "invalid_edit_token": "Este enlace de edición no es válido o está incompleto.",
+          "rate_limited": "Demasiados intentos de respuesta. Espere e inténtelo de nuevo.",
+          "copy_failed": "No se pudo copiar el enlace. Use la barra de direcciones de su navegador.",
+          "server_error": "No se pudo guardar su respuesta. Inténtelo de nuevo."
+        }
       }
     },
     "validation": {

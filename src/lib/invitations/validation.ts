@@ -1,6 +1,6 @@
 import { toE164 } from "@/lib/sms";
 import type { InvitationEventForManagement } from "./repository-core";
-import type { InvitationEventStatus, InvitationLocale, RsvpInput } from "./types";
+import type { InvitationEventStatus, InvitationLocale } from "./types";
 
 export type ParsedRsvpInput = {
   primaryName: string;
@@ -397,21 +397,51 @@ function normalizeGuestNames(value: string[] | undefined): string[] {
   return (value ?? []).map((name) => name.trim()).filter(Boolean);
 }
 
-export function parseRsvpInput(input: RsvpInput): ParseResult<ParsedRsvpInput> {
+export function parseRsvpInput(input: unknown): ParseResult<ParsedRsvpInput> {
+  if (!isPlainObject(input)) return { ok: false, errors: { form: "Send valid RSVP details" } };
   const errors: Record<string, string> = {};
-  const primaryName = input.primaryName.trim();
-  const email = normalizeOptionalText(input.email);
-  const phoneInput = normalizeOptionalText(input.phone);
+  const primaryName = typeof input.primaryName === "string" ? input.primaryName.trim() : "";
+  const email = typeof input.email === "string" || input.email === null
+    ? normalizeOptionalText(input.email)
+    : null;
+  const phoneInput = typeof input.phone === "string" || input.phone === null
+    ? normalizeOptionalText(input.phone)
+    : null;
   const phone = phoneInput ? normalizeInvitationPhone(phoneInput) : null;
 
   if (!primaryName) errors.primaryName = "Name is required";
+  if (email && !isEmail(normalizeInvitationEmail(email))) errors.email = "Enter a valid email address";
   if (phoneInput && !phone) errors.phone = "Enter a valid phone number";
   if (!email && !phone) errors.contact = "Email or phone is required";
   if (typeof input.attending !== "boolean") errors.attending = "Attendance is required";
 
-  const suppliedPartySize = input.partySize ?? 1;
+  const suppliedPartySize = input.partySize === undefined
+    ? 1
+    : typeof input.partySize === "number"
+      ? input.partySize
+      : Number.NaN;
   if (input.attending && (!Number.isInteger(suppliedPartySize) || suppliedPartySize < 1)) {
     errors.partySize = "Party size must be at least 1";
+  }
+  const guestNamesInput = input.additionalGuestNames;
+  if (guestNamesInput !== undefined && (
+    !Array.isArray(guestNamesInput)
+    || guestNamesInput.some((name) => typeof name !== "string")
+  )) errors.additionalGuestNames = "Enter valid additional guest names";
+  const additionalGuestNames = Array.isArray(guestNamesInput)
+    && guestNamesInput.every((name): name is string => typeof name === "string")
+    ? normalizeGuestNames(guestNamesInput)
+    : [];
+  if (
+    input.attending === true
+    && Number.isInteger(suppliedPartySize)
+    && additionalGuestNames.length > (suppliedPartySize as number) - 1
+  ) errors.additionalGuestNames = "Additional guest names cannot exceed the party size";
+
+  for (const key of ["dietaryOrAccessibilityNotes", "message"] as const) {
+    if (input[key] !== undefined && input[key] !== null && typeof input[key] !== "string") {
+      errors[key] = "Enter valid text";
+    }
   }
 
   if (Object.keys(errors).length > 0) return { ok: false, errors };
@@ -422,11 +452,11 @@ export function parseRsvpInput(input: RsvpInput): ParseResult<ParsedRsvpInput> {
       primaryName,
       email: email ? normalizeInvitationEmail(email) : null,
       phone,
-      attending: input.attending,
-      partySize: input.attending ? suppliedPartySize : 0,
-      additionalGuestNames: normalizeGuestNames(input.additionalGuestNames),
-      dietaryOrAccessibilityNotes: normalizeOptionalText(input.dietaryOrAccessibilityNotes),
-      message: normalizeOptionalText(input.message),
+      attending: input.attending as boolean,
+      partySize: input.attending ? suppliedPartySize as number : 0,
+      additionalGuestNames: input.attending ? additionalGuestNames : [],
+      dietaryOrAccessibilityNotes: normalizeOptionalText(input.dietaryOrAccessibilityNotes as string | null | undefined),
+      message: normalizeOptionalText(input.message as string | null | undefined),
     },
   };
 }
