@@ -191,12 +191,56 @@ test("duplicate owner email fails only the separate credential action", async ()
     assert.equal(eventForm.querySelector('input[name="ownerEmail"]'), null);
     const ownerEmail = credentialsForm.querySelector<HTMLInputElement>('input[name="ownerEmail"]')!;
     await act(async () => setInput(dom, ownerEmail, "duplicate@example.com"));
+    assert.match(credentialsForm.textContent ?? "", /Unsaved changes/);
+    assert.equal(credentialsForm.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled, false);
     await act(async () => {
       submit(dom, credentialsForm);
       await Promise.resolve();
       await Promise.resolve();
     });
     assert.match(credentialsForm.textContent ?? "", /already in use/);
-    assert.match(container.textContent ?? "", /No unsaved changes/);
+    assert.match(credentialsForm.textContent ?? "", /Unsaved changes/);
+    assert.match(eventForm.textContent ?? "", /No unsaved changes/);
+  });
+});
+
+test("accepted credential save clears credential dirtiness and the sensitive PIN", async () => {
+  let finish: ((value: Response) => void) | undefined;
+  const pending = new Promise<Response>((resolve) => { finish = resolve; });
+  const savedEvent = {
+    ...baseEvent,
+    updatedAt: "2026-09-04T00:00:00.000Z",
+    owner: { ...baseEvent.owner, name: "Luis", updatedAt: "2026-09-04T00:00:00.000Z" },
+  };
+  await withEditor("founder", async (input) => {
+    assert.match(String(input), /\/credentials$/);
+    return pending;
+  }, async (container, dom) => {
+    const eventForm = container.querySelector<HTMLFormElement>('form[data-event-form="true"]')!;
+    const credentialsForm = container.querySelector<HTMLFormElement>('form[data-credentials-form="true"]')!;
+    const ownerName = credentialsForm.querySelector<HTMLInputElement>('input[name="ownerName"]')!;
+    const pin = credentialsForm.querySelector<HTMLInputElement>('input[name="newOwnerPin"]')!;
+    await act(async () => {
+      setInput(dom, ownerName, "Luis");
+      setInput(dom, pin, "654321");
+    });
+    assert.match(credentialsForm.textContent ?? "", /Unsaved changes/);
+    await act(async () => submit(dom, credentialsForm));
+    assert.match(credentialsForm.textContent ?? "", /Saving…/);
+    await Promise.resolve();
+    const resolvePending = finish;
+    if (!resolvePending) throw new Error("credential request did not start");
+    await act(async () => {
+      resolvePending(response({ event: savedEvent }));
+      await pending;
+      await Promise.resolve();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    const savedCredentialsForm = container.querySelector<HTMLFormElement>('form[data-credentials-form="true"]')!;
+    const savedEventForm = container.querySelector<HTMLFormElement>('form[data-event-form="true"]')!;
+    assert.match(savedCredentialsForm.textContent ?? "", /Changes saved/);
+    assert.doesNotMatch(savedCredentialsForm.textContent ?? "", /Unsaved changes/);
+    assert.equal(savedCredentialsForm.querySelector<HTMLInputElement>('input[name="newOwnerPin"]')?.value, "");
+    assert.match(savedEventForm.textContent ?? "", /No unsaved changes/);
   });
 });

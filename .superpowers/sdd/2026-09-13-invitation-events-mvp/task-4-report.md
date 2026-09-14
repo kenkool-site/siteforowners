@@ -73,3 +73,24 @@ The frontend-design pass follows the approved cool-plum event-binder direction: 
 ### Remaining concern
 
 - This fix intentionally uses an independent credential request instead of a cross-table transaction. A credential failure leaves the independently saved event untouched and accurately reported; a future all-or-nothing combined editing experience would require a dedicated database RPC.
+
+## Fix Round 2 — credential form state accuracy
+
+### Changes
+
+- `src/components/invitations/EventEditor.tsx` now tracks credential dirtiness independently from event dirtiness. Editing owner credentials enables the credential Save button and reports unsaved work; validation, duplicate-email, HTTP, and network failures preserve that state; only a successful credential response clears it.
+- Credential HTTP form errors now use credential-specific localized copy rather than the generic event-save message. Duplicate owner-email errors remain field-specific.
+- A successful credential save clears the sensitive PIN field and reports success without changing the independent event-form state.
+- `src/components/invitations/EventEditor.interaction.test.tsx` now requires unsaved state before and after a duplicate rejection, and clean/saved state plus cleared PIN after an accepted credential save.
+
+### RED / GREEN evidence
+
+- Observed RED: after tightening the interaction tests, `npx tsx --test src/components/invitations/EventEditor.interaction.test.tsx` produced **3 passed, 2 failed** because edited credential forms still displayed “No unsaved changes.”
+- Observed GREEN: the final interaction/render run produced **8 passed, 0 failed**; TypeScript completed with exit 0 and invitation-editor locale keys matched.
+
+### Commands and results
+
+- `npx tsx --test src/components/invitations/EventEditor.interaction.test.tsx src/components/invitations/EventEditor.render.test.tsx` — 8 passed, 0 failed.
+- `npx tsc --noEmit` — exit 0.
+- `node -e '…compare invitations.editor keys in messages/en.json and messages/es.json…'` — editor locale keys synchronized.
+- `git diff --check` — clean.

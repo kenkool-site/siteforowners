@@ -84,6 +84,7 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
   const [errors, setErrors] = useState<FieldErrors>({});
   const [status, setStatus] = useState(event.status);
   const [statusBusy, setStatusBusy] = useState(false);
+  const [credentialDirty, setCredentialDirty] = useState(false);
   const [credentialSaving, setCredentialSaving] = useState(false);
   const [credentialSaved, setCredentialSaved] = useState(false);
   const [credentialErrors, setCredentialErrors] = useState<FieldErrors>({});
@@ -108,12 +109,25 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
     setSaved(false);
   }
 
+  function markCredentialDirty() {
+    setCredentialDirty(true);
+    setCredentialSaved(false);
+  }
+
   function localizeErrors(serverErrors: FieldErrors | undefined, fallback: "save" | "status"): FieldErrors {
     if (!serverErrors) return { [fallback === "save" ? "form" : "status"]: fallback === "save" ? t("saveError") : t("statusError") };
     return Object.fromEntries(Object.keys(serverErrors).map((key) => {
       if (key === "form") return [key, t("saveError")];
       if (key === "status") return [key, t("statusError")];
       return [key, LOCALIZED_ERROR_KEYS.has(key) ? t(`errors.${key}`) : fallback === "save" ? t("saveError") : t("statusError")];
+    }));
+  }
+
+  function localizeCredentialErrors(serverErrors: FieldErrors | undefined): FieldErrors {
+    if (!serverErrors) return { form: t("credentialSaveError") };
+    return Object.fromEntries(Object.keys(serverErrors).map((key) => {
+      if (key === "form") return [key, t("credentialSaveError")];
+      return [key, LOCALIZED_ERROR_KEYS.has(key) ? t(`errors.${key}`) : t("credentialSaveError")];
     }));
   }
 
@@ -225,7 +239,9 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
 
   async function saveCredentials(eventSubmit: FormEvent<HTMLFormElement>) {
     eventSubmit.preventDefault();
-    const data = new FormData(eventSubmit.currentTarget);
+    if (!credentialDirty || credentialSaving) return;
+    const form = eventSubmit.currentTarget;
+    const data = new FormData(form);
     const payload = {
       ownerName: stringValue(data, "ownerName"),
       ownerEmail: stringValue(data, "ownerEmail"),
@@ -243,10 +259,13 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
       });
       const result = await response.json() as { event?: EditorEvent; errors?: FieldErrors };
       if (!response.ok || !result.event) {
-        setCredentialErrors(localizeErrors(result.errors, "save"));
+        setCredentialErrors(localizeCredentialErrors(result.errors));
         return;
       }
+      const pin = form.elements.namedItem("newOwnerPin");
+      if (pin instanceof HTMLInputElement) pin.value = "";
       setCurrentEvent(result.event);
+      setCredentialDirty(false);
       setCredentialSaved(true);
     } catch {
       setCredentialErrors({ form: t("credentialSaveError") });
@@ -437,7 +456,7 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
         </div>
       </form>
       {mode === "founder" && (
-        <form key={`${currentEvent.owner.id}:${currentEvent.owner.updatedAt}`} data-credentials-form="true" onSubmit={saveCredentials} className="mx-auto mt-8 max-w-[680px] border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-5 sm:px-6">
+        <form key={`${currentEvent.owner.id}:${currentEvent.owner.updatedAt}`} data-credentials-form="true" onSubmit={saveCredentials} onChange={markCredentialDirty} className="mx-auto mt-8 max-w-[680px] border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-5 sm:px-6">
           <fieldset disabled={credentialSaving} className="border-0 p-0">
             <h2 className="text-lg font-semibold text-[#2B2231]">{t("founderControls")}</h2>
             <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("credentialsHelp")}</p>
@@ -450,8 +469,8 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
             </div>
           </fieldset>
           <div className="mt-5 flex items-center justify-between gap-4">
-            <p aria-live="polite" className="text-sm font-medium text-[#675d6a]">{credentialSaved ? t("actions.saved") : t("clean")}</p>
-            <button type="submit" disabled={credentialSaving} className="min-h-11 shrink-0 rounded-md bg-[#6D456F] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-45">{credentialSaving ? t("actions.saving") : t("actions.save")}</button>
+            <p aria-live="polite" className={`text-sm font-medium ${credentialDirty ? "text-[#A33A3A]" : credentialSaved ? "text-[#2F6B4F]" : "text-[#675d6a]"}`}>{credentialDirty ? t("dirty") : credentialSaved ? t("actions.saved") : t("clean")}</p>
+            <button type="submit" disabled={!credentialDirty || credentialSaving} className="min-h-11 shrink-0 rounded-md bg-[#6D456F] px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-45">{credentialSaving ? t("actions.saving") : t("actions.save")}</button>
           </div>
         </form>
       )}
