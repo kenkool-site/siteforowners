@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
+import { zonedWallTimeToUtcIso } from "@/lib/invitations/event-time";
 
 type CreatedInvitation = {
   eventId: string;
@@ -32,9 +33,10 @@ export function FounderEventForm() {
     setCreated(null);
     const form = new FormData(formElement);
     const localStart = String(form.get("startsAt") ?? "");
-    const parsedStart = new Date(localStart);
+    const eventTimezone = String(form.get("timezone") ?? "");
 
     try {
+      const startsAt = zonedWallTimeToUtcIso(localStart, eventTimezone);
       const response = await fetch("/api/invitations/admin/events", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -45,8 +47,8 @@ export function FounderEventForm() {
           title: form.get("title"),
           eventType: form.get("eventType"),
           locale: form.get("locale"),
-          startsAt: Number.isNaN(parsedStart.getTime()) ? localStart : parsedStart.toISOString(),
-          timezone: form.get("timezone"),
+          startsAt,
+          timezone: eventTimezone,
         }),
       });
       const result = (await response.json()) as CreatedInvitation & { error?: string };

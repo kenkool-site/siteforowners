@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
+import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { createInvitationOwnerAndEvent } from "@/lib/invitations/repository";
 import { normalizeInvitationEmail, normalizeInvitationPhone } from "@/lib/invitations/validation";
 import type { InvitationLocale } from "@/lib/invitations/types";
@@ -16,8 +17,10 @@ type FounderEventInput = {
 };
 
 function hasFounderSession(request: NextRequest): boolean {
-  const password = process.env.ADMIN_PASSWORD;
-  return Boolean(password && request.cookies.get("admin_session")?.value === password);
+  return hasFounderInvitationSession(
+    process.env.ADMIN_PASSWORD,
+    request.cookies.get("admin_session")?.value,
+  );
 }
 
 function isTimezone(value: string): boolean {

@@ -56,3 +56,35 @@ The working tree already contained the complete Task 3 implementation, uncommitt
 
 - No recoverable proof of the earlier intended RED state exists; verification evidence starts with the inherited implementation already green.
 - Runtime provisioning requires migration `038_invitation_owner_provisioning.sql` to be applied in the target Supabase database; the repository and migration contracts are tested, but this recovery did not use a live database.
+
+## Fix Round 1 — timezone conversion and fail-closed founder access
+
+### Findings addressed
+
+- The founder form previously converted `datetime-local` input with `new Date(localStart)`, which applies the browser timezone instead of the selected event IANA timezone.
+- Middleware previously permitted `/admin/invitations` when `ADMIN_PASSWORD` was absent because its redirect condition only ran when a password was truthy. The invitation list could then reach its service-role repository query.
+
+### TDD evidence
+
+- **RED:** `npx tsx --test src/lib/invitations/event-time.test.ts src/lib/invitations/founder-access.test.ts src/middleware.test.ts` initially produced 1 pass and 3 failures: the two new modules were absent, and the missing-secret middleware assertion received `200` rather than the required `307` redirect.
+- **GREEN:** after implementation, `npx tsx --test src/lib/invitations/event-time.test.ts src/lib/invitations/founder-access.test.ts src/middleware.test.ts && npx tsc --noEmit` produced 5 passing tests, 0 failures, and TypeScript exit 0.
+
+### Changes and self-review
+
+- Added `src/lib/invitations/event-time.ts` and its regression test. It uses standard `Intl.DateTimeFormat` with the selected IANA timezone, not browser-local parsing, and validates an instant-to-wall-time round trip. An invalid date/time, invalid timezone, or spring-forward DST gap is presented to the operator as a clear form error. The test forces a Los Angeles browser zone while selecting New York and verifies the expected `13:00Z` instant.
+- Added `src/lib/invitations/founder-access.ts` and its test. The shared predicate fails closed for an undefined/empty secret, missing cookie, and mismatched cookie; the API route and middleware use it.
+- Added `src/app/(admin)/admin/invitations/layout.tsx` as a server-side defense-in-depth guard for every invitation page, including nested new/detail pages. It redirects to `/login` unless the existing `admin_session` matches a configured founder secret.
+- Updated `src/middleware.test.ts` to cover a mismatched cookie and an empty/missing `ADMIN_PASSWORD` on the root-domain invitations route.
+
+### Files
+
+- `src/components/invitations/FounderEventForm.tsx`
+- `src/lib/invitations/event-time.ts`, `src/lib/invitations/event-time.test.ts`
+- `src/lib/invitations/founder-access.ts`, `src/lib/invitations/founder-access.test.ts`
+- `src/app/(admin)/admin/invitations/layout.tsx`
+- `src/app/api/invitations/admin/events/route.ts`
+- `src/middleware.ts`, `src/middleware.test.ts`
+
+### Remaining concern
+
+- The converter intentionally uses the earlier occurrence for an ambiguous fall-back wall time; the reviewed finding required clear rejection of invalid/nonexistent times, not an additional operator choice for ambiguous times.
