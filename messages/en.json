@@ -107,6 +107,29 @@
     "forgotPassword": "Forgot password?",
     "resetPassword": "Reset Password"
   },
+  "invitations": {
+    "common": {
+      "email": "Email",
+      "pin": "PIN",
+      "signOut": "Sign out"
+    },
+    "login": {
+      "title": "Manage your invitation",
+      "subtitle": "Sign in with the email address and PIN provided to you.",
+      "emailLabel": "Email address",
+      "pinLabel": "PIN",
+      "submit": "Sign in",
+      "signingIn": "Signing in…",
+      "invalidCredentials": "The email address or PIN is incorrect.",
+      "genericError": "We could not sign you in. Please try again."
+    },
+    "validation": {
+      "nameRequired": "Name is required.",
+      "contactRequired": "Enter an email address or phone number.",
+      "phoneInvalid": "Enter a valid phone number.",
+      "partySizeInvalid": "Party size must be at least 1."
+    }
+  },
   "homeServices": {
     "nav": {
       "services": "Services",

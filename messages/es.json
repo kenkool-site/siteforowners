@@ -107,6 +107,29 @@
     "forgotPassword": "¿Olvidaste tu contraseña?",
     "resetPassword": "Restablecer Contraseña"
   },
+  "invitations": {
+    "common": {
+      "email": "Correo electrónico",
+      "pin": "PIN",
+      "signOut": "Cerrar sesión"
+    },
+    "login": {
+      "title": "Administre su invitación",
+      "subtitle": "Inicie sesión con la dirección de correo electrónico y el PIN que recibió.",
+      "emailLabel": "Correo electrónico",
+      "pinLabel": "PIN",
+      "submit": "Iniciar sesión",
+      "signingIn": "Iniciando sesión…",
+      "invalidCredentials": "La dirección de correo electrónico o el PIN son incorrectos.",
+      "genericError": "No pudimos iniciar su sesión. Inténtelo de nuevo."
+    },
+    "validation": {
+      "nameRequired": "El nombre es obligatorio.",
+      "contactRequired": "Ingrese un correo electrónico o número de teléfono.",
+      "phoneInvalid": "Ingrese un número de teléfono válido.",
+      "partySizeInvalid": "El tamaño del grupo debe ser al menos 1."
+    }
+  },
   "homeServices": {
     "nav": {
       "services": "Servicios",
