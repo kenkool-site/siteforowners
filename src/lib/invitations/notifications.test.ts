@@ -16,6 +16,7 @@ const baseEvent: NotificationEventContext = {
   id: "event-1",
   slug: "sample-event",
   title: "Sample Wedding",
+  locale: "en",
   ownerEmailNotifications: true,
   ownerSmsNotifications: false,
   notificationEmail: "owner@example.com",
@@ -273,6 +274,122 @@ test("an RSVP update mints no new edit token, so its guest confirmation email fa
 });
 
 // ---------------------------------------------------------------------------
+// Locale awareness — invitation_events.locale drives the owner/guest
+// notification content, mirroring the public invite page's per-event
+// locale (see InvitationPublicProvider). Event-authored fields (title,
+// primary name, notes, message) are exempt and render exactly as entered.
+// ---------------------------------------------------------------------------
+
+test("a Spanish-locale event renders the owner notification email and subject in Spanish", async () => {
+  let subject = "";
+  let html = "";
+  await dispatchRsvpNotifications(
+    { ...fixture, event: { ...baseEvent, locale: "es" } },
+    {
+      reserve: async () => ({ id: "n-email", allowed: true }),
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async (input) => { subject = input.subject; html = input.html; return { ok: true, providerId: "e1" }; } },
+      sms: { send: async () => ({ ok: true, providerId: "s1" }) },
+    },
+  );
+  assert.match(subject, /^Nuevo RSVP — Sample Wedding$/);
+  assert.match(html, /Contacto:/);
+  assert.match(html, /grupo de 2/);
+  assert.match(html, /Ver en su panel/);
+  assert.doesNotMatch(html, /Contact:|party of|View in your dashboard/);
+});
+
+test("a Spanish-locale declined RSVP appends the Spanish declined suffix and owner SMS body", async () => {
+  let subject = "";
+  let smsBody = "";
+  await dispatchRsvpNotifications(
+    {
+      ...smsFixture,
+      event: { ...smsFixture.event, locale: "es", ownerEmailNotifications: true, notificationEmail: "owner@example.com" },
+      rsvp: { ...baseRsvp, attending: false },
+    },
+    {
+      reserve: async () => ({ id: "n", allowed: true }),
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async (input) => { subject = input.subject; return { ok: true, providerId: "e1" }; } },
+      sms: { send: async (input) => { smsBody = input.body; return { ok: true, providerId: "s1" }; } },
+    },
+  );
+  assert.match(subject, /^Nuevo RSVP — No asistirá — Sample Wedding$/);
+  assert.match(smsBody, /No asistirá/);
+  assert.doesNotMatch(smsBody, /Declined/);
+});
+
+test("a Spanish-locale event renders the guest confirmation email in Spanish", async () => {
+  let html = "";
+  let subject = "";
+  await dispatchRsvpNotifications(
+    { ...fixture, event: { ...baseEvent, locale: "es", guestEmailConfirmations: true } },
+    {
+      reserve: async () => ({ id: "n", allowed: true }),
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: {
+        send: async (input) => {
+          if (input.subject.startsWith("Su RSVP")) { subject = input.subject; html = input.html; }
+          return { ok: true, providerId: "e1" };
+        },
+      },
+      sms: { send: async () => ({ ok: true, providerId: "s1" }) },
+    },
+  );
+  assert.match(subject, /^Su RSVP para Sample Wedding$/);
+  assert.match(html, /¡Gracias, Jamie Guest!/);
+  assert.match(html, /Actualizar su RSVP/);
+  assert.doesNotMatch(html, /Thanks,|Update your RSVP/);
+});
+
+test("a Spanish-locale guest confirmation without an edit link falls back to the Spanish invitation-page text", async () => {
+  let html = "";
+  await dispatchRsvpNotifications(
+    { ...fixture, created: false, editUrl: null, event: { ...baseEvent, locale: "es", guestEmailConfirmations: true } },
+    {
+      reserve: async () => ({ id: "n", allowed: true }),
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: {
+        send: async (input) => {
+          if (input.subject.startsWith("Su RSVP")) html = input.html;
+          return { ok: true, providerId: "e1" };
+        },
+      },
+      sms: { send: async () => ({ ok: true, providerId: "s1" }) },
+    },
+  );
+  assert.match(html, /confirmación original/);
+  assert.match(html, /la página de la invitación/);
+  assert.doesNotMatch(html, /original confirmation|the invitation page/);
+});
+
+test("event-authored fields (title, primary name) render as entered regardless of locale", async () => {
+  let html = "";
+  const authoredRsvp: RsvpMutationResult["rsvp"] = { ...baseRsvp, primaryName: "María José" };
+  await dispatchRsvpNotifications(
+    {
+      ...fixture,
+      rsvp: authoredRsvp,
+      event: { ...baseEvent, locale: "es", title: "Boda de Ana y Luis" },
+    },
+    {
+      reserve: async () => ({ id: "n", allowed: true }),
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async (input) => { html = input.html; return { ok: true, providerId: "e1" }; } },
+      sms: { send: async () => ({ ok: true, providerId: "s1" }) },
+    },
+  );
+  assert.match(html, /Boda de Ana y Luis/);
+  assert.match(html, /María José/);
+});
+
+// ---------------------------------------------------------------------------
 // processInvitationNotificationRetry
 // ---------------------------------------------------------------------------
 
@@ -285,6 +402,7 @@ const ownerFailedReservation: RetryReservation = {
   eventId: "event-1",
   eventTitle: "Sample Wedding",
   eventSlug: "sample-event",
+  eventLocale: "en",
   rsvpId: "rsvp-1",
   audience: "owner",
   channel: "email",
@@ -449,4 +567,74 @@ test("a retry never strands the row in 'pending': a provider throwing (not retur
   );
   assert.deepEqual(result, { ok: true, status: "failed" });
   assert.deepEqual(failedArgs, ["notif-1", "resend timeout"]);
+});
+
+test("retrying an owner notification for a Spanish-locale event re-renders the content in Spanish", async () => {
+  let subject = "";
+  let html = "";
+  const dependencies: RetryDependencies = {
+    reserveRetry: async () => ({ ...ownerFailedReservation, eventLocale: "es" }),
+    getRsvpSnapshot: async () => rsvpSnapshot,
+    markSent: async () => undefined,
+    markFailed: notCalled("markFailed"),
+    email: { send: async (input) => { subject = input.subject; html = input.html; return { ok: true, providerId: "e1" }; } },
+    sms: { send: notCalled("sms.send") },
+  };
+  await processInvitationNotificationRetry(
+    { notificationId: "notif-1", origin: "https://events.example.test" },
+    dependencies,
+  );
+  assert.match(subject, /^Nuevo RSVP — Sample Wedding$/);
+  assert.match(html, /Contacto:/);
+  assert.doesNotMatch(html, /Contact:/);
+});
+
+test("retrying a guest confirmation for a Spanish-locale event falls back to the Spanish invitation-page text", async () => {
+  let html = "";
+  const dependencies: RetryDependencies = {
+    reserveRetry: async () => ({
+      ...ownerFailedReservation,
+      eventLocale: "es",
+      audience: "guest",
+      channel: "email",
+      kind: "guest_confirmation",
+      recipient: "guest@example.com",
+      eventSlug: "sample-event",
+    }),
+    getRsvpSnapshot: async () => rsvpSnapshot,
+    markSent: async () => undefined,
+    markFailed: notCalled("markFailed"),
+    email: { send: async (input) => { html = input.html; return { ok: true, providerId: "e1" }; } },
+    sms: { send: notCalled("sms.send") },
+  };
+  await processInvitationNotificationRetry(
+    { notificationId: "notif-1", origin: "https://events.example.test" },
+    dependencies,
+  );
+  assert.doesNotMatch(html, /editToken/);
+  assert.match(html, /confirmación original/);
+  assert.match(html, /href="https:\/\/events\.example\.test\/invite\/sample-event"/);
+  assert.doesNotMatch(html, /original confirmation/);
+});
+
+// ---------------------------------------------------------------------------
+// messages/en.json and messages/es.json must define exactly the same set of
+// keys under invitations.notifications — the plain-object lookup in
+// notifications.ts has no fallback, so a key present in only one locale
+// would silently render "undefined" in the other.
+// ---------------------------------------------------------------------------
+
+function collectKeyPaths(value: unknown, prefix = ""): string[] {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return [prefix];
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, child]) =>
+    collectKeyPaths(child, prefix ? `${prefix}.${key}` : key),
+  );
+}
+
+test("messages/en.json and messages/es.json define the same invitations.notifications keys", async () => {
+  const en = (await import("../../../messages/en.json")).default;
+  const es = (await import("../../../messages/es.json")).default;
+  const enKeys = collectKeyPaths(en.invitations.notifications).sort();
+  const esKeys = collectKeyPaths(es.invitations.notifications).sort();
+  assert.deepEqual(esKeys, enKeys);
 });

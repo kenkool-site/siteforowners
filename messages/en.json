@@ -386,6 +386,36 @@
       "contactRequired": "Enter an email address or phone number.",
       "phoneInvalid": "Enter a valid phone number.",
       "partySizeInvalid": "Party size must be at least 1."
+    },
+    "notifications": {
+      "ownerLabel": {
+        "new": "New RSVP",
+        "updated": "RSVP Updated",
+        "declinedSuffix": " — Declined"
+      },
+      "owner": {
+        "partyOf": "party of {count}",
+        "notAttending": "not attending",
+        "noContactProvided": "No contact provided",
+        "contactLabel": "Contact:",
+        "notesLabel": "Notes:",
+        "messageLabel": "Message:",
+        "viewDashboard": "View in your dashboard →"
+      },
+      "ownerSms": {
+        "attending": "Attending ({count})",
+        "declined": "Declined"
+      },
+      "guest": {
+        "subject": "Your RSVP for {eventTitle}",
+        "greeting": "Thanks, {name}!",
+        "attendingStatus": "attending (party of {count})",
+        "declinedStatus": "unable to attend",
+        "confirmedLine": "We've recorded that you're {status} for {eventTitle}.",
+        "updateRsvp": "Update your RSVP →",
+        "editFallback": "Need to change your response? Use the link from your original confirmation, or visit {link}.",
+        "invitationPageLinkText": "the invitation page"
+      }
     }
   },
   "homeServices": {

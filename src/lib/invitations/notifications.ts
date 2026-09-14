@@ -19,11 +19,37 @@ import twilio from "twilio";
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type {
+  InvitationLocale,
   InvitationNotificationAudience,
   InvitationNotificationChannel,
   InvitationNotificationKind,
   RsvpMutationResult,
 } from "./types";
+
+// notifications.ts is a plain server-side module with no React tree, so the
+// app's usual next-intl/useTranslations path (see e.g.
+// InvitationPublicProvider) doesn't apply here. The bilingual strings for
+// this feature still live in messages/en.json / messages/es.json per the
+// project's global bilingual-content rule; this file just does a plain
+// object lookup on invitation_events.locale instead of a React hook.
+import en from "../../../messages/en.json";
+import es from "../../../messages/es.json";
+
+type NotificationStrings = typeof en.invitations.notifications;
+
+function notificationStrings(locale: InvitationLocale): NotificationStrings {
+  return locale === "es" ? es.invitations.notifications : en.invitations.notifications;
+}
+
+// Minimal {token} substitution — this module has no ICU/next-intl formatter
+// available, and every placeholder here is a single plain value (a count,
+// a name, an event title), so a full message-format library is unneeded.
+function format(template: string, values: Record<string, string>): string {
+  return Object.entries(values).reduce(
+    (acc, [key, value]) => acc.split(`{${key}}`).join(value),
+    template,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Provider-neutral sender interface
@@ -76,13 +102,19 @@ type NotificationRsvpFields = {
   message: string | null;
 };
 
-function ownerLabel(created: boolean, attending: boolean): string {
-  const verb = created ? "New RSVP" : "RSVP Updated";
-  return attending ? verb : `${verb} — Declined`;
+function ownerLabel(locale: InvitationLocale, created: boolean, attending: boolean): string {
+  const T = notificationStrings(locale);
+  const verb = created ? T.ownerLabel.new : T.ownerLabel.updated;
+  return attending ? verb : `${verb}${T.ownerLabel.declinedSuffix}`;
 }
 
-function ownerEmailSubject(input: { eventTitle: string; created: boolean; rsvp: NotificationRsvpFields }): string {
-  return `${ownerLabel(input.created, input.rsvp.attending)} — ${input.eventTitle}`;
+function ownerEmailSubject(input: {
+  eventTitle: string;
+  created: boolean;
+  rsvp: NotificationRsvpFields;
+  locale: InvitationLocale;
+}): string {
+  return `${ownerLabel(input.locale, input.created, input.rsvp.attending)} — ${input.eventTitle}`;
 }
 
 function renderOwnerEmailHtml(input: {
@@ -90,39 +122,53 @@ function renderOwnerEmailHtml(input: {
   created: boolean;
   rsvp: NotificationRsvpFields;
   dashboardUrl: string;
+  locale: InvitationLocale;
 }): string {
-  const { rsvp } = input;
-  const contact = rsvp.email || rsvp.phone || "No contact provided";
+  const { rsvp, locale } = input;
+  const T = notificationStrings(locale);
+  const contact = rsvp.email || rsvp.phone || T.owner.noContactProvided;
+  const partyStatus = rsvp.attending
+    ? format(T.owner.partyOf, { count: String(rsvp.partySize) })
+    : T.owner.notAttending;
   const notesLine = rsvp.dietaryOrAccessibilityNotes
-    ? `<p style="margin:0 0 8px;"><strong>Notes:</strong> ${escapeHtml(rsvp.dietaryOrAccessibilityNotes)}</p>`
+    ? `<p style="margin:0 0 8px;"><strong>${escapeHtml(T.owner.notesLabel)}</strong> ${escapeHtml(rsvp.dietaryOrAccessibilityNotes)}</p>`
     : "";
   const messageLine = rsvp.message
-    ? `<p style="margin:0 0 8px;"><strong>Message:</strong> ${escapeHtml(rsvp.message)}</p>`
+    ? `<p style="margin:0 0 8px;"><strong>${escapeHtml(T.owner.messageLabel)}</strong> ${escapeHtml(rsvp.message)}</p>`
     : "";
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">${escapeHtml(ownerLabel(input.created, rsvp.attending))}</h2>
+      <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">${escapeHtml(ownerLabel(locale, input.created, rsvp.attending))}</h2>
       <p style="margin: 0 0 8px; font-size: 15px;"><strong>${escapeHtml(input.eventTitle)}</strong></p>
       <p style="margin: 0 0 8px; font-size: 14px;">
-        <strong>${escapeHtml(rsvp.primaryName)}</strong> — ${rsvp.attending ? `party of ${rsvp.partySize}` : "not attending"}
+        <strong>${escapeHtml(rsvp.primaryName)}</strong> — ${escapeHtml(partyStatus)}
       </p>
-      <p style="margin: 0 0 8px; font-size: 14px; color: #4B5563;">Contact: ${escapeHtml(contact)}</p>
+      <p style="margin: 0 0 8px; font-size: 14px; color: #4B5563;">${escapeHtml(T.owner.contactLabel)} ${escapeHtml(contact)}</p>
       ${notesLine}
       ${messageLine}
       <p style="margin: 16px 0 0;">
-        <a href="${input.dashboardUrl}" style="color: #2563EB; text-decoration: none; font-weight: 600;">View in your dashboard &rarr;</a>
+        <a href="${input.dashboardUrl}" style="color: #2563EB; text-decoration: none; font-weight: 600;">${escapeHtml(T.owner.viewDashboard)}</a>
       </p>
     </div>
   `;
 }
 
-function renderOwnerSmsBody(input: { eventTitle: string; rsvp: NotificationRsvpFields; dashboardUrl: string }): string {
-  const status = input.rsvp.attending ? `Attending (${input.rsvp.partySize})` : "Declined";
+function renderOwnerSmsBody(input: {
+  eventTitle: string;
+  rsvp: NotificationRsvpFields;
+  dashboardUrl: string;
+  locale: InvitationLocale;
+}): string {
+  const T = notificationStrings(input.locale);
+  const status = input.rsvp.attending
+    ? format(T.ownerSms.attending, { count: String(input.rsvp.partySize) })
+    : T.ownerSms.declined;
   return `${input.eventTitle}: ${input.rsvp.primaryName} — ${status}. ${input.dashboardUrl}`;
 }
 
-function guestEmailSubject(eventTitle: string): string {
-  return `Your RSVP for ${eventTitle}`;
+function guestEmailSubject(eventTitle: string, locale: InvitationLocale): string {
+  const T = notificationStrings(locale);
+  return format(T.guest.subject, { eventTitle });
 }
 
 function renderGuestConfirmationEmailHtml(input: {
@@ -130,16 +176,22 @@ function renderGuestConfirmationEmailHtml(input: {
   rsvp: Pick<NotificationRsvpFields, "primaryName" | "attending" | "partySize">;
   editUrl: string | null;
   inviteUrl: string;
+  locale: InvitationLocale;
 }): string {
-  const status = input.rsvp.attending ? `attending (party of ${input.rsvp.partySize})` : "unable to attend";
+  const T = notificationStrings(input.locale);
+  const status = input.rsvp.attending
+    ? format(T.guest.attendingStatus, { count: String(input.rsvp.partySize) })
+    : T.guest.declinedStatus;
   const editSection = input.editUrl
-    ? `<p style="margin: 16px 0 0;"><a href="${input.editUrl}" style="color: #2563EB; text-decoration: none; font-weight: 600;">Update your RSVP &rarr;</a></p>`
-    : `<p style="margin: 16px 0 0; font-size: 13px; color: #6B7280;">Need to change your response? Use the link from your original confirmation, or visit <a href="${input.inviteUrl}" style="color: #2563EB;">the invitation page</a>.</p>`;
+    ? `<p style="margin: 16px 0 0;"><a href="${input.editUrl}" style="color: #2563EB; text-decoration: none; font-weight: 600;">${T.guest.updateRsvp}</a></p>`
+    : `<p style="margin: 16px 0 0; font-size: 13px; color: #6B7280;">${format(T.guest.editFallback, {
+        link: `<a href="${input.inviteUrl}" style="color: #2563EB;">${T.guest.invitationPageLinkText}</a>`,
+      })}</p>`;
   return `
     <div style="font-family: -apple-system, BlinkMacSystemFont, sans-serif; max-width: 480px; margin: 0 auto;">
-      <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">Thanks, ${escapeHtml(input.rsvp.primaryName)}!</h2>
+      <h2 style="margin: 0 0 12px; font-size: 18px; color: #111827;">${format(T.guest.greeting, { name: escapeHtml(input.rsvp.primaryName) })}</h2>
       <p style="margin: 0 0 8px; font-size: 15px;">
-        We've recorded that you're ${escapeHtml(status)} for <strong>${escapeHtml(input.eventTitle)}</strong>.
+        ${format(T.guest.confirmedLine, { status: escapeHtml(status), eventTitle: `<strong>${escapeHtml(input.eventTitle)}</strong>` })}
       </p>
       ${editSection}
     </div>
@@ -154,6 +206,7 @@ export type NotificationEventContext = {
   id: string;
   slug: string;
   title: string;
+  locale: InvitationLocale;
   ownerEmailNotifications: boolean;
   ownerSmsNotifications: boolean;
   notificationEmail: string | null;
@@ -222,8 +275,8 @@ export async function dispatchRsvpNotifications(
       recipient: to,
       send: (idempotencyKey) => dependencies.email.send({
         to,
-        subject: ownerEmailSubject({ eventTitle: event.title, created, rsvp }),
-        html: renderOwnerEmailHtml({ eventTitle: event.title, created, rsvp, dashboardUrl }),
+        subject: ownerEmailSubject({ eventTitle: event.title, created, rsvp, locale: event.locale }),
+        html: renderOwnerEmailHtml({ eventTitle: event.title, created, rsvp, dashboardUrl, locale: event.locale }),
         idempotencyKey,
       }),
     });
@@ -238,7 +291,7 @@ export async function dispatchRsvpNotifications(
       recipient: to,
       send: (idempotencyKey) => dependencies.sms.send({
         to,
-        body: renderOwnerSmsBody({ eventTitle: event.title, rsvp, dashboardUrl }),
+        body: renderOwnerSmsBody({ eventTitle: event.title, rsvp, dashboardUrl, locale: event.locale }),
         idempotencyKey,
       }),
     });
@@ -255,8 +308,8 @@ export async function dispatchRsvpNotifications(
       recipient: to,
       send: (idempotencyKey) => dependencies.email.send({
         to,
-        subject: guestEmailSubject(event.title),
-        html: renderGuestConfirmationEmailHtml({ eventTitle: event.title, rsvp, editUrl, inviteUrl }),
+        subject: guestEmailSubject(event.title, event.locale),
+        html: renderGuestConfirmationEmailHtml({ eventTitle: event.title, rsvp, editUrl, inviteUrl, locale: event.locale }),
         idempotencyKey,
       }),
     });
@@ -415,7 +468,7 @@ export async function markInvitationNotificationFailed(
 async function getInvitationNotificationEventContext(eventId: string): Promise<NotificationEventContext | null> {
   const { data, error } = await createAdminClient()
     .from("invitation_events")
-    .select("id,slug,title,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
+    .select("id,slug,title,locale,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
@@ -423,6 +476,7 @@ async function getInvitationNotificationEventContext(eventId: string): Promise<N
     id: data.id,
     slug: data.slug,
     title: data.title,
+    locale: data.locale === "es" ? "es" : "en",
     ownerEmailNotifications: data.owner_email_notifications,
     ownerSmsNotifications: data.owner_sms_notifications,
     notificationEmail: data.notification_email,
@@ -488,6 +542,7 @@ export type RetryReservation =
       eventId: string;
       eventTitle: string;
       eventSlug: string;
+      eventLocale: InvitationLocale;
       rsvpId: string;
       audience: InvitationNotificationAudience;
       channel: InvitationNotificationChannel;
@@ -544,26 +599,27 @@ export async function processInvitationNotificationRetry(
       // email's fate, so the retry falls back to the public invitation page.
       sendResult = await dependencies.email.send({
         to: reservation.recipient,
-        subject: guestEmailSubject(reservation.eventTitle),
+        subject: guestEmailSubject(reservation.eventTitle, reservation.eventLocale),
         html: renderGuestConfirmationEmailHtml({
           eventTitle: reservation.eventTitle,
           rsvp,
           editUrl: null,
           inviteUrl: new URL(`/invite/${encodeURIComponent(reservation.eventSlug)}`, input.origin).toString(),
+          locale: reservation.eventLocale,
         }),
         idempotencyKey: input.notificationId,
       });
     } else if (reservation.channel === "sms") {
       sendResult = await dependencies.sms.send({
         to: reservation.recipient,
-        body: renderOwnerSmsBody({ eventTitle: reservation.eventTitle, rsvp, dashboardUrl }),
+        body: renderOwnerSmsBody({ eventTitle: reservation.eventTitle, rsvp, dashboardUrl, locale: reservation.eventLocale }),
         idempotencyKey: input.notificationId,
       });
     } else {
       sendResult = await dependencies.email.send({
         to: reservation.recipient,
-        subject: ownerEmailSubject({ eventTitle: reservation.eventTitle, created, rsvp }),
-        html: renderOwnerEmailHtml({ eventTitle: reservation.eventTitle, created, rsvp, dashboardUrl }),
+        subject: ownerEmailSubject({ eventTitle: reservation.eventTitle, created, rsvp, locale: reservation.eventLocale }),
+        html: renderOwnerEmailHtml({ eventTitle: reservation.eventTitle, created, rsvp, dashboardUrl, locale: reservation.eventLocale }),
         idempotencyKey: input.notificationId,
       });
     }
@@ -597,6 +653,26 @@ function isRetryRpcRow(value: unknown): value is RetryRpcRow {
   return Boolean(value) && typeof value === "object" && typeof (value as Record<string, unknown>).allowed === "boolean";
 }
 
+// retry_invitation_notification (042_invitation_notification_reservation.sql)
+// does not return the event's locale — it predates locale support in this
+// content, and its RPC contract is intentionally left untouched here. This
+// fetches it with a plain, non-throwing select instead: a failure to look up
+// the locale must never strand the notification row, which the RPC has
+// already flipped to 'pending' as a side effect of returning allowed:true.
+async function getInvitationEventLocale(eventId: string): Promise<InvitationLocale> {
+  try {
+    const { data, error } = await createAdminClient()
+      .from("invitation_events")
+      .select("locale")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (error || !data || data.locale !== "es") return "en";
+    return "es";
+  } catch {
+    return "en";
+  }
+}
+
 async function reserveInvitationNotificationRetry(notificationId: string): Promise<RetryReservation> {
   const { data, error } = await createAdminClient().rpc("retry_invitation_notification", {
     p_notification_id: notificationId,
@@ -620,11 +696,13 @@ async function reserveInvitationNotificationRetry(notificationId: string): Promi
   ) {
     throw new Error("Invalid invitation notification retry response");
   }
+  const eventLocale = await getInvitationEventLocale(row.event_id);
   return {
     allowed: true,
     eventId: row.event_id,
     eventTitle: row.event_title,
     eventSlug: row.event_slug,
+    eventLocale,
     rsvpId: row.rsvp_id,
     audience: row.audience,
     channel: row.channel,

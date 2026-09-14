@@ -386,6 +386,36 @@
       "contactRequired": "Ingrese un correo electrónico o número de teléfono.",
       "phoneInvalid": "Ingrese un número de teléfono válido.",
       "partySizeInvalid": "El tamaño del grupo debe ser al menos 1."
+    },
+    "notifications": {
+      "ownerLabel": {
+        "new": "Nuevo RSVP",
+        "updated": "RSVP actualizado",
+        "declinedSuffix": " — No asistirá"
+      },
+      "owner": {
+        "partyOf": "grupo de {count}",
+        "notAttending": "no asistirá",
+        "noContactProvided": "No se proporcionó contacto",
+        "contactLabel": "Contacto:",
+        "notesLabel": "Notas:",
+        "messageLabel": "Mensaje:",
+        "viewDashboard": "Ver en su panel →"
+      },
+      "ownerSms": {
+        "attending": "Asistirá ({count})",
+        "declined": "No asistirá"
+      },
+      "guest": {
+        "subject": "Su RSVP para {eventTitle}",
+        "greeting": "¡Gracias, {name}!",
+        "attendingStatus": "asistirá (grupo de {count})",
+        "declinedStatus": "no podrá asistir",
+        "confirmedLine": "Hemos registrado que {status} a {eventTitle}.",
+        "updateRsvp": "Actualizar su RSVP →",
+        "editFallback": "¿Necesita cambiar su respuesta? Use el enlace de su confirmación original, o visite {link}.",
+        "invitationPageLinkText": "la página de la invitación"
+      }
     }
   },
   "homeServices": {
