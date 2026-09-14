@@ -169,6 +169,10 @@ export function parseEventUpdate(
   const value: InvitationEventUpdate = {};
   const errors: Record<string, string> = {};
 
+  if (["designedInvitePath", "coverImagePath", "videoPath"].some((key) => key in body)) {
+    errors.media = "Use the media upload endpoint to change invitation media.";
+  }
+
   for (const key of ["eventType", "title", "honoreeNames", "description", "timezone"] as const) {
     if (!(key in body)) continue;
     if (typeof body[key] !== "string") {

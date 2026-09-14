@@ -140,6 +140,18 @@ test("publish validation returns actionable field errors", () => {
   ]);
 });
 
+test("raw event updates reject direct media path assignment", () => {
+  const parsed = parseEventUpdate({
+    designedInvitePath: "event-1/designed_invite/unvalidated.jpg",
+    coverImagePath: "event-1/cover/unvalidated.png",
+    videoPath: "event-1/video/unvalidated.mp4",
+  }, "founder");
+  assert.deepEqual(parsed, {
+    ok: false,
+    errors: { media: "Use the media upload endpoint to change invitation media." },
+  });
+});
+
 test("status commands are allowlisted and map to persisted states", () => {
   assert.deepEqual(parseStatusCommand({ command: "close" }), { ok: true, command: "close", status: "rsvp_closed" });
   assert.deepEqual(parseStatusCommand({ command: "reopen" }), { ok: true, command: "reopen", status: "published" });

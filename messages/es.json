@@ -151,6 +151,38 @@
         "preview": "Revise la invitación y administre su disponibilidad.",
         "responses": "Las respuestas de sus invitados se organizarán aquí."
       },
+      "media": {
+        "heading": "Contenido multimedia",
+        "help": "Agregue los elementos visuales que verán sus invitados. Los archivos se mantienen privados y se comparten mediante enlaces temporales.",
+        "designedInvite": "Invitación diseñada",
+        "cover": "Imagen de portada",
+        "video": "Video del evento",
+        "gallery": "Galería de fotos",
+        "imageLimit": "JPEG, PNG o WebP · máximo de 10 MB",
+        "videoLimit": "MP4 o WebM · máximo de 50 MB · máximo de 60 segundos",
+        "galleryCount": "{count} de 12 fotos",
+        "altLabel": "Descripción de la foto",
+        "altPlaceholder": "Por ejemplo: Ana y Luis bailando",
+        "altRequired": "Cada foto de la galería requiere una descripción.",
+        "galleryFull": "La galería está llena. Elimine una foto antes de agregar otra.",
+        "choose": "Elegir archivo",
+        "replace": "Reemplazar",
+        "remove": "Eliminar",
+        "addPhoto": "Agregar foto",
+        "empty": "No se agregó ningún archivo",
+        "uploading": "Subiendo… {percent}%",
+        "working": "Actualizando contenido…",
+        "errors": {
+          "invalidType": "Elija un archivo compatible cuya extensión coincida con su formato.",
+          "tooLarge": "Este archivo supera el límite permitido.",
+          "videoTooLong": "Elija un video de 60 segundos o menos.",
+          "videoUnreadable": "No pudimos leer la duración del video. Pruebe otro archivo MP4 o WebM.",
+          "altRequired": "Agregue una descripción breve antes de elegir una foto.",
+          "galleryFull": "La galería ya tiene 12 fotos.",
+          "uploadFailed": "No se pudo subir el archivo. Inténtelo de nuevo.",
+          "removeFailed": "No se pudo eliminar el archivo. Inténtelo de nuevo."
+        }
+      },
       "fields": {
         "eventType": "Tipo de evento",
         "locale": "Idioma de la invitación",

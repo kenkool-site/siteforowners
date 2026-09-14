@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
 import { EventEditor, type EditorEvent } from "./EventEditor";
+import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 
 Object.assign(globalThis, { React });
 
@@ -56,10 +57,10 @@ const event: EditorEvent = {
   },
 };
 
-function render(mode: "owner" | "founder") {
+function render(mode: "owner" | "founder", media?: InvitationMediaSnapshot) {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
-      <EventEditor event={event} mode={mode} />
+      <EventEditor event={event} mode={mode} media={media} />
     </NextIntlClientProvider>,
   );
 }
@@ -82,4 +83,41 @@ test("only founders see cost limit controls", () => {
 
 test("the theme preview remains available in the mobile editing column", () => {
   assert.match(render("owner"), /data-mobile-preview="true"/);
+});
+
+test("the design section explains every private media slot and its limits", () => {
+  const html = render("owner");
+  for (const label of ["Designed invitation", "Cover image", "Event video", "Photo gallery"]) {
+    assert.match(html, new RegExp(label));
+  }
+  assert.match(html, /JPEG, PNG, or WebP · 10 MB maximum/);
+  assert.match(html, /MP4 or WebM · 50 MB maximum · 60 seconds maximum/);
+  assert.match(html, /0 of 12 photos/);
+});
+
+test("gallery uploads require accessible alternative text", () => {
+  const html = render("owner");
+  assert.match(html, /name="galleryAltText"/);
+  assert.match(html, /name="galleryAltText"[^>]*required/);
+});
+
+test("a full gallery disables the thirteenth upload", () => {
+  const gallery = Array.from({ length: 12 }, (_, index) => ({
+    id: `media-${index}`,
+    kind: "gallery" as const,
+    path: `event-1/gallery/${index}.jpg`,
+    url: `https://storage.example.test/${index}`,
+    altText: `Photo ${index + 1}`,
+    sortOrder: index,
+  }));
+  const html = render("owner", {
+    designedInvite: null,
+    cover: null,
+    video: null,
+    gallery,
+  });
+  assert.match(html, /12 of 12 photos/);
+  assert.match(html, /id="invitation-media-gallery"[^>]*disabled/);
+  assert.match(html, /The gallery is full/);
+  assert.equal((html.match(/>Replace</g) ?? []).length, 12);
 });

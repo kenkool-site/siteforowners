@@ -3,6 +3,11 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { zonedWallTimeToUtcIso } from "@/lib/invitations/event-time";
+import type {
+  InvitationMediaItem,
+  InvitationMediaKind,
+  InvitationMediaSnapshot,
+} from "@/lib/invitations/media";
 import type { InvitationEventForManagement } from "@/lib/invitations/repository";
 import type { InvitationEventStatus } from "@/lib/invitations/types";
 
@@ -25,6 +30,53 @@ const LOCALIZED_ERROR_KEYS = new Set([
 const inputClass = "mt-2 min-h-11 w-full rounded-md border border-[#d8cedc] bg-white px-3 py-2 text-[16px] text-[#2B2231] outline-none transition focus:border-[#6D456F] focus:ring-2 focus:ring-[#6D456F]/20";
 const labelClass = "block text-sm font-semibold text-[#2B2231]";
 const sectionClass = "scroll-mt-24 border-b border-[#ddd4e1] py-7 first:pt-0 last:border-b-0";
+
+type MediaMutationResponse = {
+  event?: EditorEvent;
+  media?: InvitationMediaSnapshot;
+  errors?: { media?: string };
+};
+
+function emptyMedia(event: EditorEvent): InvitationMediaSnapshot {
+  const item = (
+    kind: Exclude<InvitationMediaKind, "gallery">,
+    path: string | null,
+  ): InvitationMediaItem | null => path ? { kind, path, url: "" } : null;
+  return {
+    designedInvite: item("designed_invite", event.designedInvitePath),
+    cover: item("cover", event.coverImagePath),
+    video: item("video", event.videoPath),
+    gallery: [],
+  };
+}
+
+function postMedia(
+  url: string,
+  body: FormData,
+  onProgress: (percent: number) => void,
+): Promise<{ ok: boolean; result: MediaMutationResponse }> {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", url);
+    request.withCredentials = true;
+    request.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress(Math.round((event.loaded / event.total) * 100));
+      }
+    });
+    request.addEventListener("error", () => reject(new Error("upload failed")));
+    request.addEventListener("load", () => {
+      let result: MediaMutationResponse = {};
+      try {
+        result = JSON.parse(request.responseText) as MediaMutationResponse;
+      } catch {
+        result = {};
+      }
+      resolve({ ok: request.status >= 200 && request.status < 300, result });
+    });
+    request.send(body);
+  });
+}
 
 function toLocalInput(value: string | null, timeZone: string): string {
   if (!value) return "";
@@ -74,7 +126,15 @@ function FieldError({ name, errors }: { name: string; errors: FieldErrors }) {
   return errors[name] ? <p className="mt-1.5 text-sm text-[#A33A3A]">{errors[name]}</p> : null;
 }
 
-export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEditorMode }) {
+export function EventEditor({
+  event,
+  mode,
+  media: initialMedia,
+}: {
+  event: EditorEvent;
+  mode: EventEditorMode;
+  media?: InvitationMediaSnapshot;
+}) {
   const t = useTranslations("invitations.editor");
   const locale = useLocale();
   const [currentEvent, setCurrentEvent] = useState(event);
@@ -95,6 +155,11 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
   const [previewAccent, setPreviewAccent] = useState(event.accentColor);
   const initialFont = event.fontPairKey === "geist-geist" ? "geist-geist" : "fraunces-geist";
   const [previewFont, setPreviewFont] = useState(initialFont);
+  const [media, setMedia] = useState<InvitationMediaSnapshot>(initialMedia ?? emptyMedia(event));
+  const [mediaBusy, setMediaBusy] = useState<string | null>(null);
+  const [mediaProgress, setMediaProgress] = useState<number | null>(null);
+  const [mediaError, setMediaError] = useState("");
+  const [galleryAltText, setGalleryAltText] = useState("");
 
   const dateLabel = useMemo(() => currentEvent.startsAt
     ? new Intl.DateTimeFormat(locale, {
@@ -274,6 +339,128 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
     }
   }
 
+  function mediaErrorCopy(code?: string): string {
+    switch (code) {
+      case "invalid_media_type": return t("media.errors.invalidType");
+      case "file_too_large": return t("media.errors.tooLarge");
+      case "video_too_long": return t("media.errors.videoTooLong");
+      case "video_duration_unreadable": return t("media.errors.videoUnreadable");
+      case "gallery_alt_required": return t("media.errors.altRequired");
+      case "gallery_full": return t("media.errors.galleryFull");
+      default: return t("media.errors.uploadFailed");
+    }
+  }
+
+  async function uploadMedia(
+    kind: InvitationMediaKind,
+    file: File,
+    galleryReplacement?: InvitationMediaItem,
+  ): Promise<void> {
+    const altText = galleryReplacement?.altText?.trim() || galleryAltText.trim();
+    if (kind === "gallery" && !altText) {
+      setMediaError(t("media.errors.altRequired"));
+      return;
+    }
+    const body = new FormData();
+    body.set("kind", kind);
+    body.set("file", file);
+    if (kind === "gallery") body.set("altText", altText);
+    if (galleryReplacement?.id) body.set("mediaId", galleryReplacement.id);
+    setMediaBusy(kind);
+    setMediaProgress(0);
+    setMediaError("");
+    try {
+      const { ok, result } = await postMedia(
+        `/api/invitations/events/${currentEvent.id}/media`,
+        body,
+        setMediaProgress,
+      );
+      if (!ok || !result.event || !result.media) {
+        setMediaError(mediaErrorCopy(result.errors?.media));
+        return;
+      }
+      setCurrentEvent(result.event);
+      setMedia(result.media);
+      if (kind === "gallery") setGalleryAltText("");
+    } catch {
+      setMediaError(t("media.errors.uploadFailed"));
+    } finally {
+      setMediaBusy(null);
+      setMediaProgress(null);
+    }
+  }
+
+  async function removeMedia(item: InvitationMediaItem): Promise<void> {
+    setMediaBusy(item.id ?? item.kind);
+    setMediaError("");
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/media`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ kind: item.kind, id: item.id, path: item.path }),
+      });
+      const result = await response.json() as MediaMutationResponse;
+      if (!response.ok || !result.event || !result.media) {
+        setMediaError(t("media.errors.removeFailed"));
+        return;
+      }
+      setCurrentEvent(result.event);
+      setMedia(result.media);
+    } catch {
+      setMediaError(t("media.errors.removeFailed"));
+    } finally {
+      setMediaBusy(null);
+    }
+  }
+
+  function mediaPreview(item: InvitationMediaItem, imageAlt: string) {
+    if (!item.url) {
+      return <p className="break-all text-xs text-[#675d6a]">{item.path.split("/").pop()}</p>;
+    }
+    if (item.kind === "video") {
+      return <video src={item.url} controls preload="metadata" className="h-28 w-full max-w-48 rounded-md bg-[#2B2231] object-cover" />;
+    }
+    return <img src={item.url} alt={imageAlt} className="h-28 w-full max-w-48 rounded-md border border-[#ddd4e1] object-cover" />;
+  }
+
+  function singletonMediaRow(
+    kind: Exclude<InvitationMediaKind, "gallery">,
+    title: string,
+    help: string,
+    item: InvitationMediaItem | null,
+  ) {
+    const accept = kind === "video" ? "video/mp4,video/webm" : "image/jpeg,image/png,image/webp";
+    const inputId = `invitation-media-${kind}`;
+    return (
+      <div className="grid gap-4 border-t border-[#ddd4e1] py-5 sm:grid-cols-[minmax(0,1fr)_12rem] sm:items-center">
+        <div>
+          <h3 className="text-sm font-semibold text-[#2B2231]">{title}</h3>
+          <p className="mt-1 text-xs leading-5 text-[#675d6a]">{help}</p>
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <label htmlFor={inputId} className="inline-flex min-h-11 cursor-pointer items-center rounded-md border border-[#b9aabc] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] focus-within:ring-2 focus-within:ring-[#6D456F] focus-within:ring-offset-2">
+              {item ? t("media.replace") : t("media.choose")}
+              <input
+                id={inputId}
+                type="file"
+                accept={accept}
+                disabled={mediaBusy !== null}
+                className="sr-only"
+                onChange={(eventChange) => {
+                  eventChange.stopPropagation();
+                  const file = eventChange.currentTarget.files?.[0];
+                  if (file) void uploadMedia(kind, file);
+                  eventChange.currentTarget.value = "";
+                }}
+              />
+            </label>
+            {item && <button type="button" disabled={mediaBusy !== null} onClick={() => void removeMedia(item)} className="min-h-11 px-2 text-sm font-semibold text-[#7f2929] underline underline-offset-4 disabled:opacity-50">{t("media.remove")}</button>}
+          </div>
+        </div>
+        <div className="min-h-20">{item ? mediaPreview(item, title) : <p className="text-sm text-[#807484]">{t("media.empty")}</p>}</div>
+      </div>
+    );
+  }
+
   const previewBackground = previewTheme === "garden" ? previewPrimary : "#FBFAFC";
   const previewText = previewTheme === "garden" ? "#FBFAFC" : previewPrimary;
 
@@ -351,6 +538,92 @@ export function EventEditor({ event, mode }: { event: EditorEvent; mode: EventEd
               <label className={labelClass}>{t("fields.fontPair")}<select name="fontPairKey" value={previewFont} onChange={(e) => setPreviewFont(e.target.value)} className={inputClass}><option value="fraunces-geist">{t("options.fontExpressive")}</option><option value="geist-geist">{t("options.fontClean")}</option></select></label>
               <label className={labelClass}>{t("fields.primaryColor")}<input type="color" name="primaryColor" value={previewPrimary} onChange={(e) => setPreviewPrimary(e.target.value)} className={`${inputClass} p-1`} /></label>
               <label className={labelClass}>{t("fields.accentColor")}<input type="color" name="accentColor" value={previewAccent} onChange={(e) => setPreviewAccent(e.target.value)} className={`${inputClass} p-1`} /></label>
+            </div>
+            <div className="mt-8 border-b border-[#ddd4e1]" onChange={(eventChange) => eventChange.stopPropagation()}>
+              <div className="border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-3">
+                <h3 className="font-semibold text-[#2B2231]">{t("media.heading")}</h3>
+                <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("media.help")}</p>
+              </div>
+              {singletonMediaRow("designed_invite", t("media.designedInvite"), t("media.imageLimit"), media.designedInvite)}
+              {singletonMediaRow("cover", t("media.cover"), t("media.imageLimit"), media.cover)}
+              {singletonMediaRow("video", t("media.video"), t("media.videoLimit"), media.video)}
+              <div className="border-t border-[#ddd4e1] py-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#2B2231]">{t("media.gallery")}</h3>
+                    <p className="mt-1 text-xs leading-5 text-[#675d6a]">{t("media.imageLimit")}</p>
+                  </div>
+                  <p className="shrink-0 text-sm font-semibold text-[#6D456F]">{t("media.galleryCount", { count: media.gallery.length })}</p>
+                </div>
+                <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                  <label className={labelClass}>
+                    {t("media.altLabel")}
+                    <input
+                      name="galleryAltText"
+                      form="invitation-media-gallery-upload"
+                      required
+                      maxLength={240}
+                      value={galleryAltText}
+                      onChange={(eventChange) => setGalleryAltText(eventChange.target.value)}
+                      placeholder={t("media.altPlaceholder")}
+                      className={inputClass}
+                    />
+                  </label>
+                  <label htmlFor="invitation-media-gallery" className={`inline-flex min-h-11 items-center justify-center rounded-md border border-[#b9aabc] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] focus-within:ring-2 focus-within:ring-[#6D456F] focus-within:ring-offset-2 ${media.gallery.length >= 12 || mediaBusy !== null ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}>
+                    {t("media.addPhoto")}
+                    <input
+                      id="invitation-media-gallery"
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      disabled={media.gallery.length >= 12 || mediaBusy !== null}
+                      className="sr-only"
+                      onChange={(eventChange) => {
+                        eventChange.stopPropagation();
+                        const file = eventChange.currentTarget.files?.[0];
+                        if (file) void uploadMedia("gallery", file);
+                        eventChange.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                </div>
+                {media.gallery.length >= 12 && <p className="mt-2 text-sm font-medium text-[#675d6a]">{t("media.galleryFull")}</p>}
+                {media.gallery.length > 0 && (
+                  <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+                    {media.gallery.map((item) => (
+                      <li key={item.id ?? item.path} className="border-l-2 border-[#cfc3d3] pl-3">
+                        {mediaPreview(item, item.altText ?? "")}
+                        <p className="mt-2 text-sm text-[#55485a]">{item.altText}</p>
+                        <div className="mt-1 flex flex-wrap items-center gap-3">
+                          <label htmlFor={`invitation-media-gallery-${item.id}`} className="inline-flex min-h-11 cursor-pointer items-center text-sm font-semibold text-[#55405a] underline underline-offset-4 focus-within:ring-2 focus-within:ring-[#6D456F]">
+                            {t("media.replace")}
+                            <input
+                              id={`invitation-media-gallery-${item.id}`}
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp"
+                              disabled={mediaBusy !== null}
+                              className="sr-only"
+                              onChange={(eventChange) => {
+                                eventChange.stopPropagation();
+                                const file = eventChange.currentTarget.files?.[0];
+                                if (file) void uploadMedia("gallery", file, item);
+                                eventChange.currentTarget.value = "";
+                              }}
+                            />
+                          </label>
+                          <button type="button" disabled={mediaBusy !== null} onClick={() => void removeMedia(item)} className="min-h-11 text-sm font-semibold text-[#7f2929] underline underline-offset-4 disabled:opacity-50">{t("media.remove")}</button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              {mediaBusy && (
+                <div aria-live="polite" className="border-t border-[#ddd4e1] py-3 text-sm font-medium text-[#55485a]">
+                  {mediaProgress === null ? t("media.working") : t("media.uploading", { percent: mediaProgress })}
+                  {mediaProgress !== null && <progress value={mediaProgress} max={100} className="mt-2 block h-2 w-full accent-[#6D456F]" />}
+                </div>
+              )}
+              {mediaError && <p role="alert" className="border-t border-[#e5bcbc] bg-red-50 px-3 py-3 text-sm text-[#7f2929]">{mediaError}</p>}
             </div>
           </section>
 
