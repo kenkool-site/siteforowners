@@ -157,3 +157,29 @@ test("gallery photos stack on mobile and balance into two columns on larger scre
   </NextIntlClientProvider>);
   assert.match(html, /data-invitation-gallery="true"[^>]*class="[^"]*grid-cols-1[^"]*sm:grid-cols-2/);
 });
+
+test("optional travel information highlights one hotel and links guest directions", () => {
+  const travelEvent = {
+    ...event,
+    travelInfo: {
+      airports: [{ name: "Dallas Fort Worth International", note: "About 35 minutes from the venue", directionsUrl: "https://maps.example.test/dfw" }],
+      hotels: [
+        { name: "The Grand Hotel", address: "10 Main Street, Dallas, TX", recommended: true },
+        { name: "City Lodge", address: "20 Oak Road, Dallas, TX", recommended: false },
+      ],
+    },
+  } as PublicInvitationEvent;
+  const html = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
+    <PublicInvitation event={travelEvent} state="published" media={{ ...media, gallery: [], video: null }} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
+  </NextIntlClientProvider>);
+  for (const expected of ["Travel information", "Closest airports", "Dallas Fort Worth International", "Recommended hotel", "The Grand Hotel", "City Lodge"]) {
+    assert.match(html, new RegExp(expected));
+  }
+  assert.match(html, /https:\/\/maps\.example\.test\/dfw/);
+  assert.match(html, /https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=10%20Main%20Street%2C%20Dallas%2C%20TX/);
+});
+
+test("travel information stays hidden when the optional lists are empty", () => {
+  const html = render("published", { travelInfo: { airports: [], hotels: [] } } as Partial<PublicInvitationEvent>);
+  assert.doesNotMatch(html, /Travel information|Closest airports|Nearby hotels/);
+});

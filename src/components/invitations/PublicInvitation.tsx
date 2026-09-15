@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import { CalendarDays, Clock3, MapPin, Navigation } from "lucide-react";
+import { Building2, CalendarDays, Clock3, MapPin, Navigation, Plane } from "lucide-react";
 import {
   eventIcsDataUrl,
   googleEventCalendarUrl,
@@ -10,7 +10,8 @@ import {
 } from "@/lib/invitations/calendar";
 import { InvitationRsvpDialog } from "./InvitationRsvpDialog";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
-import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recipe";
+import { DEFAULT_INVITATION_DESIGN_RECIPE, readableTextColor } from "@/lib/invitations/design-recipe";
+import { hotelMapUrl } from "@/lib/invitations/travel";
 import { InvitationHero } from "./InvitationHero";
 import type {
   EffectiveEventState,
@@ -32,6 +33,7 @@ export type PublicInvitationEvent = Pick<
   | "venueName"
   | "address"
   | "mapUrl"
+  | "travelInfo"
   | "themeKey"
   | "primaryColor"
   | "accentColor"
@@ -216,6 +218,9 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
     location: [event.venueName, event.address].filter(Boolean).join(", "),
     description: event.description,
   } : null;
+  const travelInfo = event.travelInfo ?? { airports: [], hotels: [] };
+  const hasTravelInfo = travelInfo.airports.length > 0 || travelInfo.hotels.length > 0;
+  const hotels = [...travelInfo.hotels].sort((left, right) => Number(right.recommended) - Number(left.recommended));
   const actionClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-current px-5 py-2.5 text-sm font-semibold outline-none transition-[transform,background-color] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none";
 
   return (
@@ -254,6 +259,43 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
             {calendarInput && <a href={eventIcsDataUrl(calendarInput)} download={`${event.slug}.ics`} className={actionClass}><Clock3 aria-hidden="true" className="size-4" />{t("downloadCalendar")}</a>}
           </div>
         </section>
+
+        {hasTravelInfo && (
+          <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.5 }} aria-labelledby="invitation-travel-heading">
+            <h2 id="invitation-travel-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("travel.title")}</h2>
+            <div className="mt-7 grid gap-9 md:grid-cols-2">
+              {travelInfo.airports.length > 0 && (
+                <div>
+                  <h3 className={`${titleFont} flex items-center gap-3 text-2xl`}><Plane aria-hidden="true" className="size-5" style={{ color: recipe.palette.accent }} />{t("travel.airports")}</h3>
+                  <div className="mt-4 divide-y" style={{ borderColor: recipe.palette.accent }}>
+                    {travelInfo.airports.map((airport) => (
+                      <article key={`${airport.name}:${airport.directionsUrl ?? ""}`} className="py-4 first:pt-0">
+                        <p className="font-semibold">{airport.name}</p>
+                        {airport.note && <p className="mt-1 text-sm leading-6 opacity-75">{airport.note}</p>}
+                        {airport.directionsUrl && <a href={airport.directionsUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold underline decoration-1 underline-offset-4"><Navigation aria-hidden="true" className="size-4" />{t("travel.directions")}</a>}
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {hotels.length > 0 && (
+                <div>
+                  <h3 className={`${titleFont} flex items-center gap-3 text-2xl`}><Building2 aria-hidden="true" className="size-5" style={{ color: recipe.palette.accent }} />{t("travel.hotels")}</h3>
+                  <div className="mt-4 space-y-3">
+                    {hotels.map((hotel) => (
+                      <article key={`${hotel.name}:${hotel.address}`} className="relative border px-4 py-4" style={{ borderColor: recipe.palette.accent, borderWidth: hotel.recommended ? 2 : 1, backgroundColor: recipe.palette.surface }}>
+                        {hotel.recommended && <span className="mb-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: recipe.palette.accent, color: readableTextColor(recipe.palette.accent) }}>{t("travel.recommended")}</span>}
+                        <p className="font-semibold">{hotel.name}</p>
+                        <p className="mt-1 text-sm leading-6 opacity-75">{hotel.address}</p>
+                        <a href={hotelMapUrl(hotel.address)} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold underline decoration-1 underline-offset-4"><MapPin aria-hidden="true" className="size-4" />{t("travel.map")}</a>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {(media.gallery.length > 0 || media.video) && (
           <section className={`${recreated ? "" : theme.media} ${rhythm}`} style={{ order: sectionOrder("gallery") }} aria-labelledby="invitation-gallery-heading">

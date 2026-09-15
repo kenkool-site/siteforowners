@@ -149,6 +149,50 @@ test("public theme validation accepts the three curated layouts and rejects lega
   }
 });
 
+test("travel information trims complete rows and ignores fully empty optional rows", () => {
+  const parsed = parseEventUpdate({
+    travelInfo: {
+      airports: [
+        { name: " Dallas Fort Worth International ", note: " About 35 minutes away ", directionsUrl: " https://maps.example.test/dfw " },
+        { name: " ", note: " ", directionsUrl: " " },
+      ],
+      hotels: [
+        { name: " The Grand Hotel ", address: " 10 Main Street, Dallas, TX ", recommended: true },
+        { name: " ", address: " ", recommended: false },
+      ],
+    },
+  }, "owner");
+
+  assert.deepEqual(parsed, {
+    ok: true,
+    value: {
+      travelInfo: {
+        airports: [{ name: "Dallas Fort Worth International", note: "About 35 minutes away", directionsUrl: "https://maps.example.test/dfw" }],
+        hotels: [{ name: "The Grand Hotel", address: "10 Main Street, Dallas, TX", recommended: true }],
+      },
+    },
+  });
+});
+
+test("travel information rejects incomplete rows, unsafe links, excess rows, and multiple recommendations", () => {
+  const invalidCases = [
+    { airports: [{ name: "", note: "Nearby", directionsUrl: "" }], hotels: [] },
+    { airports: [{ name: "DFW", note: "", directionsUrl: "javascript:alert(1)" }], hotels: [] },
+    { airports: Array.from({ length: 4 }, (_, index) => ({ name: `Airport ${index}`, note: "", directionsUrl: "" })), hotels: [] },
+    { airports: [], hotels: [{ name: "Hotel", address: "", recommended: false }] },
+    { airports: [], hotels: Array.from({ length: 6 }, (_, index) => ({ name: `Hotel ${index}`, address: `${index} Main St`, recommended: false })) },
+    { airports: [], hotels: [
+      { name: "Hotel One", address: "1 Main St", recommended: true },
+      { name: "Hotel Two", address: "2 Main St", recommended: true },
+    ] },
+  ];
+  for (const travelInfo of invalidCases) {
+    const parsed = parseEventUpdate({ travelInfo }, "owner");
+    assert.equal(parsed.ok, false);
+    if (!parsed.ok) assert.equal(typeof parsed.errors.travelInfo, "string");
+  }
+});
+
 test("publish validation returns actionable field errors", () => {
   const errors = validatePublishableEvent({
     title: "",
