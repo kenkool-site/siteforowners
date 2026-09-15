@@ -16,6 +16,7 @@ import type { ExtractedFact, InvitationReferenceAnalysis } from "@/lib/invitatio
 import type { InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
 import type { InvitationWording } from "@/lib/invitations/wording";
 import { invitationPublicUrl } from "@/lib/invitations/public-url";
+import type { InvitationStyleGuide } from "@/lib/invitations/style-guide";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -181,6 +182,7 @@ export function EventEditor({
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
   const [designRecipe, setDesignRecipe] = useState<InvitationDesignRecipe | null>(event.designRecipe);
+  const [styleGuide, setStyleGuide] = useState<InvitationStyleGuide | null>(event.styleGuide ?? null);
   const [wordingSuggestion, setWordingSuggestion] = useState<InvitationWording | null>(null);
   const [wordingBusy, setWordingBusy] = useState(false);
   const [wordingError, setWordingError] = useState("");
@@ -260,6 +262,7 @@ export function EventEditor({
             recommended: recommendedHotel === index,
           })),
         },
+        styleGuide,
         themeKey: stringValue(data, "themeKey"),
         fontPairKey: stringValue(data, "fontPairKey"),
         primaryColor: stringValue(data, "primaryColor"),
@@ -311,6 +314,7 @@ export function EventEditor({
       setPreviewAccent(result.event.accentColor);
       setPreviewFont(result.event.fontPairKey === "geist-geist" ? "geist-geist" : "fraunces-geist");
       setDesignRecipe(result.event.designRecipe);
+      setStyleGuide(result.event.styleGuide ?? null);
       setAnalysis(result.event.referenceAnalysis);
       setDirty(false);
       setSaved(true);
@@ -355,15 +359,23 @@ export function EventEditor({
     finally { setAnalyzing(false); }
   }
 
-  function applyReference(facts: ExtractedFact[], includeDesign: boolean) {
+  function applyReference({ facts, eventColors, includeDesign }: { facts: ExtractedFact[]; eventColors: InvitationStyleGuide["colors"]; includeDesign: boolean }) {
     const form = eventFormRef.current;
     if (!form) return;
     for (const fact of facts) {
+      if (fact.key === "styleNote") continue;
       const field = form.elements.namedItem(fact.key);
       if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) continue;
       field.value = fact.key === "startsAt" ? toLocalInput(fact.value, currentEvent.timezone) : fact.value;
       if (fact.key === "title") setPreviewTitle(fact.value);
       if (fact.key === "description") setPreviewDescription(fact.value);
+    }
+    const styleNote = facts.find((fact) => fact.key === "styleNote")?.value;
+    if (styleNote || eventColors.length > 0) {
+      setStyleGuide({
+        note: styleNote ?? styleGuide?.note ?? null,
+        colors: eventColors.length > 0 ? eventColors : styleGuide?.colors ?? [],
+      });
     }
     if (includeDesign && analysis) {
       setDesignRecipe(analysis.recipe);

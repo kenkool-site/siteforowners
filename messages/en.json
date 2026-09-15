@@ -302,8 +302,11 @@
         "low": "Low confidence",
         "foundInImage": "Found in image: “{evidence}”",
         "design": "Colors, typography, and layout",
+        "eventColor": "Event color",
+        "colorName": "Color name",
+        "colorValue": "Color",
         "applySelected": "Apply selected",
-        "fields": { "title": "Event title", "honoreeNames": "Honoree names", "startsAt": "Date and time", "venueName": "Venue", "address": "Address", "description": "Description" },
+        "fields": { "title": "Event title", "honoreeNames": "Honoree names", "startsAt": "Date and time", "venueName": "Venue", "address": "Address", "description": "Description", "styleNote": "Style note" },
         "errors": { "reference_required": "Upload a design reference first.", "analysis_rate_limited": "Analysis limit reached. Try again later.", "analysis_unavailable": "The invitation could not be analyzed. Try again." }
       },
       "wording": {

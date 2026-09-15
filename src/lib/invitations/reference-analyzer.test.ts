@@ -9,13 +9,19 @@ test("combines sampled colors with constrained vision analysis", async () => {
   }, {
     extractPalette: async () => ["#F3F0E5", "#245A38", "#B88A53"],
     analyzeVision: async () => JSON.stringify({
-      facts: [{ key: "honoreeNames", value: "Mercy & John", confidence: 0.94, evidence: "MERCY & JOHN" }],
+      facts: [
+        { key: "honoreeNames", value: "Mercy & John", confidence: 0.94, evidence: "MERCY & JOHN" },
+        { key: "styleNote", value: "Glamorous fascinators", confidence: 0.93, evidence: "STYLE NOTE" },
+      ],
+      eventColors: [{ name: "Sage", color: "#AAB39A", confidence: 0.96, evidence: "SAGE" }],
       recipe: { ...DEFAULT_INVITATION_DESIGN_RECIPE, decoration: { ...DEFAULT_INVITATION_DESIGN_RECIPE.decoration, motif: "botanical" } },
     }),
     now: () => new Date("2026-09-15T15:00:00Z"),
   });
   assert.deepEqual(result.paletteCandidates, ["#F3F0E5", "#245A38", "#B88A53"]);
   assert.equal(result.facts[0]?.value, "Mercy & John");
+  assert.equal(result.facts[1]?.key, "styleNote");
+  assert.deepEqual(result.eventColors, [{ name: "Sage", color: "#AAB39A", confidence: 0.96, evidence: "SAGE" }]);
   assert.equal(result.recipe.decoration.motif, "botanical");
 });
 

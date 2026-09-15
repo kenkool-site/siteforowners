@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
 import type { EditorEvent } from "./EventEditor";
 import type { InvitationMediaSnapshot } from "../../lib/invitations/media";
+import { DEFAULT_INVITATION_DESIGN_RECIPE } from "../../lib/invitations/design-recipe";
 
 (globalThis as Record<string, unknown>).React = React;
 
@@ -211,6 +212,35 @@ test("founder save submits the editable public subdomain", async () => {
       await Promise.resolve();
     });
     assert.equal(submitted?.publicSubdomain, "ana-luis");
+  });
+});
+
+test("applying analyzed style guidance keeps it structured in the event save", async () => {
+  let submitted: Record<string, unknown> | null = null;
+  await withEditor("owner", async (input, init) => {
+    if (String(input).endsWith("/analyze-reference")) return response({ analysis: {
+      schemaVersion: 3,
+      referencePath: "event-1/designed_invite/reference.png",
+      model: "test-model",
+      createdAt: "2026-09-15T00:00:00.000Z",
+      facts: [{ key: "styleNote", value: "Glamorous fascinators", confidence: 0.94, evidence: "STYLE NOTE" }],
+      paletteCandidates: ["#AAB39A"],
+      eventColors: [{ name: "Sage", color: "#AAB39A", confidence: 0.96, evidence: "SAGE" }],
+      recipe: DEFAULT_INVITATION_DESIGN_RECIPE,
+    } });
+    submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return response({ event: { ...baseEvent, styleGuide: submitted.styleGuide } });
+  }, async (container, dom) => {
+    const analyze = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Analyze invitation")!;
+    await act(async () => { analyze.click(); await Promise.resolve(); await Promise.resolve(); });
+    const apply = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Apply selected")!;
+    await act(async () => { apply.click(); await Promise.resolve(); });
+    const form = container.querySelector<HTMLFormElement>('form[data-event-form="true"]')!;
+    await act(async () => { submit(dom, form); await Promise.resolve(); await Promise.resolve(); });
+    assert.deepEqual(submitted?.styleGuide, {
+      note: "Glamorous fascinators",
+      colors: [{ name: "Sage", color: "#AAB39A" }],
+    });
   });
 });
 

@@ -302,8 +302,11 @@
         "low": "Baja confianza",
         "foundInImage": "Encontrado en la imagen: “{evidence}”",
         "design": "Colores, tipografía y diseño",
+        "eventColor": "Color del evento",
+        "colorName": "Nombre del color",
+        "colorValue": "Color",
         "applySelected": "Aplicar selección",
-        "fields": { "title": "Título del evento", "honoreeNames": "Nombres homenajeados", "startsAt": "Fecha y hora", "venueName": "Lugar", "address": "Dirección", "description": "Descripción" },
+        "fields": { "title": "Título del evento", "honoreeNames": "Nombres homenajeados", "startsAt": "Fecha y hora", "venueName": "Lugar", "address": "Dirección", "description": "Descripción", "styleNote": "Nota de estilo" },
         "errors": { "reference_required": "Primero suba una referencia de diseño.", "analysis_rate_limited": "Se alcanzó el límite de análisis. Inténtelo más tarde.", "analysis_unavailable": "No se pudo analizar la invitación. Inténtelo de nuevo." }
       },
       "wording": {
