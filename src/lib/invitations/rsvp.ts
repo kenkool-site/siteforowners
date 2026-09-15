@@ -14,6 +14,7 @@ export type RsvpErrorCode =
   | "capacity_reached"
   | "submission_limit_reached"
   | "duplicate_contact"
+  | "contact_conflict"
   | "invalid_edit_token"
   | "rate_limited";
 
@@ -43,6 +44,7 @@ const RPC_ERROR_CODES: Readonly<Record<string, RsvpErrorCode>> = {
   INVITE_CAPACITY_REACHED: "capacity_reached",
   INVITE_SUBMISSION_LIMIT_REACHED: "submission_limit_reached",
   INVITE_DUPLICATE_CONTACT: "duplicate_contact",
+  INVITE_CONTACT_CONFLICT: "contact_conflict",
   INVITE_INVALID_EDIT_TOKEN: "invalid_edit_token",
   INVITE_RATE_LIMITED: "rate_limited",
 };
@@ -65,7 +67,7 @@ export type SubmitRsvpRpcInput = {
 
 type SubmitRsvpRpcRow = {
   rsvp_id: string;
-  mutation_kind: "created" | "updated";
+  mutation_kind: "created" | "updated" | "unchanged";
   attending_total: number;
   declined_party_total: number;
   remaining_capacity: number | null;
@@ -93,7 +95,7 @@ function isSubmitRsvpRpcRow(value: unknown): value is SubmitRsvpRpcRow {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
   return typeof row.rsvp_id === "string"
-    && (row.mutation_kind === "created" || row.mutation_kind === "updated")
+    && (row.mutation_kind === "created" || row.mutation_kind === "updated" || row.mutation_kind === "unchanged")
     && typeof row.attending_total === "number"
     && typeof row.declined_party_total === "number"
     && (row.remaining_capacity === null || typeof row.remaining_capacity === "number");
@@ -139,10 +141,11 @@ export async function submitRsvp(
       },
       rsvpId: row.rsvp_id,
       created: row.mutation_kind === "created",
+      outcome: row.mutation_kind,
       attendingTotal: row.attending_total,
       declinedPartyTotal: row.declined_party_total,
       remainingCapacity: row.remaining_capacity,
-      editToken: credential.token,
+      editToken: row.mutation_kind === "created" ? credential.token : null,
     },
   };
 }
@@ -314,6 +317,7 @@ const HTTP_STATUS_BY_RSVP_CODE: Readonly<Record<RsvpErrorCode, number>> = {
   capacity_reached: 409,
   submission_limit_reached: 409,
   duplicate_contact: 409,
+  contact_conflict: 409,
   invalid_edit_token: 401,
   rate_limited: 429,
 };
@@ -372,15 +376,8 @@ export async function processPublicRsvpRequest(
     ok: true,
     rsvpId: result.value.rsvpId,
     created: result.value.created,
+    outcome: result.value.outcome,
   };
-  if (result.value.editToken) {
-    response.editUrl = editUrl(
-      context.origin,
-      invitation.event.slug,
-      result.value.rsvpId,
-      result.value.editToken,
-    );
-  }
   if (invitation.event.showPublicRsvpCount) {
     response.summary = {
       attendingPeople: result.value.attendingTotal,
@@ -391,10 +388,10 @@ export async function processPublicRsvpRequest(
   return {
     status: 200,
     body: response,
-    notification: {
+    ...(result.value.outcome === "unchanged" ? {} : { notification: {
       eventId: invitation.event.id,
       mutation: result.value,
-      editUrl: (response.editUrl as string | undefined) ?? null,
-    },
+      editUrl: null,
+    } }),
   };
 }
