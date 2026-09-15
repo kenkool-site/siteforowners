@@ -29,6 +29,13 @@ export function Footer() {
           Terms
         </Link>
         <span aria-hidden>·</span>
+        <Link
+          href="/invitations/login"
+          className="underline decoration-warm-cream2/30 underline-offset-4 hover:text-warm-cream2 hover:decoration-warm-cream2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-warm-cream2"
+        >
+          Invitation sign in
+        </Link>
+        <span aria-hidden>·</span>
         <span>© {new Date().getFullYear()}</span>
       </div>
     </footer>
