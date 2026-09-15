@@ -142,7 +142,7 @@ BEGIN
     AND NULLIF(lower(pg_catalog.btrim(v_existing.email)), '') IS NOT DISTINCT FROM v_email
     AND NULLIF(pg_catalog.regexp_replace(pg_catalog.btrim(v_existing.phone), '[^0-9+]', '', 'g'), '') IS NOT DISTINCT FROM v_phone
     AND v_existing.attending = p_attending
-    AND v_existing.party_size = CASE WHEN p_attending THEN p_party_size ELSE 0 END
+    AND (v_existing.party_size = CASE WHEN p_attending THEN p_party_size ELSE 0 END)
     AND coalesce(v_existing.additional_guest_names, '{}') = v_names
     AND NULLIF(pg_catalog.btrim(v_existing.dietary_or_accessibility_notes), '') IS NOT DISTINCT FROM v_notes
     AND NULLIF(pg_catalog.btrim(v_existing.message), '') IS NOT DISTINCT FROM v_message
