@@ -17,6 +17,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function parseInvitationStyleGuide(input: unknown): InvitationStyleGuideResult {
+  if (input === null) return { ok: true, value: null };
   if (!isRecord(input) || !Array.isArray(input.colors)) return { ok: false };
   if (input.note !== null && typeof input.note !== "string") return { ok: false };
   const note = typeof input.note === "string" ? input.note.trim() || null : null;

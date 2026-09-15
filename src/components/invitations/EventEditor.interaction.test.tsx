@@ -244,6 +244,20 @@ test("applying analyzed style guidance keeps it structured in the event save", a
   });
 });
 
+test("a style-guide validation error is shown as helpful copy instead of a translation key", async () => {
+  await withEditor("owner", async () => response({ errors: { styleGuide: "invalid" } }, false), async (container, dom) => {
+    const floral = container.querySelector<HTMLInputElement>('input[name="coverFrameStyle"][value="floral"]')!;
+    await act(async () => floral.click());
+    await act(async () => {
+      submit(dom, floral.form!);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.match(container.textContent ?? "", /Check the style note and event colors/i);
+    assert.doesNotMatch(container.textContent ?? "", /invitations\.editor\.errors\.styleGuide/);
+  });
+});
+
 test("duplicate owner email fails only the separate credential action", async () => {
   await withEditor("founder", async (input) => {
     assert.match(String(input), /\/credentials$/);
