@@ -1,0 +1,83 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getClientIp, hashIp } from "@/lib/api-rate-limit";
+import {
+  getInvitationPasscodeCookieName,
+  isSameOrigin,
+  verifyInvitationPasscodeSession,
+} from "@/lib/invitations/auth";
+import { dispatchInvitationRsvpNotifications } from "@/lib/invitations/notifications";
+import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
+import {
+  allowInvitationRsvpAttempt,
+  processPublicRsvpRequest,
+  submitInvitationRsvp,
+} from "@/lib/invitations/rsvp";
+import {
+  dispatchFixtureInvitationRsvpNotifications,
+  isInvitationE2EFixturesEnabled,
+  submitFixtureInvitationRsvp,
+} from "@/lib/invitations/e2e-fixtures";
+
+export async function POST(request: NextRequest) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ ok: false, code: "event_unavailable" }, { status: 403 });
+  }
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ ok: false, code: "invalid_request" }, { status: 400 });
+  }
+
+  try {
+    const result = await processPublicRsvpRequest({
+      body,
+      ipHash: hashIp(getClientIp(request.headers)),
+      readPasscodeCookie: (eventId) => request.cookies.get(getInvitationPasscodeCookieName(eventId))?.value ?? null,
+      origin: request.nextUrl.origin,
+      now: new Date(),
+    }, {
+      // Exact lookup is intentional: invitation slugs are case-sensitive credentials.
+      findInvitation: getPublicInvitationBySlug,
+      verifyPasscode: (signed, eventId) => {
+        try {
+          return verifyInvitationPasscodeSession(signed, eventId);
+        } catch {
+          return false;
+        }
+      },
+      allowAttempt: isInvitationE2EFixturesEnabled() ? async () => true : allowInvitationRsvpAttempt,
+      submit: isInvitationE2EFixturesEnabled() ? submitFixtureInvitationRsvp : submitInvitationRsvp,
+    });
+
+    if (result.notification) {
+      // A provider outage or notification-layer bug must never turn this
+      // already-successful RSVP into an error response for the guest —
+      // dispatchInvitationRsvpNotifications already guarantees it resolves
+      // rather than rejects, and this try/catch is a second, deliberate
+      // safety net against that same failure mode.
+      let notificationsDelayed = true;
+      try {
+        const dispatch = await (isInvitationE2EFixturesEnabled()
+          ? dispatchFixtureInvitationRsvpNotifications
+          : dispatchInvitationRsvpNotifications)({
+          eventId: result.notification.eventId,
+          mutation: result.notification.mutation,
+          editUrl: result.notification.editUrl,
+          origin: request.nextUrl.origin,
+        });
+        notificationsDelayed = dispatch.notificationsDelayed;
+      } catch (error) {
+        console.error("[invitations/rsvp] notification dispatch failed", { error });
+      }
+      result.body.notificationsDelayed = notificationsDelayed;
+    }
+
+    return NextResponse.json(result.body, { status: result.status });
+  } catch (error) {
+    // Keep edit tokens and full guest contacts out of logs.
+    console.error("[invitations/rsvp] submission failed", { error });
+    return NextResponse.json({ ok: false, code: "event_unavailable" }, { status: 500 });
+  }
+}

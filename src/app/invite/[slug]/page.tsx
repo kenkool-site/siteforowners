@@ -1,0 +1,75 @@
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { notFound } from "next/navigation";
+import { PasscodeGate } from "@/components/invitations/PasscodeGate";
+import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
+import { InvitationStateView, PublicInvitation } from "@/components/invitations/PublicInvitation";
+import {
+  getInvitationPasscodeCookieName,
+  verifyInvitationPasscodeSession,
+} from "@/lib/invitations/auth";
+import { getInvitationMediaForManagement } from "@/lib/invitations/media";
+import {
+  invitationPageMetadata,
+  resolvePublicInvitationPage,
+  toPublicInvitationClientDetails,
+} from "@/lib/invitations/public-access";
+import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
+import { getEffectiveEventState } from "@/lib/invitations/state";
+
+export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  try {
+    const invitation = await getPublicInvitationBySlug(params.slug);
+    const state = invitation ? getEffectiveEventState(invitation.event, new Date()) : null;
+    return invitationPageMetadata(invitation, state);
+  } catch {
+    return invitationPageMetadata(null, null);
+  }
+}
+
+export default async function PublicInvitationPage({ params }: { params: { slug: string } }) {
+  const resolution = await resolvePublicInvitationPage(params.slug, new Date(), {
+    find: getPublicInvitationBySlug,
+    hasPasscodeAccess: (event) => {
+      const signed = cookies().get(getInvitationPasscodeCookieName(event.id))?.value;
+      try {
+        return Boolean(signed && verifyInvitationPasscodeSession(signed, event.id));
+      } catch {
+        return false;
+      }
+    },
+    // This runs only after lifecycle and passcode checks: signing storage URLs grants detail access.
+    loadMedia: getInvitationMediaForManagement,
+  });
+  if (resolution.kind === "not_found") notFound();
+  if (resolution.kind === "unavailable" || resolution.kind === "ended") {
+    const state = resolution.kind === "unavailable" ? "draft" : "expired";
+    return (
+      <InvitationPublicProvider locale={resolution.event.locale} timeZone="UTC">
+        <InvitationStateView state={state} />
+      </InvitationPublicProvider>
+    );
+  }
+
+  if (resolution.kind === "passcode") {
+    return (
+      <InvitationPublicProvider locale={resolution.event.locale} timeZone="UTC">
+        <PasscodeGate slug={resolution.event.slug} />
+      </InvitationPublicProvider>
+    );
+  }
+
+  const clientDetails = toPublicInvitationClientDetails(resolution);
+  return (
+    <InvitationPublicProvider locale={clientDetails.event.locale} timeZone={clientDetails.event.timezone}>
+      <PublicInvitation
+        event={clientDetails.event}
+        state={clientDetails.state}
+        media={clientDetails.media}
+        rsvpSummary={clientDetails.rsvpSummary}
+      />
+    </InvitationPublicProvider>
+  );
+}

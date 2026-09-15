@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
-
-// Ordered by funnel stage: build the asset → show it live → inbound → onboarding → paying.
-const LINKS = [
-  { href: "/previews", label: "Previews" },
-  { href: "/demos", label: "Demos" },
-  { href: "/requests", label: "Requests" },
-  { href: "/prospects", label: "Prospects" },
-  { href: "/clients", label: "Clients" },
-];
+import { FOUNDER_ADMIN_LINKS } from "@/lib/admin-navigation";
 
 export function AdminHeader() {
   const [open, setOpen] = useState(false);
@@ -31,7 +23,7 @@ export function AdminHeader() {
               </span>
             </Link>
             <nav className="hidden items-center gap-4 sm:flex">
-              {LINKS.map((link) => (
+              {FOUNDER_ADMIN_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
@@ -73,7 +65,7 @@ export function AdminHeader() {
         {/* Mobile dropdown */}
         {open && (
           <nav className="mt-3 flex flex-col gap-1 border-t pt-3 sm:hidden">
-            {LINKS.map((link) => (
+            {FOUNDER_ADMIN_LINKS.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}

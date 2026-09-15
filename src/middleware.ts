@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { isPublicSiteLive, isOwnerAdminReachable } from "@/lib/tenant-access";
 
 // Admin routes that require authentication
-const ADMIN_ROUTES = ["/prospects", "/clients", "/previews", "/requests", "/onboard"];
+const ADMIN_ROUTES = [
+  "/admin/invitations",
+  "/prospects",
+  "/clients",
+  "/previews",
+  "/requests",
+  "/onboard",
+];
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
@@ -21,12 +29,16 @@ export async function middleware(request: NextRequest) {
   }
 
   // Check if this is an admin route that needs auth
+  const isFounderInvitationRoute = pathname === "/admin/invitations" || pathname.startsWith("/admin/invitations/");
   const isAdminRoute = ADMIN_ROUTES.some((r) => pathname.startsWith(r));
   if (isAdminRoute && pathname !== "/login") {
     const adminPassword = process.env.ADMIN_PASSWORD;
     const sessionCookie = request.cookies.get("admin_session")?.value;
 
-    if (adminPassword && sessionCookie !== adminPassword) {
+    if (
+      (isFounderInvitationRoute && !hasFounderInvitationSession(adminPassword, sessionCookie)) ||
+      (!isFounderInvitationRoute && adminPassword && sessionCookie !== adminPassword)
+    ) {
       // Not authenticated — redirect to login
       return NextResponse.redirect(new URL("/login", request.url));
     }

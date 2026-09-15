@@ -20,6 +20,18 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
+## Invitation Events pilot
+
+The invitation-events MVP is founder-provisioned: there is no public event signup, guest-list import, or initial invitation delivery. Founder operations, preflight checks, safe rollback, notification recovery, and extraction boundaries are in [the invitation pilot runbook](docs/invitations-pilot-runbook.md).
+
+Run its deterministic, local-only browser coverage with:
+
+```bash
+npx playwright test tests/invitations/invitation-flow.spec.ts --project=chromium
+```
+
+The suite starts a development-only in-memory fixture store. It never uses Supabase or real Resend/Twilio senders, and its setup endpoint is unavailable in production even when `INVITATION_E2E_FIXTURES=1` is present.
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:
