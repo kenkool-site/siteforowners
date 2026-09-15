@@ -15,6 +15,7 @@ import { ReferenceImportReview } from "./ReferenceImportReview";
 import type { ExtractedFact, InvitationReferenceAnalysis } from "@/lib/invitations/reference-analysis";
 import type { InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
 import type { InvitationWording } from "@/lib/invitations/wording";
+import { invitationPublicUrl } from "@/lib/invitations/public-url";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -26,6 +27,7 @@ const SECTION_KEYS = ["event", "design", "rsvp", "preview", "responses"] as cons
 const LOCALIZED_ERROR_KEYS = new Set([
   "eventType", "locale", "title", "honoreeNames", "timezone", "startsAt", "endsAt",
   "venueName", "address", "themeKey", "fontPairKey", "primaryColor", "accentColor",
+  "publicSubdomain",
   "travelInfo",
   "capacity", "rsvpDeadline", "passcode", "removePasscode", "notificationEmail",
   "notificationPhone", "expireAt", "submissionLimit", "emailNotificationLimit",
@@ -182,6 +184,7 @@ export function EventEditor({
   const [wordingSuggestion, setWordingSuggestion] = useState<InvitationWording | null>(null);
   const [wordingBusy, setWordingBusy] = useState(false);
   const [wordingError, setWordingError] = useState("");
+  const [subdomainFeedback, setSubdomainFeedback] = useState("");
   const eventFormRef = useRef<HTMLFormElement>(null);
 
   const dateLabel = useMemo(() => currentEvent.startsAt
@@ -275,6 +278,7 @@ export function EventEditor({
         expireAt: wallTime("expireAt"),
       };
       if (mode === "founder") {
+        payload.publicSubdomain = stringValue(data, "publicSubdomain");
         payload.submissionLimit = numberOrNull(data.get("submissionLimit"));
         payload.emailNotificationLimit = numberOrNull(data.get("emailNotificationLimit"));
         payload.smsNotificationLimit = numberOrNull(data.get("smsNotificationLimit"));
@@ -314,6 +318,24 @@ export function EventEditor({
       setErrors({ form: t("saveError") });
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function checkPublicSubdomain(value: string) {
+    if (!value.trim()) {
+      setSubdomainFeedback("");
+      return;
+    }
+    setSubdomainFeedback(t("publicDomainChecking"));
+    try {
+      const query = new URLSearchParams({ value, eventId: currentEvent.id });
+      const response = await fetch(`/api/invitations/admin/subdomains/availability?${query}`);
+      const result = await response.json() as { available?: boolean; suggestion?: string };
+      if (!response.ok) setSubdomainFeedback(t("publicDomainCheckFailed"));
+      else if (result.available) setSubdomainFeedback(t("publicDomainAvailable"));
+      else setSubdomainFeedback(t("publicDomainUnavailable", { suggestion: result.suggestion ?? "" }));
+    } catch {
+      setSubdomainFeedback(t("publicDomainCheckFailed"));
     }
   }
 
@@ -626,6 +648,24 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
+            {mode === "founder" && (
+              <div className="mt-6 border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-4">
+                <label className={labelClass}>
+                  {t("fields.publicSubdomain")}
+                  <span className="mt-2 flex items-center rounded-md border border-[#d8cedc] bg-white focus-within:border-[#6D456F] focus-within:ring-2 focus-within:ring-[#6D456F]/20">
+                    <input
+                      name="publicSubdomain"
+                      defaultValue={currentEvent.publicSubdomain ?? ""}
+                      onBlur={(event) => void checkPublicSubdomain(event.currentTarget.value)}
+                      className="min-h-11 min-w-0 flex-1 rounded-l-md px-3 py-2 text-[16px] outline-none"
+                    />
+                    <span className="pr-3 text-sm font-normal text-[#675d6a]">.siteforowners.com</span>
+                  </span>
+                </label>
+                <p className="mt-2 text-xs leading-5 text-[#675d6a]">{subdomainFeedback || t("publicDomainHelp")}</p>
+                <FieldError name="publicSubdomain" errors={errors} />
+              </div>
+            )}
             <details data-travel-editor open={Boolean(currentEvent.travelInfo?.airports.length || currentEvent.travelInfo?.hotels.length)} className="group mt-8 border-t border-[#ddd4e1] pt-5">
               <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-lg font-semibold text-[#2B2231] outline-none focus-visible:ring-2 focus-visible:ring-[#6D456F] [&::-webkit-details-marker]:hidden">
                 {t("travel.heading")}<span aria-hidden="true" className="text-2xl font-normal transition-transform group-open:rotate-45">+</span>
@@ -844,8 +884,9 @@ export function EventEditor({
             </div>
             <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold">
               <a href={`/invitations/preview/${currentEvent.id}`} target="_blank" rel="noreferrer" className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.openPreview")}</a>
-              <button type="button" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/invite/${currentEvent.slug}`)} className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.copyLink")}</button>
+              <button type="button" onClick={() => navigator.clipboard.writeText(invitationPublicUrl(currentEvent, window.location.origin))} className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.copyLink")}</button>
             </div>
+            <p className="mt-3 break-all text-xs text-[#675d6a]">{invitationPublicUrl(currentEvent)}</p>
           </section>
 
         </div>

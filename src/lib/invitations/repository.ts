@@ -114,7 +114,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
     const { data, error } = await supabase
       .from("invitation_events")
       .select(
-        "id,slug,title,starts_at,status,invitation_owners!inner(name,email),invitation_rsvps(attending,party_size),invitation_notifications(status)",
+        "id,slug,public_subdomain,title,starts_at,status,invitation_owners!inner(name,email),invitation_rsvps(attending,party_size),invitation_notifications(status)",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error("Unable to list invitations", { cause: error });

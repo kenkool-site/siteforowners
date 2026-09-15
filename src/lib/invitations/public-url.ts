@@ -1,6 +1,6 @@
 export type InvitationPublicUrlInput = {
   slug: string;
-  publicSubdomain: string | null;
+  publicSubdomain?: string | null;
 };
 
 const DEFAULT_APP_URL = "https://www.siteforowners.com";

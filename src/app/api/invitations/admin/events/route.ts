@@ -98,6 +98,7 @@ export async function POST(request: NextRequest) {
       eventId: result.eventId,
       slug: result.slug,
       pin: result.pin,
+      publicSubdomain: input.publicSubdomain,
     });
   } catch (error) {
     if (isPlatformSubdomainTakenError(error)) {

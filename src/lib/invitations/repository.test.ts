@@ -114,6 +114,7 @@ test("founder event summaries aggregate attending people, declined parties, and 
     {
       id: "event-1",
       slug: "mia-lee-x7k2p9",
+      publicSubdomain: null,
       title: "Mia & Lee",
       ownerName: "Mia",
       ownerEmail: "mia@example.com",

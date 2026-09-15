@@ -25,4 +25,6 @@ test("migration backfills tenants and synchronizes both resource tables", () => 
   assert.match(sql, /CREATE TRIGGER sync_invitation_subdomain/i);
   assert.match(sql, /PLATFORM_SUBDOMAIN_TAKEN/);
   assert.match(sql, /ON DELETE CASCADE/);
+  assert.match(sql, /CREATE OR REPLACE FUNCTION create_invitation_owner_and_event/);
+  assert.match(sql, /owner_id, slug, public_subdomain/);
 });

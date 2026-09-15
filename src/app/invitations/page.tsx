@@ -5,6 +5,7 @@ import enMessages from "../../../messages/en.json";
 import esMessages from "../../../messages/es.json";
 import { INVITATION_OWNER_SESSION_COOKIE, verifyOwnerSession } from "@/lib/invitations/auth";
 import { listOwnerInvitationEvents } from "@/lib/invitations/repository";
+import { invitationPublicUrl } from "@/lib/invitations/public-url";
 
 export const revalidate = 0;
 
@@ -57,6 +58,7 @@ export default async function OwnerInvitationsPage({ searchParams }: { searchPar
                   <p className="mt-1 text-sm text-[#675d6a]">
                     {event.startsAt ? new Intl.DateTimeFormat(locale, { dateStyle: "long", timeZone: event.timezone }).format(new Date(event.startsAt)) : copy.eventDatePending}
                   </p>
+                  <a href={invitationPublicUrl(event)} target="_blank" rel="noreferrer" className="mt-2 block break-all text-xs text-[#6D456F] underline underline-offset-2">{invitationPublicUrl(event)}</a>
                 </div>
                 <Link href={`/invitations/manage/${event.id}`} className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#6D456F] px-4 py-2 text-sm font-semibold text-white">{copy.open}</Link>
               </article>

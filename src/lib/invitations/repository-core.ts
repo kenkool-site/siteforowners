@@ -65,6 +65,7 @@ export type InvitationProvisionDependencies = {
 export type InvitationFounderListRow = {
   id: string;
   slug: string;
+  public_subdomain?: string | null;
   title: string;
   starts_at: string | null;
   status: InvitationEventStatus;
@@ -212,6 +213,7 @@ export interface InvitationRepository {
 export type FounderInvitationEventSummary = {
   id: string;
   slug: string;
+  publicSubdomain: string | null;
   title: string;
   ownerName: string;
   ownerEmail: string;
@@ -291,6 +293,7 @@ export async function listFounderEvents(
     return {
       id: row.id,
       slug: row.slug,
+      publicSubdomain: row.public_subdomain ?? null,
       title: row.title,
       ownerName: owner.name,
       ownerEmail: owner.email,
