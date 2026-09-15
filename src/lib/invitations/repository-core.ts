@@ -12,6 +12,7 @@ import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./
 import { normalizeInvitationReferenceAnalysis } from "./reference-analysis";
 import { normalizeInvitationTravelInfo, type InvitationTravelInfo } from "./travel";
 import { normalizeInvitationStyleGuide, type InvitationStyleGuide } from "./style-guide";
+import { normalizeInvitationAdditionalSections, type InvitationAdditionalSection } from "./additional-sections";
 
 export const INVITATION_SUBMISSION_LIMIT = 250;
 export const INVITATION_EMAIL_NOTIFICATION_LIMIT = 250;
@@ -93,6 +94,7 @@ export type InvitationManagementRow = {
   map_url: string | null;
   travel_info?: unknown;
   style_guide?: unknown;
+  additional_sections?: unknown;
   theme_key: string;
   primary_color: string;
   accent_color: string;
@@ -152,6 +154,7 @@ export type InvitationPublicRow = {
   map_url: string | null;
   travel_info?: unknown;
   style_guide?: unknown;
+  additional_sections?: unknown;
   theme_key: string;
   primary_color: string;
   accent_color: string;
@@ -185,6 +188,7 @@ export type PublicInvitationEvent = {
   mapUrl: string | null;
   travelInfo?: InvitationTravelInfo;
   styleGuide?: InvitationStyleGuide | null;
+  additionalSections?: InvitationAdditionalSection[];
   themeKey: string;
   primaryColor: string;
   accentColor: string;
@@ -344,6 +348,7 @@ export async function getInvitationEventForManagement(
     mapUrl: row.map_url,
     travelInfo: normalizeInvitationTravelInfo(row.travel_info),
     styleGuide: normalizeInvitationStyleGuide(row.style_guide),
+    additionalSections: normalizeInvitationAdditionalSections(row.additional_sections),
     themeKey: row.theme_key,
     primaryColor: row.primary_color,
     accentColor: row.accent_color,
@@ -415,6 +420,7 @@ export async function getPublicInvitationBySlug(
       mapUrl: row.map_url,
       travelInfo: normalizeInvitationTravelInfo(row.travel_info),
       styleGuide: normalizeInvitationStyleGuide(row.style_guide),
+      additionalSections: normalizeInvitationAdditionalSections(row.additional_sections),
       themeKey: row.theme_key,
       primaryColor: row.primary_color,
       accentColor: row.accent_color,
@@ -454,6 +460,7 @@ const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>>
   mapUrl: "map_url",
   travelInfo: "travel_info",
   styleGuide: "style_guide",
+  additionalSections: "additional_sections",
   themeKey: "theme_key",
   primaryColor: "primary_color",
   accentColor: "accent_color",

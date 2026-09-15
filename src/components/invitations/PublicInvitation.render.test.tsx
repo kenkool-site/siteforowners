@@ -210,3 +210,16 @@ test("optional structured style guidance renders outside the welcome description
   assert.match(html, /aria-label="Sage: #AAB39A"/);
   assert.equal((html.match(/Glamorous fascinators/g) ?? []).length, 1);
 });
+
+test("flexible additional sections render headings and preserve authored line breaks", () => {
+  const html = render("published", {
+    additionalSections: [
+      { heading: "Wedding Day Schedule", content: "Wedding Ceremony @ 1pm\nCocktail @ 2:30pm\nWedding Reception @ 3:30pm" },
+      { heading: "Dress Code", content: "Dressing Code" },
+    ],
+  });
+  for (const expected of ["Wedding Day Schedule", "Wedding Ceremony @ 1pm", "Cocktail @ 2:30pm", "Wedding Reception @ 3:30pm", "Dress Code", "Dressing Code"]) {
+    assert.match(html, new RegExp(expected));
+  }
+  assert.match(html, /Wedding Ceremony @ 1pm[\s\S]*<br\/>[\s\S]*Cocktail @ 2:30pm/);
+});

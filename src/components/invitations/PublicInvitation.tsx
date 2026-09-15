@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import { Fragment, type CSSProperties, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { Building2, CalendarDays, Clock3, MapPin, Navigation, Plane } from "lucide-react";
 import {
@@ -37,6 +37,7 @@ export type PublicInvitationEvent = Pick<
   | "mapUrl"
   | "travelInfo"
   | "styleGuide"
+  | "additionalSections"
   | "themeKey"
   | "primaryColor"
   | "accentColor"
@@ -264,6 +265,21 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
         </section>
 
         {event.styleGuide && <div className={`${rhythm}`} style={{ order: sectionOrder("details") + 0.25 }}><InvitationStyleGuide guide={event.styleGuide} titleClass={titleFont} accent={recipe.palette.accent} surface={recipe.palette.surface} /></div>}
+
+        {(event.additionalSections ?? []).map((section, index) => (
+          <section
+            key={`${section.heading}:${index}`}
+            className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`}
+            style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.3 + index / 100 }}
+          >
+            <h2 className={`${titleFont} text-3xl sm:text-4xl`}>{section.heading}</h2>
+            <p className="mt-5 leading-8 opacity-85">
+              {section.content.split("\n").map((line, lineIndex) => (
+                <Fragment key={lineIndex}>{lineIndex > 0 && <br />}{line}</Fragment>
+              ))}
+            </p>
+          </section>
+        ))}
 
         {hasTravelInfo && (
           <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.5 }} aria-labelledby="invitation-travel-heading">

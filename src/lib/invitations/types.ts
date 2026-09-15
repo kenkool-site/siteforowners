@@ -50,6 +50,7 @@ export interface InvitationEvent {
   mapUrl: string | null;
   travelInfo?: InvitationTravelInfo;
   styleGuide?: InvitationStyleGuide | null;
+  additionalSections?: InvitationAdditionalSection[];
   themeKey: string;
   primaryColor: string;
   accentColor: string;
@@ -156,3 +157,4 @@ import type { InvitationDesignRecipe } from "./design-recipe";
 import type { InvitationReferenceAnalysis } from "./reference-analysis";
 import type { InvitationTravelInfo } from "./travel";
 import type { InvitationStyleGuide } from "./style-guide";
+import type { InvitationAdditionalSection } from "./additional-sections";

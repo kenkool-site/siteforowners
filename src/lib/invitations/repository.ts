@@ -83,7 +83,7 @@ function isRpcCohostRow(value: unknown): value is RpcCohostRow {
 const MANAGEMENT_SELECT = [
   "id", "owner_id", "slug", "public_subdomain", "event_type", "locale", "title", "honoree_names",
   "description", "starts_at", "ends_at", "timezone", "venue_name", "address",
-  "map_url", "travel_info", "style_guide", "theme_key", "primary_color", "accent_color", "font_pair_key",
+  "map_url", "travel_info", "style_guide", "additional_sections", "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe", "reference_analysis",
   "designed_invite_path", "cover_image_path", "video_path",
   "show_public_rsvp_count", "capacity", "rsvp_deadline", "submission_limit",
@@ -95,7 +95,7 @@ const MANAGEMENT_SELECT = [
 
 const PUBLIC_SELECT = [
   "id", "slug", "public_subdomain", "event_type", "locale", "title", "honoree_names", "description",
-  "starts_at", "ends_at", "timezone", "venue_name", "address", "map_url", "travel_info", "style_guide",
+  "starts_at", "ends_at", "timezone", "venue_name", "address", "map_url", "travel_info", "style_guide", "additional_sections",
   "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe",
   "designed_invite_path", "cover_image_path", "video_path", "passcode_hash",
