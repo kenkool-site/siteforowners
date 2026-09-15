@@ -37,12 +37,25 @@ function channel(hex: string, offset: number): number {
 }
 function luminance(hex: string): number { return 0.2126 * channel(hex, 1) + 0.7152 * channel(hex, 3) + 0.0722 * channel(hex, 5); }
 function contrast(a: string, b: string): number { const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x); return (high + 0.05) / (low + 0.05); }
-function readableOn(background: string): "#FFFFFF" | "#111111" { return contrast(background, "#FFFFFF") >= contrast(background, "#111111") ? "#FFFFFF" : "#111111"; }
+export function readableTextColor(background: string): "#FFFFFF" | "#111111" {
+  return contrast(background, "#FFFFFF") >= contrast(background, "#111111") ? "#FFFFFF" : "#111111";
+}
+
+export function neutralOverlayColor(color: string): string {
+  const red = parseInt(color.slice(1, 3), 16);
+  const green = parseInt(color.slice(3, 5), 16);
+  const blue = parseInt(color.slice(5, 7), 16);
+  const neutral = Math.round(0.2126 * red + 0.7152 * green + 0.0722 * blue)
+    .toString(16)
+    .padStart(2, "0")
+    .toUpperCase();
+  return `#${neutral}${neutral}${neutral}`;
+}
 
 export function ensureReadableRecipe(recipe: InvitationDesignRecipe): InvitationDesignRecipe {
   const copy = structuredClone(recipe);
-  if (contrast(copy.palette.background, copy.palette.text) < 4.5) copy.palette.text = readableOn(copy.palette.background);
-  if (contrast(copy.palette.overlay, copy.hero.textColor) < 4.5) copy.hero.textColor = readableOn(copy.palette.overlay);
+  if (contrast(copy.palette.background, copy.palette.text) < 4.5) copy.palette.text = readableTextColor(copy.palette.background);
+  if (contrast(copy.palette.overlay, copy.hero.textColor) < 4.5) copy.hero.textColor = readableTextColor(copy.palette.overlay);
   return copy;
 }
 

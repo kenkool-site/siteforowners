@@ -3,7 +3,9 @@ import test from "node:test";
 import {
   DEFAULT_INVITATION_DESIGN_RECIPE,
   ensureReadableRecipe,
+  neutralOverlayColor,
   normalizeInvitationDesignRecipe,
+  readableTextColor,
 } from "./design-recipe";
 
 const validRecipe = {
@@ -56,4 +58,14 @@ test("repairs unreadable body and hero text contrast", () => {
   const readable = ensureReadableRecipe(recipe);
   assert.equal(readable.palette.text, "#111111");
   assert.equal(readable.hero.textColor, "#FFFFFF");
+});
+
+test("selects readable CTA text dynamically for light and dark client accents", () => {
+  assert.equal(readableTextColor("#245A38"), "#FFFFFF");
+  assert.equal(readableTextColor("#E7D5A7"), "#111111");
+});
+
+test("neutralizes a client color for photographic overlays without changing its brightness", () => {
+  assert.equal(neutralOverlayColor("#245A38"), "#4C4C4C");
+  assert.equal(neutralOverlayColor("#B58A55"), "#8F8F8F");
 });
