@@ -13,6 +13,7 @@ import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 import { DEFAULT_INVITATION_DESIGN_RECIPE, readableTextColor } from "@/lib/invitations/design-recipe";
 import { hotelMapUrl } from "@/lib/invitations/travel";
 import { InvitationHero } from "./InvitationHero";
+import { InvitationFooter } from "./InvitationFooter";
 import { InvitationStyleGuide } from "./InvitationStyleGuide";
 import type {
   EffectiveEventState,
@@ -315,6 +316,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
         {event.showPublicRsvpCount && <div style={{ order: sectionOrder("counts") }}><PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${recreated ? "" : theme.count} ${rhythm}`} /></div>}
 
       </article>
+      <InvitationFooter />
       <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
     </main>
   );

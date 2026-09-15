@@ -139,6 +139,12 @@ test("the cover opens the invitation and the private designed reference is never
   assert.ok(html.indexOf("Mia and Lee") < html.indexOf("Saturday, October 10, 2026"), "the date should sit below the title in the opening composition");
 });
 
+test("the public invitation has discreet platform and host sign-in footer links", () => {
+  const html = render("published");
+  assert.match(html, /href="https:\/\/www\.siteforowners\.com\/"[^>]*>Powered by SiteForOwners/);
+  assert.match(html, /href="https:\/\/www\.siteforowners\.com\/invitations\/login"[^>]*>Host sign in/);
+});
+
 test("the honoree names lead the hero while a distinct extracted title supports them", () => {
   const html = render("published", { title: "Save the Date in style", honoreeNames: "Mercy & John" });
   assert.match(html, /<h1[^>]*>Mercy &amp; John<\/h1>/);

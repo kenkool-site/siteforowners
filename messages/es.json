@@ -511,6 +511,7 @@
       "gallery": "Un vistazo a la celebración",
       "galleryAlt": "Foto del evento {number}",
       "videoLabel": "Video del evento",
+      "footer": { "poweredBy": "Creado con SiteForOwners", "hostSignIn": "Acceso del anfitrión" },
       "countsLabel": "Totales de respuestas",
       "attending": "{count, plural, one {# asistirá} other {# asistirán}}",
       "declined": "{count, plural, one {# grupo no podrá asistir} other {# grupos no podrán asistir}}",

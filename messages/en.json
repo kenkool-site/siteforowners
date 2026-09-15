@@ -511,6 +511,7 @@
       "gallery": "A glimpse of the celebration",
       "galleryAlt": "Event photo {number}",
       "videoLabel": "Event video",
+      "footer": { "poweredBy": "Powered by SiteForOwners", "hostSignIn": "Host sign in" },
       "countsLabel": "Response totals",
       "attending": "{count, plural, one {# attending} other {# attending}}",
       "declined": "{count, plural, one {# party unable to attend} other {# parties unable to attend}}",
