@@ -109,10 +109,11 @@ test("the design section explains every private media slot and its limits", () =
   assert.match(html, /0 of 12 photos/);
 });
 
-test("gallery uploads require accessible alternative text", () => {
+test("gallery uploads allow an optional photo description", () => {
   const html = render("owner");
   assert.match(html, /name="galleryAltText"/);
-  assert.match(html, /name="galleryAltText"[^>]*required/);
+  assert.doesNotMatch(html, /name="galleryAltText"[^>]*required/);
+  assert.match(html, /Photo description \(optional\)/);
 });
 
 test("a full gallery disables the thirteenth upload", () => {

@@ -161,9 +161,9 @@
         "imageLimit": "JPEG, PNG o WebP · máximo de 10 MB",
         "videoLimit": "MP4 o WebM · máximo de 50 MB · máximo de 60 segundos",
         "galleryCount": "{count} de 12 fotos",
-        "altLabel": "Descripción de la foto",
+        "altLabel": "Descripción de la foto (opcional)",
         "altPlaceholder": "Por ejemplo: Ana y Luis bailando",
-        "altRequired": "Cada foto de la galería requiere una descripción.",
+        "altRequired": "Las descripciones deben tener 500 caracteres o menos.",
         "galleryFull": "La galería está llena. Elimine una foto antes de agregar otra.",
         "choose": "Elegir archivo",
         "replace": "Reemplazar",
@@ -177,7 +177,7 @@
           "tooLarge": "Este archivo supera el límite permitido.",
           "videoTooLong": "Elija un video de 60 segundos o menos.",
           "videoUnreadable": "No pudimos leer la duración del video. Pruebe otro archivo MP4 o WebM.",
-          "altRequired": "Agregue una descripción breve antes de elegir una foto.",
+          "altRequired": "Mantenga la descripción opcional por debajo de 500 caracteres.",
           "galleryFull": "La galería ya tiene 12 fotos.",
           "uploadFailed": "No se pudo subir el archivo. Inténtelo de nuevo.",
           "removeFailed": "No se pudo eliminar el archivo. Inténtelo de nuevo."
@@ -447,6 +447,7 @@
       "declined": "{count, plural, one {# grupo no podrá asistir} other {# grupos no podrán asistir}}",
       "rsvp": {
         "title": "Responder a esta invitación",
+        "close": "Cerrar formulario de RSVP",
         "closedTitle": "Las respuestas están cerradas",
         "closedBody": "El anfitrión ya no acepta respuestas nuevas.",
         "closedEditHint": "Aún puede modificar una respuesta con el enlace privado guardado en este dispositivo.",

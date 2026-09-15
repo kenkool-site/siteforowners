@@ -29,7 +29,7 @@ export function createMediaUploadTicket(eventId: string, input: MediaUploadMetad
     || !format || !extension || !format.extensions.includes(extension) || format.video !== (input.kind === "video")
     || !Number.isSafeInteger(input.size) || input.size <= 0) throw new DirectMediaError("invalid_media_type");
   if (input.size > (format.video ? INVITATION_VIDEO_MAX_BYTES : INVITATION_IMAGE_MAX_BYTES)) throw new DirectMediaError("file_too_large");
-  if (input.kind === "gallery" && (!input.altText.trim() || input.altText.length > 500)) throw new DirectMediaError("gallery_alt_required");
+  if (input.kind === "gallery" && input.altText.length > 500) throw new DirectMediaError("gallery_alt_required");
   if (input.mediaId !== null && (input.kind !== "gallery" || !UUID.test(input.mediaId))) throw new DirectMediaError("invalid_media_reference");
   const path = `${eventId}/${input.kind}/provisional-${randomUUID()}.${extension}`;
   const body = Buffer.from(JSON.stringify({ ...input, name: `upload.${extension}`, eventId, path, extension, expiresAt: now + 2 * 60 * 60 })).toString("base64url");

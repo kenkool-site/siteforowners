@@ -10,14 +10,14 @@ import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 
 Object.assign(globalThis, { React });
 
-test("full preview renders private media and locale while disabling every RSVP control", () => {
+test("full preview renders private media and locale with the RSVP form initially collapsed", () => {
   const html = renderToStaticMarkup(<NextIntlClientProvider locale="es" messages={esMessages} timeZone="America/New_York">
     <PublicInvitation event={{ ...event, locale: "es" }} state="published" media={media} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} preview />
   </NextIntlClientProvider>);
   assert.match(html, /https:\/\/signed.example.test\/video/);
   assert.match(html, /Mia &amp; Lee/);
-  assert.match(html, /<fieldset[^>]*disabled/);
-  assert.match(html, /Vista previa/);
+  assert.match(html, /<button[^>]*>Responder a esta invitación<\/button>/);
+  assert.doesNotMatch(html, /name="primaryName"/);
 });
 
 const event: PublicInvitationEvent = {
@@ -81,6 +81,8 @@ test("a published invitation exposes useful public details and only aggregate RS
     assert.match(html, new RegExp(expected));
   }
   assert.match(html, /https:\/\/calendar\.google\.com\/calendar\/render/);
+  assert.match(html, /<button[^>]*>Respond to this invitation<\/button>/);
+  assert.doesNotMatch(html, /name="primaryName"/, "the full RSVP form should stay closed until requested");
   for (const privateGuestValue of ["guest@example.com", "+19175550199", "peanut allergy", "Guest Two"]) {
     assert.doesNotMatch(html, new RegExp(privateGuestValue.replace("+", "\\+"), "i"));
   }
@@ -133,4 +135,5 @@ test("the cover opens the invitation and the private designed reference is never
   assert.match(html, /https:\/\/signed\.example\.test\/cover/);
   assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/invite/);
   assert.equal((html.match(/<h1/g) ?? []).length, 1, "the opening should be the only invitation title block");
+  assert.ok(html.indexOf("Mia &amp; Lee") < html.indexOf("Saturday, October 10, 2026"), "the date should sit below the title in the opening composition");
 });

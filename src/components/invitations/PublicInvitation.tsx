@@ -8,7 +8,7 @@ import {
   googleEventCalendarUrl,
   type EventCalendarInput,
 } from "@/lib/invitations/calendar";
-import { RsvpForm } from "./RsvpForm";
+import { InvitationRsvpDialog } from "./InvitationRsvpDialog";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recipe";
 import { InvitationHero } from "./InvitationHero";
@@ -222,7 +222,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
     <main
       data-invitation-theme={event.themeKey}
       data-invitation-layout={event.designRecipe?.composition.family ?? theme.layout}
-      className={`min-h-screen overflow-x-hidden ${bodyFont} ${theme.page}`}
+      className={`min-h-screen overflow-x-hidden pb-24 sm:pb-28 ${bodyFont} ${theme.page}`}
       style={variables}
     >
       <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} recipe={recipe} />
@@ -265,17 +265,8 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
 
         {event.showPublicRsvpCount && <div style={{ order: sectionOrder("counts") }}><PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${recreated ? "" : theme.count} ${rhythm}`} /></div>}
 
-        <section id="rsvp" className={`${recreated ? "" : theme.rsvp} ${rhythm} mb-8 px-6 py-9 sm:mb-12 sm:px-10`} style={{ ...framedSurface, order: sectionOrder("rsvp"), backgroundColor: recipe.palette.text, color: recipe.palette.background }}>
-          {preview && <p className="mb-4" role="status">{t("previewNotice")}</p>}
-          <h2 className={`${titleFont} text-3xl sm:text-4xl`}>{state === "rsvp_closed" ? t("rsvp.closedTitle") : t("rsvp.title")}</h2>
-          <RsvpForm
-            preview={preview}
-            slug={event.slug}
-            allowCreate={state === "published"}
-            showPublicRsvpCount={event.showPublicRsvpCount}
-          />
-        </section>
       </article>
+      <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
     </main>
   );
 }

@@ -442,10 +442,6 @@ export function EventEditor({
     galleryReplacement?: InvitationMediaItem,
   ): Promise<void> {
     const altText = galleryReplacement?.altText?.trim() || galleryAltText.trim();
-    if (kind === "gallery" && !altText) {
-      setMediaError(t("media.errors.altRequired"));
-      return;
-    }
     const body = new FormData();
     body.set("kind", kind);
     body.set("file", file);
@@ -665,7 +661,6 @@ export function EventEditor({
                     <input
                       name="galleryAltText"
                       form="invitation-media-gallery-upload"
-                      required
                       maxLength={240}
                       value={galleryAltText}
                       onChange={(eventChange) => setGalleryAltText(eventChange.target.value)}

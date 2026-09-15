@@ -161,9 +161,9 @@
         "imageLimit": "JPEG, PNG, or WebP · 10 MB maximum",
         "videoLimit": "MP4 or WebM · 50 MB maximum · 60 seconds maximum",
         "galleryCount": "{count} of 12 photos",
-        "altLabel": "Photo description",
+        "altLabel": "Photo description (optional)",
         "altPlaceholder": "For example: Ana and Luis dancing",
-        "altRequired": "A description is required for every gallery photo.",
+        "altRequired": "Photo descriptions must be 500 characters or less.",
         "galleryFull": "The gallery is full. Remove a photo before adding another.",
         "choose": "Choose file",
         "replace": "Replace",
@@ -177,7 +177,7 @@
           "tooLarge": "This file is larger than the allowed limit.",
           "videoTooLong": "Choose a video that is 60 seconds or shorter.",
           "videoUnreadable": "We could not read this video's duration. Try a different MP4 or WebM file.",
-          "altRequired": "Add a short description before choosing a gallery photo.",
+          "altRequired": "Keep the optional photo description under 500 characters.",
           "galleryFull": "The gallery already has 12 photos.",
           "uploadFailed": "The file could not be uploaded. Try again.",
           "removeFailed": "The file could not be removed. Try again."
@@ -447,6 +447,7 @@
       "declined": "{count, plural, one {# party unable to attend} other {# parties unable to attend}}",
       "rsvp": {
         "title": "Respond to this invitation",
+        "close": "Close RSVP form",
         "closedTitle": "Responses are closed",
         "closedBody": "The host is no longer accepting new responses.",
         "closedEditHint": "You can still revise a response using the private edit link saved on this device.",
