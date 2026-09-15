@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   dispatchRsvpNotifications,
+  notificationInvitationUrl,
   processInvitationNotificationRetry,
   type DispatchRsvpNotificationsInput,
   type NotificationDispatchDependencies,
@@ -55,6 +56,17 @@ const smsFixture: DispatchRsvpNotificationsInput = {
     notificationPhone: "+15555550123",
   },
 };
+
+test("notification invitation links prefer the event subdomain and retain the legacy fallback", () => {
+  assert.equal(
+    notificationInvitationUrl({ ...baseEvent, publicSubdomain: "sample-wedding" }, "https://www.siteforowners.com"),
+    "https://sample-wedding.siteforowners.com/",
+  );
+  assert.equal(
+    notificationInvitationUrl(baseEvent, "https://www.siteforowners.com"),
+    "https://www.siteforowners.com/invite/sample-event",
+  );
+});
 
 function alwaysAllow(): NotificationDispatchDependencies {
   return {

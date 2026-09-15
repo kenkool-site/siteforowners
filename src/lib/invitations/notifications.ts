@@ -233,6 +233,10 @@ export type NotificationEventContext = {
   guestEmailConfirmations: boolean;
 };
 
+export function notificationInvitationUrl(event: NotificationEventContext, origin: string): string {
+  return invitationPublicUrl(event, origin);
+}
+
 export type DispatchRsvpNotificationsInput = {
   event: NotificationEventContext;
   rsvp: RsvpMutationResult["rsvp"];
@@ -533,7 +537,7 @@ export async function dispatchInvitationRsvpNotifications(
     if (!event) return { notificationsDelayed: true };
 
     const dashboardUrl = new URL(`/invitations/manage/${input.eventId}`, input.origin).toString();
-    const inviteUrl = invitationPublicUrl(event, input.origin);
+    const inviteUrl = notificationInvitationUrl(event, input.origin);
     const result = await dispatchRsvpNotifications(
       {
         event,
