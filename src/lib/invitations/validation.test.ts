@@ -289,6 +289,22 @@ test("event updates reject malformed style guidance", () => {
   });
 });
 
+test("event updates normalize flexible additional sections", () => {
+  assert.deepEqual(parseEventUpdate({
+    additionalSections: [
+      { heading: " Wedding Day Schedule ", content: " Ceremony @ 1pm\nReception @ 3:30pm " },
+      { heading: "", content: "" },
+    ],
+  }, "owner"), {
+    ok: true,
+    value: { additionalSections: [{ heading: "Wedding Day Schedule", content: "Ceremony @ 1pm\nReception @ 3:30pm" }] },
+  });
+  assert.deepEqual(parseEventUpdate({ additionalSections: [{ heading: "Dress Code", content: "" }] }, "owner"), {
+    ok: false,
+    errors: { additionalSections: "Complete or remove each additional section." },
+  });
+});
+
 test("publish validation blocks incoherent event timing", () => {
   const errors = validatePublishableEvent({
     title: "Ana & Luis",

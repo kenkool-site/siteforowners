@@ -299,6 +299,16 @@
         "addColor": "Agregar color",
         "remove": "Eliminar"
       },
+      "additionalSections": {
+        "title": "Secciones adicionales",
+        "help": "Agregue secciones opcionales, como el programa del día o el código de vestimenta.",
+        "heading": "Título de la sección",
+        "headingPlaceholder": "Programa del día de la boda",
+        "content": "Contenido de la sección",
+        "contentPlaceholder": "Ceremonia de boda a la 1 p. m.\nCóctel a las 2:30 p. m.",
+        "add": "Agregar sección",
+        "remove": "Eliminar sección"
+      },
       "frame": {
         "title": "Marco de portada",
         "help": "Elija un marco que use el color de acento de esta invitación.",
@@ -461,6 +471,7 @@
         "smsNotificationLimit": "Ingrese un límite de SMS mayor que cero.",
         "travelInfo": "Revise los detalles de viaje. Complete cada fila utilizada y elija como máximo un hotel recomendado.",
         "styleGuide": "Revise la nota de estilo y los colores del evento. Cada color necesita un nombre.",
+        "additionalSections": "Complete o elimine cada sección adicional. Puede agregar hasta ocho.",
         "media": "Agregue contenido multimedia válido antes de publicar.",
         "command": "Elija una acción de estado válida.",
         "ownerName": "Ingrese el nombre del propietario.",

@@ -299,6 +299,16 @@
         "addColor": "Add color",
         "remove": "Remove"
       },
+      "additionalSections": {
+        "title": "Additional sections",
+        "help": "Add optional sections such as a wedding-day schedule or dress code.",
+        "heading": "Section heading",
+        "headingPlaceholder": "Wedding Day Schedule",
+        "content": "Section content",
+        "contentPlaceholder": "Wedding Ceremony @ 1pm\nCocktail @ 2:30pm",
+        "add": "Add section",
+        "remove": "Remove section"
+      },
       "frame": {
         "title": "Cover frame",
         "help": "Choose a frame that uses this invitation's accent color.",
@@ -461,6 +471,7 @@
         "smsNotificationLimit": "Enter an SMS limit greater than zero.",
         "travelInfo": "Check the travel details. Complete each used row and choose no more than one recommended hotel.",
         "styleGuide": "Check the style note and event colors. Each color needs a name.",
+        "additionalSections": "Complete or remove each additional section. You can add up to eight.",
         "media": "Add valid invitation media before publishing.",
         "command": "Choose a valid invitation status action.",
         "ownerName": "Enter the owner's name.",

@@ -71,7 +71,7 @@ async function withEditor(
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.example.test" });
   const names = [
-    "window", "document", "HTMLElement", "HTMLInputElement", "HTMLButtonElement",
+    "window", "document", "HTMLElement", "HTMLInputElement", "HTMLTextAreaElement", "HTMLButtonElement",
     "HTMLFormElement", "Event", "FormData", "File", "XMLHttpRequest", "navigator", "fetch", "IS_REACT_ACT_ENVIRONMENT",
   ] as const;
   const originals = new Map(names.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
@@ -80,6 +80,7 @@ async function withEditor(
     document: dom.window.document,
     HTMLElement: dom.window.HTMLElement,
     HTMLInputElement: dom.window.HTMLInputElement,
+    HTMLTextAreaElement: dom.window.HTMLTextAreaElement,
     HTMLButtonElement: dom.window.HTMLButtonElement,
     HTMLFormElement: dom.window.HTMLFormElement,
     Event: dom.window.Event,
@@ -119,6 +120,13 @@ function setInput(dom: JSDOM, input: HTMLInputElement, value: string) {
   setter?.call(input, value);
   input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
   input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+}
+
+function setTextarea(dom: JSDOM, textarea: HTMLTextAreaElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLTextAreaElement.prototype, "value")?.set;
+  setter?.call(textarea, value);
+  textarea.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+  textarea.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
 }
 
 function submit(dom: JSDOM, form: HTMLFormElement) {
@@ -255,6 +263,32 @@ test("a style-guide validation error is shown as helpful copy instead of a trans
     });
     assert.match(container.textContent ?? "", /Check the style note and event colors/i);
     assert.doesNotMatch(container.textContent ?? "", /invitations\.editor\.errors\.styleGuide/);
+  });
+});
+
+test("owner can add a flexible section and save its heading and multiline content", async () => {
+  let submitted: Record<string, unknown> | null = null;
+  await withEditor("owner", async (_input, init) => {
+    submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return response({ event: { ...baseEvent, additionalSections: submitted.additionalSections } });
+  }, async (container, dom) => {
+    const add = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Add section")!;
+    await act(async () => add.click());
+    const heading = container.querySelector<HTMLInputElement>('input[name="additionalSectionHeading0"]')!;
+    const content = container.querySelector<HTMLTextAreaElement>('textarea[name="additionalSectionContent0"]')!;
+    await act(async () => {
+      setInput(dom, heading, "Wedding Day Schedule");
+      setTextarea(dom, content, "Ceremony @ 1pm\nReception @ 3:30pm");
+    });
+    await act(async () => {
+      submit(dom, heading.form!);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.deepEqual(submitted?.additionalSections, [{
+      heading: "Wedding Day Schedule",
+      content: "Ceremony @ 1pm\nReception @ 3:30pm",
+    }]);
   });
 });
 

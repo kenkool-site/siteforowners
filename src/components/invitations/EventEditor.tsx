@@ -17,6 +17,7 @@ import { DEFAULT_INVITATION_DESIGN_RECIPE, type InvitationDesignRecipe } from "@
 import type { InvitationWording } from "@/lib/invitations/wording";
 import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import type { InvitationStyleGuide } from "@/lib/invitations/style-guide";
+import type { InvitationAdditionalSection } from "@/lib/invitations/additional-sections";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -31,6 +32,7 @@ const LOCALIZED_ERROR_KEYS = new Set([
   "publicSubdomain",
   "travelInfo",
   "styleGuide",
+  "additionalSections",
   "capacity", "rsvpDeadline", "passcode", "removePasscode", "notificationEmail",
   "notificationPhone", "expireAt", "submissionLimit", "emailNotificationLimit",
   "smsNotificationLimit", "media", "command",
@@ -189,6 +191,7 @@ export function EventEditor({
   const [analysisError, setAnalysisError] = useState("");
   const [designRecipe, setDesignRecipe] = useState<InvitationDesignRecipe | null>(event.designRecipe);
   const [styleGuide, setStyleGuide] = useState<InvitationStyleGuide | null>(event.styleGuide ?? null);
+  const [additionalSections, setAdditionalSections] = useState<InvitationAdditionalSection[]>(event.additionalSections ?? []);
   const [wordingSuggestion, setWordingSuggestion] = useState<InvitationWording | null>(null);
   const [wordingBusy, setWordingBusy] = useState(false);
   const [wordingError, setWordingError] = useState("");
@@ -269,6 +272,7 @@ export function EventEditor({
           })),
         },
         styleGuide,
+        additionalSections,
         themeKey: stringValue(data, "themeKey"),
         fontPairKey: stringValue(data, "fontPairKey"),
         primaryColor: stringValue(data, "primaryColor"),
@@ -321,6 +325,7 @@ export function EventEditor({
       setPreviewFont(result.event.fontPairKey === "geist-geist" ? "geist-geist" : "fraunces-geist");
       setDesignRecipe(result.event.designRecipe);
       setStyleGuide(result.event.styleGuide ?? null);
+      setAdditionalSections(result.event.additionalSections ?? []);
       setAnalysis(result.event.referenceAnalysis);
       setDirty(false);
       setSaved(true);
@@ -743,6 +748,23 @@ export function EventEditor({
               </div>
               <button type="button" disabled={(styleGuide?.colors.length ?? 0) >= 8} onClick={() => { setStyleGuide({ note: styleGuide?.note ?? null, colors: [...(styleGuide?.colors ?? []), { name: "", color: "#D4A373" }] }); markDirty(); }} className="mt-4 min-h-11 rounded-md border border-[#6D456F] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{t("styleGuide.addColor")}</button>
               <FieldError name="styleGuide" errors={errors} />
+            </details>
+            <details data-additional-sections-editor open={additionalSections.length > 0} className="group mt-8 border-t border-[#ddd4e1] pt-5">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-lg font-semibold text-[#2B2231] outline-none focus-visible:ring-2 focus-visible:ring-[#6D456F] [&::-webkit-details-marker]:hidden">
+                {t("additionalSections.title")}<span aria-hidden="true" className="text-2xl font-normal transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("additionalSections.help")}</p>
+              <div className="mt-5 space-y-5">
+                {additionalSections.map((section, index) => (
+                  <div key={index} className="rounded-md border border-[#e1d9e4] bg-white p-4">
+                    <label className={labelClass}>{t("additionalSections.heading")}<input name={`additionalSectionHeading${index}`} maxLength={80} value={section.heading} placeholder={t("additionalSections.headingPlaceholder")} onChange={(event) => setAdditionalSections((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, heading: event.target.value } : item))} className={inputClass} /></label>
+                    <label className={`${labelClass} mt-4`}>{t("additionalSections.content")}<textarea name={`additionalSectionContent${index}`} maxLength={2000} rows={5} value={section.content} placeholder={t("additionalSections.contentPlaceholder")} onChange={(event) => setAdditionalSections((items) => items.map((item, itemIndex) => itemIndex === index ? { ...item, content: event.target.value } : item))} className={inputClass} /></label>
+                    <button type="button" onClick={() => { setAdditionalSections((items) => items.filter((_, itemIndex) => itemIndex !== index)); markDirty(); }} className="mt-3 min-h-11 text-sm font-semibold text-[#7f2929] underline underline-offset-4">{t("additionalSections.remove")}</button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" disabled={additionalSections.length >= 8} onClick={() => { setAdditionalSections((items) => [...items, { heading: "", content: "" }]); markDirty(); }} className="mt-4 min-h-11 rounded-md border border-[#6D456F] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{t("additionalSections.add")}</button>
+              <FieldError name="additionalSections" errors={errors} />
             </details>
             {mode === "founder" && (
               <div className="mt-6 border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-4">

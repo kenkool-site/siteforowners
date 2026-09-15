@@ -161,6 +161,16 @@ test("style guide editor exposes optional note and editable color rows", () => {
   assert.equal(document.querySelector("details[data-style-guide-editor]")?.hasAttribute("open"), true);
 });
 
+test("additional sections editor restores optional ordered content", () => {
+  const document = new JSDOM(render("owner", undefined, {
+    additionalSections: [{ heading: "Dress Code", content: "Formal attire" }],
+  })).window.document;
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="additionalSectionHeading0"]')?.value, "Dress Code");
+  assert.equal(document.querySelector<HTMLTextAreaElement>('textarea[name="additionalSectionContent0"]')?.value, "Formal attire");
+  assert.equal(document.querySelector("details[data-additional-sections-editor]")?.hasAttribute("open"), true);
+  assert.match(document.body.textContent ?? "", /Add section/);
+});
+
 test("cover frame choices are editable and include floral and botanical treatments", () => {
   const html = render("owner");
   const document = new JSDOM(html).window.document;
