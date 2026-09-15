@@ -3,6 +3,7 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { isPublicSiteLive, isOwnerAdminReachable } from "@/lib/tenant-access";
+import { classifyHost, invitationRewritePath } from "@/lib/host-routing";
 
 // Admin routes that require authentication
 const ADMIN_ROUTES = [
@@ -44,29 +45,8 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Normalize hostname: drop :port and any leading www. so apex and www.
-  // variants of a custom domain route to the same tenant.
-  const normalizedHost = hostname.split(":")[0].replace(/^www\./, "");
-
-  // Check if this is a root-domain request (no tenant subdomain).
-  // - *.vercel.app preview deployments are always root
-  // - "siteforowners.com" and bare "localhost" (any port) are root
-  // - Tenant subdomains look like "letstrylocs.localhost" or "letstrylocs.com"
-  const isVercelPreview = hostname.endsWith(".vercel.app");
-  const isRootDomain =
-    isVercelPreview ||
-    normalizedHost === "siteforowners.com" ||
-    normalizedHost === "localhost";
-
-  if (isRootDomain) {
-    return NextResponse.next();
-  }
-
-  const subdomain = normalizedHost.split(".")[0];
-
-  if (!subdomain) {
-    return NextResponse.next();
-  }
+  const host = classifyHost(hostname);
+  if (host.kind === "root") return NextResponse.next();
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -77,21 +57,50 @@ export async function middleware(request: NextRequest) {
 
   const supabase = createClient(supabaseUrl, supabaseKey);
 
-  // Prefer custom_domain — the full hostname is authoritative for mapped
-  // domains. Fall back to subdomain for *.siteforowners.com tenants.
-  let { data: tenant } = await supabase
-    .from("tenants")
-    .select("preview_slug, site_published, subscription_status")
-    .eq("custom_domain", normalizedHost)
-    .single();
+  let tenant: { preview_slug: string | null; site_published: boolean | null; subscription_status: string | null } | null = null;
 
-  if (!tenant) {
+  if (host.kind === "custom") {
     const result = await supabase
       .from("tenants")
       .select("preview_slug, site_published, subscription_status")
-      .eq("subdomain", subdomain)
-      .single();
-    tenant = result.data;
+      .eq("custom_domain", host.hostname)
+      .maybeSingle();
+    tenant = result.error ? null : result.data;
+  } else {
+    const reservationResult = await supabase
+      .from("platform_subdomains")
+      .select("tenant_id,invitation_event_id")
+      .eq("label", host.label)
+      .maybeSingle();
+    const reservation = reservationResult.error ? null : reservationResult.data;
+
+    if (reservation?.invitation_event_id) {
+      const eventResult = await supabase
+        .from("invitation_events")
+        .select("slug")
+        .eq("id", reservation.invitation_event_id)
+        .maybeSingle();
+      const rewritePath = eventResult.data?.slug
+        ? invitationRewritePath(eventResult.data.slug, pathname)
+        : null;
+      if (!rewritePath) {
+        const unavailable = NextResponse.rewrite(new URL("/not-found", request.url));
+        unavailable.headers.set("Cache-Control", "no-store, must-revalidate");
+        return unavailable;
+      }
+      const invitationUrl = new URL(rewritePath, request.url);
+      invitationUrl.search = request.nextUrl.search;
+      return NextResponse.rewrite(invitationUrl);
+    }
+
+    if (reservation?.tenant_id) {
+      const tenantResult = await supabase
+        .from("tenants")
+        .select("preview_slug, site_published, subscription_status")
+        .eq("id", reservation.tenant_id)
+        .maybeSingle();
+      tenant = tenantResult.error ? null : tenantResult.data;
+    }
   }
 
   const isAdminPath = pathname === "/admin" || pathname.startsWith("/admin/");
