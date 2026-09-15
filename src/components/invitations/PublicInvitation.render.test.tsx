@@ -132,4 +132,5 @@ test("the cover opens the invitation and the private designed reference is never
   assert.match(html, /data-invitation-hero="cover"/);
   assert.match(html, /https:\/\/signed\.example\.test\/cover/);
   assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/invite/);
+  assert.equal((html.match(/<h1/g) ?? []).length, 1, "the opening should be the only invitation title block");
 });
