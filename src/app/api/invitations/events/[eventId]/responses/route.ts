@@ -5,6 +5,7 @@ import { getInvitationResponsesDashboard } from "@/lib/invitations/repository";
 import { submitInvitationRsvp, type RsvpErrorCode } from "@/lib/invitations/rsvp";
 import { parseRsvpInput } from "@/lib/invitations/validation";
 import { administrativeRsvpAuditMetadata } from "@/lib/invitations/responses";
+import { isInvitationE2EFixturesEnabled, submitFixtureInvitationRsvp } from "@/lib/invitations/e2e-fixtures";
 
 function queryFrom(request: NextRequest) {
   const search = request.nextUrl.searchParams;
@@ -71,7 +72,7 @@ export async function PATCH(
   if (!parsed.ok) return NextResponse.json({ errors: parsed.errors }, { status: 400 });
 
   try {
-    const result = await submitInvitationRsvp({
+    const result = await (isInvitationE2EFixturesEnabled() ? submitFixtureInvitationRsvp : submitInvitationRsvp)({
       eventId: params.eventId,
       rsvpId: values.rsvpId,
       credentialMode: "administrative",

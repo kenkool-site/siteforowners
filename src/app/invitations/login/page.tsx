@@ -1,6 +1,4 @@
-import { NextIntlClientProvider } from "next-intl";
-import enMessages from "../../../../messages/en.json";
-import esMessages from "../../../../messages/es.json";
+import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { InvitationLoginForm } from "./InvitationLoginForm";
 
 type InvitationLoginPageProps = {
@@ -11,11 +9,10 @@ export default function InvitationLoginPage({
   searchParams,
 }: InvitationLoginPageProps) {
   const locale = searchParams?.lang === "es" ? "es" : "en";
-  const messages = locale === "es" ? esMessages : enMessages;
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
+    <InvitationPublicProvider locale={locale} timeZone="UTC">
       <InvitationLoginForm />
-    </NextIntlClientProvider>
+    </InvitationPublicProvider>
   );
 }

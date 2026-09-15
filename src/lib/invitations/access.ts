@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { readOwnerSession, type OwnerSession } from "./auth";
+import { isInvitationE2EFixturesEnabled } from "./e2e-guard";
 
 export type InvitationAccess =
   | { kind: "founder" }
@@ -18,6 +19,10 @@ export async function invitationOwnerOwnsEvent(
   ownerId: string,
   eventId: string,
 ): Promise<boolean> {
+  if (isInvitationE2EFixturesEnabled()) {
+    const { fixtureOwnerOwnsEvent } = await import("./e2e-fixtures");
+    return fixtureOwnerOwnsEvent(ownerId, eventId);
+  }
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("invitation_events")

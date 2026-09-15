@@ -7,6 +7,7 @@ import {
   attemptInvitationOwnerLogin,
 } from "@/lib/invitations/login";
 import { invitationLoginRateLimiter } from "@/lib/invitations/login-rate-limit";
+import { findFixtureOwnerLogin, isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-fixtures";
 
 type LoginInput = { email: string; pin: string };
 type LoginOwnerRow = { id: string; pin_hash: string };
@@ -38,13 +39,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
-  const supabase = createAdminClient();
+  const fixtureMode = isInvitationE2EFixturesEnabled();
+  const supabase = fixtureMode ? null : createAdminClient();
   try {
     const result = await attemptInvitationOwnerLogin(
       { email: body.email, pin: body.pin, ip: getClientIp(request.headers) },
       {
         findActiveOwner: async (email) => {
-          const { data, error } = await supabase
+          if (fixtureMode) return findFixtureOwnerLogin(email);
+          const { data, error } = await supabase!
             .from("invitation_owners")
             .select("id, pin_hash")
             .eq("email", email)
@@ -54,7 +57,7 @@ export async function POST(request: NextRequest) {
           return isLoginOwner(data) ? { id: data.id, pinHash: data.pin_hash } : null;
         },
         verifyPin,
-        rateLimiter: invitationLoginRateLimiter,
+        rateLimiter: fixtureMode ? { canAttempt: async () => true, recordFailure: async () => true } : invitationLoginRateLimiter,
       },
     );
     if (result.kind === "rate_limited") {

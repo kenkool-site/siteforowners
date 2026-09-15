@@ -408,6 +408,8 @@ export async function getInvitationMediaForManagement(
     videoPath: string | null;
   },
 ): Promise<InvitationMediaSnapshot> {
+  const { getFixtureInvitationMedia, isInvitationE2EFixturesEnabled } = await import("./e2e-fixtures");
+  if (isInvitationE2EFixturesEnabled()) return getFixtureInvitationMedia(event.id);
   const { createAdminClient } = await import("@/lib/supabase/admin");
   const client = createAdminClient();
   return createInvitationMediaSnapshot(event, {

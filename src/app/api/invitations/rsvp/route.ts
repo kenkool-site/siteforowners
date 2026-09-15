@@ -12,6 +12,11 @@ import {
   processPublicRsvpRequest,
   submitInvitationRsvp,
 } from "@/lib/invitations/rsvp";
+import {
+  dispatchFixtureInvitationRsvpNotifications,
+  isInvitationE2EFixturesEnabled,
+  submitFixtureInvitationRsvp,
+} from "@/lib/invitations/e2e-fixtures";
 
 export async function POST(request: NextRequest) {
   if (!isSameOrigin(request)) {
@@ -42,8 +47,8 @@ export async function POST(request: NextRequest) {
           return false;
         }
       },
-      allowAttempt: allowInvitationRsvpAttempt,
-      submit: submitInvitationRsvp,
+      allowAttempt: isInvitationE2EFixturesEnabled() ? async () => true : allowInvitationRsvpAttempt,
+      submit: isInvitationE2EFixturesEnabled() ? submitFixtureInvitationRsvp : submitInvitationRsvp,
     });
 
     if (result.notification) {
@@ -54,7 +59,9 @@ export async function POST(request: NextRequest) {
       // safety net against that same failure mode.
       let notificationsDelayed = true;
       try {
-        const dispatch = await dispatchInvitationRsvpNotifications({
+        const dispatch = await (isInvitationE2EFixturesEnabled()
+          ? dispatchFixtureInvitationRsvpNotifications
+          : dispatchInvitationRsvpNotifications)({
           eventId: result.notification.eventId,
           mutation: result.notification.mutation,
           editUrl: result.notification.editUrl,

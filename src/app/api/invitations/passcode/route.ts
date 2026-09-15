@@ -11,6 +11,7 @@ import {
 import { allowInvitationPasscodeAttempt } from "@/lib/invitations/passcode-rate-limit";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
+import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-fixtures";
 
 type PasscodeRequest = { slug: string; passcode: string };
 
@@ -58,7 +59,7 @@ export async function POST(request: NextRequest) {
         ip: getClientIp(request.headers),
       },
       {
-        allowAttempt: allowInvitationPasscodeAttempt,
+        allowAttempt: isInvitationE2EFixturesEnabled() ? async () => true : allowInvitationPasscodeAttempt,
         verifyPasscode: verifyPin,
       },
     );

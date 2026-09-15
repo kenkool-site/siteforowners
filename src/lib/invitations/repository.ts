@@ -30,6 +30,11 @@ import {
   type InvitationResponsesDashboard,
   type InvitationResponsesEventRow,
 } from "./responses";
+import {
+  fixtureProvisionHelpers,
+  invitationE2ERepository,
+  isInvitationE2EFixturesEnabled,
+} from "./e2e-fixtures";
 
 export type {
   CreateInvitationOwnerAndEventInput,
@@ -89,6 +94,7 @@ const PUBLIC_SELECT = [
 
 export const invitationRepository: InvitationRepository & InvitationManagementRepository & InvitationPublicRepository & InvitationResponsesRepository = {
   async insert(rows: InvitationProvisionRows) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.insert(rows);
     const supabase = createAdminClient();
     const { data, error } = await supabase.rpc("create_invitation_owner_and_event", {
       p_owner: rows.owner,
@@ -101,6 +107,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async list() {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.list();
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_events")
@@ -113,6 +120,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async get(eventId: string) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.get(eventId);
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_events")
@@ -124,6 +132,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async findBySlug(slug: string) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.findBySlug(slug);
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_events")
@@ -136,6 +145,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async listByOwner(ownerId: string) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.listByOwner(ownerId);
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_events")
@@ -147,12 +157,14 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async updateEvent(eventId, row) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.updateEvent(eventId, row);
     const supabase = createAdminClient();
     const { error } = await supabase.from("invitation_events").update(row).eq("id", eventId);
     if (error) throw new Error("Unable to update invitation", { cause: error });
   },
 
   async updateStatus(eventId, status) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.updateStatus(eventId, status);
     const supabase = createAdminClient();
     const { error } = await supabase
       .from("invitation_events")
@@ -162,12 +174,14 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async updateOwner(ownerId, row) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.updateOwner(ownerId, row);
     const supabase = createAdminClient();
     const { error } = await supabase.from("invitation_owners").update(row).eq("id", ownerId);
     if (error) throw new Error("Unable to update invitation owner", { cause: error });
   },
 
   async getResponsesEvent(eventId) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.getResponsesEvent(eventId);
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_events")
@@ -179,6 +193,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async listResponseRows(eventId) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.listResponseRows(eventId);
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_rsvps")
@@ -189,6 +204,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   },
 
   async listResponseNotifications(eventId) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.listResponseNotifications(eventId);
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_notifications")
@@ -203,11 +219,12 @@ export async function createInvitationOwnerAndEvent(
   input: CreateInvitationOwnerAndEventInput,
   dependencies?: InvitationProvisionDependencies,
 ) {
+  const fixtureHelpers = isInvitationE2EFixturesEnabled() ? fixtureProvisionHelpers() : null;
   return createInvitationOwnerAndEventWithDependencies(input, dependencies ?? {
     hashPin,
-    generatePin: generateInvitationPin,
-    generateSlug: generateInvitationSlug,
-    insert: invitationRepository.insert,
+    generatePin: fixtureHelpers?.generatePin ?? generateInvitationPin,
+    generateSlug: fixtureHelpers?.generateSlug ?? generateInvitationSlug,
+    insert: fixtureHelpers?.insert ?? invitationRepository.insert,
   });
 }
 
