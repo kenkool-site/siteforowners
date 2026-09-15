@@ -8,7 +8,7 @@ import {
   getEffectiveEventState,
   type EffectiveEventState,
 } from "./state";
-import { invitationPublicUrl } from "./public-url";
+import { invitationCoverPreviewUrl, invitationPublicUrl } from "./public-url";
 
 export type PublicInvitationResolution =
   | { kind: "not_found" }
@@ -91,6 +91,9 @@ export function invitationPageMetadata(
     || invitation.passcodeHash
     || state !== "published"
   ) return PRIVATE_METADATA;
+  const coverUrl = invitation.event.coverImagePath
+    ? invitationCoverPreviewUrl(invitation.event)
+    : undefined;
   return {
     title: invitation.event.title,
     description: invitation.event.description || undefined,
@@ -101,6 +104,13 @@ export function invitationPageMetadata(
       description: invitation.event.description || undefined,
       type: "website",
       url: invitationPublicUrl(invitation.event),
+      images: coverUrl ? [{ url: coverUrl, alt: invitation.event.title }] : undefined,
+    },
+    twitter: {
+      card: coverUrl ? "summary_large_image" : "summary",
+      title: invitation.event.title,
+      description: invitation.event.description || undefined,
+      images: coverUrl ? [coverUrl] : undefined,
     },
   };
 }

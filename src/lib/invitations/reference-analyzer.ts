@@ -3,7 +3,7 @@ import { assignInvitationPalette, extractInvitationPalette } from "./palette";
 import { DEFAULT_INVITATION_DESIGN_RECIPE, normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
 import { EXTRACTED_FACT_KEYS, normalizeInvitationReferenceAnalysis, type InvitationReferenceAnalysis } from "./reference-analysis";
 
-export const INVITATION_ANALYSIS_SCHEMA_VERSION = 2;
+export const INVITATION_ANALYSIS_SCHEMA_VERSION = 3;
 export const INVITATION_ANALYSIS_MODEL = "claude-haiku-4-5-20251001";
 
 type Input = { bytes: Uint8Array; mediaType: "image/jpeg" | "image/png" | "image/webp"; referencePath: string };
@@ -14,8 +14,8 @@ type Dependencies = {
 };
 
 const PROMPT = `Analyze this designed event invitation as a visual reference for a responsive web invitation.
-Return ONLY one JSON object with keys "facts" and "recipe". Facts may use only title, honoreeNames, startsAt, venueName, address, description. Include only wording visibly supported by the image. Each fact is {key,value,confidence,evidence}; confidence is 0..1 and evidence is a short exact fragment. Omit absent facts and never infer logistics.
-Recipe version is 1. Use only these values: display formal-script|editorial-serif|classic-serif|geometric-sans|humanist-sans; body classic-serif|humanist-sans|geometric-sans; composition framed|centered|asymmetric|editorial|layered; alignment left|center; rhythm compact|balanced|airy; hero placement top|center|bottom; frame none|line|double|botanical|ornamental; radius none|soft|rounded; motif none|botanical|floral|geometric|ribbon|ornamental; density minimal|balanced|rich; symmetry none|balanced|mirrored; divider none|line|dots|flourish; scale restrained|balanced|dramatic. Return six-digit hex colors. Never return HTML, CSS, class names, code, URLs, or font files.`;
+Return ONLY one JSON object with keys "facts", "eventColors", and "recipe". Facts may use only title, honoreeNames, startsAt, venueName, address, description, styleNote. Put attire, dress-code, or presentation guidance in styleNote, never description. Include only wording visibly supported by the image. Each fact is {key,value,confidence,evidence}; confidence is 0..1 and evidence is a short exact fragment. eventColors is an ordered list of {name,color,confidence,evidence}; include only visibly labeled color choices and sample each visible swatch as a six-digit hex color. Omit absent facts and colors and never infer logistics or color names.
+Recipe version is 1. Use only these values: display formal-script|editorial-serif|classic-serif|geometric-sans|humanist-sans; body classic-serif|humanist-sans|geometric-sans; composition framed|centered|asymmetric|editorial|layered; alignment left|center; rhythm compact|balanced|airy; hero placement top|center|bottom; frame none|line|double|botanical|floral|ornamental; radius none|soft|rounded; motif none|botanical|floral|geometric|ribbon|ornamental; density minimal|balanced|rich; symmetry none|balanced|mirrored; divider none|line|dots|flourish; scale restrained|balanced|dramatic. Return six-digit hex colors. Never return HTML, CSS, class names, code, URLs, or font files.`;
 
 async function anthropicVision(input: Input, palette: string[]): Promise<string> {
   const response = await new Anthropic().messages.create({
@@ -91,6 +91,19 @@ function repairFacts(value: unknown): unknown[] {
   });
 }
 
+function repairEventColors(value: unknown): unknown[] {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 8).flatMap((item) => {
+    if (!isRecord(item) || typeof item.name !== "string" || !item.name.trim() || typeof item.color !== "string" || !/^#[0-9a-f]{6}$/i.test(item.color) || typeof item.confidence !== "number" || !Number.isFinite(item.confidence)) return [];
+    return [{
+      name: item.name.trim().slice(0, 60),
+      color: item.color.toUpperCase(),
+      confidence: item.confidence,
+      evidence: typeof item.evidence === "string" ? item.evidence.trim().slice(0, 160) : "",
+    }];
+  });
+}
+
 export async function analyzeInvitationReference(input: Input, dependencies: Dependencies = {}): Promise<InvitationReferenceAnalysis> {
   const palette = await (dependencies.extractPalette ?? extractInvitationPalette)(input.bytes);
   const raw = await (dependencies.analyzeVision ?? anthropicVision)(input, palette);
@@ -103,6 +116,7 @@ export async function analyzeInvitationReference(input: Input, dependencies: Dep
     createdAt: (dependencies.now?.() ?? new Date()).toISOString(),
     facts: repairFacts(parsed.facts),
     paletteCandidates: palette,
+    eventColors: repairEventColors(parsed.eventColors),
     recipe: repairRecipe(parsed.recipe, palette),
   });
   if (!analysis) throw new Error("AI returned an invalid structured analysis");

@@ -13,6 +13,8 @@ import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 import { DEFAULT_INVITATION_DESIGN_RECIPE, readableTextColor } from "@/lib/invitations/design-recipe";
 import { hotelMapUrl } from "@/lib/invitations/travel";
 import { InvitationHero } from "./InvitationHero";
+import { InvitationFooter } from "./InvitationFooter";
+import { InvitationStyleGuide } from "./InvitationStyleGuide";
 import type {
   EffectiveEventState,
 } from "@/lib/invitations/state";
@@ -34,6 +36,7 @@ export type PublicInvitationEvent = Pick<
   | "address"
   | "mapUrl"
   | "travelInfo"
+  | "styleGuide"
   | "themeKey"
   | "primaryColor"
   | "accentColor"
@@ -260,6 +263,8 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
           </div>
         </section>
 
+        {event.styleGuide && <div className={`${rhythm}`} style={{ order: sectionOrder("details") + 0.25 }}><InvitationStyleGuide guide={event.styleGuide} titleClass={titleFont} accent={recipe.palette.accent} surface={recipe.palette.surface} /></div>}
+
         {hasTravelInfo && (
           <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.5 }} aria-labelledby="invitation-travel-heading">
             <h2 id="invitation-travel-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("travel.title")}</h2>
@@ -311,6 +316,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
         {event.showPublicRsvpCount && <div style={{ order: sectionOrder("counts") }}><PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${recreated ? "" : theme.count} ${rhythm}`} /></div>}
 
       </article>
+      <InvitationFooter />
       <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
     </main>
   );

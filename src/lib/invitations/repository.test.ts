@@ -183,12 +183,24 @@ test("management projection omits owner PIN and event passcode hashes", async ()
         created_at: "2026-09-13T00:00:00.000Z",
         updated_at: "2026-09-13T00:00:00.000Z",
       },
+      cohost: {
+        id: "owner-2",
+        name: "Lee",
+        email: "lee@example.com",
+        phone: null,
+        pin_hash: "cohost-secret",
+        is_active: true,
+        created_at: "2026-09-13T00:00:00.000Z",
+        updated_at: "2026-09-13T00:00:00.000Z",
+      },
     }),
   });
 
   assert.ok(event);
   assert.equal("passcodeHash" in event, false);
   assert.equal("pinHash" in event.owner, false);
+  assert.equal(event.cohost?.email, "lee@example.com");
+  assert.equal(event.cohost && "pinHash" in event.cohost, false);
   assert.equal(JSON.stringify(event).includes("must-not-leak"), false);
   assert.equal(event.endsAt, null);
   assert.deepEqual((event as unknown as { travelInfo: unknown }).travelInfo, {

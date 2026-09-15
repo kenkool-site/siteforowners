@@ -290,6 +290,20 @@
       "publicDomainAvailable": "Esta dirección está disponible.",
       "publicDomainUnavailable": "Esa dirección no está disponible. Pruebe {suggestion}.",
       "publicDomainCheckFailed": "No se pudo comprobar la disponibilidad. Inténtelo de nuevo.",
+      "styleGuide": {
+        "title": "Guía de estilo",
+        "help": "Indicaciones opcionales de vestimenta y colores para los invitados.",
+        "note": "Nota de estilo",
+        "colorName": "Nombre del color",
+        "color": "Color",
+        "addColor": "Agregar color",
+        "remove": "Eliminar"
+      },
+      "frame": {
+        "title": "Marco de portada",
+        "help": "Elija un marco que use el color de acento de esta invitación.",
+        "options": { "none": "Sin marco", "line": "Mínimo", "double": "Doble", "botanical": "Botánico", "floral": "Floral", "ornamental": "Ornamental" }
+      },
       "reference": {
         "title": "Recrear desde su diseño",
         "help": "Usamos la invitación diseñada como referencia privada para sugerir texto, colores y diseño editables.",
@@ -302,8 +316,11 @@
         "low": "Baja confianza",
         "foundInImage": "Encontrado en la imagen: “{evidence}”",
         "design": "Colores, tipografía y diseño",
+        "eventColor": "Color del evento",
+        "colorName": "Nombre del color",
+        "colorValue": "Color",
         "applySelected": "Aplicar selección",
-        "fields": { "title": "Título del evento", "honoreeNames": "Nombres homenajeados", "startsAt": "Fecha y hora", "venueName": "Lugar", "address": "Dirección", "description": "Descripción" },
+        "fields": { "title": "Título del evento", "honoreeNames": "Nombres homenajeados", "startsAt": "Fecha y hora", "venueName": "Lugar", "address": "Dirección", "description": "Descripción", "styleNote": "Nota de estilo" },
         "errors": { "reference_required": "Primero suba una referencia de diseño.", "analysis_rate_limited": "Se alcanzó el límite de análisis. Inténtelo más tarde.", "analysis_unavailable": "No se pudo analizar la invitación. Inténtelo de nuevo." }
       },
       "wording": {
@@ -400,6 +417,22 @@
       "founderLimitsHelp": "Solo el fundador puede cambiar los límites de mensajes y respuestas.",
       "founderControls": "Controles del fundador",
       "credentialsHelp": "Cambiar el correo o PIN de acceso afecta el próximo inicio de sesión del propietario. Deje el PIN en blanco para conservarlo.",
+      "cohost": {
+        "title": "Acceso del coanfitrión",
+        "help": "Agregue un coanfitrión con acceso completo para editar la invitación y ver respuestas.",
+        "readOnlyHelp": "El anfitrión principal administra el acceso del coanfitrión.",
+        "none": "No se ha agregado ningún coanfitrión.",
+        "name": "Nombre del coanfitrión",
+        "email": "Correo del coanfitrión",
+        "pin": "PIN del coanfitrión",
+        "pinHelp": "Use un PIN separado de seis dígitos. Si este correo ya tiene una cuenta, su PIN actual no cambia.",
+        "add": "Agregar coanfitrión",
+        "replace": "Guardar coanfitrión",
+        "remove": "Quitar acceso",
+        "saved": "Acceso del coanfitrión guardado",
+        "saveError": "No se pudo guardar el acceso del coanfitrión. Revise los datos e inténtelo de nuevo.",
+        "removeError": "No se pudo quitar el acceso del coanfitrión. Inténtelo de nuevo."
+      },
       "errors": {
         "eventType": "Ingrese un tipo de evento.",
         "locale": "Elija inglés o español.",
@@ -461,6 +494,7 @@
       "designedInviteAlt": "Invitación diseñada para el evento",
       "coverAlt": "Portada de {title}",
       "details": "Los detalles",
+      "styleGuide": { "title": "Guía de estilo", "colors": "Colores del día" },
       "when": "Cuándo",
       "where": "Dónde",
       "openMap": "Abrir mapa",
@@ -477,6 +511,7 @@
       "gallery": "Un vistazo a la celebración",
       "galleryAlt": "Foto del evento {number}",
       "videoLabel": "Video del evento",
+      "footer": { "poweredBy": "Creado con SiteForOwners", "hostSignIn": "Acceso del anfitrión" },
       "countsLabel": "Totales de respuestas",
       "attending": "{count, plural, one {# asistirá} other {# asistirán}}",
       "declined": "{count, plural, one {# grupo no podrá asistir} other {# grupos no podrán asistir}}",

@@ -260,6 +260,31 @@ test("founder public subdomain validation rejects reserved labels and allows cle
   });
 });
 
+test("event updates normalize optional style guidance", () => {
+  assert.deepEqual(parseEventUpdate({
+    styleGuide: {
+      note: "  Glamorous fascinators ",
+      colors: [{ name: " Sage ", color: "#9ca58b" }],
+    },
+  }, "owner"), {
+    ok: true,
+    value: { styleGuide: { note: "Glamorous fascinators", colors: [{ name: "Sage", color: "#9CA58B" }] } },
+  });
+  assert.deepEqual(parseEventUpdate({ styleGuide: { note: "", colors: [] } }, "owner"), {
+    ok: true,
+    value: { styleGuide: null },
+  });
+});
+
+test("event updates reject malformed style guidance", () => {
+  assert.deepEqual(parseEventUpdate({
+    styleGuide: { note: null, colors: [{ name: "Sage", color: "green" }] },
+  }, "owner"), {
+    ok: false,
+    errors: { styleGuide: "Enter a valid style note and event colors." },
+  });
+});
+
 test("publish validation blocks incoherent event timing", () => {
   const errors = validatePublishableEvent({
     title: "Ana & Luis",

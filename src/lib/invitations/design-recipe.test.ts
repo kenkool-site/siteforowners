@@ -27,6 +27,12 @@ test("normalizes an allowlisted recipe and removes duplicate content sections", 
   assert.equal(result.value.palette.background, "#F8F4EA");
 });
 
+test("accepts a floral cover frame as an editable design choice", () => {
+  const result = normalizeInvitationDesignRecipe({ ...validRecipe, frame: { ...validRecipe.frame, style: "floral" } });
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.value.frame.style, "floral");
+});
+
 test("rejects arbitrary presentation values and invalid colors", () => {
   assert.equal(normalizeInvitationDesignRecipe({ ...validRecipe, typography: { ...validRecipe.typography, display: "url(https://evil.test/font.woff)" } }).ok, false);
   assert.equal(normalizeInvitationDesignRecipe({ ...validRecipe, palette: { ...validRecipe.palette, accent: "red" } }).ok, false);

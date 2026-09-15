@@ -15,6 +15,7 @@ import {
   type InvitationFounderListRow,
   type InvitationEventUpdateRow,
   type InvitationManagementRow,
+  type InvitationManagementOwnerRow,
   type InvitationProvisionRows,
   type InvitationProvisionDependencies,
   type InvitationPublicRepository,
@@ -35,6 +36,7 @@ import {
   invitationE2ERepository,
   isInvitationE2EFixturesEnabled,
 } from "./e2e-fixtures";
+import { uniqueEventIdsForHost } from "./hosts";
 
 export type {
   CreateInvitationOwnerAndEventInput,
@@ -64,6 +66,7 @@ export type InvitationResponsesRepository = {
 };
 
 type RpcProvisionRow = { owner_id: string; event_id: string };
+type RpcCohostRow = { owner_id: string; reused: boolean };
 
 function isRpcProvisionRow(value: unknown): value is RpcProvisionRow {
   if (!value || typeof value !== "object") return false;
@@ -71,10 +74,16 @@ function isRpcProvisionRow(value: unknown): value is RpcProvisionRow {
   return typeof row.owner_id === "string" && typeof row.event_id === "string";
 }
 
+function isRpcCohostRow(value: unknown): value is RpcCohostRow {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.owner_id === "string" && typeof row.reused === "boolean";
+}
+
 const MANAGEMENT_SELECT = [
   "id", "owner_id", "slug", "public_subdomain", "event_type", "locale", "title", "honoree_names",
   "description", "starts_at", "ends_at", "timezone", "venue_name", "address",
-  "map_url", "travel_info", "theme_key", "primary_color", "accent_color", "font_pair_key",
+  "map_url", "travel_info", "style_guide", "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe", "reference_analysis",
   "designed_invite_path", "cover_image_path", "video_path",
   "show_public_rsvp_count", "capacity", "rsvp_deadline", "submission_limit",
@@ -86,7 +95,7 @@ const MANAGEMENT_SELECT = [
 
 const PUBLIC_SELECT = [
   "id", "slug", "public_subdomain", "event_type", "locale", "title", "honoree_names", "description",
-  "starts_at", "ends_at", "timezone", "venue_name", "address", "map_url", "travel_info",
+  "starts_at", "ends_at", "timezone", "venue_name", "address", "map_url", "travel_info", "style_guide",
   "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe",
   "designed_invite_path", "cover_image_path", "video_path", "passcode_hash",
@@ -130,7 +139,17 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
       .eq("id", eventId)
       .maybeSingle();
     if (error) throw new Error("Unable to load invitation", { cause: error });
-    return data as unknown as InvitationManagementRow | null;
+    if (!data) return null;
+    const { data: membership, error: membershipError } = await supabase
+      .from("invitation_event_hosts")
+      .select("invitation_owners!inner(id,name,email,phone,is_active,created_at,updated_at)")
+      .eq("event_id", eventId)
+      .eq("role", "cohost")
+      .maybeSingle();
+    if (membershipError) throw new Error("Unable to load invitation co-host", { cause: membershipError });
+    const relation = membership?.invitation_owners as unknown as InvitationManagementOwnerRow | InvitationManagementOwnerRow[] | undefined;
+    const cohost = Array.isArray(relation) ? relation[0] ?? null : relation ?? null;
+    return { ...(data as unknown as InvitationManagementRow), cohost };
   },
 
   async findBySlug(slug: string) {
@@ -149,10 +168,17 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   async listByOwner(ownerId: string) {
     if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.listByOwner(ownerId);
     const supabase = createAdminClient();
+    const { data: memberships, error: membershipError } = await supabase
+      .from("invitation_event_hosts")
+      .select("event_id")
+      .eq("owner_id", ownerId);
+    if (membershipError) throw new Error("Unable to list owner invitations", { cause: membershipError });
+    const eventIds = uniqueEventIdsForHost((memberships ?? []) as Array<{ event_id: string }>);
+    if (eventIds.length === 0) return [];
     const { data, error } = await supabase
       .from("invitation_events")
       .select(MANAGEMENT_SELECT)
-      .eq("owner_id", ownerId)
+      .in("id", eventIds)
       .order("created_at", { ascending: false });
     if (error) throw new Error("Unable to list owner invitations", { cause: error });
     return (data ?? []) as unknown as InvitationManagementRow[];
@@ -284,6 +310,30 @@ export async function updateInvitationOwnerCredentials(
   repository: InvitationManagementRepository = invitationRepository,
 ): Promise<void> {
   await updateInvitationOwnerCredentialsWithRepository(ownerId, update, pinHash, repository);
+}
+
+export async function setInvitationCohost(
+  eventId: string,
+  input: { name: string; email: string },
+  pinHash: string,
+): Promise<RpcCohostRow> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("set_invitation_cohost", {
+    p_event_id: eventId,
+    p_name: input.name,
+    p_email: input.email,
+    p_pin_hash: pinHash,
+  });
+  if (error) throw new Error("Unable to save invitation co-host", { cause: error });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!isRpcCohostRow(row)) throw new Error("Invitation co-host update returned no record");
+  return row;
+}
+
+export async function removeInvitationCohost(eventId: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.rpc("remove_invitation_cohost", { p_event_id: eventId });
+  if (error) throw new Error("Unable to remove invitation co-host", { cause: error });
 }
 
 export async function getInvitationResponsesDashboard(

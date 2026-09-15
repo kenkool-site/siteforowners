@@ -5,6 +5,7 @@ import { InvitationPublicProvider } from "@/components/invitations/InvitationPub
 import { INVITATION_OWNER_SESSION_COOKIE, verifyOwnerSession } from "@/lib/invitations/auth";
 import { getInvitationMediaForManagement } from "@/lib/invitations/media";
 import { getInvitationEventForManagement } from "@/lib/invitations/repository";
+import { invitationOwnerOwnsEvent } from "@/lib/invitations/access";
 
 export const revalidate = 0;
 
@@ -19,12 +20,12 @@ export default async function OwnerInvitationManagementPage({ params }: { params
   if (!ownerId) redirect("/invitations/login");
 
   const event = await getInvitationEventForManagement(params.eventId);
-  if (!event || event.ownerId !== ownerId) notFound();
+  if (!event || !await invitationOwnerOwnsEvent(ownerId, params.eventId)) notFound();
   const media = await getInvitationMediaForManagement(event);
 
   return (
     <InvitationPublicProvider locale={event.locale} timeZone={event.timezone}>
-      <EventEditor event={event} mode="owner" media={media} />
+      <EventEditor event={event} mode="owner" media={media} canManageCohost={ownerId === event.ownerId} />
     </InvitationPublicProvider>
   );
 }

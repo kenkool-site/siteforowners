@@ -290,6 +290,20 @@
       "publicDomainAvailable": "This address is available.",
       "publicDomainUnavailable": "That address is unavailable. Try {suggestion}.",
       "publicDomainCheckFailed": "Availability could not be checked. Try again.",
+      "styleGuide": {
+        "title": "Style guide",
+        "help": "Optional attire guidance and colors for guests.",
+        "note": "Style note",
+        "colorName": "Color name",
+        "color": "Color",
+        "addColor": "Add color",
+        "remove": "Remove"
+      },
+      "frame": {
+        "title": "Cover frame",
+        "help": "Choose a frame that uses this invitation's accent color.",
+        "options": { "none": "No frame", "line": "Minimal", "double": "Double", "botanical": "Botanical", "floral": "Floral", "ornamental": "Ornamental" }
+      },
       "reference": {
         "title": "Recreate from your design",
         "help": "We use the designed invitation as a private reference to suggest editable wording, colors, and layout.",
@@ -302,8 +316,11 @@
         "low": "Low confidence",
         "foundInImage": "Found in image: “{evidence}”",
         "design": "Colors, typography, and layout",
+        "eventColor": "Event color",
+        "colorName": "Color name",
+        "colorValue": "Color",
         "applySelected": "Apply selected",
-        "fields": { "title": "Event title", "honoreeNames": "Honoree names", "startsAt": "Date and time", "venueName": "Venue", "address": "Address", "description": "Description" },
+        "fields": { "title": "Event title", "honoreeNames": "Honoree names", "startsAt": "Date and time", "venueName": "Venue", "address": "Address", "description": "Description", "styleNote": "Style note" },
         "errors": { "reference_required": "Upload a design reference first.", "analysis_rate_limited": "Analysis limit reached. Try again later.", "analysis_unavailable": "The invitation could not be analyzed. Try again." }
       },
       "wording": {
@@ -400,6 +417,22 @@
       "founderLimitsHelp": "Only the founder can change message and submission limits.",
       "founderControls": "Founder controls",
       "credentialsHelp": "Changing the sign-in email or PIN affects the owner's next login. Leave the PIN blank to keep it.",
+      "cohost": {
+        "title": "Co-host access",
+        "help": "Add one co-host with full access to edit this invitation and view responses.",
+        "readOnlyHelp": "The primary host manages co-host access.",
+        "none": "No co-host has been added.",
+        "name": "Co-host name",
+        "email": "Co-host email",
+        "pin": "Co-host PIN",
+        "pinHelp": "Use a separate six-digit PIN. If this email already has an account, its existing PIN stays unchanged.",
+        "add": "Add co-host",
+        "replace": "Save co-host",
+        "remove": "Remove access",
+        "saved": "Co-host access saved",
+        "saveError": "Co-host access could not be saved. Check the details and try again.",
+        "removeError": "Co-host access could not be removed. Try again."
+      },
       "errors": {
         "eventType": "Enter an event type.",
         "locale": "Choose English or Spanish.",
@@ -461,6 +494,7 @@
       "designedInviteAlt": "Designed event invitation",
       "coverAlt": "Cover for {title}",
       "details": "The details",
+      "styleGuide": { "title": "Style guide", "colors": "Colors of the day" },
       "when": "When",
       "where": "Where",
       "openMap": "Open map",
@@ -477,6 +511,7 @@
       "gallery": "A glimpse of the celebration",
       "galleryAlt": "Event photo {number}",
       "videoLabel": "Event video",
+      "footer": { "poweredBy": "Powered by SiteForOwners", "hostSignIn": "Host sign in" },
       "countsLabel": "Response totals",
       "attending": "{count, plural, one {# attending} other {# attending}}",
       "declined": "{count, plural, one {# party unable to attend} other {# parties unable to attend}}",

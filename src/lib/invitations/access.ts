@@ -25,9 +25,9 @@ export async function invitationOwnerOwnsEvent(
   }
   const supabase = createAdminClient();
   const { data, error } = await supabase
-    .from("invitation_events")
-    .select("id")
-    .eq("id", eventId)
+    .from("invitation_event_hosts")
+    .select("event_id")
+    .eq("event_id", eventId)
     .eq("owner_id", ownerId)
     .maybeSingle();
 

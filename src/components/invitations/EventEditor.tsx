@@ -13,9 +13,10 @@ import type { InvitationEventStatus } from "@/lib/invitations/types";
 import { ResponsesDashboard } from "./ResponsesDashboard";
 import { ReferenceImportReview } from "./ReferenceImportReview";
 import type { ExtractedFact, InvitationReferenceAnalysis } from "@/lib/invitations/reference-analysis";
-import type { InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
+import { DEFAULT_INVITATION_DESIGN_RECIPE, type InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
 import type { InvitationWording } from "@/lib/invitations/wording";
 import { invitationPublicUrl } from "@/lib/invitations/public-url";
+import type { InvitationStyleGuide } from "@/lib/invitations/style-guide";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -29,6 +30,7 @@ const LOCALIZED_ERROR_KEYS = new Set([
   "venueName", "address", "themeKey", "fontPairKey", "primaryColor", "accentColor",
   "publicSubdomain",
   "travelInfo",
+  "styleGuide",
   "capacity", "rsvpDeadline", "passcode", "removePasscode", "notificationEmail",
   "notificationPhone", "expireAt", "submissionLimit", "emailNotificationLimit",
   "smsNotificationLimit", "media", "command",
@@ -146,10 +148,12 @@ export function EventEditor({
   event,
   mode,
   media: initialMedia,
+  canManageCohost = mode === "founder",
 }: {
   event: EditorEvent;
   mode: EventEditorMode;
   media?: InvitationMediaSnapshot;
+  canManageCohost?: boolean;
 }) {
   const t = useTranslations("invitations.editor");
   const locale = useLocale();
@@ -165,6 +169,9 @@ export function EventEditor({
   const [credentialSaving, setCredentialSaving] = useState(false);
   const [credentialSaved, setCredentialSaved] = useState(false);
   const [credentialErrors, setCredentialErrors] = useState<FieldErrors>({});
+  const [cohostBusy, setCohostBusy] = useState(false);
+  const [cohostSaved, setCohostSaved] = useState(false);
+  const [cohostErrors, setCohostErrors] = useState<FieldErrors>({});
   const [previewTitle, setPreviewTitle] = useState(event.title);
   const [previewDescription, setPreviewDescription] = useState(event.description);
   const [previewTheme, setPreviewTheme] = useState(event.themeKey);
@@ -181,6 +188,7 @@ export function EventEditor({
   const [analyzing, setAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState("");
   const [designRecipe, setDesignRecipe] = useState<InvitationDesignRecipe | null>(event.designRecipe);
+  const [styleGuide, setStyleGuide] = useState<InvitationStyleGuide | null>(event.styleGuide ?? null);
   const [wordingSuggestion, setWordingSuggestion] = useState<InvitationWording | null>(null);
   const [wordingBusy, setWordingBusy] = useState(false);
   const [wordingError, setWordingError] = useState("");
@@ -260,6 +268,7 @@ export function EventEditor({
             recommended: recommendedHotel === index,
           })),
         },
+        styleGuide,
         themeKey: stringValue(data, "themeKey"),
         fontPairKey: stringValue(data, "fontPairKey"),
         primaryColor: stringValue(data, "primaryColor"),
@@ -311,6 +320,7 @@ export function EventEditor({
       setPreviewAccent(result.event.accentColor);
       setPreviewFont(result.event.fontPairKey === "geist-geist" ? "geist-geist" : "fraunces-geist");
       setDesignRecipe(result.event.designRecipe);
+      setStyleGuide(result.event.styleGuide ?? null);
       setAnalysis(result.event.referenceAnalysis);
       setDirty(false);
       setSaved(true);
@@ -355,15 +365,23 @@ export function EventEditor({
     finally { setAnalyzing(false); }
   }
 
-  function applyReference(facts: ExtractedFact[], includeDesign: boolean) {
+  function applyReference({ facts, eventColors, includeDesign }: { facts: ExtractedFact[]; eventColors: InvitationStyleGuide["colors"]; includeDesign: boolean }) {
     const form = eventFormRef.current;
     if (!form) return;
     for (const fact of facts) {
+      if (fact.key === "styleNote") continue;
       const field = form.elements.namedItem(fact.key);
       if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) continue;
       field.value = fact.key === "startsAt" ? toLocalInput(fact.value, currentEvent.timezone) : fact.value;
       if (fact.key === "title") setPreviewTitle(fact.value);
       if (fact.key === "description") setPreviewDescription(fact.value);
+    }
+    const styleNote = facts.find((fact) => fact.key === "styleNote")?.value;
+    if (styleNote || eventColors.length > 0) {
+      setStyleGuide({
+        note: styleNote ?? styleGuide?.note ?? null,
+        colors: eventColors.length > 0 ? eventColors : styleGuide?.colors ?? [],
+      });
     }
     if (includeDesign && analysis) {
       setDesignRecipe(analysis.recipe);
@@ -371,6 +389,13 @@ export function EventEditor({
       setPreviewAccent(analysis.recipe.palette.accent);
     }
     markDirty();
+  }
+
+  function selectFrame(style: InvitationDesignRecipe["frame"]["style"]) {
+    setDesignRecipe((current) => ({
+      ...structuredClone(current ?? DEFAULT_INVITATION_DESIGN_RECIPE),
+      frame: { ...(current ?? DEFAULT_INVITATION_DESIGN_RECIPE).frame, style },
+    }));
   }
 
   async function suggestWording() {
@@ -457,6 +482,61 @@ export function EventEditor({
       setCredentialErrors({ form: t("credentialSaveError") });
     } finally {
       setCredentialSaving(false);
+    }
+  }
+
+  async function saveCohost(eventSubmit: FormEvent<HTMLFormElement>) {
+    eventSubmit.preventDefault();
+    if (cohostBusy) return;
+    const form = eventSubmit.currentTarget;
+    const data = new FormData(form);
+    setCohostBusy(true);
+    setCohostSaved(false);
+    setCohostErrors({});
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/cohost`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: stringValue(data, "cohostName"),
+          email: stringValue(data, "cohostEmail"),
+          pin: stringValue(data, "cohostPin"),
+        }),
+      });
+      const result = await response.json() as { event?: EditorEvent; errors?: FieldErrors };
+      if (!response.ok || !result.event) {
+        setCohostErrors(result.errors ?? { form: t("cohost.saveError") });
+        return;
+      }
+      const pin = form.elements.namedItem("cohostPin");
+      if (pin instanceof HTMLInputElement) pin.value = "";
+      setCurrentEvent(result.event);
+      setCohostSaved(true);
+    } catch {
+      setCohostErrors({ form: t("cohost.saveError") });
+    } finally {
+      setCohostBusy(false);
+    }
+  }
+
+  async function removeCohost() {
+    if (cohostBusy) return;
+    setCohostBusy(true);
+    setCohostSaved(false);
+    setCohostErrors({});
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/cohost`, { method: "DELETE" });
+      const result = await response.json() as { event?: EditorEvent; errors?: FieldErrors };
+      if (!response.ok || !result.event) {
+        setCohostErrors(result.errors ?? { form: t("cohost.removeError") });
+        return;
+      }
+      setCurrentEvent(result.event);
+      setCohostSaved(true);
+    } catch {
+      setCohostErrors({ form: t("cohost.removeError") });
+    } finally {
+      setCohostBusy(false);
     }
   }
 
@@ -648,6 +728,22 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
+            <details data-style-guide-editor open={Boolean(styleGuide?.note || styleGuide?.colors.length)} className="group mt-8 border-t border-[#ddd4e1] pt-5">
+              <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-[#2B2231]">
+                <span>{t("styleGuide.title")}</span><span aria-hidden="true" className="text-lg group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-1 text-xs leading-5 text-[#675d6a]">{t("styleGuide.help")}</p>
+              <label className={`${labelClass} mt-4`}>{t("styleGuide.note")}<textarea name="styleNote" maxLength={500} rows={3} value={styleGuide?.note ?? ""} onChange={(event) => setStyleGuide({ note: event.target.value, colors: styleGuide?.colors ?? [] })} className={inputClass} /></label>
+              <div className="mt-5 space-y-3">
+                {(styleGuide?.colors ?? []).map((item, index) => <div key={index} className="grid gap-3 rounded-md border border-[#e1d9e4] bg-white p-3 sm:grid-cols-[1fr_88px_auto] sm:items-end">
+                  <label className={labelClass}>{t("styleGuide.colorName")}<input name={`styleColorName${index}`} maxLength={60} value={item.name} onChange={(event) => setStyleGuide({ note: styleGuide?.note ?? null, colors: (styleGuide?.colors ?? []).map((color, colorIndex) => colorIndex === index ? { ...color, name: event.target.value } : color) })} className={inputClass} /></label>
+                  <label className={labelClass}>{t("styleGuide.color")}<input type="color" name={`styleColorValue${index}`} value={item.color} onChange={(event) => setStyleGuide({ note: styleGuide?.note ?? null, colors: (styleGuide?.colors ?? []).map((color, colorIndex) => colorIndex === index ? { ...color, color: event.target.value.toUpperCase() } : color) })} className={`${inputClass} p-1`} /></label>
+                  <button type="button" onClick={() => { setStyleGuide({ note: styleGuide?.note ?? null, colors: (styleGuide?.colors ?? []).filter((_, colorIndex) => colorIndex !== index) }); markDirty(); }} className="min-h-11 px-3 text-sm font-semibold text-[#7f2929] underline underline-offset-4">{t("styleGuide.remove")}</button>
+                </div>)}
+              </div>
+              <button type="button" disabled={(styleGuide?.colors.length ?? 0) >= 8} onClick={() => { setStyleGuide({ note: styleGuide?.note ?? null, colors: [...(styleGuide?.colors ?? []), { name: "", color: "#D4A373" }] }); markDirty(); }} className="mt-4 min-h-11 rounded-md border border-[#6D456F] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{t("styleGuide.addColor")}</button>
+              <FieldError name="styleGuide" errors={errors} />
+            </details>
             {mode === "founder" && (
               <div className="mt-6 border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-4">
                 <label className={labelClass}>
@@ -727,6 +823,18 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.primaryColor")}<input type="color" name="primaryColor" value={previewPrimary} onChange={(e) => setPreviewPrimary(e.target.value)} className={`${inputClass} p-1`} /></label>
               <label className={labelClass}>{t("fields.accentColor")}<input type="color" name="accentColor" value={previewAccent} onChange={(e) => setPreviewAccent(e.target.value)} className={`${inputClass} p-1`} /></label>
             </div>
+            <fieldset className="mt-6">
+              <legend className={labelClass}>{t("frame.title")}</legend>
+              <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("frame.help")}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {(["none", "line", "double", "botanical", "floral", "ornamental"] as const).map((frame) => (
+                  <label key={frame} className="flex min-h-12 cursor-pointer items-center gap-2 rounded-md border border-[#d8cedc] bg-white px-3 py-2 text-sm font-medium has-[:checked]:border-[#6D456F] has-[:checked]:bg-[#F1EDF4]">
+                    <input type="radio" name="coverFrameStyle" value={frame} checked={(designRecipe ?? DEFAULT_INVITATION_DESIGN_RECIPE).frame.style === frame} onChange={() => selectFrame(frame)} />
+                    {t(`frame.options.${frame}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <div className="mt-8 border-b border-[#ddd4e1]" onChange={(eventChange) => eventChange.stopPropagation()}>
               <div className="border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-3">
                 <h3 className="font-semibold text-[#2B2231]">{t("media.heading")}</h3>
@@ -941,6 +1049,32 @@ export function EventEditor({
           </div>
         </form>
       )}
+      <section className="mx-auto mt-8 max-w-[680px] border-l-2 border-[#6D456F] bg-[#F8F5F9] px-4 py-5 sm:px-6">
+        <h2 className="text-lg font-semibold text-[#2B2231]">{t("cohost.title")}</h2>
+        <p className="mt-1 text-sm leading-6 text-[#675d6a]">{canManageCohost ? t("cohost.help") : t("cohost.readOnlyHelp")}</p>
+        {!canManageCohost ? (
+          currentEvent.cohost ? <p className="mt-4 text-sm text-[#2B2231]"><strong>{currentEvent.cohost.name}</strong><br />{currentEvent.cohost.email}</p> : <p className="mt-4 text-sm text-[#675d6a]">{t("cohost.none")}</p>
+        ) : (
+          <form key={currentEvent.cohost?.id ?? "new-cohost"} onSubmit={saveCohost} className="mt-5">
+            <fieldset disabled={cohostBusy} className="border-0 p-0">
+              {cohostErrors.form && <p role="alert" className="mb-4 text-sm text-[#A33A3A]">{cohostErrors.form}</p>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className={labelClass}>{t("cohost.name")}<input name="cohostName" defaultValue={currentEvent.cohost?.name ?? ""} className={inputClass} required /><FieldError name="name" errors={cohostErrors} /></label>
+                <label className={labelClass}>{t("cohost.email")}<input type="email" name="cohostEmail" defaultValue={currentEvent.cohost?.email ?? ""} className={inputClass} required /><FieldError name="email" errors={cohostErrors} /></label>
+                <label className={labelClass}>{t("cohost.pin")}<input type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} name="cohostPin" autoComplete="new-password" className={inputClass} required /><FieldError name="pin" errors={cohostErrors} /></label>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-[#675d6a]">{t("cohost.pinHelp")}</p>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                <p aria-live="polite" className="text-sm font-medium text-[#2F6B4F]">{cohostSaved ? t("cohost.saved") : ""}</p>
+                <div className="flex gap-2">
+                  {currentEvent.cohost && <button type="button" onClick={removeCohost} disabled={cohostBusy} className="min-h-11 rounded-md border border-[#A33A3A] px-4 py-2 text-sm font-semibold text-[#8A3030] disabled:opacity-45">{t("cohost.remove")}</button>}
+                  <button type="submit" disabled={cohostBusy} className="min-h-11 rounded-md bg-[#6D456F] px-5 py-2 text-sm font-semibold text-white disabled:opacity-45">{cohostBusy ? t("actions.saving") : currentEvent.cohost ? t("cohost.replace") : t("cohost.add")}</button>
+                </div>
+              </div>
+            </fieldset>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

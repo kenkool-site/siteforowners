@@ -49,6 +49,7 @@ export interface InvitationEvent {
   address: string | null;
   mapUrl: string | null;
   travelInfo?: InvitationTravelInfo;
+  styleGuide?: InvitationStyleGuide | null;
   themeKey: string;
   primaryColor: string;
   accentColor: string;
@@ -153,3 +154,4 @@ export interface RsvpMutationResult {
 import type { InvitationDesignRecipe } from "./design-recipe";
 import type { InvitationReferenceAnalysis } from "./reference-analysis";
 import type { InvitationTravelInfo } from "./travel";
+import type { InvitationStyleGuide } from "./style-guide";

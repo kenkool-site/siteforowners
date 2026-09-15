@@ -4,6 +4,7 @@ import type { CSSProperties } from "react";
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { neutralOverlayColor, type InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
+import { InvitationFrame } from "./InvitationFrame";
 
 function comparableHeading(value: string): string {
   return value.toLocaleLowerCase().replaceAll("&", "and").replace(/[^a-z0-9]+/g, " ").trim();
@@ -21,7 +22,6 @@ export function InvitationHero({ coverUrl, title, honoreeNames, date, recipe }: 
   const alignment = recipe.composition.alignment === "left" ? "items-start text-left" : "items-center text-center";
   const displayStyle = recipe.typography.display === "formal-script" ? "italic" : "normal";
   const motif = ({ botanical: "❦", floral: "✿", geometric: "◆", ribbon: "〰", ornamental: "✦" } as const)[recipe.decoration.motif as Exclude<typeof recipe.decoration.motif, "none">] ?? "";
-  const frameStyle = recipe.frame.style === "double" || recipe.frame.style === "ornamental" ? "double" : "solid";
   const mainTitle = honoreeNames.trim() || title;
   const supportingTitle = comparableHeading(title) !== comparableHeading(mainTitle) ? title : "";
   const overlayColor = coverUrl ? neutralOverlayColor(recipe.palette.overlay) : recipe.palette.overlay;
@@ -34,7 +34,7 @@ export function InvitationHero({ coverUrl, title, honoreeNames, date, recipe }: 
   return (
     <section data-invitation-hero={coverUrl ? "cover" : "palette"} className={`relative flex flex-col bg-cover bg-no-repeat px-6 ${placement}`} style={style}>
       <div className="absolute inset-0" aria-hidden="true" style={{ backgroundColor: overlayColor, opacity: coverUrl ? recipe.hero.overlayStrength : 0 }} />
-      {recipe.frame.style !== "none" && <div aria-hidden="true" className="pointer-events-none absolute inset-4 z-10 sm:inset-7" style={{ borderColor: recipe.palette.accent, borderStyle: frameStyle, borderWidth: Math.max(recipe.frame.width, frameStyle === "double" ? 3 : 1), borderRadius: recipe.frame.radius === "rounded" ? "2rem" : recipe.frame.radius === "soft" ? "0.75rem" : 0 }} />}
+      <InvitationFrame style={recipe.frame.style} color={recipe.palette.accent} width={recipe.frame.width} radius={recipe.frame.radius} />
       <div className={`relative z-10 mx-auto flex w-full max-w-4xl flex-col ${alignment}`} style={{ color: recipe.hero.textColor }}>
         {motif && <div aria-hidden="true" className="mb-6 text-3xl" style={{ color: recipe.palette.accent }}>{motif}</div>}
         {supportingTitle && <p data-invitation-kicker="true" className="mb-4 text-base font-medium tracking-[0.12em] sm:text-xl">{supportingTitle}</p>}

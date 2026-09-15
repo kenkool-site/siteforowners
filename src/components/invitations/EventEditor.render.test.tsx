@@ -61,10 +61,10 @@ const event: EditorEvent = {
   },
 };
 
-function render(mode: "owner" | "founder", media?: InvitationMediaSnapshot, overrides: Partial<EditorEvent> = {}) {
+function render(mode: "owner" | "founder", media?: InvitationMediaSnapshot, overrides: Partial<EditorEvent> = {}, canManageCohost = mode === "founder") {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
-      <EventEditor event={{ ...event, ...overrides }} mode={mode} media={media} />
+      <EventEditor event={{ ...event, ...overrides }} mode={mode} media={media} canManageCohost={canManageCohost} />
     </NextIntlClientProvider>,
   );
 }
@@ -76,6 +76,18 @@ test("the event editor exposes five clearly labeled sections", () => {
   }
   assert.match(html, />Save changes</);
   assert.match(html, /No unsaved changes/);
+});
+
+test("primary host can manage a co-host while a co-host sees read-only access details", () => {
+  const cohost = { ...event.owner, id: "owner-2", name: "Lee", email: "lee@example.com" };
+  const primary = render("owner", undefined, { cohost }, true);
+  assert.match(primary, /Co-host access/);
+  assert.match(primary, /name="cohostEmail"/);
+  assert.match(primary, /lee@example\.com/);
+
+  const secondary = render("owner", undefined, { cohost }, false);
+  assert.match(secondary, /Lee/);
+  assert.doesNotMatch(secondary, /name="cohostEmail"/);
 });
 
 test("the response dashboard is outside the event settings form and disabled fieldset", () => {
@@ -136,6 +148,27 @@ test("travel editor provides optional capped airport and hotel rows", () => {
     travelInfo: { airports: [{ name: "DFW", note: null, directionsUrl: null }], hotels: [] },
   })).window.document;
   assert.equal(populated.querySelector("details[data-travel-editor]")?.hasAttribute("open"), true);
+});
+
+test("style guide editor exposes optional note and editable color rows", () => {
+  const document = new JSDOM(render("owner", undefined, {
+    styleGuide: { note: "Glamorous fascinators", colors: [{ name: "Sage", color: "#AAB39A" }] },
+  })).window.document;
+  assert.equal(document.querySelector<HTMLTextAreaElement>('textarea[name="styleNote"]')?.value, "Glamorous fascinators");
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="styleColorName0"]')?.value, "Sage");
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="styleColorValue0"]')?.value, "#aab39a");
+  assert.equal(document.querySelectorAll('input[name^="styleColorName"]').length, 1);
+  assert.equal(document.querySelector("details[data-style-guide-editor]")?.hasAttribute("open"), true);
+});
+
+test("cover frame choices are editable and include floral and botanical treatments", () => {
+  const html = render("owner");
+  const document = new JSDOM(html).window.document;
+  assert.match(html, /Cover frame/);
+  const values = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="coverFrameStyle"]')).map((input) => input.value);
+  for (const value of ["none", "line", "double", "botanical", "floral", "ornamental"]) {
+    assert.ok(values.includes(value));
+  }
 });
 
 test("a full gallery disables the thirteenth upload", () => {

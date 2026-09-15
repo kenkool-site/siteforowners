@@ -162,6 +162,31 @@ test("everything sending successfully leaves nothing suppressed or delayed", asy
   assert.equal(result.notificationsDelayed, false);
 });
 
+test("an attending response emails each unique active host", async () => {
+  const recipients: string[] = [];
+  await dispatchRsvpNotifications({
+    ...fixture,
+    event: { ...baseEvent, ownerEmailRecipients: ["owner@example.com", "cohost@example.com", "OWNER@example.com"] },
+  }, {
+    ...alwaysAllow(),
+    reserve: async (_channel, input) => { recipients.push(input.recipient); return { id: `n-${recipients.length}`, allowed: true }; },
+  });
+  assert.deepEqual(recipients, ["owner@example.com", "cohost@example.com"]);
+});
+
+test("a decline produces no host email or SMS attempt", async () => {
+  const attempts: Array<{ audience: string; channel: string }> = [];
+  await dispatchRsvpNotifications({
+    ...fixture,
+    rsvp: { ...baseRsvp, attending: false, partySize: 0 },
+    event: { ...baseEvent, ownerEmailRecipients: ["owner@example.com", "cohost@example.com"], ownerSmsNotifications: true, notificationPhone: "+15555550123" },
+  }, {
+    ...alwaysAllow(),
+    reserve: async (channel, input) => { attempts.push({ audience: input.audience, channel }); return { id: `n-${attempts.length}`, allowed: true }; },
+  });
+  assert.deepEqual(attempts.filter((attempt) => attempt.audience === "owner"), []);
+});
+
 test("a provider throwing is recorded as a failure, not an unhandled rejection", async () => {
   const failed: Array<{ id: string; reason: string }> = [];
   const result = await dispatchRsvpNotifications(fixture, {
@@ -356,9 +381,8 @@ test("a Spanish-locale event renders the owner notification email and subject in
   assert.doesNotMatch(html, /Contact:|party of|View in your dashboard/);
 });
 
-test("a Spanish-locale declined RSVP appends the Spanish declined suffix and owner SMS body", async () => {
-  let subject = "";
-  let smsBody = "";
+test("a Spanish-locale declined RSVP also suppresses owner delivery", async () => {
+  let providerCalls = 0;
   await dispatchRsvpNotifications(
     {
       ...smsFixture,
@@ -370,13 +394,11 @@ test("a Spanish-locale declined RSVP appends the Spanish declined suffix and own
       reserve: async () => ({ id: "n", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
-      email: { send: async (input) => { subject = input.subject; return { ok: true, providerId: "e1" }; } },
-      sms: { send: async (input) => { smsBody = input.body; return { ok: true, providerId: "s1" }; } },
+      email: { send: async () => { providerCalls += 1; return { ok: true, providerId: "e1" }; } },
+      sms: { send: async () => { providerCalls += 1; return { ok: true, providerId: "s1" }; } },
     },
   );
-  assert.match(subject, /^Nuevo RSVP — No asistirá — Sample Wedding$/);
-  assert.match(smsBody, /No asistirá/);
-  assert.doesNotMatch(smsBody, /Declined/);
+  assert.equal(providerCalls, 0);
 });
 
 test("a Spanish-locale event renders the guest confirmation email in Spanish", async () => {
