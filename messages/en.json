@@ -412,6 +412,22 @@
       "founderLimitsHelp": "Only the founder can change message and submission limits.",
       "founderControls": "Founder controls",
       "credentialsHelp": "Changing the sign-in email or PIN affects the owner's next login. Leave the PIN blank to keep it.",
+      "cohost": {
+        "title": "Co-host access",
+        "help": "Add one co-host with full access to edit this invitation and view responses.",
+        "readOnlyHelp": "The primary host manages co-host access.",
+        "none": "No co-host has been added.",
+        "name": "Co-host name",
+        "email": "Co-host email",
+        "pin": "Co-host PIN",
+        "pinHelp": "Use a separate six-digit PIN. If this email already has an account, its existing PIN stays unchanged.",
+        "add": "Add co-host",
+        "replace": "Save co-host",
+        "remove": "Remove access",
+        "saved": "Co-host access saved",
+        "saveError": "Co-host access could not be saved. Check the details and try again.",
+        "removeError": "Co-host access could not be removed. Try again."
+      },
       "errors": {
         "eventType": "Enter an event type.",
         "locale": "Choose English or Spanish.",

@@ -148,10 +148,12 @@ export function EventEditor({
   event,
   mode,
   media: initialMedia,
+  canManageCohost = mode === "founder",
 }: {
   event: EditorEvent;
   mode: EventEditorMode;
   media?: InvitationMediaSnapshot;
+  canManageCohost?: boolean;
 }) {
   const t = useTranslations("invitations.editor");
   const locale = useLocale();
@@ -167,6 +169,9 @@ export function EventEditor({
   const [credentialSaving, setCredentialSaving] = useState(false);
   const [credentialSaved, setCredentialSaved] = useState(false);
   const [credentialErrors, setCredentialErrors] = useState<FieldErrors>({});
+  const [cohostBusy, setCohostBusy] = useState(false);
+  const [cohostSaved, setCohostSaved] = useState(false);
+  const [cohostErrors, setCohostErrors] = useState<FieldErrors>({});
   const [previewTitle, setPreviewTitle] = useState(event.title);
   const [previewDescription, setPreviewDescription] = useState(event.description);
   const [previewTheme, setPreviewTheme] = useState(event.themeKey);
@@ -470,6 +475,61 @@ export function EventEditor({
       setCredentialErrors({ form: t("credentialSaveError") });
     } finally {
       setCredentialSaving(false);
+    }
+  }
+
+  async function saveCohost(eventSubmit: FormEvent<HTMLFormElement>) {
+    eventSubmit.preventDefault();
+    if (cohostBusy) return;
+    const form = eventSubmit.currentTarget;
+    const data = new FormData(form);
+    setCohostBusy(true);
+    setCohostSaved(false);
+    setCohostErrors({});
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/cohost`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          name: stringValue(data, "cohostName"),
+          email: stringValue(data, "cohostEmail"),
+          pin: stringValue(data, "cohostPin"),
+        }),
+      });
+      const result = await response.json() as { event?: EditorEvent; errors?: FieldErrors };
+      if (!response.ok || !result.event) {
+        setCohostErrors(result.errors ?? { form: t("cohost.saveError") });
+        return;
+      }
+      const pin = form.elements.namedItem("cohostPin");
+      if (pin instanceof HTMLInputElement) pin.value = "";
+      setCurrentEvent(result.event);
+      setCohostSaved(true);
+    } catch {
+      setCohostErrors({ form: t("cohost.saveError") });
+    } finally {
+      setCohostBusy(false);
+    }
+  }
+
+  async function removeCohost() {
+    if (cohostBusy) return;
+    setCohostBusy(true);
+    setCohostSaved(false);
+    setCohostErrors({});
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/cohost`, { method: "DELETE" });
+      const result = await response.json() as { event?: EditorEvent; errors?: FieldErrors };
+      if (!response.ok || !result.event) {
+        setCohostErrors(result.errors ?? { form: t("cohost.removeError") });
+        return;
+      }
+      setCurrentEvent(result.event);
+      setCohostSaved(true);
+    } catch {
+      setCohostErrors({ form: t("cohost.removeError") });
+    } finally {
+      setCohostBusy(false);
     }
   }
 
@@ -970,6 +1030,32 @@ export function EventEditor({
           </div>
         </form>
       )}
+      <section className="mx-auto mt-8 max-w-[680px] border-l-2 border-[#6D456F] bg-[#F8F5F9] px-4 py-5 sm:px-6">
+        <h2 className="text-lg font-semibold text-[#2B2231]">{t("cohost.title")}</h2>
+        <p className="mt-1 text-sm leading-6 text-[#675d6a]">{canManageCohost ? t("cohost.help") : t("cohost.readOnlyHelp")}</p>
+        {!canManageCohost ? (
+          currentEvent.cohost ? <p className="mt-4 text-sm text-[#2B2231]"><strong>{currentEvent.cohost.name}</strong><br />{currentEvent.cohost.email}</p> : <p className="mt-4 text-sm text-[#675d6a]">{t("cohost.none")}</p>
+        ) : (
+          <form key={currentEvent.cohost?.id ?? "new-cohost"} onSubmit={saveCohost} className="mt-5">
+            <fieldset disabled={cohostBusy} className="border-0 p-0">
+              {cohostErrors.form && <p role="alert" className="mb-4 text-sm text-[#A33A3A]">{cohostErrors.form}</p>}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className={labelClass}>{t("cohost.name")}<input name="cohostName" defaultValue={currentEvent.cohost?.name ?? ""} className={inputClass} required /><FieldError name="name" errors={cohostErrors} /></label>
+                <label className={labelClass}>{t("cohost.email")}<input type="email" name="cohostEmail" defaultValue={currentEvent.cohost?.email ?? ""} className={inputClass} required /><FieldError name="email" errors={cohostErrors} /></label>
+                <label className={labelClass}>{t("cohost.pin")}<input type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} name="cohostPin" autoComplete="new-password" className={inputClass} required /><FieldError name="pin" errors={cohostErrors} /></label>
+              </div>
+              <p className="mt-2 text-xs leading-5 text-[#675d6a]">{t("cohost.pinHelp")}</p>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                <p aria-live="polite" className="text-sm font-medium text-[#2F6B4F]">{cohostSaved ? t("cohost.saved") : ""}</p>
+                <div className="flex gap-2">
+                  {currentEvent.cohost && <button type="button" onClick={removeCohost} disabled={cohostBusy} className="min-h-11 rounded-md border border-[#A33A3A] px-4 py-2 text-sm font-semibold text-[#8A3030] disabled:opacity-45">{t("cohost.remove")}</button>}
+                  <button type="submit" disabled={cohostBusy} className="min-h-11 rounded-md bg-[#6D456F] px-5 py-2 text-sm font-semibold text-white disabled:opacity-45">{cohostBusy ? t("actions.saving") : currentEvent.cohost ? t("cohost.replace") : t("cohost.add")}</button>
+                </div>
+              </div>
+            </fieldset>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

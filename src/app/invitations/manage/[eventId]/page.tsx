@@ -25,7 +25,7 @@ export default async function OwnerInvitationManagementPage({ params }: { params
 
   return (
     <InvitationPublicProvider locale={event.locale} timeZone={event.timezone}>
-      <EventEditor event={event} mode="owner" media={media} />
+      <EventEditor event={event} mode="owner" media={media} canManageCohost={ownerId === event.ownerId} />
     </InvitationPublicProvider>
   );
 }

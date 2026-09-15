@@ -227,6 +227,7 @@ export type NotificationEventContext = {
   title: string;
   locale: InvitationLocale;
   ownerEmailNotifications: boolean;
+  ownerEmailRecipients?: string[];
   ownerSmsNotifications: boolean;
   notificationEmail: string | null;
   notificationPhone: string | null;
@@ -290,8 +291,12 @@ export async function dispatchRsvpNotifications(
   const kind: InvitationNotificationKind = created ? "rsvp_created" : "rsvp_updated";
   const attempts: PlannedAttempt[] = [];
 
-  if (event.ownerEmailNotifications && event.notificationEmail) {
-    const to = event.notificationEmail;
+  const ownerEmailRecipients = Array.from(new Set(
+    (event.ownerEmailRecipients?.length ? event.ownerEmailRecipients : [event.notificationEmail])
+      .flatMap((email) => typeof email === "string" && email.trim() ? [email.trim().toLowerCase()] : []),
+  ));
+  if (rsvp.attending && event.ownerEmailNotifications) {
+    for (const to of ownerEmailRecipients) {
     attempts.push({
       channel: "email",
       audience: "owner",
@@ -305,9 +310,10 @@ export async function dispatchRsvpNotifications(
         idempotencyKey,
       } }),
     });
+    }
   }
 
-  if (event.ownerSmsNotifications && event.notificationPhone) {
+  if (rsvp.attending && event.ownerSmsNotifications && event.notificationPhone) {
     const to = event.notificationPhone;
     attempts.push({
       channel: "sms",
@@ -495,12 +501,25 @@ export async function markInvitationNotificationFailed(
 }
 
 async function getInvitationNotificationEventContext(eventId: string): Promise<NotificationEventContext | null> {
-  const { data, error } = await createAdminClient()
+  const client = createAdminClient();
+  const { data, error } = await client
     .from("invitation_events")
     .select("id,slug,public_subdomain,title,locale,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
+  const { data: hostRows, error: hostError } = await client
+    .from("invitation_event_hosts")
+    .select("role,invitation_owners!inner(email,is_active)")
+    .eq("event_id", eventId)
+    .eq("role", "cohost")
+    .eq("invitation_owners.is_active", true);
+  if (hostError) return null;
+  const cohostEmails = (hostRows ?? []).flatMap((row) => {
+    const relation = row.invitation_owners as unknown as { email?: unknown } | Array<{ email?: unknown }>;
+    const owner = Array.isArray(relation) ? relation[0] : relation;
+    return typeof owner?.email === "string" ? [owner.email] : [];
+  });
   return {
     id: data.id,
     slug: data.slug,
@@ -508,6 +527,7 @@ async function getInvitationNotificationEventContext(eventId: string): Promise<N
     title: data.title,
     locale: data.locale === "es" ? "es" : "en",
     ownerEmailNotifications: data.owner_email_notifications,
+    ownerEmailRecipients: [data.notification_email, ...cohostEmails].flatMap((email) => typeof email === "string" ? [email] : []),
     ownerSmsNotifications: data.owner_sms_notifications,
     notificationEmail: data.notification_email,
     notificationPhone: data.notification_phone,

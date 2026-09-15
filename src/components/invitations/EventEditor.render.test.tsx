@@ -61,10 +61,10 @@ const event: EditorEvent = {
   },
 };
 
-function render(mode: "owner" | "founder", media?: InvitationMediaSnapshot, overrides: Partial<EditorEvent> = {}) {
+function render(mode: "owner" | "founder", media?: InvitationMediaSnapshot, overrides: Partial<EditorEvent> = {}, canManageCohost = mode === "founder") {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
-      <EventEditor event={{ ...event, ...overrides }} mode={mode} media={media} />
+      <EventEditor event={{ ...event, ...overrides }} mode={mode} media={media} canManageCohost={canManageCohost} />
     </NextIntlClientProvider>,
   );
 }
@@ -76,6 +76,18 @@ test("the event editor exposes five clearly labeled sections", () => {
   }
   assert.match(html, />Save changes</);
   assert.match(html, /No unsaved changes/);
+});
+
+test("primary host can manage a co-host while a co-host sees read-only access details", () => {
+  const cohost = { ...event.owner, id: "owner-2", name: "Lee", email: "lee@example.com" };
+  const primary = render("owner", undefined, { cohost }, true);
+  assert.match(primary, /Co-host access/);
+  assert.match(primary, /name="cohostEmail"/);
+  assert.match(primary, /lee@example\.com/);
+
+  const secondary = render("owner", undefined, { cohost }, false);
+  assert.match(secondary, /Lee/);
+  assert.doesNotMatch(secondary, /name="cohostEmail"/);
 });
 
 test("the response dashboard is outside the event settings form and disabled fieldset", () => {

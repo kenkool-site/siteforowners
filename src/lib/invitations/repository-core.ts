@@ -121,6 +121,7 @@ export type InvitationManagementRow = {
   invitation_owners:
     | InvitationManagementOwnerRow
     | InvitationManagementOwnerRow[];
+  cohost?: InvitationManagementOwnerRow | null;
 };
 
 export type InvitationManagementOwnerRow = {
@@ -231,6 +232,7 @@ export type FounderInvitationEventSummary = {
 export type InvitationOwnerForManagement = Omit<InvitationOwner, "pinHash">;
 export type InvitationEventForManagement = Omit<InvitationEvent, "passcodeHash"> & {
   owner: InvitationOwnerForManagement;
+  cohost?: InvitationOwnerForManagement | null;
 };
 
 function firstRelation<T>(value: T | T[]): T {
@@ -322,6 +324,7 @@ export async function getInvitationEventForManagement(
   const row = await repository.get(eventId);
   if (!row) return null;
   const owner = firstRelation(row.invitation_owners);
+  const cohost = row.cohost ?? null;
   const normalizedRecipe = normalizeInvitationDesignRecipe(row.design_recipe);
   return {
     id: row.id,
@@ -374,6 +377,15 @@ export async function getInvitationEventForManagement(
       createdAt: owner.created_at,
       updatedAt: owner.updated_at,
     },
+    cohost: cohost ? {
+      id: cohost.id,
+      name: cohost.name,
+      email: cohost.email,
+      phone: cohost.phone,
+      isActive: cohost.is_active,
+      createdAt: cohost.created_at,
+      updatedAt: cohost.updated_at,
+    } : null,
   };
 }
 

@@ -15,6 +15,7 @@ import {
   type InvitationFounderListRow,
   type InvitationEventUpdateRow,
   type InvitationManagementRow,
+  type InvitationManagementOwnerRow,
   type InvitationProvisionRows,
   type InvitationProvisionDependencies,
   type InvitationPublicRepository,
@@ -65,11 +66,18 @@ export type InvitationResponsesRepository = {
 };
 
 type RpcProvisionRow = { owner_id: string; event_id: string };
+type RpcCohostRow = { owner_id: string; reused: boolean };
 
 function isRpcProvisionRow(value: unknown): value is RpcProvisionRow {
   if (!value || typeof value !== "object") return false;
   const row = value as Record<string, unknown>;
   return typeof row.owner_id === "string" && typeof row.event_id === "string";
+}
+
+function isRpcCohostRow(value: unknown): value is RpcCohostRow {
+  if (!value || typeof value !== "object") return false;
+  const row = value as Record<string, unknown>;
+  return typeof row.owner_id === "string" && typeof row.reused === "boolean";
 }
 
 const MANAGEMENT_SELECT = [
@@ -131,7 +139,17 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
       .eq("id", eventId)
       .maybeSingle();
     if (error) throw new Error("Unable to load invitation", { cause: error });
-    return data as unknown as InvitationManagementRow | null;
+    if (!data) return null;
+    const { data: membership, error: membershipError } = await supabase
+      .from("invitation_event_hosts")
+      .select("invitation_owners!inner(id,name,email,phone,is_active,created_at,updated_at)")
+      .eq("event_id", eventId)
+      .eq("role", "cohost")
+      .maybeSingle();
+    if (membershipError) throw new Error("Unable to load invitation co-host", { cause: membershipError });
+    const relation = membership?.invitation_owners as unknown as InvitationManagementOwnerRow | InvitationManagementOwnerRow[] | undefined;
+    const cohost = Array.isArray(relation) ? relation[0] ?? null : relation ?? null;
+    return { ...(data as unknown as InvitationManagementRow), cohost };
   },
 
   async findBySlug(slug: string) {
@@ -292,6 +310,30 @@ export async function updateInvitationOwnerCredentials(
   repository: InvitationManagementRepository = invitationRepository,
 ): Promise<void> {
   await updateInvitationOwnerCredentialsWithRepository(ownerId, update, pinHash, repository);
+}
+
+export async function setInvitationCohost(
+  eventId: string,
+  input: { name: string; email: string },
+  pinHash: string,
+): Promise<RpcCohostRow> {
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("set_invitation_cohost", {
+    p_event_id: eventId,
+    p_name: input.name,
+    p_email: input.email,
+    p_pin_hash: pinHash,
+  });
+  if (error) throw new Error("Unable to save invitation co-host", { cause: error });
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!isRpcCohostRow(row)) throw new Error("Invitation co-host update returned no record");
+  return row;
+}
+
+export async function removeInvitationCohost(eventId: string): Promise<void> {
+  const supabase = createAdminClient();
+  const { error } = await supabase.rpc("remove_invitation_cohost", { p_event_id: eventId });
+  if (error) throw new Error("Unable to remove invitation co-host", { cause: error });
 }
 
 export async function getInvitationResponsesDashboard(

@@ -412,6 +412,22 @@
       "founderLimitsHelp": "Solo el fundador puede cambiar los límites de mensajes y respuestas.",
       "founderControls": "Controles del fundador",
       "credentialsHelp": "Cambiar el correo o PIN de acceso afecta el próximo inicio de sesión del propietario. Deje el PIN en blanco para conservarlo.",
+      "cohost": {
+        "title": "Acceso del coanfitrión",
+        "help": "Agregue un coanfitrión con acceso completo para editar la invitación y ver respuestas.",
+        "readOnlyHelp": "El anfitrión principal administra el acceso del coanfitrión.",
+        "none": "No se ha agregado ningún coanfitrión.",
+        "name": "Nombre del coanfitrión",
+        "email": "Correo del coanfitrión",
+        "pin": "PIN del coanfitrión",
+        "pinHelp": "Use un PIN separado de seis dígitos. Si este correo ya tiene una cuenta, su PIN actual no cambia.",
+        "add": "Agregar coanfitrión",
+        "replace": "Guardar coanfitrión",
+        "remove": "Quitar acceso",
+        "saved": "Acceso del coanfitrión guardado",
+        "saveError": "No se pudo guardar el acceso del coanfitrión. Revise los datos e inténtelo de nuevo.",
+        "removeError": "No se pudo quitar el acceso del coanfitrión. Inténtelo de nuevo."
+      },
       "errors": {
         "eventType": "Ingrese un tipo de evento.",
         "locale": "Elija inglés o español.",
