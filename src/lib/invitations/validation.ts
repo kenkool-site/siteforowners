@@ -4,6 +4,7 @@ import type { InvitationEventStatus, InvitationLocale } from "./types";
 import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
 import { parseInvitationTravelInfo, type InvitationTravelInfo } from "./travel";
 import { validatePlatformSubdomain } from "@/lib/subdomain";
+import { parseInvitationStyleGuide, type InvitationStyleGuide } from "./style-guide";
 
 export type ParsedRsvpInput = {
   primaryName: string;
@@ -42,6 +43,7 @@ export type InvitationEventUpdate = {
   address?: string | null;
   mapUrl?: string | null;
   travelInfo?: InvitationTravelInfo;
+  styleGuide?: InvitationStyleGuide | null;
   themeKey?: InvitationThemeKey;
   primaryColor?: string;
   accentColor?: string;
@@ -204,6 +206,12 @@ export function parseEventUpdate(
     const travel = parseInvitationTravelInfo(body.travelInfo);
     if (travel.ok) value.travelInfo = travel.value;
     else errors.travelInfo = travel.error;
+  }
+
+  if ("styleGuide" in body) {
+    const styleGuide = parseInvitationStyleGuide(body.styleGuide);
+    if (styleGuide.ok) value.styleGuide = styleGuide.value;
+    else errors.styleGuide = "Enter a valid style note and event colors.";
   }
 
   if ("locale" in body) {

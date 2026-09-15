@@ -11,6 +11,7 @@ import type {
 import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
 import { normalizeInvitationReferenceAnalysis } from "./reference-analysis";
 import { normalizeInvitationTravelInfo, type InvitationTravelInfo } from "./travel";
+import { normalizeInvitationStyleGuide, type InvitationStyleGuide } from "./style-guide";
 
 export const INVITATION_SUBMISSION_LIMIT = 250;
 export const INVITATION_EMAIL_NOTIFICATION_LIMIT = 250;
@@ -91,6 +92,7 @@ export type InvitationManagementRow = {
   address: string | null;
   map_url: string | null;
   travel_info?: unknown;
+  style_guide?: unknown;
   theme_key: string;
   primary_color: string;
   accent_color: string;
@@ -148,6 +150,7 @@ export type InvitationPublicRow = {
   address: string | null;
   map_url: string | null;
   travel_info?: unknown;
+  style_guide?: unknown;
   theme_key: string;
   primary_color: string;
   accent_color: string;
@@ -180,6 +183,7 @@ export type PublicInvitationEvent = {
   address: string | null;
   mapUrl: string | null;
   travelInfo?: InvitationTravelInfo;
+  styleGuide?: InvitationStyleGuide | null;
   themeKey: string;
   primaryColor: string;
   accentColor: string;
@@ -336,6 +340,7 @@ export async function getInvitationEventForManagement(
     address: row.address,
     mapUrl: row.map_url,
     travelInfo: normalizeInvitationTravelInfo(row.travel_info),
+    styleGuide: normalizeInvitationStyleGuide(row.style_guide),
     themeKey: row.theme_key,
     primaryColor: row.primary_color,
     accentColor: row.accent_color,
@@ -397,6 +402,7 @@ export async function getPublicInvitationBySlug(
       address: row.address,
       mapUrl: row.map_url,
       travelInfo: normalizeInvitationTravelInfo(row.travel_info),
+      styleGuide: normalizeInvitationStyleGuide(row.style_guide),
       themeKey: row.theme_key,
       primaryColor: row.primary_color,
       accentColor: row.accent_color,
@@ -435,6 +441,7 @@ const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>>
   address: "address",
   mapUrl: "map_url",
   travelInfo: "travel_info",
+  styleGuide: "style_guide",
   themeKey: "theme_key",
   primaryColor: "primary_color",
   accentColor: "accent_color",
