@@ -98,7 +98,7 @@ test("preview ignores stored edit capabilities and blocks even programmatic subm
   });
 });
 
-test("a guest who opens their real saved edit link resumes the edit session (window.location path)", async () => {
+test("a guest who opens a legacy edit link resumes the edit session without persisting it", async () => {
   const rsvpId = "11111111-1111-4111-8111-111111111111";
   const generated = editUrl(ORIGIN, SLUG, rsvpId, "secret-edit-token");
 
@@ -106,12 +106,12 @@ test("a guest who opens their real saved edit link resumes the edit session (win
     { url: generated, slug: SLUG, allowCreate: false },
     async (container, dom) => {
       assert.match(container.textContent ?? "", /securely updating an existing response/i);
-      assert.equal(dom.window.localStorage.getItem(storageKey(SLUG)), generated);
+      assert.equal(dom.window.localStorage.getItem(storageKey(SLUG)), null);
     },
   );
 });
 
-test("a saved edit link in browser storage restores the edit session on a fresh visit with no hash", async () => {
+test("a saved edit link in browser storage is no longer used", async () => {
   const rsvpId = "22222222-2222-4222-8222-222222222222";
   const generated = editUrl(ORIGIN, SLUG, rsvpId, "another-secret-token");
 
@@ -123,7 +123,8 @@ test("a saved edit link in browser storage restores the edit session on a fresh 
       storage: { [storageKey(SLUG)]: generated },
     },
     async (container) => {
-      assert.match(container.textContent ?? "", /securely updating an existing response/i);
+      assert.match(container.textContent ?? "", /no longer accepting new responses/i);
+      assert.doesNotMatch(container.textContent ?? "", /securely updating an existing response/i);
     },
   );
 });
@@ -138,10 +139,7 @@ test("a closed invitation with no saved credential stays on the closed message, 
   );
 });
 
-test("a successful submission persists a real, later-parseable edit URL and enters the edit session", async () => {
-  const rsvpId = "33333333-3333-4333-8333-333333333333";
-  const generated = editUrl(ORIGIN, SLUG, rsvpId, "post-submit-token");
-
+test("a successful submission shows its outcome without exposing or persisting an edit link", async () => {
   await withRsvpForm(
     {
       url: `${ORIGIN}/invite/${SLUG}`,
@@ -149,7 +147,7 @@ test("a successful submission persists a real, later-parseable edit URL and ente
       allowCreate: true,
       fetchImpl: (async () => ({
         ok: true,
-        json: async () => ({ ok: true, rsvpId, created: true, editUrl: generated }),
+        json: async () => ({ ok: true, outcome: "created" }),
       })) as unknown as typeof fetch,
     },
     async (container, dom) => {
@@ -166,10 +164,37 @@ test("a successful submission persists a real, later-parseable edit URL and ente
         await Promise.resolve();
       });
 
-      assert.equal(dom.window.localStorage.getItem(storageKey(SLUG)), generated);
+      assert.equal(dom.window.localStorage.getItem(storageKey(SLUG)), null);
       assert.match(container.textContent ?? "", /your response has been saved/i);
-      assert.match(container.textContent ?? "", /securely updating an existing response/i);
-      assert.match(container.textContent ?? "", /copy edit link/i);
+      assert.doesNotMatch(container.textContent ?? "", /securely updating an existing response/i);
+      assert.doesNotMatch(container.textContent ?? "", /copy edit link/i);
+      assert.match(container.textContent ?? "", /update response/i);
     },
   );
 });
+
+for (const [outcome, message] of [
+  ["updated", /your response has been updated/i],
+  ["unchanged", /you already submitted this response/i],
+] as const) {
+  test(`a contact-matched ${outcome} response explains the outcome`, async () => {
+    await withRsvpForm({
+      url: `${ORIGIN}/invite/${SLUG}`,
+      slug: SLUG,
+      allowCreate: true,
+      fetchImpl: (async () => ({ ok: true, json: async () => ({ ok: true, outcome }) })) as unknown as typeof fetch,
+    }, async (container, dom) => {
+      const name = container.querySelector<HTMLInputElement>('input[name="primaryName"]')!;
+      const email = container.querySelector<HTMLInputElement>('input[name="email"]')!;
+      await act(async () => {
+        setInput(dom, name, "Ana Guest");
+        setInput(dom, email, "ana@example.com");
+        submit(dom, name.form!);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+      assert.match(container.textContent ?? "", message);
+      assert.doesNotMatch(container.textContent ?? "", /copy edit link/i);
+    });
+  });
+}

@@ -42,9 +42,9 @@ test("Spanish copy is translated while the event slug remains unchanged", () => 
   assert.match(html, /mia-and-lee/);
 });
 
-test("a closed invitation keeps the token edit path without exposing a create form", () => {
+test("a closed invitation directs changes to the host without exposing a create form", () => {
   const html = render("en", false);
   assert.match(html, /host is no longer accepting new responses/i);
-  assert.match(html, /edit link saved on this device/i);
+  assert.match(html, /contact the host/i);
   assert.doesNotMatch(html, /name="primaryName"/);
 });
