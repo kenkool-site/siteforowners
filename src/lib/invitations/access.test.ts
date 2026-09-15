@@ -32,3 +32,14 @@ test("an owner can access only an event they own", async () => {
   assert.deepEqual(permitted, { kind: "owner", ownerId: "owner-1" });
   assert.equal(denied, null);
 });
+
+test("an active co-host membership grants the same event access", async () => {
+  const result = await resolveInvitationAccess({
+    adminSessionValue: undefined,
+    adminPassword: "founder-secret",
+    ownerSession: { ownerId: "cohost-1", expiresAt: 2_000_000_000 },
+    eventId: "event-1",
+    ownerOwnsEvent: async (ownerId, eventId) => ownerId === "cohost-1" && eventId === "event-1",
+  });
+  assert.deepEqual(result, { kind: "owner", ownerId: "cohost-1" });
+});

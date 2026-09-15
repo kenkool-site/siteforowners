@@ -35,6 +35,7 @@ import {
   invitationE2ERepository,
   isInvitationE2EFixturesEnabled,
 } from "./e2e-fixtures";
+import { uniqueEventIdsForHost } from "./hosts";
 
 export type {
   CreateInvitationOwnerAndEventInput,
@@ -149,10 +150,17 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
   async listByOwner(ownerId: string) {
     if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.listByOwner(ownerId);
     const supabase = createAdminClient();
+    const { data: memberships, error: membershipError } = await supabase
+      .from("invitation_event_hosts")
+      .select("event_id")
+      .eq("owner_id", ownerId);
+    if (membershipError) throw new Error("Unable to list owner invitations", { cause: membershipError });
+    const eventIds = uniqueEventIdsForHost((memberships ?? []) as Array<{ event_id: string }>);
+    if (eventIds.length === 0) return [];
     const { data, error } = await supabase
       .from("invitation_events")
       .select(MANAGEMENT_SELECT)
-      .eq("owner_id", ownerId)
+      .in("id", eventIds)
       .order("created_at", { ascending: false });
     if (error) throw new Error("Unable to list owner invitations", { cause: error });
     return (data ?? []) as unknown as InvitationManagementRow[];

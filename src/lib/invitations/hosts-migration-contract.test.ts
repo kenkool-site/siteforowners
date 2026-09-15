@@ -14,6 +14,8 @@ test("host and style migration preserves primary ownership while adding one co-h
   assert.match(migration, /invitation_event_hosts_one_primary_idx[\s\S]*WHERE role = 'primary'/);
   assert.match(migration, /invitation_event_hosts_one_cohost_idx[\s\S]*WHERE role = 'cohost'/);
   assert.match(migration, /SELECT id, owner_id, 'primary'[\s\S]*FROM (?:public\.)?invitation_events/);
+  assert.match(migration, /CREATE OR REPLACE FUNCTION public\.sync_invitation_primary_host/);
+  assert.match(migration, /CREATE TRIGGER invitation_events_sync_primary_host/);
   assert.match(migration, /ENABLE ROW LEVEL SECURITY/);
   assert.match(migration, /REVOKE ALL ON invitation_event_hosts FROM anon, authenticated/);
 });

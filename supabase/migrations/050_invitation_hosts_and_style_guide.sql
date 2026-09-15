@@ -31,5 +31,29 @@ SELECT id, owner_id, 'primary'
 FROM public.invitation_events
 ON CONFLICT (event_id, owner_id) DO NOTHING;
 
+CREATE OR REPLACE FUNCTION public.sync_invitation_primary_host()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  DELETE FROM public.invitation_event_hosts
+  WHERE event_id = NEW.id
+    AND (role = 'primary' OR owner_id = NEW.owner_id);
+
+  INSERT INTO public.invitation_event_hosts (event_id, owner_id, role)
+  VALUES (NEW.id, NEW.owner_id, 'primary');
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS invitation_events_sync_primary_host ON public.invitation_events;
+CREATE TRIGGER invitation_events_sync_primary_host
+AFTER INSERT OR UPDATE OF owner_id ON public.invitation_events
+FOR EACH ROW EXECUTE FUNCTION public.sync_invitation_primary_host();
+
+REVOKE ALL ON FUNCTION public.sync_invitation_primary_host() FROM PUBLIC, anon, authenticated;
+
 ALTER TABLE public.invitation_event_hosts ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON invitation_event_hosts FROM anon, authenticated;
