@@ -38,6 +38,7 @@ const event: PublicInvitationEvent = {
   primaryColor: "#18253A",
   accentColor: "#9B6A44",
   fontPairKey: "fraunces-geist",
+  designRecipe: null,
   showPublicRsvpCount: true,
 };
 
@@ -126,14 +127,9 @@ test("the three public themes produce structurally different invitation layouts"
   assert.match(celebration, /data-invitation-layout="offset-blocks"/);
 });
 
-test("a designed invitation uses a non-clipping wrapper across every theme", () => {
-  for (const themeKey of ["classic", "romantic", "celebration"] as const) {
-    const html = render("published", { themeKey });
-    const opening = html.match(/<div class="([^"]+)"[^>]*><img src="https:\/\/signed\.example\.test\/invite"[^>]*class="([^"]+)"/);
-
-    assert.ok(opening, `${themeKey} renders the designed invite opening`);
-    assert.match(opening[2] ?? "", /object-contain/);
-    assert.doesNotMatch(opening[1] ?? "", /overflow-hidden|rounded-/);
-    assert.doesNotMatch(opening[1] ?? "", /max-h-\[/);
-  }
+test("the cover opens the invitation and the private designed reference is never rendered", () => {
+  const html = render("published");
+  assert.match(html, /data-invitation-hero="cover"/);
+  assert.match(html, /https:\/\/signed\.example\.test\/cover/);
+  assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/invite/);
 });

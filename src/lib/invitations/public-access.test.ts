@@ -26,6 +26,7 @@ const invitation: PublicInvitationLookup = {
     primaryColor: "#18253A",
     accentColor: "#9B6A44",
     fontPairKey: "fraunces-geist",
+    designRecipe: null,
     designedInvitePath: "event-1/designed_invite/a.png",
     coverImagePath: null,
     videoPath: null,

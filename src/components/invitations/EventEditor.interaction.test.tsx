@@ -30,6 +30,8 @@ const baseEvent: EditorEvent = {
   primaryColor: "#2B2231",
   accentColor: "#6D456F",
   fontPairKey: "fraunces-geist",
+  designRecipe: null,
+  referenceAnalysis: null,
   designedInvitePath: "event-1/invite.jpg",
   coverImagePath: null,
   videoPath: null,

@@ -135,6 +135,8 @@ function eventRow(input: {
     primary_color: "#2B2231",
     accent_color: "#B86B77",
     font_pair_key: "fraunces-geist",
+    design_recipe: null,
+    reference_analysis: null,
     designed_invite_path: FIXTURE_MEDIA,
     cover_image_path: null,
     video_path: FIXTURE_VIDEO,

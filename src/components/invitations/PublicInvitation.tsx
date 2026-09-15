@@ -10,6 +10,8 @@ import {
 } from "@/lib/invitations/calendar";
 import { RsvpForm } from "./RsvpForm";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
+import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recipe";
+import { InvitationHero } from "./InvitationHero";
 import type {
   EffectiveEventState,
 } from "@/lib/invitations/state";
@@ -34,6 +36,7 @@ export type PublicInvitationEvent = Pick<
   | "primaryColor"
   | "accentColor"
   | "fontPairKey"
+  | "designRecipe"
   | "showPublicRsvpCount"
 >;
 
@@ -163,14 +166,41 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
   const t = useTranslations("invitations.public");
 
   const theme = themeFor(event.themeKey);
-  const titleFont = event.fontPairKey === "fraunces-geist"
-    ? "font-[family-name:var(--font-fraunces)]"
-    : "font-sans";
-  const variables = {
-    "--invitation-primary": event.primaryColor,
-    "--invitation-accent": event.accentColor,
+  const recipe = event.designRecipe ?? DEFAULT_INVITATION_DESIGN_RECIPE;
+  const recreated = event.designRecipe !== null;
+  const displayStyles = {
+    "formal-script": "font-[family-name:var(--font-fraunces)] italic",
+    "editorial-serif": "font-[family-name:var(--font-fraunces)]",
+    "classic-serif": "font-[family-name:var(--font-fraunces)]",
+    "geometric-sans": "font-sans uppercase",
+    "humanist-sans": "font-sans",
+  } as const;
+  const titleFont = recreated
+    ? displayStyles[recipe.typography.display]
+    : event.fontPairKey === "fraunces-geist" ? "font-[family-name:var(--font-fraunces)]" : "font-sans";
+  const bodyFont = recipe.typography.body === "classic-serif" ? "font-[family-name:var(--font-fraunces)]" : "font-sans";
+  const alignment = recipe.composition.alignment === "center" ? "text-center" : "text-left";
+  const rhythm = recipe.composition.rhythm === "compact" ? "mt-8 sm:mt-10" : recipe.composition.rhythm === "airy" ? "mt-16 sm:mt-24" : "mt-12 sm:mt-16";
+  const radius = recipe.frame.radius === "rounded" ? "2rem" : recipe.frame.radius === "soft" ? "0.75rem" : "0";
+  const frameStyle = recipe.frame.style === "double" || recipe.frame.style === "ornamental" ? "double" : recipe.frame.style === "none" ? "none" : "solid";
+  const framedSurface = {
+    backgroundColor: recipe.palette.surface,
+    borderColor: recipe.palette.accent,
+    borderStyle: frameStyle,
+    borderWidth: recipe.frame.style === "none" ? 0 : Math.max(recipe.frame.width, frameStyle === "double" ? 3 : 1),
+    borderRadius: radius,
   } as CSSProperties;
-  const heroMedia = media.designedInvite ?? media.cover;
+  const motif = ({ botanical: "❦", floral: "✿", geometric: "◆", ribbon: "〰", ornamental: "✦" } as const)[recipe.decoration.motif as Exclude<typeof recipe.decoration.motif, "none">] ?? "";
+  const sectionOrder = (key: typeof recipe.contentOrder[number]) => {
+    const position = recipe.contentOrder.indexOf(key);
+    return position < 0 ? 99 : position;
+  };
+  const variables = {
+    "--invitation-primary": recipe.palette.text,
+    "--invitation-accent": recipe.palette.accent,
+    backgroundColor: recipe.palette.background,
+    color: recipe.palette.text,
+  } as CSSProperties;
   const date = event.startsAt
     ? new Intl.DateTimeFormat(event.locale, {
         dateStyle: "full",
@@ -192,43 +222,31 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
   return (
     <main
       data-invitation-theme={event.themeKey}
-      data-invitation-layout={theme.layout}
-      className={`min-h-screen overflow-x-hidden font-sans ${theme.page}`}
+      data-invitation-layout={event.designRecipe?.composition.family ?? theme.layout}
+      className={`min-h-screen overflow-x-hidden ${bodyFont} ${theme.page}`}
       style={variables}
     >
-      <article className={theme.stage}>
-        {heroMedia && (
-          <div className={media.designedInvite ? theme.designedOpening : theme.opening} style={{ borderColor: event.primaryColor }}>
-            <InvitationImage
-              src={heroMedia.url}
-              alt={media.designedInvite ? t("designedInviteAlt") : t("coverAlt", { title: event.title })}
-              fit={media.designedInvite ? "contain" : "cover"}
-              className={media.designedInvite
-                ? "max-w-full"
-                : theme.layout === "image-asymmetry"
-                  ? "max-h-[78vh] rounded-[3.5rem_1rem_3.5rem_1rem]"
-                  : "max-h-[82vh]"}
-            />
-          </div>
-        )}
+      <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} recipe={recipe} />
+      <article id="invitation-content" className={`${recreated ? "mx-auto flex flex-col px-4 py-8 sm:px-8 sm:py-14" : theme.stage}`} style={recreated ? { maxWidth: recipe.composition.maxWidth } : undefined}>
 
-        <header className={`${theme.title} ${heroMedia ? "mt-8 md:mt-12" : "mt-10"}`}>
+        <header className={`${recreated ? alignment : theme.title} mt-10`} style={{ order: sectionOrder("intro") }}>
           <p className="text-base font-medium leading-7 opacity-80">{event.eventType}</p>
           <h1 className={`${titleFont} mt-3 text-[clamp(3rem,12vw,6.8rem)] leading-[0.9] tracking-[-0.045em]`}>
             {event.title}
           </h1>
           {event.honoreeNames && <p className="mt-6 text-lg leading-8 opacity-85">{event.honoreeNames}</p>}
           <p className="mt-5 text-base font-semibold leading-7 sm:text-lg">{date}</p>
-          <div aria-hidden="true" className="mt-7 h-1.5 w-24" style={{ backgroundColor: event.accentColor }} />
+          {motif && <div aria-hidden="true" className={`mt-7 text-3xl ${recipe.composition.alignment === "center" ? "mx-auto" : ""}`} style={{ color: recipe.palette.accent }}>{motif}</div>}
+          {recipe.decoration.divider !== "none" && <div aria-hidden="true" className={`${recipe.composition.alignment === "center" ? "mx-auto" : ""} mt-7 h-px w-24`} style={{ backgroundColor: recipe.palette.accent }} />}
         </header>
 
         {event.description && (
-          <section className={`${theme.message} mt-12 sm:mt-16`}>
+          <section className={`${recreated ? alignment : theme.message} ${rhythm}`} style={{ order: sectionOrder("intro") }}>
             <p className={`${titleFont} text-2xl leading-10 sm:text-3xl sm:leading-[1.55]`}>{event.description}</p>
           </section>
         )}
 
-        <section className={`${theme.details} mt-12 px-5 py-8 sm:mt-16 sm:px-9`} aria-labelledby="invitation-details-heading">
+        <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") }} aria-labelledby="invitation-details-heading">
           <h2 id="invitation-details-heading" className={`${titleFont} text-3xl`}>{t("details")}</h2>
           <div className="mt-7 grid gap-6 sm:grid-cols-2">
             <div className="flex gap-3">
@@ -250,16 +268,16 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
         </section>
 
         {(media.gallery.length > 0 || media.video) && (
-          <section className={`${theme.media} mt-12 sm:mt-16`} aria-labelledby="invitation-gallery-heading">
+          <section className={`${recreated ? "" : theme.media} ${rhythm}`} style={{ order: sectionOrder("gallery") }} aria-labelledby="invitation-gallery-heading">
             <h2 id="invitation-gallery-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("gallery")}</h2>
             {media.gallery.length > 0 && <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3">{media.gallery.map((item, index) => <InvitationImage key={item.id ?? item.path} src={item.url} alt={item.altText || t("galleryAlt", { number: index + 1 })} className={`aspect-[4/5] ${index === 0 ? "col-span-2 sm:aspect-[16/10]" : ""}`} />)}</div>}
             {media.video && <video controls preload="metadata" className="mt-6 aspect-video w-full bg-black" aria-label={t("videoLabel")}><source src={media.video.url} /></video>}
           </section>
         )}
 
-        {event.showPublicRsvpCount && <PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${theme.count} mt-12 sm:mt-16`} />}
+        {event.showPublicRsvpCount && <div style={{ order: sectionOrder("counts") }}><PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${recreated ? "" : theme.count} ${rhythm}`} /></div>}
 
-        <section id="rsvp" className={`${theme.rsvp} mb-8 mt-12 px-6 py-9 sm:mb-12 sm:mt-16 sm:px-10`}>
+        <section id="rsvp" className={`${recreated ? "" : theme.rsvp} ${rhythm} mb-8 px-6 py-9 sm:mb-12 sm:px-10`} style={{ ...framedSurface, order: sectionOrder("rsvp"), backgroundColor: recipe.palette.text, color: recipe.palette.background }}>
           {preview && <p className="mb-4" role="status">{t("previewNotice")}</p>}
           <h2 className={`${titleFont} text-3xl sm:text-4xl`}>{state === "rsvp_closed" ? t("rsvp.closedTitle") : t("rsvp.title")}</h2>
           <RsvpForm
