@@ -18,6 +18,10 @@ test("direct upload tickets authorize only randomized same-event provisional obj
   assert.throws(() => createMediaUploadTicket(eventId, { ...metadata, type: "text/html" }, secret));
 });
 
+test("gallery upload tickets allow a blank optional photo description", () => {
+  assert.doesNotThrow(() => createMediaUploadTicket(eventId, { ...metadata, kind: "gallery", altText: "" }, secret, 1000));
+});
+
 test("finalization validates actual bytes then attaches a distinct immutable final object", async () => {
   const result = createMediaUploadTicket(eventId, metadata, secret, 1000);
   const ticket = verifyMediaUploadTicket(result.ticket, eventId, secret, 1001)!;

@@ -1,9 +1,9 @@
 import Anthropic from "@anthropic-ai/sdk";
-import { extractInvitationPalette } from "./palette";
+import { assignInvitationPalette, extractInvitationPalette } from "./palette";
 import { DEFAULT_INVITATION_DESIGN_RECIPE, normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
 import { EXTRACTED_FACT_KEYS, normalizeInvitationReferenceAnalysis, type InvitationReferenceAnalysis } from "./reference-analysis";
 
-export const INVITATION_ANALYSIS_SCHEMA_VERSION = 1;
+export const INVITATION_ANALYSIS_SCHEMA_VERSION = 2;
 export const INVITATION_ANALYSIS_MODEL = "claude-haiku-4-5-20251001";
 
 type Input = { bytes: Uint8Array; mediaType: "image/jpeg" | "image/png" | "image/webp"; referencePath: string };
@@ -43,20 +43,21 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function sampledPalette(palette: string[]): InvitationDesignRecipe["palette"] {
+  const assigned = assignInvitationPalette(palette);
   return {
-    ...DEFAULT_INVITATION_DESIGN_RECIPE.palette,
-    background: palette[0] ?? DEFAULT_INVITATION_DESIGN_RECIPE.palette.background,
-    surface: palette[0] ?? DEFAULT_INVITATION_DESIGN_RECIPE.palette.surface,
-    text: palette[1] ?? DEFAULT_INVITATION_DESIGN_RECIPE.palette.text,
-    mutedText: palette[1] ?? DEFAULT_INVITATION_DESIGN_RECIPE.palette.mutedText,
-    accent: palette[2] ?? palette[1] ?? DEFAULT_INVITATION_DESIGN_RECIPE.palette.accent,
-    overlay: palette[1] ?? DEFAULT_INVITATION_DESIGN_RECIPE.palette.overlay,
+    background: assigned.background,
+    surface: assigned.surface,
+    text: assigned.text,
+    mutedText: assigned.mutedText,
+    accent: assigned.accent,
+    overlay: assigned.overlay,
   };
 }
 
 /** Accept useful model fields one at a time; the strict normalizer remains the final gate. */
 function repairRecipe(value: unknown, palette: string[]): InvitationDesignRecipe {
-  let recipe: InvitationDesignRecipe = { ...structuredClone(DEFAULT_INVITATION_DESIGN_RECIPE), palette: sampledPalette(palette) };
+  const assigned = assignInvitationPalette(palette);
+  let recipe: InvitationDesignRecipe = { ...structuredClone(DEFAULT_INVITATION_DESIGN_RECIPE), palette: sampledPalette(palette), hero: { ...DEFAULT_INVITATION_DESIGN_RECIPE.hero, textColor: assigned.heroText } };
   if (!isRecord(value)) return recipe;
 
   for (const section of ["typography", "composition", "frame", "decoration", "hero"] as const) {

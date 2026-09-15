@@ -5,7 +5,7 @@ import { DEFAULT_INVITATION_DESIGN_RECIPE } from "./design-recipe";
 import { normalizeInvitationReferenceAnalysis } from "./reference-analysis";
 
 const analysis = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   referencePath: "152b6e19-81e9-4bff-b402-77af52e2ed2a/designed_invite/reference.png",
   model: "claude-haiku-4-5-20251001",
   createdAt: "2026-09-15T15:00:00.000Z",
