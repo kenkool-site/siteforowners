@@ -82,7 +82,8 @@ export type SmsSendInput = {
 export type EmailSender = NotificationSender<EmailSendInput>;
 export type SmsSender = NotificationSender<SmsSendInput>;
 
-function sanitizeFailureReason(_error: unknown): string {
+function sanitizeFailureReason(error: unknown): string {
+  void error;
   // Provider errors can echo recipients, authored content or capability links.
   return "Notification delivery failed";
 }
@@ -549,7 +550,7 @@ export async function dispatchInvitationRsvpNotifications(
       },
     );
     return { notificationsDelayed: result.notificationsDelayed };
-  } catch (error) {
+  } catch {
     console.error("[invitations/notifications] dispatch failed", { eventId: input.eventId });
     return { notificationsDelayed: true };
   }

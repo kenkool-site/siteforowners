@@ -9,7 +9,6 @@ import {
   getInvitationEventForManagement as getInvitationEventForManagementWithRepository,
   getPublicInvitationBySlug as getPublicInvitationBySlugWithRepository,
   buildInvitationEventUpdateRow,
-  buildInvitationOwnerUpdateRow,
   updateInvitationOwnerCredentials as updateInvitationOwnerCredentialsWithRepository,
   listFounderEvents as listFounderEventsWithRepository,
   type CreateInvitationOwnerAndEventInput,

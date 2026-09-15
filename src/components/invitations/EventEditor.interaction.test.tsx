@@ -231,7 +231,6 @@ test("accepted credential save clears credential dirtiness and the sensitive PIN
     assert.match(String(input), /\/credentials$/);
     return pending;
   }, async (container, dom) => {
-    const eventForm = container.querySelector<HTMLFormElement>('form[data-event-form="true"]')!;
     const credentialsForm = container.querySelector<HTMLFormElement>('form[data-credentials-form="true"]')!;
     const ownerName = credentialsForm.querySelector<HTMLInputElement>('input[name="ownerName"]')!;
     const pin = credentialsForm.querySelector<HTMLInputElement>('input[name="newOwnerPin"]')!;
@@ -301,11 +300,11 @@ test("uploading singleton media preserves dirty title and venue drafts", async (
     responseText = JSON.stringify(mediaMutation(uploadedCover, "2026-09-06T00:00:00.000Z"));
     withCredentials = false;
     private listeners = new Map<string, EventListener>();
-    upload = { addEventListener: (_type: string, _listener: EventListener) => undefined };
+    upload = { addEventListener: () => undefined };
     open(method: string, url: string) { assert.equal(method, "PUT"); assert.equal(url, "https://private-storage.test/signed-upload"); }
-    setRequestHeader(_name: string, _value: string) {}
+    setRequestHeader() {}
     addEventListener(type: string, listener: EventListener) { this.listeners.set(type, listener); }
-    send(_body: Document | XMLHttpRequestBodyInit | null) {
+    send() {
       queueMicrotask(() => this.listeners.get("load")?.(new Event("load")));
     }
   }

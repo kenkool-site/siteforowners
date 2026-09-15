@@ -6,7 +6,6 @@ import {
   type DispatchRsvpNotificationsInput,
   type NotificationDispatchDependencies,
   type NotificationEventContext,
-  type ReserveNotificationResult,
   type RetryDependencies,
   type RetryReservation,
 } from "./notifications";
