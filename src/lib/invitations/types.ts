@@ -36,6 +36,7 @@ export interface InvitationEvent {
   id: string;
   ownerId: string;
   slug: string;
+  publicSubdomain: string | null;
   eventType: string;
   locale: InvitationLocale;
   title: string;

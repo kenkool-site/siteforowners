@@ -4,6 +4,8 @@ import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { createInvitationOwnerAndEvent } from "@/lib/invitations/repository";
 import { normalizeInvitationEmail, normalizeInvitationPhone } from "@/lib/invitations/validation";
 import type { InvitationLocale } from "@/lib/invitations/types";
+import { validatePlatformSubdomain } from "@/lib/subdomain";
+import { isPlatformSubdomainTakenError } from "@/lib/invitations/subdomains";
 
 type FounderEventInput = {
   ownerName: string;
@@ -14,6 +16,7 @@ type FounderEventInput = {
   locale: InvitationLocale;
   startsAt: string;
   timezone: string;
+  publicSubdomain: string | null;
 };
 
 function hasFounderSession(request: NextRequest): boolean {
@@ -46,6 +49,8 @@ function parseFounderEventInput(value: unknown): FounderEventInput | null {
   const locale = body.locale === "en" || body.locale === "es" ? body.locale : null;
   const startsAt = typeof body.startsAt === "string" ? body.startsAt : "";
   const timezone = typeof body.timezone === "string" ? body.timezone.trim() : "";
+  const rawSubdomain = typeof body.publicSubdomain === "string" ? body.publicSubdomain : "";
+  const subdomain = rawSubdomain ? validatePlatformSubdomain(rawSubdomain) : null;
 
   if (
     !ownerName ||
@@ -57,12 +62,15 @@ function parseFounderEventInput(value: unknown): FounderEventInput | null {
     !startsAt ||
     Number.isNaN(Date.parse(startsAt)) ||
     !timezone ||
-    !isTimezone(timezone)
+    !isTimezone(timezone) || (subdomain !== null && !subdomain.ok)
   ) {
     return null;
   }
 
-  return { ownerName, ownerEmail, ownerPhone, title, eventType, locale, startsAt, timezone };
+  return {
+    ownerName, ownerEmail, ownerPhone, title, eventType, locale, startsAt, timezone,
+    publicSubdomain: subdomain?.ok ? subdomain.value : null,
+  };
 }
 
 export async function POST(request: NextRequest) {
@@ -92,6 +100,9 @@ export async function POST(request: NextRequest) {
       pin: result.pin,
     });
   } catch (error) {
+    if (isPlatformSubdomainTakenError(error)) {
+      return NextResponse.json({ errors: { publicSubdomain: "already_in_use" } }, { status: 409 });
+    }
     console.error("[invitations/admin/events] provisioning failed", { error });
     return NextResponse.json({ error: "Unable to create invitation" }, { status: 500 });
   }

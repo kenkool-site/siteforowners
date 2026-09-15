@@ -3,6 +3,7 @@ import type { InvitationEventForManagement } from "./repository-core";
 import type { InvitationEventStatus, InvitationLocale } from "./types";
 import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
 import { parseInvitationTravelInfo, type InvitationTravelInfo } from "./travel";
+import { validatePlatformSubdomain } from "@/lib/subdomain";
 
 export type ParsedRsvpInput = {
   primaryName: string;
@@ -28,6 +29,7 @@ export type InvitationEditorMode = "founder" | "owner";
 export type InvitationStatusCommand = "publish" | "close" | "reopen" | "expire" | "offline" | "draft";
 
 export type InvitationEventUpdate = {
+  publicSubdomain?: string | null;
   eventType?: string;
   locale?: InvitationLocale;
   title?: string;
@@ -273,6 +275,17 @@ export function parseEventUpdate(
   if (value.passcode && value.removePasscode) errors.passcode = "Set a new passcode or remove the current one, not both.";
 
   if (mode === "founder") {
+    if ("publicSubdomain" in body) {
+      if (body.publicSubdomain === null || body.publicSubdomain === "") {
+        value.publicSubdomain = null;
+      } else if (typeof body.publicSubdomain === "string") {
+        const result = validatePlatformSubdomain(body.publicSubdomain);
+        if (result.ok) value.publicSubdomain = result.value;
+        else errors.publicSubdomain = "Choose another public address.";
+      } else {
+        errors.publicSubdomain = "Choose another public address.";
+      }
+    }
     parsePositiveInteger(body, "submissionLimit", value, errors, false);
     parsePositiveInteger(body, "emailNotificationLimit", value, errors, false);
     parsePositiveInteger(body, "smsNotificationLimit", value, errors, false);

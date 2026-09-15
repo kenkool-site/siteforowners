@@ -10,6 +10,7 @@ const privateCountsInvitation: PublicInvitationLookup = {
   event: {
     id: "event-1",
     slug: "mia-and-lee",
+    publicSubdomain: null,
     eventType: "wedding",
     locale: "en",
     title: "Mia & Lee",

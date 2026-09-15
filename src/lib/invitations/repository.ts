@@ -72,7 +72,7 @@ function isRpcProvisionRow(value: unknown): value is RpcProvisionRow {
 }
 
 const MANAGEMENT_SELECT = [
-  "id", "owner_id", "slug", "event_type", "locale", "title", "honoree_names",
+  "id", "owner_id", "slug", "public_subdomain", "event_type", "locale", "title", "honoree_names",
   "description", "starts_at", "ends_at", "timezone", "venue_name", "address",
   "map_url", "travel_info", "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe", "reference_analysis",
@@ -85,7 +85,7 @@ const MANAGEMENT_SELECT = [
 ].join(",");
 
 const PUBLIC_SELECT = [
-  "id", "slug", "event_type", "locale", "title", "honoree_names", "description",
+  "id", "slug", "public_subdomain", "event_type", "locale", "title", "honoree_names", "description",
   "starts_at", "ends_at", "timezone", "venue_name", "address", "map_url", "travel_info",
   "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe",

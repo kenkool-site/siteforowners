@@ -241,6 +241,25 @@ test("status commands are allowlisted and map to persisted states", () => {
   assert.equal(isStatusCommandAllowed("rsvp_closed", "reopen"), true);
 });
 
+test("only founders can update a normalized public subdomain", () => {
+  const founder = parseEventUpdate({ publicSubdomain: " Mercy & John " }, "founder");
+  assert.deepEqual(founder, { ok: true, value: { publicSubdomain: "mercy-john" } });
+
+  const owner = parseEventUpdate({ publicSubdomain: "owner-change" }, "owner");
+  assert.deepEqual(owner, { ok: true, value: {} });
+});
+
+test("founder public subdomain validation rejects reserved labels and allows clearing", () => {
+  assert.deepEqual(parseEventUpdate({ publicSubdomain: "admin" }, "founder"), {
+    ok: false,
+    errors: { publicSubdomain: "Choose another public address." },
+  });
+  assert.deepEqual(parseEventUpdate({ publicSubdomain: "" }, "founder"), {
+    ok: true,
+    value: { publicSubdomain: null },
+  });
+});
+
 test("publish validation blocks incoherent event timing", () => {
   const errors = validatePublishableEvent({
     title: "Ana & Luis",
