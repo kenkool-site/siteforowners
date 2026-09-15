@@ -82,6 +82,18 @@ const PRIVATE_METADATA: Metadata = {
   robots: { index: false, follow: false },
 };
 
+function invitationShareText(event: PublicInvitationEvent): { title: string; description: string | undefined } {
+  const honoreeNames = event.honoreeNames.trim();
+  const invitationTitle = event.title.trim();
+  const title = honoreeNames || invitationTitle;
+  const description = event.description.trim();
+  const supportingTitle = honoreeNames && invitationTitle.localeCompare(honoreeNames, undefined, { sensitivity: "accent" }) !== 0
+    ? invitationTitle
+    : "";
+  const supportingText = [supportingTitle, description].filter(Boolean).join(" — ");
+  return { title, description: supportingText || undefined };
+}
+
 export function invitationPageMetadata(
   invitation: PublicInvitationLookup | null,
   state: EffectiveEventState | null,
@@ -91,25 +103,26 @@ export function invitationPageMetadata(
     || invitation.passcodeHash
     || state !== "published"
   ) return PRIVATE_METADATA;
+  const shareText = invitationShareText(invitation.event);
   const coverUrl = invitation.event.coverImagePath
     ? invitationCoverPreviewUrl(invitation.event)
     : undefined;
   return {
-    title: invitation.event.title,
-    description: invitation.event.description || undefined,
+    title: shareText.title,
+    description: shareText.description,
     alternates: { canonical: invitationPublicUrl(invitation.event) },
     robots: { index: true, follow: true },
     openGraph: {
-      title: invitation.event.title,
-      description: invitation.event.description || undefined,
+      title: shareText.title,
+      description: shareText.description,
       type: "website",
       url: invitationPublicUrl(invitation.event),
-      images: coverUrl ? [{ url: coverUrl, alt: invitation.event.title }] : undefined,
+      images: coverUrl ? [{ url: coverUrl, alt: shareText.title }] : undefined,
     },
     twitter: {
       card: coverUrl ? "summary_large_image" : "summary",
-      title: invitation.event.title,
-      description: invitation.event.description || undefined,
+      title: shareText.title,
+      description: shareText.description,
       images: coverUrl ? [coverUrl] : undefined,
     },
   };

@@ -130,13 +130,17 @@ test("published and RSVP-closed invitations sign media only after access", async
 test("only published passcode-free invitations receive authored metadata", () => {
   const publicMetadata = invitationPageMetadata({
     ...invitation,
-    event: { ...invitation.event, publicSubdomain: "mia-lee", coverImagePath: "event-1/cover/share.png" },
+    event: { ...invitation.event, title: "Save the Date", publicSubdomain: "mia-lee", coverImagePath: "event-1/cover/share.png" },
   }, "published");
-  assert.equal(publicMetadata.title, "Mia & Lee");
-  assert.equal(publicMetadata.description, "Celebrate with us");
+  assert.equal(publicMetadata.title, "Mia and Lee");
+  assert.equal(publicMetadata.description, "Save the Date — Celebrate with us");
+  assert.equal(publicMetadata.openGraph?.title, "Mia and Lee");
+  assert.equal(publicMetadata.openGraph?.description, "Save the Date — Celebrate with us");
+  assert.equal(publicMetadata.twitter?.title, "Mia and Lee");
+  assert.equal(publicMetadata.twitter?.description, "Save the Date — Celebrate with us");
   assert.deepEqual(publicMetadata.robots, { index: true, follow: true });
   assert.equal(publicMetadata.alternates?.canonical, "https://mia-lee.siteforowners.com/");
-  assert.deepEqual(publicMetadata.openGraph?.images, [{ url: "https://www.siteforowners.com/api/invitations/public/mia-and-lee/cover", alt: "Mia & Lee" }]);
+  assert.deepEqual(publicMetadata.openGraph?.images, [{ url: "https://www.siteforowners.com/api/invitations/public/mia-and-lee/cover", alt: "Mia and Lee" }]);
   assert.match(JSON.stringify(publicMetadata.twitter), /summary_large_image/);
   assert.doesNotMatch(JSON.stringify(publicMetadata), /Secret Celebration Way|maps\.example/);
 
@@ -149,4 +153,20 @@ test("only published passcode-free invitations receive authored metadata", () =>
   assert.deepEqual(protectedMetadata.robots, { index: false, follow: false });
   assert.doesNotMatch(JSON.stringify(protectedMetadata), /Mia|Celebrate|Secret Celebration Way|maps\.example/);
   assert.doesNotMatch(JSON.stringify(protectedMetadata), /\/cover/);
+});
+
+test("invitation metadata falls back to the invitation title and avoids duplicate supporting text", () => {
+  const fallback = invitationPageMetadata({
+    ...invitation,
+    event: { ...invitation.event, honoreeNames: "", title: "Birthday Celebration" },
+  }, "published");
+  assert.equal(fallback.title, "Birthday Celebration");
+  assert.equal(fallback.description, "Celebrate with us");
+
+  const sameTitle = invitationPageMetadata({
+    ...invitation,
+    event: { ...invitation.event, honoreeNames: "  Mia and Lee  ", title: "mia and lee" },
+  }, "published");
+  assert.equal(sameTitle.title, "Mia and Lee");
+  assert.equal(sameTitle.description, "Celebrate with us");
 });
