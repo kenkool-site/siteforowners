@@ -15,7 +15,7 @@ test("full preview renders private media and locale with the RSVP form initially
     <PublicInvitation event={{ ...event, locale: "es" }} state="published" media={media} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} preview />
   </NextIntlClientProvider>);
   assert.match(html, /https:\/\/signed.example.test\/video/);
-  assert.match(html, /Mia &amp; Lee/);
+  assert.match(html, /Mia and Lee/);
   assert.match(html, /<button[^>]*>Responder a esta invitación<\/button>/);
   assert.doesNotMatch(html, /name="primaryName"/);
 });
@@ -77,7 +77,7 @@ function render(
 test("a published invitation exposes useful public details and only aggregate RSVP counts", () => {
   const html = render("published");
 
-  for (const expected of ["Mia &amp; Lee", "42 Celebration Way", "https://maps.example.test/garden", "Respond to this invitation", "17 attending", "3 parties unable to attend"]) {
+  for (const expected of ["Mia and Lee", "42 Celebration Way", "https://maps.example.test/garden", "Respond to this invitation", "17 attending", "3 parties unable to attend"]) {
     assert.match(html, new RegExp(expected));
   }
   assert.match(html, /https:\/\/calendar\.google\.com\/calendar\/render/);
@@ -106,7 +106,7 @@ test("public totals disappear completely when the owner disables them", () => {
 
 test("closed invitations keep their details but replace the new RSVP action", () => {
   const html = render("rsvp_closed");
-  assert.match(html, /Mia &amp; Lee/);
+  assert.match(html, /Mia and Lee/);
   assert.match(html, /42 Celebration Way/);
   assert.match(html, /Responses are closed/);
   assert.doesNotMatch(html, /Respond to this invitation/);
@@ -135,5 +135,25 @@ test("the cover opens the invitation and the private designed reference is never
   assert.match(html, /https:\/\/signed\.example\.test\/cover/);
   assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/invite/);
   assert.equal((html.match(/<h1/g) ?? []).length, 1, "the opening should be the only invitation title block");
-  assert.ok(html.indexOf("Mia &amp; Lee") < html.indexOf("Saturday, October 10, 2026"), "the date should sit below the title in the opening composition");
+  assert.ok(html.indexOf("Mia and Lee") < html.indexOf("Saturday, October 10, 2026"), "the date should sit below the title in the opening composition");
+});
+
+test("the honoree names lead the hero while a distinct extracted title supports them", () => {
+  const html = render("published", { title: "Save the Date in style", honoreeNames: "Mercy & John" });
+  assert.match(html, /<h1[^>]*>Mercy &amp; John<\/h1>/);
+  assert.match(html, /data-invitation-kicker="true"[^>]*>Save the Date in style<\/p>/);
+});
+
+test("gallery photos stack on mobile and balance into two columns on larger screens", () => {
+  const galleryMedia = {
+    ...media,
+    gallery: [
+      media.gallery[0]!,
+      { ...media.gallery[0]!, id: "photo-2", path: "event-1/gallery/b.png", url: "https://signed.example.test/gallery-2", sortOrder: 1 },
+    ],
+  };
+  const html = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
+    <PublicInvitation event={event} state="published" media={galleryMedia} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
+  </NextIntlClientProvider>);
+  assert.match(html, /data-invitation-gallery="true"[^>]*class="[^"]*grid-cols-1[^"]*sm:grid-cols-2/);
 });

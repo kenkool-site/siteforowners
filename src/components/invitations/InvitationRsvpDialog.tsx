@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RsvpForm } from "./RsvpForm";
+import { readableTextColor } from "@/lib/invitations/design-recipe";
 
 export function InvitationRsvpDialog({ slug, state, preview, showPublicRsvpCount, accent, background, foreground }: {
   slug: string;
@@ -34,7 +35,7 @@ export function InvitationRsvpDialog({ slug, state, preview, showPublicRsvpCount
         type="button"
         onClick={() => setOpen(true)}
         className="fixed inset-x-5 bottom-5 z-40 mx-auto min-h-12 max-w-sm rounded-full px-6 py-3 text-base font-semibold shadow-[0_12px_35px_rgba(0,0,0,0.28)] outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 motion-reduce:transform-none"
-        style={{ backgroundColor: accent, color: foreground }}
+        style={{ backgroundColor: accent, color: readableTextColor(accent) }}
       >
         {title}
       </button>

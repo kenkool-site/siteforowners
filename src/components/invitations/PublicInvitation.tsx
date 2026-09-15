@@ -122,7 +122,7 @@ function InvitationImage({
   className?: string;
   fit?: "contain" | "cover";
 }) {
-  return <img src={src} alt={alt} className={`block h-auto w-full ${fit === "contain" ? "object-contain" : "object-cover"} ${className ?? ""}`} />;
+  return <img src={src} alt={alt} className={`block w-full ${fit === "contain" ? "h-auto object-contain" : "h-full object-cover"} ${className ?? ""}`} />;
 }
 
 function StateView({ children }: { children: ReactNode }) {
@@ -258,7 +258,10 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
         {(media.gallery.length > 0 || media.video) && (
           <section className={`${recreated ? "" : theme.media} ${rhythm}`} style={{ order: sectionOrder("gallery") }} aria-labelledby="invitation-gallery-heading">
             <h2 id="invitation-gallery-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("gallery")}</h2>
-            {media.gallery.length > 0 && <div className="mt-6 grid grid-cols-2 gap-2 sm:gap-4 md:grid-cols-3">{media.gallery.map((item, index) => <InvitationImage key={item.id ?? item.path} src={item.url} alt={item.altText || t("galleryAlt", { number: index + 1 })} className={`aspect-[4/5] ${index === 0 ? "col-span-2 sm:aspect-[16/10]" : ""}`} />)}</div>}
+            {media.gallery.length > 0 && <div data-invitation-gallery="true" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{media.gallery.map((item, index) => {
+              const fillsLastRow = media.gallery.length % 2 === 1 && index === media.gallery.length - 1;
+              return <InvitationImage key={item.id ?? item.path} src={item.url} alt={item.altText || t("galleryAlt", { number: index + 1 })} className={`aspect-[4/5] ${fillsLastRow ? "sm:col-span-2 sm:aspect-[16/9]" : ""}`} />;
+            })}</div>}
             {media.video && <video controls preload="metadata" className="mt-6 aspect-video w-full bg-black" aria-label={t("videoLabel")}><source src={media.video.url} /></video>}
           </section>
         )}
