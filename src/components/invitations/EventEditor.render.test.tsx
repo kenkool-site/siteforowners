@@ -60,10 +60,10 @@ const event: EditorEvent = {
   },
 };
 
-function render(mode: "owner" | "founder", media?: InvitationMediaSnapshot) {
+function render(mode: "owner" | "founder", media?: InvitationMediaSnapshot, overrides: Partial<EditorEvent> = {}) {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
-      <EventEditor event={event} mode={mode} media={media} />
+      <EventEditor event={{ ...event, ...overrides }} mode={mode} media={media} />
     </NextIntlClientProvider>,
   );
 }
@@ -114,6 +114,21 @@ test("gallery uploads allow an optional photo description", () => {
   assert.match(html, /name="galleryAltText"/);
   assert.doesNotMatch(html, /name="galleryAltText"[^>]*required/);
   assert.match(html, /Photo description \(optional\)/);
+});
+
+test("travel editor provides optional capped airport and hotel rows", () => {
+  const document = new JSDOM(render("owner")).window.document;
+  assert.equal(document.querySelectorAll('input[name^="airportName"]').length, 3);
+  assert.equal(document.querySelectorAll('input[name^="hotelName"]').length, 5);
+  assert.equal(document.querySelectorAll('input[name="recommendedHotel"]').length, 6);
+  assert.equal(document.querySelectorAll("[required]").length, 0);
+  assert.match(document.body.textContent ?? "", /Travel information/);
+  assert.equal(document.querySelector("details[data-travel-editor]")?.hasAttribute("open"), false);
+
+  const populated = new JSDOM(render("owner", undefined, {
+    travelInfo: { airports: [{ name: "DFW", note: null, directionsUrl: null }], hotels: [] },
+  })).window.document;
+  assert.equal(populated.querySelector("details[data-travel-editor]")?.hasAttribute("open"), true);
 });
 
 test("a full gallery disables the thirteenth upload", () => {

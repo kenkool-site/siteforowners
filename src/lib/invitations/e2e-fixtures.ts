@@ -7,6 +7,7 @@ import type { InvitationMediaSnapshot } from "./media";
 import { dispatchRsvpNotifications, type DispatchInvitationRsvpNotificationsInput } from "./notifications";
 import type {
   InvitationFounderListRow,
+  InvitationEventUpdateRow,
   InvitationManagementRow,
   InvitationProvisionRows,
   InvitationPublicRow,
@@ -293,7 +294,7 @@ export const invitationE2ERepository = {
   async listByOwner(ownerId: string): Promise<InvitationManagementRow[]> {
     return requireStore().events.filter((event) => event.owner_id === ownerId);
   },
-  async updateEvent(eventId: string, row: Record<string, string | number | boolean | null>): Promise<void> {
+  async updateEvent(eventId: string, row: InvitationEventUpdateRow): Promise<void> {
     const event = requireStore().events.find((candidate) => candidate.id === eventId);
     if (!event) throw new Error("Fixture event not found");
     const attending = requireStore().rsvps.filter((rsvp) => rsvp.event_id === eventId && rsvp.attending).reduce((total, rsvp) => total + rsvp.party_size, 0);

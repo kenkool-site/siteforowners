@@ -10,6 +10,7 @@ import type {
 } from "./types";
 import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
 import { normalizeInvitationReferenceAnalysis } from "./reference-analysis";
+import { normalizeInvitationTravelInfo, type InvitationTravelInfo } from "./travel";
 
 export const INVITATION_SUBMISSION_LIMIT = 250;
 export const INVITATION_EMAIL_NOTIFICATION_LIMIT = 250;
@@ -50,7 +51,7 @@ export type InvitationProvisionRows = {
 
 export type InvitationProvisionIds = { ownerId: string; eventId: string };
 
-export type InvitationEventUpdateRow = Record<string, string | number | boolean | null>;
+export type InvitationEventUpdateRow = Record<string, unknown>;
 
 export type InvitationProvisionDependencies = {
   hashPin(pin: string): Promise<string>;
@@ -85,6 +86,7 @@ export type InvitationManagementRow = {
   venue_name: string | null;
   address: string | null;
   map_url: string | null;
+  travel_info?: unknown;
   theme_key: string;
   primary_color: string;
   accent_color: string;
@@ -140,6 +142,7 @@ export type InvitationPublicRow = {
   venue_name: string | null;
   address: string | null;
   map_url: string | null;
+  travel_info?: unknown;
   theme_key: string;
   primary_color: string;
   accent_color: string;
@@ -170,6 +173,7 @@ export type PublicInvitationEvent = {
   venueName: string | null;
   address: string | null;
   mapUrl: string | null;
+  travelInfo?: InvitationTravelInfo;
   themeKey: string;
   primaryColor: string;
   accentColor: string;
@@ -321,6 +325,7 @@ export async function getInvitationEventForManagement(
     venueName: row.venue_name,
     address: row.address,
     mapUrl: row.map_url,
+    travelInfo: normalizeInvitationTravelInfo(row.travel_info),
     themeKey: row.theme_key,
     primaryColor: row.primary_color,
     accentColor: row.accent_color,
@@ -380,6 +385,7 @@ export async function getPublicInvitationBySlug(
       venueName: row.venue_name,
       address: row.address,
       mapUrl: row.map_url,
+      travelInfo: normalizeInvitationTravelInfo(row.travel_info),
       themeKey: row.theme_key,
       primaryColor: row.primary_color,
       accentColor: row.accent_color,
@@ -416,6 +422,7 @@ const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>>
   venueName: "venue_name",
   address: "address",
   mapUrl: "map_url",
+  travelInfo: "travel_info",
   themeKey: "theme_key",
   primaryColor: "primary_color",
   accentColor: "accent_color",
@@ -443,7 +450,7 @@ export function buildInvitationEventUpdateRow(
   for (const [key, column] of Object.entries(EVENT_UPDATE_COLUMNS)) {
     const field = key as keyof InvitationEventUpdate;
     const fieldValue = update[field];
-    if (column && fieldValue !== undefined) row[column] = fieldValue as string | number | boolean | null;
+    if (column && fieldValue !== undefined) row[column] = fieldValue;
   }
   if (update.removePasscode) row.passcode_hash = null;
   else if (update.passcode !== undefined && passcodeHash !== undefined) row.passcode_hash = passcodeHash;

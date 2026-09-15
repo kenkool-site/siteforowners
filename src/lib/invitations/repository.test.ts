@@ -143,6 +143,10 @@ test("management projection omits owner PIN and event passcode hashes", async ()
       venue_name: null,
       address: null,
       map_url: null,
+      travel_info: {
+        airports: [{ name: "DFW", note: "35 minutes away", directionsUrl: "https://maps.example.test/dfw" }],
+        hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
+      },
       theme_key: "classic",
       primary_color: "#1f2937",
       accent_color: "#d4a373",
@@ -184,6 +188,10 @@ test("management projection omits owner PIN and event passcode hashes", async ()
   assert.equal("pinHash" in event.owner, false);
   assert.equal(JSON.stringify(event).includes("must-not-leak"), false);
   assert.equal(event.endsAt, null);
+  assert.deepEqual((event as unknown as { travelInfo: unknown }).travelInfo, {
+    airports: [{ name: "DFW", note: "35 minutes away", directionsUrl: "https://maps.example.test/dfw" }],
+    hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
+  });
 });
 
 test("public lookup preserves the exact slug and returns only presentation fields plus aggregates", async () => {
@@ -205,6 +213,7 @@ test("public lookup preserves the exact slug and returns only presentation field
         venue_name: "The Garden",
         address: "42 Celebration Way",
         map_url: null,
+        travel_info: { airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }] },
         theme_key: "classic",
         primary_color: "#18253A",
         accent_color: "#9B6A44",
@@ -233,6 +242,9 @@ test("public lookup preserves the exact slug and returns only presentation field
   assert.equal("ownerId" in invitation.event, false);
   assert.equal("notificationEmail" in invitation.event, false);
   assert.equal("passcodeHash" in invitation.event, false);
+  assert.deepEqual((invitation.event as unknown as { travelInfo: unknown }).travelInfo, {
+    airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
+  });
 });
 
 test("event update rows map editable fields without inventing passcode changes", () => {
@@ -240,6 +252,7 @@ test("event update rows map editable fields without inventing passcode changes",
     title: "Updated",
     endsAt: "2026-10-04T01:00:00.000Z",
     showPublicRsvpCount: true,
+    ...({ travelInfo: { airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }] } } as unknown as InvitationEventUpdate),
   };
   const row = buildInvitationEventUpdateRow(update);
   const { updated_at: updatedAt, ...persisted } = row;
@@ -247,6 +260,7 @@ test("event update rows map editable fields without inventing passcode changes",
     title: "Updated",
     ends_at: "2026-10-04T01:00:00.000Z",
     show_public_rsvp_count: true,
+    travel_info: { airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }] },
   });
   assert.equal(typeof updatedAt, "string");
   assert.equal("passcode_hash" in row, false);

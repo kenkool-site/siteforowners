@@ -183,6 +183,25 @@
           "removeFailed": "The file could not be removed. Try again."
         }
       },
+      "travel": {
+        "heading": "Travel information",
+        "help": "Optional details for guests traveling to the event. Leave every row blank to hide this section.",
+        "airports": "Closest airports",
+        "airportName": "Airport {number}",
+        "airportNamePlaceholder": "Dallas Fort Worth International Airport",
+        "airportNote": "Travel note (optional)",
+        "airportNotePlaceholder": "About 35 minutes from the venue",
+        "directionsLink": "Directions link (optional)",
+        "directionsLinkPlaceholder": "https://maps.google.com/…",
+        "hotels": "Nearby hotels",
+        "hotelsHelp": "Add up to five hotels and optionally recommend one.",
+        "hotelName": "Hotel {number}",
+        "hotelNamePlaceholder": "Hotel name",
+        "hotelAddress": "Hotel address",
+        "hotelAddressPlaceholder": "Street, city, state",
+        "noRecommendation": "No recommended hotel",
+        "markRecommended": "Recommend this hotel"
+      },
       "fields": {
         "eventType": "Event type",
         "locale": "Invitation language",
@@ -400,6 +419,7 @@
         "submissionLimit": "Enter a submission limit greater than zero.",
         "emailNotificationLimit": "Enter an email limit greater than zero.",
         "smsNotificationLimit": "Enter an SMS limit greater than zero.",
+        "travelInfo": "Check the travel details. Complete each used row and choose no more than one recommended hotel.",
         "media": "Add valid invitation media before publishing.",
         "command": "Choose a valid invitation status action.",
         "ownerName": "Enter the owner's name.",
@@ -439,6 +459,14 @@
       "openMap": "Open map",
       "googleCalendar": "Add to Google Calendar",
       "downloadCalendar": "Download calendar file",
+      "travel": {
+        "title": "Travel information",
+        "airports": "Closest airports",
+        "hotels": "Nearby hotels",
+        "recommended": "Recommended hotel",
+        "directions": "Get directions",
+        "map": "View on map"
+      },
       "gallery": "A glimpse of the celebration",
       "galleryAlt": "Event photo {number}",
       "videoLabel": "Event video",

@@ -2,6 +2,7 @@ import { toE164 } from "@/lib/sms";
 import type { InvitationEventForManagement } from "./repository-core";
 import type { InvitationEventStatus, InvitationLocale } from "./types";
 import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
+import { parseInvitationTravelInfo, type InvitationTravelInfo } from "./travel";
 
 export type ParsedRsvpInput = {
   primaryName: string;
@@ -38,6 +39,7 @@ export type InvitationEventUpdate = {
   venueName?: string | null;
   address?: string | null;
   mapUrl?: string | null;
+  travelInfo?: InvitationTravelInfo;
   themeKey?: InvitationThemeKey;
   primaryColor?: string;
   accentColor?: string;
@@ -194,6 +196,12 @@ export function parseEventUpdate(
       continue;
     }
     value[key] = normalizeOptionalText(body[key] as string | null);
+  }
+
+  if ("travelInfo" in body) {
+    const travel = parseInvitationTravelInfo(body.travelInfo);
+    if (travel.ok) value.travelInfo = travel.value;
+    else errors.travelInfo = travel.error;
   }
 
   if ("locale" in body) {

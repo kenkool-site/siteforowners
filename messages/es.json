@@ -183,6 +183,25 @@
           "removeFailed": "No se pudo eliminar el archivo. Inténtelo de nuevo."
         }
       },
+      "travel": {
+        "heading": "Información de viaje",
+        "help": "Detalles opcionales para quienes viajan al evento. Deje todas las filas vacías para ocultar esta sección.",
+        "airports": "Aeropuertos más cercanos",
+        "airportName": "Aeropuerto {number}",
+        "airportNamePlaceholder": "Aeropuerto Internacional de Dallas-Fort Worth",
+        "airportNote": "Nota de viaje (opcional)",
+        "airportNotePlaceholder": "A unos 35 minutos del lugar",
+        "directionsLink": "Enlace de indicaciones (opcional)",
+        "directionsLinkPlaceholder": "https://maps.google.com/…",
+        "hotels": "Hoteles cercanos",
+        "hotelsHelp": "Agregue hasta cinco hoteles y recomiende uno si desea.",
+        "hotelName": "Hotel {number}",
+        "hotelNamePlaceholder": "Nombre del hotel",
+        "hotelAddress": "Dirección del hotel",
+        "hotelAddressPlaceholder": "Calle, ciudad, estado",
+        "noRecommendation": "Ningún hotel recomendado",
+        "markRecommended": "Recomendar este hotel"
+      },
       "fields": {
         "eventType": "Tipo de evento",
         "locale": "Idioma de la invitación",
@@ -400,6 +419,7 @@
         "submissionLimit": "Ingrese un límite de respuestas mayor que cero.",
         "emailNotificationLimit": "Ingrese un límite de correos mayor que cero.",
         "smsNotificationLimit": "Ingrese un límite de SMS mayor que cero.",
+        "travelInfo": "Revise los detalles de viaje. Complete cada fila utilizada y elija como máximo un hotel recomendado.",
         "media": "Agregue contenido multimedia válido antes de publicar.",
         "command": "Elija una acción de estado válida.",
         "ownerName": "Ingrese el nombre del propietario.",
@@ -439,6 +459,14 @@
       "openMap": "Abrir mapa",
       "googleCalendar": "Agregar a Google Calendar",
       "downloadCalendar": "Descargar archivo de calendario",
+      "travel": {
+        "title": "Información de viaje",
+        "airports": "Aeropuertos más cercanos",
+        "hotels": "Hoteles cercanos",
+        "recommended": "Hotel recomendado",
+        "directions": "Cómo llegar",
+        "map": "Ver en el mapa"
+      },
       "gallery": "Un vistazo a la celebración",
       "galleryAlt": "Foto del evento {number}",
       "videoLabel": "Video del evento",

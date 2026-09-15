@@ -26,6 +26,7 @@ const SECTION_KEYS = ["event", "design", "rsvp", "preview", "responses"] as cons
 const LOCALIZED_ERROR_KEYS = new Set([
   "eventType", "locale", "title", "honoreeNames", "timezone", "startsAt", "endsAt",
   "venueName", "address", "themeKey", "fontPairKey", "primaryColor", "accentColor",
+  "travelInfo",
   "capacity", "rsvpDeadline", "passcode", "removePasscode", "notificationEmail",
   "notificationPhone", "expireAt", "submissionLimit", "emailNotificationLimit",
   "smsNotificationLimit", "media", "command",
@@ -231,6 +232,7 @@ export function EventEditor({
 
     let payload: Record<string, unknown>;
     try {
+      const recommendedHotel = Number(stringValue(data, "recommendedHotel"));
       payload = {
         eventType: stringValue(data, "eventType"),
         locale: stringValue(data, "locale"),
@@ -243,6 +245,18 @@ export function EventEditor({
         venueName: stringValue(data, "venueName"),
         address: stringValue(data, "address"),
         mapUrl: stringValue(data, "mapUrl"),
+        travelInfo: {
+          airports: Array.from({ length: 3 }, (_, index) => ({
+            name: stringValue(data, `airportName${index}`),
+            note: stringValue(data, `airportNote${index}`),
+            directionsUrl: stringValue(data, `airportDirectionsUrl${index}`),
+          })),
+          hotels: Array.from({ length: 5 }, (_, index) => ({
+            name: stringValue(data, `hotelName${index}`),
+            address: stringValue(data, `hotelAddress${index}`),
+            recommended: recommendedHotel === index,
+          })),
+        },
         themeKey: stringValue(data, "themeKey"),
         fontPairKey: stringValue(data, "fontPairKey"),
         primaryColor: stringValue(data, "primaryColor"),
@@ -612,6 +626,47 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
+            <details data-travel-editor open={Boolean(currentEvent.travelInfo?.airports.length || currentEvent.travelInfo?.hotels.length)} className="group mt-8 border-t border-[#ddd4e1] pt-5">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-lg font-semibold text-[#2B2231] outline-none focus-visible:ring-2 focus-visible:ring-[#6D456F] [&::-webkit-details-marker]:hidden">
+                {t("travel.heading")}<span aria-hidden="true" className="text-2xl font-normal transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("travel.help")}</p>
+              <div className="mt-6 space-y-5">
+                <fieldset>
+                  <legend className="text-base font-semibold text-[#2B2231]">{t("travel.airports")}</legend>
+                  <div className="mt-3 space-y-4">
+                    {Array.from({ length: 3 }, (_, index) => {
+                      const airport = currentEvent.travelInfo?.airports[index];
+                      return (
+                        <div key={`airport-${index}`} className="grid gap-3 border-l-2 border-[#cfc3d3] pl-4 sm:grid-cols-2">
+                          <label className={labelClass}>{t("travel.airportName", { number: index + 1 })}<input name={`airportName${index}`} defaultValue={airport?.name ?? ""} placeholder={t("travel.airportNamePlaceholder")} className={inputClass} /></label>
+                          <label className={labelClass}>{t("travel.airportNote")}<input name={`airportNote${index}`} defaultValue={airport?.note ?? ""} placeholder={t("travel.airportNotePlaceholder")} className={inputClass} /></label>
+                          <label className={`${labelClass} sm:col-span-2`}>{t("travel.directionsLink")}<input type="url" name={`airportDirectionsUrl${index}`} defaultValue={airport?.directionsUrl ?? ""} placeholder={t("travel.directionsLinkPlaceholder")} className={inputClass} /></label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+                <fieldset className="border-t border-[#e6dfe8] pt-5">
+                  <legend className="text-base font-semibold text-[#2B2231]">{t("travel.hotels")}</legend>
+                  <p className="mt-1 text-sm text-[#675d6a]">{t("travel.hotelsHelp")}</p>
+                  <label className="mt-3 flex min-h-11 items-center gap-2 text-sm font-medium text-[#55485a]"><input type="radio" name="recommendedHotel" value="-1" defaultChecked={!currentEvent.travelInfo?.hotels.some((hotel) => hotel.recommended)} />{t("travel.noRecommendation")}</label>
+                  <div className="space-y-4">
+                    {Array.from({ length: 5 }, (_, index) => {
+                      const hotel = currentEvent.travelInfo?.hotels[index];
+                      return (
+                        <div key={`hotel-${index}`} className="grid gap-3 border-l-2 border-[#cfc3d3] pl-4 sm:grid-cols-2">
+                          <label className={labelClass}>{t("travel.hotelName", { number: index + 1 })}<input name={`hotelName${index}`} defaultValue={hotel?.name ?? ""} placeholder={t("travel.hotelNamePlaceholder")} className={inputClass} /></label>
+                          <label className={labelClass}>{t("travel.hotelAddress")}<input name={`hotelAddress${index}`} defaultValue={hotel?.address ?? ""} placeholder={t("travel.hotelAddressPlaceholder")} className={inputClass} /></label>
+                          <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-[#55485a] sm:col-span-2"><input type="radio" name="recommendedHotel" value={index} defaultChecked={hotel?.recommended} />{t("travel.markRecommended")}</label>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+              </div>
+              <FieldError name="travelInfo" errors={errors} />
+            </details>
           </section>
 
           <section id="design" className={sectionClass}>
