@@ -183,3 +183,13 @@ test("travel information stays hidden when the optional lists are empty", () => 
   const html = render("published", { travelInfo: { airports: [], hotels: [] } } as Partial<PublicInvitationEvent>);
   assert.doesNotMatch(html, /Travel information|Closest airports|Nearby hotels/);
 });
+
+test("optional structured style guidance renders outside the welcome description", () => {
+  const html = render("published", {
+    styleGuide: { note: "Glamorous fascinators", colors: [{ name: "Sage", color: "#AAB39A" }] },
+  });
+  assert.match(html, /Style guide/i);
+  assert.match(html, /Glamorous fascinators/);
+  assert.match(html, /aria-label="Sage: #AAB39A"/);
+  assert.equal((html.match(/Glamorous fascinators/g) ?? []).length, 1);
+});

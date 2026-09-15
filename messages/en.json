@@ -290,6 +290,15 @@
       "publicDomainAvailable": "This address is available.",
       "publicDomainUnavailable": "That address is unavailable. Try {suggestion}.",
       "publicDomainCheckFailed": "Availability could not be checked. Try again.",
+      "styleGuide": {
+        "title": "Style guide",
+        "help": "Optional attire guidance and colors for guests.",
+        "note": "Style note",
+        "colorName": "Color name",
+        "color": "Color",
+        "addColor": "Add color",
+        "remove": "Remove"
+      },
       "reference": {
         "title": "Recreate from your design",
         "help": "We use the designed invitation as a private reference to suggest editable wording, colors, and layout.",
@@ -464,6 +473,7 @@
       "designedInviteAlt": "Designed event invitation",
       "coverAlt": "Cover for {title}",
       "details": "The details",
+      "styleGuide": { "title": "Style guide", "colors": "Colors of the day" },
       "when": "When",
       "where": "Where",
       "openMap": "Open map",

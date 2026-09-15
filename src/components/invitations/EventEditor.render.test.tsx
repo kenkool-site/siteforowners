@@ -138,6 +138,17 @@ test("travel editor provides optional capped airport and hotel rows", () => {
   assert.equal(populated.querySelector("details[data-travel-editor]")?.hasAttribute("open"), true);
 });
 
+test("style guide editor exposes optional note and editable color rows", () => {
+  const document = new JSDOM(render("owner", undefined, {
+    styleGuide: { note: "Glamorous fascinators", colors: [{ name: "Sage", color: "#AAB39A" }] },
+  })).window.document;
+  assert.equal(document.querySelector<HTMLTextAreaElement>('textarea[name="styleNote"]')?.value, "Glamorous fascinators");
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="styleColorName0"]')?.value, "Sage");
+  assert.equal(document.querySelector<HTMLInputElement>('input[name="styleColorValue0"]')?.value, "#aab39a");
+  assert.equal(document.querySelectorAll('input[name^="styleColorName"]').length, 1);
+  assert.equal(document.querySelector("details[data-style-guide-editor]")?.hasAttribute("open"), true);
+});
+
 test("a full gallery disables the thirteenth upload", () => {
   const gallery = Array.from({ length: 12 }, (_, index) => ({
     id: `media-${index}`,

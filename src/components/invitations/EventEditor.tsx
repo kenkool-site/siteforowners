@@ -30,6 +30,7 @@ const LOCALIZED_ERROR_KEYS = new Set([
   "venueName", "address", "themeKey", "fontPairKey", "primaryColor", "accentColor",
   "publicSubdomain",
   "travelInfo",
+  "styleGuide",
   "capacity", "rsvpDeadline", "passcode", "removePasscode", "notificationEmail",
   "notificationPhone", "expireAt", "submissionLimit", "emailNotificationLimit",
   "smsNotificationLimit", "media", "command",
@@ -660,6 +661,22 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
+            <details data-style-guide-editor open={Boolean(styleGuide?.note || styleGuide?.colors.length)} className="group mt-8 border-t border-[#ddd4e1] pt-5">
+              <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-[#2B2231]">
+                <span>{t("styleGuide.title")}</span><span aria-hidden="true" className="text-lg group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-1 text-xs leading-5 text-[#675d6a]">{t("styleGuide.help")}</p>
+              <label className={`${labelClass} mt-4`}>{t("styleGuide.note")}<textarea name="styleNote" maxLength={500} rows={3} value={styleGuide?.note ?? ""} onChange={(event) => setStyleGuide({ note: event.target.value, colors: styleGuide?.colors ?? [] })} className={inputClass} /></label>
+              <div className="mt-5 space-y-3">
+                {(styleGuide?.colors ?? []).map((item, index) => <div key={index} className="grid gap-3 rounded-md border border-[#e1d9e4] bg-white p-3 sm:grid-cols-[1fr_88px_auto] sm:items-end">
+                  <label className={labelClass}>{t("styleGuide.colorName")}<input name={`styleColorName${index}`} maxLength={60} value={item.name} onChange={(event) => setStyleGuide({ note: styleGuide?.note ?? null, colors: (styleGuide?.colors ?? []).map((color, colorIndex) => colorIndex === index ? { ...color, name: event.target.value } : color) })} className={inputClass} /></label>
+                  <label className={labelClass}>{t("styleGuide.color")}<input type="color" name={`styleColorValue${index}`} value={item.color} onChange={(event) => setStyleGuide({ note: styleGuide?.note ?? null, colors: (styleGuide?.colors ?? []).map((color, colorIndex) => colorIndex === index ? { ...color, color: event.target.value.toUpperCase() } : color) })} className={`${inputClass} p-1`} /></label>
+                  <button type="button" onClick={() => { setStyleGuide({ note: styleGuide?.note ?? null, colors: (styleGuide?.colors ?? []).filter((_, colorIndex) => colorIndex !== index) }); markDirty(); }} className="min-h-11 px-3 text-sm font-semibold text-[#7f2929] underline underline-offset-4">{t("styleGuide.remove")}</button>
+                </div>)}
+              </div>
+              <button type="button" disabled={(styleGuide?.colors.length ?? 0) >= 8} onClick={() => { setStyleGuide({ note: styleGuide?.note ?? null, colors: [...(styleGuide?.colors ?? []), { name: "", color: "#D4A373" }] }); markDirty(); }} className="mt-4 min-h-11 rounded-md border border-[#6D456F] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{t("styleGuide.addColor")}</button>
+              <FieldError name="styleGuide" errors={errors} />
+            </details>
             {mode === "founder" && (
               <div className="mt-6 border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-4">
                 <label className={labelClass}>

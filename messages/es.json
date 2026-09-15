@@ -290,6 +290,15 @@
       "publicDomainAvailable": "Esta dirección está disponible.",
       "publicDomainUnavailable": "Esa dirección no está disponible. Pruebe {suggestion}.",
       "publicDomainCheckFailed": "No se pudo comprobar la disponibilidad. Inténtelo de nuevo.",
+      "styleGuide": {
+        "title": "Guía de estilo",
+        "help": "Indicaciones opcionales de vestimenta y colores para los invitados.",
+        "note": "Nota de estilo",
+        "colorName": "Nombre del color",
+        "color": "Color",
+        "addColor": "Agregar color",
+        "remove": "Eliminar"
+      },
       "reference": {
         "title": "Recrear desde su diseño",
         "help": "Usamos la invitación diseñada como referencia privada para sugerir texto, colores y diseño editables.",
@@ -464,6 +473,7 @@
       "designedInviteAlt": "Invitación diseñada para el evento",
       "coverAlt": "Portada de {title}",
       "details": "Los detalles",
+      "styleGuide": { "title": "Guía de estilo", "colors": "Colores del día" },
       "when": "Cuándo",
       "where": "Dónde",
       "openMap": "Abrir mapa",
