@@ -190,7 +190,6 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
     borderWidth: recipe.frame.style === "none" ? 0 : Math.max(recipe.frame.width, frameStyle === "double" ? 3 : 1),
     borderRadius: radius,
   } as CSSProperties;
-  const motif = ({ botanical: "❦", floral: "✿", geometric: "◆", ribbon: "〰", ornamental: "✦" } as const)[recipe.decoration.motif as Exclude<typeof recipe.decoration.motif, "none">] ?? "";
   const sectionOrder = (key: typeof recipe.contentOrder[number]) => {
     const position = recipe.contentOrder.indexOf(key);
     return position < 0 ? 99 : position;
@@ -229,19 +228,8 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
       <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} recipe={recipe} />
       <article id="invitation-content" className={`${recreated ? "mx-auto flex flex-col px-4 py-8 sm:px-8 sm:py-14" : theme.stage}`} style={recreated ? { maxWidth: recipe.composition.maxWidth } : undefined}>
 
-        <header className={`${recreated ? alignment : theme.title} mt-10`} style={{ order: sectionOrder("intro") }}>
-          <p className="text-base font-medium leading-7 opacity-80">{event.eventType}</p>
-          <h1 className={`${titleFont} mt-3 text-[clamp(3rem,12vw,6.8rem)] leading-[0.9] tracking-[-0.045em]`}>
-            {event.title}
-          </h1>
-          {event.honoreeNames && <p className="mt-6 text-lg leading-8 opacity-85">{event.honoreeNames}</p>}
-          <p className="mt-5 text-base font-semibold leading-7 sm:text-lg">{date}</p>
-          {motif && <div aria-hidden="true" className={`mt-7 text-3xl ${recipe.composition.alignment === "center" ? "mx-auto" : ""}`} style={{ color: recipe.palette.accent }}>{motif}</div>}
-          {recipe.decoration.divider !== "none" && <div aria-hidden="true" className={`${recipe.composition.alignment === "center" ? "mx-auto" : ""} mt-7 h-px w-24`} style={{ backgroundColor: recipe.palette.accent }} />}
-        </header>
-
         {event.description && (
-          <section className={`${recreated ? alignment : theme.message} ${rhythm}`} style={{ order: sectionOrder("intro") }}>
+          <section className={`${recreated ? alignment : theme.message} mt-8 sm:mt-12`} style={{ order: sectionOrder("intro") }}>
             <p className={`${titleFont} text-2xl leading-10 sm:text-3xl sm:leading-[1.55]`}>{event.description}</p>
           </section>
         )}
