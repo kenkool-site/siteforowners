@@ -9,12 +9,14 @@ type FixtureManifest = {
     "english" | "spanish" | "deadline" | "expired" | "offline" | "secondary" | "suppressed",
     { id: string; slug: string; title: string }
   >;
+  retryableNotificationId: string;
 };
 
 type FixtureSnapshot = {
   rsvps: Array<{ eventId: string; primaryName: string; attending: boolean; partySize: number }>;
   notifications: Array<{ eventId: string; channel: "email" | "sms"; status: string }>;
   providerCalls: Array<{ channel: "email" | "sms"; eventId: string }>;
+  fixtureSafety: { externalCredentialKeys: string[] };
 };
 
 let fixtures: FixtureManifest;
@@ -71,6 +73,7 @@ test.describe.configure({ mode: "serial" });
 
 test.beforeEach(async ({ request }) => {
   fixtures = await resetFixtures(request);
+  expect((await snapshot(request)).fixtureSafety.externalCredentialKeys).toEqual([]);
 });
 
 test("founder provisions, owner edits, and guest RSVPs without exceeding capacity", async ({ page, request }) => {
@@ -90,10 +93,13 @@ test("founder provisions, owner edits, and guest RSVPs without exceeding capacit
   });
   expect(prepare.status()).toBe(200);
 
+  await page.context().clearCookies();
+  expect((await page.context().cookies()).some((cookie) => cookie.name === "admin_session")).toBe(false);
   await ownerLogin(page, "pilot@example.com", ownerPin);
   await page.getByLabel("Who are we celebrating?").fill("Ana and Luis");
   await page.getByLabel("Venue name").fill("Pilot Hall");
   await page.getByLabel("Address").fill("1 Test Plaza, Brooklyn, NY");
+  await page.getByLabel("Map link").fill("https://maps.google.com/?q=Pilot+Hall");
   await page.getByLabel("Guest capacity").fill("2");
   const saved = page.waitForResponse((response) => response.url().includes(`/api/invitations/events/${eventId}`) && response.request().method() === "PATCH");
   await page.locator('[data-event-form="true"]').evaluate((form: HTMLFormElement) => form.requestSubmit());
@@ -105,6 +111,12 @@ test("founder provisions, owner edits, and guest RSVPs without exceeding capacit
   const publicUrl = `/invite/${eventId ? `pilot-celebration-e2e-${eventId.slice(-4)}` : "missing"}`;
   await page.setViewportSize({ width: 375, height: 812 });
   await page.goto(publicUrl);
+  await expect(page.getByRole("img", { name: "Designed event invitation" })).toBeVisible();
+  await expect(page.getByRole("img", { name: "Guests celebrating" })).toBeVisible();
+  await expect(page.getByLabel("Event video")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open map" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Add to Google Calendar" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download calendar file" })).toBeVisible();
   await submitRsvp(page, { name: "Ana", email: "ana@example.com", partySize: 2 });
   await expect(page.getByText("Your response has been saved.")).toBeVisible();
   const firstResponseState = await snapshot(request);
@@ -193,4 +205,41 @@ test("owners are denied cross-event access while the founder retains access", as
   await page.goto(`/admin/invitations/${fixtures.events.secondary.id}`);
   await expect(page.getByRole("heading", { name: fixtures.events.secondary.title, level: 1 })).toBeVisible();
   await expect(page.getByText("Founder controls").first()).toBeVisible();
+});
+
+test("fixture-only media writes fail closed and founder retry uses the recording sender", async ({ page, request }) => {
+  await ownerLogin(page, fixtures.owners.primary.email, fixtures.owners.primary.pin);
+  const ownerRetry = await page.evaluate(async (notificationId) => (
+    await fetch(`/api/invitations/admin/notifications/${notificationId}/retry`, { method: "POST" })
+  ).status, fixtures.retryableNotificationId);
+  expect(ownerRetry).toBe(401);
+  await page.context().clearCookies();
+  await founderLogin(page);
+  const mediaStatus = await page.evaluate(async (eventId) => {
+    const body = new FormData();
+    body.set("kind", "cover");
+    body.set("file", new File(["fixture"], "fixture.png", { type: "image/png" }));
+    return (await fetch(`/api/invitations/events/${eventId}/media`, { method: "POST", body })).status;
+  }, fixtures.events.english.id);
+  expect(mediaStatus).toBe(503);
+
+  const retry = await page.evaluate(async (notificationId) => (
+    await fetch(`/api/invitations/admin/notifications/${notificationId}/retry`, { method: "POST" })
+  ).status, fixtures.retryableNotificationId);
+  expect(retry).toBe(200);
+  const state = await snapshot(request);
+  expect(state.notifications).toContainEqual(expect.objectContaining({ status: "sent" }));
+  expect(state.providerCalls).toContainEqual({ channel: "email", eventId: fixtures.events.english.id });
+});
+
+test("desktop founder dashboard exposes filters, CSV, details, retry, and lifecycle controls", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await founderLogin(page);
+  await page.goto(`/admin/invitations/${fixtures.events.english.id}`);
+  await expect(page.getByLabel("Search responses")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Download CSV" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close RSVPs" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mark expired" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Take offline" })).toBeVisible();
 });

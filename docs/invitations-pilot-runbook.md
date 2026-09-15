@@ -20,7 +20,7 @@ This guide is for the founder operating the invitation-events pilot. It assumes 
 
 1. Add a designed invitation or cover image, gallery images, and optional video. Use only media you have permission to publish. Keep uploads web-sized and test them on a mobile connection; remove any oversized or inappropriate file before publishing.
 2. Confirm title, honoree names, date/time/time zone, venue and address, map URL, capacity, RSVP deadline, passcode requirement, and English/Spanish copy.
-3. Verify the notification destination. Owner email/SMS controls decide which enabled channels receive RSVP alerts; guest email confirmations remain off unless the owner explicitly wants them.
+3. Verify the notification destination. Owner email/SMS controls decide which enabled channels receive future RSVP alerts; guest email confirmations remain off unless the owner explicitly wants them.
 4. Publish the event, open the public URL in a signed-out/private browser, and test the entire guest flow. If a passcode is enabled, test one incorrect entry and one correct entry.
 5. Use the editor's copy-link control only after the signed-out check. Share that link through the owner’s chosen channel; the pilot does not deliver a guest list on the founder’s behalf.
 
@@ -29,7 +29,7 @@ This guide is for the founder operating the invitation-events pilot. It assumes 
 ### Responses and notifications
 
 - Watch the RSVP dashboard for attending totals, declines, capacity, failed or suppressed notifications, and filterable guest details.
-- If a notification fails, use the founder/owner retry control after correcting provider credentials, sender verification, destination format, or the destination itself. Retrying delivery must not create or alter an RSVP.
+- If a notification fails, only the founder can use the retry control after correcting provider credentials or sender verification. A retry uses the notification’s stored recipient; changing the event destination affects future notifications, not an existing retry. Retrying delivery must not create or alter an RSVP.
 - If an email or SMS budget warning appears, the founder may raise the applicable event limit only after confirming the new budget. Keep the limit finite; a higher limit increases spend exposure.
 - Change notification email/phone in the event editor, save, then submit a controlled RSVP in the appropriate owner-approved test event if you need to prove delivery. Do not use real guests as test data.
 - Export RSVPs as CSV from the dashboard when needed. Treat the export as private guest data: download it only to an approved device, transfer it through an approved channel, and delete local copies when the purpose is complete.

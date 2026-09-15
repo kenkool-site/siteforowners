@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
 import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { retryInvitationNotification } from "@/lib/invitations/notifications";
+import { isInvitationE2EFixturesEnabled, retryFixtureInvitationNotification } from "@/lib/invitations/e2e-fixtures";
 
 function hasFounderSession(request: NextRequest): boolean {
   return hasFounderInvitationSession(
@@ -27,6 +28,12 @@ export async function POST(
   }
 
   try {
+    if (isInvitationE2EFixturesEnabled()) {
+      const result = await retryFixtureInvitationNotification(params.notificationId);
+      return result.ok
+        ? NextResponse.json({ status: result.status })
+        : NextResponse.json({ error: "Notification not found or not eligible for retry" }, { status: 404 });
+    }
     const result = await retryInvitationNotification(params.notificationId, request.nextUrl.origin);
     if (!result.ok) {
       if (result.code === "limit_reached") {

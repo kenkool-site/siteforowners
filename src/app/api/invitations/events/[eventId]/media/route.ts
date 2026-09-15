@@ -17,6 +17,7 @@ import {
   invitationRepository,
 } from "@/lib/invitations/repository";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-fixtures";
 import { NextRequest, NextResponse } from "next/server";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -128,6 +129,9 @@ export async function POST(
   if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const current = await getInvitationEventForManagement(params.eventId);
   if (!current) return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+  if (isInvitationE2EFixturesEnabled()) {
+    return NextResponse.json({ error: "Fixture media mutations are unavailable" }, { status: 503 });
+  }
 
   let form: FormData;
   try {
@@ -238,6 +242,9 @@ export async function DELETE(
   if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const current = await getInvitationEventForManagement(params.eventId);
   if (!current) return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+  if (isInvitationE2EFixturesEnabled()) {
+    return NextResponse.json({ error: "Fixture media mutations are unavailable" }, { status: 503 });
+  }
 
   let body: DeleteBody;
   try {

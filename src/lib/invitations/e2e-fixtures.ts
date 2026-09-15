@@ -60,6 +60,7 @@ export type InvitationE2EManifest = {
     "english" | "spanish" | "deadline" | "expired" | "offline" | "secondary" | "suppressed",
     { id: string; slug: string; title: string }
   >;
+  retryableNotificationId: string;
 };
 
 declare global {
@@ -70,6 +71,15 @@ declare global {
 const FIXTURE_MEDIA = "/marketing/demo/portfolio/nails-2.jpeg";
 const FIXTURE_VIDEO = "/marketing/demo/demo-reel.mp4";
 const CREATED_AT = "2026-09-14T12:00:00.000Z";
+const EXTERNAL_CREDENTIAL_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_SERVICE_ROLE_KEY",
+  "RESEND_API_KEY",
+  "TWILIO_ACCOUNT_SID",
+  "TWILIO_AUTH_TOKEN",
+  "TWILIO_FROM",
+] as const;
 
 function requireStore(): FixtureStore {
   if (!isInvitationE2EFixturesEnabled()) throw new Error("Invitation E2E fixtures are disabled");
@@ -168,6 +178,7 @@ function manifest(store: FixtureStore): InvitationE2EManifest {
       secondary: bySlug("secondary-owner-event"),
       suppressed: bySlug("notification-suppressed"),
     },
+    retryableNotificationId: uuid(902),
   };
 }
 
@@ -198,7 +209,10 @@ export async function resetInvitationE2EFixtures(): Promise<InvitationE2EManifes
       eventRow({ id: uuid(17), owner: primary, slug: "notification-suppressed", title: "Suppressed Notification", emailLimit: 1 }),
     ],
     rsvps: [],
-    notifications: [{ id: uuid(900), eventId: uuid(17), rsvpId: uuid(901), channel: "email", status: "sent" }],
+    notifications: [
+      { id: uuid(900), eventId: uuid(17), rsvpId: uuid(901), channel: "email", status: "sent" },
+      { id: uuid(902), eventId: uuid(11), rsvpId: uuid(903), channel: "email", status: "failed" },
+    ],
     providerCalls: [],
     nextId: 100,
   };
@@ -356,6 +370,21 @@ export function getFixtureInvitationMedia(eventId: string): InvitationMediaSnaps
       { id: uuid(700), kind: "gallery", path: "/marketing/demo/portfolio/haircuts-2.png", url: "/marketing/demo/portfolio/haircuts-2.png", altText: "Guests celebrating", sortOrder: 0 },
     ] : [],
   };
+}
+
+export function invitationE2EFixtureSafetySnapshot(): { externalCredentialKeys: string[] } {
+  return {
+    externalCredentialKeys: EXTERNAL_CREDENTIAL_KEYS.filter((key) => Boolean(process.env[key])),
+  };
+}
+
+export async function retryFixtureInvitationNotification(notificationId: string): Promise<{ ok: boolean; status?: string }> {
+  const store = requireStore();
+  const notification = store.notifications.find((candidate) => candidate.id === notificationId && candidate.status === "failed");
+  if (!notification) return { ok: false };
+  notification.status = "sent";
+  store.providerCalls.push({ channel: notification.channel, eventId: notification.eventId });
+  return { ok: true, status: notification.status };
 }
 
 export async function submitFixtureInvitationRsvp(request: SubmitRsvpRequest): Promise<SubmitRsvpResult> {
