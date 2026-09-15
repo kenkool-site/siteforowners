@@ -274,6 +274,10 @@ test("event updates normalize optional style guidance", () => {
     ok: true,
     value: { styleGuide: null },
   });
+  assert.deepEqual(parseEventUpdate({ styleGuide: null }, "owner"), {
+    ok: true,
+    value: { styleGuide: null },
+  });
 });
 
 test("event updates reject malformed style guidance", () => {

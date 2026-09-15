@@ -460,6 +460,7 @@
         "emailNotificationLimit": "Ingrese un límite de correos mayor que cero.",
         "smsNotificationLimit": "Ingrese un límite de SMS mayor que cero.",
         "travelInfo": "Revise los detalles de viaje. Complete cada fila utilizada y elija como máximo un hotel recomendado.",
+        "styleGuide": "Revise la nota de estilo y los colores del evento. Cada color necesita un nombre.",
         "media": "Agregue contenido multimedia válido antes de publicar.",
         "command": "Elija una acción de estado válida.",
         "ownerName": "Ingrese el nombre del propietario.",
