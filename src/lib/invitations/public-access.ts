@@ -8,6 +8,7 @@ import {
   getEffectiveEventState,
   type EffectiveEventState,
 } from "./state";
+import { invitationPublicUrl } from "./public-url";
 
 export type PublicInvitationResolution =
   | { kind: "not_found" }
@@ -93,11 +94,13 @@ export function invitationPageMetadata(
   return {
     title: invitation.event.title,
     description: invitation.event.description || undefined,
+    alternates: { canonical: invitationPublicUrl(invitation.event) },
     robots: { index: true, follow: true },
     openGraph: {
       title: invitation.event.title,
       description: invitation.event.description || undefined,
       type: "website",
+      url: invitationPublicUrl(invitation.event),
     },
   };
 }

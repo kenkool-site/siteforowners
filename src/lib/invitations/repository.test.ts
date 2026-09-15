@@ -23,6 +23,7 @@ test("provisioning normalizes email, hashes the PIN, and applies founder limits"
       title: "Mia & Lee",
       eventType: "wedding",
       locale: "en",
+      publicSubdomain: "mia-lee",
     },
     {
       hashPin: async () => "hashed-pin",
@@ -51,6 +52,7 @@ test("provisioning normalizes email, hashes the PIN, and applies founder limits"
       },
       event: {
         slug: "mia-lee-x7k2p9",
+        public_subdomain: "mia-lee",
         event_type: "wedding",
         locale: "en",
         title: "Mia & Lee",
@@ -112,6 +114,7 @@ test("founder event summaries aggregate attending people, declined parties, and 
     {
       id: "event-1",
       slug: "mia-lee-x7k2p9",
+      publicSubdomain: null,
       title: "Mia & Lee",
       ownerName: "Mia",
       ownerEmail: "mia@example.com",

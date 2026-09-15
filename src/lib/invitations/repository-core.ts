@@ -25,6 +25,7 @@ export type CreateInvitationOwnerAndEventInput = {
   locale: InvitationLocale;
   startsAt?: string | null;
   timezone?: string;
+  publicSubdomain?: string | null;
 };
 
 export type InvitationProvisionRows = {
@@ -36,6 +37,7 @@ export type InvitationProvisionRows = {
   };
   event: {
     slug: string;
+    public_subdomain?: string | null;
     event_type: string;
     locale: InvitationLocale;
     title: string;
@@ -63,6 +65,7 @@ export type InvitationProvisionDependencies = {
 export type InvitationFounderListRow = {
   id: string;
   slug: string;
+  public_subdomain?: string | null;
   title: string;
   starts_at: string | null;
   status: InvitationEventStatus;
@@ -75,6 +78,7 @@ export type InvitationManagementRow = {
   id: string;
   owner_id: string;
   slug: string;
+  public_subdomain?: string | null;
   event_type: string;
   locale: InvitationLocale;
   title: string;
@@ -131,6 +135,7 @@ export type InvitationManagementOwnerRow = {
 export type InvitationPublicRow = {
   id: string;
   slug: string;
+  public_subdomain?: string | null;
   event_type: string;
   locale: InvitationLocale;
   title: string;
@@ -162,6 +167,7 @@ export type InvitationPublicRow = {
 export type PublicInvitationEvent = {
   id: string;
   slug: string;
+  publicSubdomain: string | null;
   eventType: string;
   locale: InvitationLocale;
   title: string;
@@ -207,6 +213,7 @@ export interface InvitationRepository {
 export type FounderInvitationEventSummary = {
   id: string;
   slug: string;
+  publicSubdomain: string | null;
   title: string;
   ownerName: string;
   ownerEmail: string;
@@ -259,6 +266,7 @@ export async function createInvitationOwnerAndEvent(
     },
     event: {
       slug,
+      public_subdomain: input.publicSubdomain ?? null,
       event_type: input.eventType.trim(),
       locale: input.locale,
       title: input.title.trim(),
@@ -285,6 +293,7 @@ export async function listFounderEvents(
     return {
       id: row.id,
       slug: row.slug,
+      publicSubdomain: row.public_subdomain ?? null,
       title: row.title,
       ownerName: owner.name,
       ownerEmail: owner.email,
@@ -314,6 +323,7 @@ export async function getInvitationEventForManagement(
     id: row.id,
     ownerId: row.owner_id,
     slug: row.slug,
+    publicSubdomain: row.public_subdomain ?? null,
     eventType: row.event_type,
     locale: row.locale,
     title: row.title,
@@ -374,6 +384,7 @@ export async function getPublicInvitationBySlug(
     event: {
       id: row.id,
       slug: row.slug,
+      publicSubdomain: row.public_subdomain ?? null,
       eventType: row.event_type,
       locale: row.locale,
       title: row.title,
@@ -411,6 +422,7 @@ export async function getPublicInvitationBySlug(
 }
 
 const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>> = {
+  publicSubdomain: "public_subdomain",
   eventType: "event_type",
   locale: "locale",
   title: "title",

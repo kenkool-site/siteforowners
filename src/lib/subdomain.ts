@@ -1,10 +1,32 @@
-/** Slugify a business name into a DNS-safe subdomain label (≤ 40 chars). */
-export function generateSubdomain(businessName: string): string {
-  return businessName
+export const RESERVED_PLATFORM_SUBDOMAINS = new Set([
+  "www", "api", "admin", "app", "mail", "support", "help", "status",
+  "static", "assets", "cdn", "dashboard", "invitations", "invite", "login", "preview",
+]);
+
+/** Normalize a human-readable name into one DNS-safe platform label. */
+export function normalizePlatformSubdomain(value: string): string {
+  return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "")
     .slice(0, 40);
+}
+
+export type PlatformSubdomainValidation =
+  | { ok: true; value: string }
+  | { ok: false; error: "required" | "invalid" | "reserved" };
+
+export function validatePlatformSubdomain(value: string): PlatformSubdomainValidation {
+  if (!value.trim()) return { ok: false, error: "required" };
+  const normalized = normalizePlatformSubdomain(value);
+  if (!normalized) return { ok: false, error: "invalid" };
+  if (RESERVED_PLATFORM_SUBDOMAINS.has(normalized)) return { ok: false, error: "reserved" };
+  return { ok: true, value: normalized };
+}
+
+/** Compatibility name for existing tenant provisioning call sites. */
+export function generateSubdomain(businessName: string): string {
+  return normalizePlatformSubdomain(businessName);
 }
 
 /**

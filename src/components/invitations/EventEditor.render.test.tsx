@@ -14,6 +14,7 @@ const event: EditorEvent = {
   id: "event-1",
   ownerId: "owner-1",
   slug: "ana-and-luis",
+  publicSubdomain: null,
   eventType: "wedding",
   locale: "en",
   title: "Ana & Luis",
@@ -93,6 +94,12 @@ test("only founders see cost limit controls", () => {
   assert.doesNotMatch(render("owner"), /Owner sign-in email/);
   assert.match(render("founder"), /Submission limit/);
   assert.match(render("founder"), /Owner sign-in email/);
+});
+
+test("only founders can edit the public subdomain while owners see the clean share link", () => {
+  assert.match(render("founder"), /name="publicSubdomain"/);
+  assert.doesNotMatch(render("owner"), /name="publicSubdomain"/);
+  assert.match(render("owner", undefined, { publicSubdomain: "ana-luis" }), /https:\/\/ana-luis\.siteforowners\.com\//);
 });
 
 test("the theme preview remains available in the mobile editing column", () => {

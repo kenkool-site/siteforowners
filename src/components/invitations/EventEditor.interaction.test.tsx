@@ -15,6 +15,7 @@ const baseEvent: EditorEvent = {
   id: "event-1",
   ownerId: "owner-1",
   slug: "ana-and-luis",
+  publicSubdomain: null,
   eventType: "wedding",
   locale: "en",
   title: "Ana & Luis",
@@ -193,6 +194,23 @@ test("successful save reconciles normalized event details into inputs and previe
     assert.match(preview.textContent ?? "", /7:00 PM/);
     assert.equal(container.querySelector<HTMLInputElement>('input[name="timezone"]')?.value, "America/Chicago");
     assert.equal(container.querySelector<HTMLInputElement>('input[name="venueName"]')?.value, "New Hall");
+  });
+});
+
+test("founder save submits the editable public subdomain", async () => {
+  let submitted: Record<string, unknown> | null = null;
+  await withEditor("founder", async (_url, init) => {
+    submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return response({ event: { ...baseEvent, publicSubdomain: "ana-luis" } });
+  }, async (container, dom) => {
+    const input = container.querySelector<HTMLInputElement>('input[name="publicSubdomain"]')!;
+    await act(async () => setInput(dom, input, "ana-luis"));
+    await act(async () => {
+      submit(dom, input.form!);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(submitted?.publicSubdomain, "ana-luis");
   });
 });
 

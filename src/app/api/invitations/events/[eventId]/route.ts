@@ -7,6 +7,7 @@ import {
 } from "@/lib/invitations/repository";
 import { parseEventUpdate } from "@/lib/invitations/validation";
 import { NextRequest, NextResponse } from "next/server";
+import { isPlatformSubdomainTakenError } from "@/lib/invitations/subdomains";
 
 export async function PATCH(
   request: NextRequest,
@@ -37,6 +38,9 @@ export async function PATCH(
     if (!event) return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
     return NextResponse.json({ event });
   } catch (error) {
+    if (isPlatformSubdomainTakenError(error)) {
+      return NextResponse.json({ errors: { publicSubdomain: "already_in_use" } }, { status: 409 });
+    }
     if (error instanceof Error && error.message === "INVITE_CAPACITY_BELOW_ATTENDANCE") {
       return NextResponse.json({ errors: { capacity: "below_attendance" } }, { status: 409 });
     }

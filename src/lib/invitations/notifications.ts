@@ -19,6 +19,7 @@ import { Resend } from "resend";
 import twilio from "twilio";
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { invitationPublicUrl } from "./public-url";
 import type {
   InvitationLocale,
   InvitationNotificationAudience,
@@ -222,6 +223,7 @@ function renderGuestConfirmationEmailHtml(input: {
 export type NotificationEventContext = {
   id: string;
   slug: string;
+  publicSubdomain?: string | null;
   title: string;
   locale: InvitationLocale;
   ownerEmailNotifications: boolean;
@@ -230,6 +232,10 @@ export type NotificationEventContext = {
   notificationPhone: string | null;
   guestEmailConfirmations: boolean;
 };
+
+export function notificationInvitationUrl(event: NotificationEventContext, origin: string): string {
+  return invitationPublicUrl(event, origin);
+}
 
 export type DispatchRsvpNotificationsInput = {
   event: NotificationEventContext;
@@ -491,13 +497,14 @@ export async function markInvitationNotificationFailed(
 async function getInvitationNotificationEventContext(eventId: string): Promise<NotificationEventContext | null> {
   const { data, error } = await createAdminClient()
     .from("invitation_events")
-    .select("id,slug,title,locale,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
+    .select("id,slug,public_subdomain,title,locale,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
   return {
     id: data.id,
     slug: data.slug,
+    publicSubdomain: data.public_subdomain,
     title: data.title,
     locale: data.locale === "es" ? "es" : "en",
     ownerEmailNotifications: data.owner_email_notifications,
@@ -530,7 +537,7 @@ export async function dispatchInvitationRsvpNotifications(
     if (!event) return { notificationsDelayed: true };
 
     const dashboardUrl = new URL(`/invitations/manage/${input.eventId}`, input.origin).toString();
-    const inviteUrl = new URL(`/invite/${encodeURIComponent(event.slug)}`, input.origin).toString();
+    const inviteUrl = notificationInvitationUrl(event, input.origin);
     const result = await dispatchRsvpNotifications(
       {
         event,

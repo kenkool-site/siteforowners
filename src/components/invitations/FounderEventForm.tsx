@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { zonedWallTimeToUtcIso } from "@/lib/invitations/event-time";
+import { normalizePlatformSubdomain } from "@/lib/subdomain";
 
 type CreatedInvitation = {
   eventId: string;
@@ -24,6 +25,26 @@ export function FounderEventForm() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [title, setTitle] = useState("");
+  const [publicSubdomain, setPublicSubdomain] = useState("");
+  const [subdomainEdited, setSubdomainEdited] = useState(false);
+  const [subdomainFeedback, setSubdomainFeedback] = useState("");
+
+  async function checkSubdomain(value: string) {
+    if (!value) return setSubdomainFeedback("");
+    setSubdomainFeedback("Checking availability…");
+    try {
+      const response = await fetch(`/api/invitations/admin/subdomains/availability?value=${encodeURIComponent(value)}`);
+      const result = await response.json() as { available?: boolean; suggestion?: string };
+      setSubdomainFeedback(!response.ok
+        ? "Availability could not be checked."
+        : result.available
+          ? "This address is available."
+          : `Unavailable. Try ${result.suggestion}.`);
+    } catch {
+      setSubdomainFeedback("Availability could not be checked.");
+    }
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,12 +70,19 @@ export function FounderEventForm() {
           locale: form.get("locale"),
           startsAt,
           timezone: eventTimezone,
+          publicSubdomain: form.get("publicSubdomain"),
         }),
       });
-      const result = (await response.json()) as CreatedInvitation & { error?: string };
-      if (!response.ok) throw new Error(result.error || "Unable to create invitation");
+      const result = (await response.json()) as CreatedInvitation & { error?: string; errors?: { publicSubdomain?: string } };
+      if (!response.ok) {
+        throw new Error(result.errors?.publicSubdomain === "already_in_use"
+          ? "That public subdomain is already in use. Try another."
+          : result.error || "Unable to create invitation");
+      }
       setCreated(result);
       formElement.reset();
+      setTitle("");
+      setPublicSubdomain("");
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : "Unable to create invitation");
     } finally {
@@ -136,7 +164,35 @@ export function FounderEventForm() {
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-medium text-gray-800 sm:col-span-2">
             Event title
-            <input name="title" required placeholder="Mia & Lee" className={fieldClass} />
+            <input
+              name="title"
+              required
+              placeholder="Mia & Lee"
+              value={title}
+              onChange={(event) => {
+                const nextTitle = event.currentTarget.value;
+                setTitle(nextTitle);
+                if (!subdomainEdited) setPublicSubdomain(normalizePlatformSubdomain(nextTitle));
+              }}
+              className={fieldClass}
+            />
+          </label>
+          <label className="text-sm font-medium text-gray-800 sm:col-span-2">
+            Public subdomain <span className="font-normal text-gray-500">(optional)</span>
+            <span className="mt-1.5 flex items-center rounded-lg border border-gray-300 bg-white shadow-sm focus-within:border-amber-500 focus-within:ring-2 focus-within:ring-amber-500/20">
+              <input
+                name="publicSubdomain"
+                value={publicSubdomain}
+                onChange={(event) => {
+                  setSubdomainEdited(true);
+                  setPublicSubdomain(normalizePlatformSubdomain(event.currentTarget.value));
+                }}
+                onBlur={(event) => void checkSubdomain(event.currentTarget.value)}
+                className="min-h-11 min-w-0 flex-1 rounded-l-lg px-3 py-2.5 text-base text-gray-950 outline-none"
+              />
+              <span className="pr-3 text-sm text-gray-500">.siteforowners.com</span>
+            </span>
+            <span className="mt-1 block text-xs font-normal text-gray-500">{subdomainFeedback || "Generated from the event title; you can edit it."}</span>
           </label>
           <label className="text-sm font-medium text-gray-800">
             Event type

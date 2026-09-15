@@ -3,6 +3,7 @@ import { InvitationCopyLinkButton } from "@/components/invitations/InvitationCop
 import { listFounderEvents } from "@/lib/invitations/repository";
 import type { FounderInvitationEventSummary } from "@/lib/invitations/repository";
 import type { InvitationEventStatus } from "@/lib/invitations/types";
+import { invitationPublicUrl } from "@/lib/invitations/public-url";
 
 export const revalidate = 0;
 
@@ -94,10 +95,10 @@ export default async function FounderInvitationsPage() {
                     <Link href={`/admin/invitations/${event.id}`} className="font-semibold text-amber-700 hover:text-amber-800">
                       Edit
                     </Link>
-                    <Link href={`/invite/${event.slug}`} target="_blank" className="font-medium text-gray-600 hover:text-gray-950">
+                    <Link href={invitationPublicUrl(event)} target="_blank" className="font-medium text-gray-600 hover:text-gray-950">
                       Preview
                     </Link>
-                    <InvitationCopyLinkButton slug={event.slug} />
+                    <InvitationCopyLinkButton slug={event.slug} publicSubdomain={event.publicSubdomain} />
                   </div>
                 </div>
               </article>

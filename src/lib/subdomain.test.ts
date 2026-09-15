@@ -1,6 +1,33 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { generateSubdomain, pickAvailableSubdomain } from "./subdomain";
+import {
+  generateSubdomain,
+  normalizePlatformSubdomain,
+  pickAvailableSubdomain,
+  validatePlatformSubdomain,
+} from "./subdomain";
+
+test("platform subdomains normalize human names into a DNS-safe label", () => {
+  assert.equal(normalizePlatformSubdomain("  Mercy & John  "), "mercy-john");
+  assert.equal(normalizePlatformSubdomain("A---B"), "a-b");
+  assert.equal(normalizePlatformSubdomain("x".repeat(60)).length, 40);
+});
+
+test("platform subdomain validation distinguishes missing, invalid, and reserved labels", () => {
+  assert.deepEqual(validatePlatformSubdomain("  "), { ok: false, error: "required" });
+  assert.deepEqual(validatePlatformSubdomain("💐"), { ok: false, error: "invalid" });
+  assert.deepEqual(validatePlatformSubdomain("WWW"), { ok: false, error: "reserved" });
+  assert.deepEqual(validatePlatformSubdomain("Mercy & John"), { ok: true, value: "mercy-john" });
+});
+
+test("every protected platform hostname is reserved", () => {
+  for (const label of [
+    "www", "api", "admin", "app", "mail", "support", "help", "status",
+    "static", "assets", "cdn", "dashboard", "invitations", "invite", "login", "preview",
+  ]) {
+    assert.deepEqual(validatePlatformSubdomain(label), { ok: false, error: "reserved" });
+  }
+});
 
 test("generateSubdomain lowercases and dashes non-alphanumerics", () => {
   assert.equal(generateSubdomain("Let's Try Locs!"), "let-s-try-locs");

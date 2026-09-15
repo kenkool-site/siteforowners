@@ -11,6 +11,7 @@ const invitation: PublicInvitationLookup = {
   event: {
     id: "event-1",
     slug: "mia-and-lee",
+    publicSubdomain: null,
     eventType: "wedding",
     locale: "en",
     title: "Mia & Lee",
@@ -127,10 +128,14 @@ test("published and RSVP-closed invitations sign media only after access", async
 });
 
 test("only published passcode-free invitations receive authored metadata", () => {
-  const publicMetadata = invitationPageMetadata(invitation, "published");
+  const publicMetadata = invitationPageMetadata({
+    ...invitation,
+    event: { ...invitation.event, publicSubdomain: "mia-lee" },
+  }, "published");
   assert.equal(publicMetadata.title, "Mia & Lee");
   assert.equal(publicMetadata.description, "Celebrate with us");
   assert.deepEqual(publicMetadata.robots, { index: true, follow: true });
+  assert.equal(publicMetadata.alternates?.canonical, "https://mia-lee.siteforowners.com/");
   assert.doesNotMatch(JSON.stringify(publicMetadata), /Secret Celebration Way|maps\.example/);
 
   for (const state of ["draft", "rsvp_closed", "expired", "offline"] as const) {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { invitationPublicUrl } from "@/lib/invitations/public-url";
 
-export function InvitationCopyLinkButton({ slug }: { slug: string }) {
+export function InvitationCopyLinkButton({ slug, publicSubdomain }: { slug: string; publicSubdomain?: string | null }) {
   const [copied, setCopied] = useState(false);
 
   async function copyLink() {
-    await navigator.clipboard.writeText(`${window.location.origin}/invite/${slug}`);
+    await navigator.clipboard.writeText(invitationPublicUrl({ slug, publicSubdomain: publicSubdomain ?? null }, window.location.origin));
     setCopied(true);
   }
 
