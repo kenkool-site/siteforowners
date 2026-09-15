@@ -271,6 +271,7 @@ export const invitationE2ERepository = {
       id: event.id,
       slug: event.slug,
       title: event.title,
+      honoreeNames: event.honoree_names,
       starts_at: event.starts_at,
       status: event.status,
       invitation_owners: event.invitation_owners,
@@ -403,15 +404,21 @@ export async function submitFixtureInvitationRsvp(request: SubmitRsvpRequest): P
       const store = requireStore();
       const event = store.events.find((candidate) => candidate.id === eventId);
       if (!event) return { data: null, error: { message: "INVITE_EVENT_UNAVAILABLE" } };
-      const existing = existingRsvpId ? store.rsvps.find((candidate) => candidate.id === existingRsvpId && candidate.event_id === eventId) : null;
+      let existing = existingRsvpId ? store.rsvps.find((candidate) => candidate.id === existingRsvpId && candidate.event_id === eventId) : undefined;
       if (existingRsvpId && (!existing || (!administrative && existing.editTokenHash !== editTokenHash))) {
         return { data: null, error: { message: "INVITE_INVALID_EDIT_TOKEN" } };
       }
-      if (!existing && store.rsvps.length >= event.submission_limit) {
-        return { data: null, error: { message: "INVITE_SUBMISSION_LIMIT_REACHED" } };
+      if (!existing && !existingRsvpId) {
+        const contactMatches = store.rsvps.filter((candidate) => candidate.event_id === eventId && (
+          (input.email !== null && candidate.email === input.email)
+          || (input.phone !== null && candidate.phone === input.phone)
+        ));
+        const distinctMatches = Array.from(new Map(contactMatches.map((candidate) => [candidate.id, candidate])).values());
+        if (distinctMatches.length > 1) return { data: null, error: { message: "INVITE_CONTACT_CONFLICT" } };
+        existing = distinctMatches[0];
       }
-      if (!existing && store.rsvps.some((candidate) => candidate.event_id === eventId && ((input.email && candidate.email === input.email) || (input.phone && candidate.phone === input.phone)))) {
-        return { data: null, error: { message: "INVITE_DUPLICATE_CONTACT" } };
+      if (!existing && store.rsvps.filter((candidate) => candidate.event_id === eventId).length >= event.submission_limit) {
+        return { data: null, error: { message: "INVITE_SUBMISSION_LIMIT_REACHED" } };
       }
       const before = existing?.attending ? existing.party_size : 0;
       const attendingTotal = store.rsvps
@@ -438,13 +445,23 @@ export async function submitFixtureInvitationRsvp(request: SubmitRsvpRequest): P
         created_at: existing?.created_at ?? now,
         updated_at: now,
       };
-      if (existing) Object.assign(existing, row);
-      else store.rsvps.push(row);
+      const unchanged = Boolean(existing
+        && existing.primary_name === row.primary_name
+        && existing.email === row.email
+        && existing.phone === row.phone
+        && existing.attending === row.attending
+        && existing.party_size === row.party_size
+        && JSON.stringify(existing.additional_guest_names) === JSON.stringify(row.additional_guest_names)
+        && existing.dietary_or_accessibility_notes === row.dietary_or_accessibility_notes
+        && existing.message === row.message);
+      if (existing) {
+        if (!unchanged) Object.assign(existing, row);
+      } else store.rsvps.push(row);
       const eventRows = store.rsvps.filter((candidate) => candidate.event_id === eventId);
       return {
         data: [{
           rsvp_id: id,
-          mutation_kind: existing ? "updated" : "created",
+          mutation_kind: unchanged ? "unchanged" : existing ? "updated" : "created",
           attending_total: attendingTotal,
           declined_party_total: eventRows.filter((candidate) => !candidate.attending).length,
           remaining_capacity: event.capacity === null ? null : Math.max(0, event.capacity - attendingTotal),
@@ -466,6 +483,7 @@ export async function dispatchFixtureInvitationRsvpNotifications(
       id: event.id,
       slug: event.slug,
       title: event.title,
+      honoreeNames: event.honoree_names,
       locale: event.locale,
       ownerEmailNotifications: event.owner_email_notifications,
       ownerSmsNotifications: event.owner_sms_notifications,

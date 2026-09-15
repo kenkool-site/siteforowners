@@ -146,6 +146,7 @@ export interface RsvpMutationResult {
   >;
   rsvpId: string;
   created: boolean;
+  outcome: "created" | "updated" | "unchanged";
   attendingTotal: number;
   declinedPartyTotal: number;
   remainingCapacity: number | null;

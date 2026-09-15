@@ -10,22 +10,18 @@ type RsvpFormProps = {
   showPublicRsvpCount: boolean;
 };
 
-type EditCredential = { rsvpId: string; editToken: string; editUrl: string };
+type EditCredential = { rsvpId: string; editToken: string };
 
 type RsvpApiResponse = {
   ok?: boolean;
   code?: string;
-  editUrl?: string;
+  outcome?: "created" | "updated" | "unchanged";
   summary?: {
     attendingPeople: number;
     declinedParties: number;
     remainingCapacity: number | null;
   };
 };
-
-function storageKey(slug: string): string {
-  return `invitation-rsvp-edit:${slug}`;
-}
 
 function credentialFromUrl(value: string): EditCredential | null {
   try {
@@ -37,7 +33,7 @@ function credentialFromUrl(value: string): EditCredential | null {
     const params = new URLSearchParams(url.hash.replace(/^#/, ""));
     const rsvpId = params.get("rsvpId");
     const editToken = params.get("editToken");
-    return rsvpId && editToken ? { rsvpId, editToken, editUrl: url.toString() } : null;
+    return rsvpId && editToken ? { rsvpId, editToken } : null;
   } catch {
     return null;
   }
@@ -50,18 +46,12 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = fal
   const [submitting, setSubmitting] = useState(false);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const [result, setResult] = useState<RsvpApiResponse | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     if (preview) return;
-    const fromLocation = credentialFromUrl(window.location.href);
-    const saved = window.localStorage.getItem(storageKey(slug));
-    const credential = fromLocation ?? (saved ? credentialFromUrl(saved) : null);
-    if (credential) {
-      setEditCredential(credential);
-      window.localStorage.setItem(storageKey(slug), credential.editUrl);
-    }
-  }, [slug, preview]);
+    setEditCredential(credentialFromUrl(window.location.href));
+  }, [preview]);
 
   const canShowForm = allowCreate || editCredential !== null;
 
@@ -70,7 +60,6 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = fal
     if (preview) return;
     setSubmitting(true);
     setErrorCode(null);
-    setCopied(false);
     const form = new FormData(event.currentTarget);
     const additionalGuestNames = String(form.get("additionalGuestNames") ?? "")
       .split(/\r?\n|,/)
@@ -101,22 +90,8 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = fal
       setErrorCode(data.code ?? "server_error");
       return;
     }
-    if (data.editUrl) {
-      window.localStorage.setItem(storageKey(slug), data.editUrl);
-      setEditCredential(credentialFromUrl(data.editUrl));
-    }
+    setHasSubmitted(true);
     setResult(data);
-  }
-
-  async function copyEditLink() {
-    const editUrl = result?.editUrl ?? editCredential?.editUrl;
-    if (!editUrl) return;
-    try {
-      await navigator.clipboard.writeText(editUrl);
-      setCopied(true);
-    } catch {
-      setErrorCode("copy_failed");
-    }
   }
 
   if (!canShowForm) {
@@ -129,7 +104,7 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = fal
   }
 
   return (
-    <form className="mt-6" onSubmit={handleSubmit} data-rsvp-slug={slug}>
+    <form className="mt-6" onSubmit={handleSubmit} onChange={() => { if (result?.ok) setResult(null); }} data-rsvp-slug={slug}>
       <fieldset disabled={preview} className="grid gap-5">
       {editCredential && <p className="border border-current/30 px-4 py-3 text-sm leading-6">{t("editing")}</p>}
       <label className="grid gap-2 text-sm font-semibold">
@@ -187,19 +162,14 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = fal
       {errorCode && <p role="alert" className="border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-900">{t(`errors.${errorCode}` as "errors.server_error")}</p>}
       {result?.ok && (
         <div role="status" className="border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-950">
-          <p className="font-semibold">{t("success")}</p>
-          {(result.editUrl || editCredential?.editUrl) && (
-            <button type="button" onClick={copyEditLink} className="mt-3 min-h-11 rounded-full border border-current px-5 py-2 text-sm font-semibold outline-none transition-colors focus-visible:ring-2 motion-reduce:transition-none">
-              {copied ? t("copied") : t("copyEditLink")}
-            </button>
-          )}
+          <p className="font-semibold">{t(result.outcome === "updated" ? "successUpdated" : result.outcome === "unchanged" ? "successUnchanged" : "successCreated")}</p>
           {showPublicRsvpCount && result.summary && (
             <p className="mt-3 text-sm">{t("updatedCounts", { attending: result.summary.attendingPeople, declined: result.summary.declinedParties })}</p>
           )}
         </div>
       )}
       <button disabled={submitting} className="min-h-11 rounded-full bg-white px-6 py-3 font-semibold text-slate-950 outline-none transition-[transform,opacity] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:opacity-60 motion-reduce:transform-none motion-reduce:transition-none">
-        {submitting ? t("submitting") : editCredential ? t("update") : t("submit")}
+        {submitting ? t("submitting") : (hasSubmitted || editCredential) ? t("update") : t("submit")}
       </button>
       </fieldset>
     </form>

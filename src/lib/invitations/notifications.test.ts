@@ -16,6 +16,7 @@ const baseEvent: NotificationEventContext = {
   id: "event-1",
   slug: "sample-event",
   title: "Sample Wedding",
+  honoreeNames: "Jamie & Morgan",
   locale: "en",
   ownerEmailNotifications: true,
   ownerSmsNotifications: false,
@@ -92,7 +93,7 @@ test("dispatch persists the exact payload before delivery and retry ignores muta
     savePayload: async (id, payload) => { saved.set(id, JSON.stringify(payload)); },
   });
   const original = sent[0];
-  assert.ok(original?.includes("editToken=secret"));
+  assert.doesNotMatch(original ?? "", /editToken=secret/);
   await processInvitationNotificationRetry({ notificationId: "n-email", origin: "https://changed.invalid" }, {
     reserveRetry: async () => ({ ...ownerFailedReservation, recipient: "guest@example.com", audience: "guest", kind: "guest_confirmation", eventTitle: "Changed", eventLocale: "en" }),
     loadPayload: async (id) => JSON.parse(saved.get(id)!),
@@ -316,7 +317,7 @@ test("authored fields are escaped in the owner notification email", async () => 
   assert.match(html, /no nuts &lt;img/);
 });
 
-test("guest confirmation email includes the private edit link when one is supplied", async () => {
+test("guest confirmation email never exposes a private edit link", async () => {
   let html = "";
   await dispatchRsvpNotifications(
     { ...fixture, event: { ...baseEvent, guestEmailConfirmations: true } },
@@ -329,7 +330,24 @@ test("guest confirmation email includes the private edit link when one is suppli
       sms: { send: async () => ({ ok: true, providerId: "s1" }) },
     },
   );
-  assert.match(html, new RegExp(fixture.editUrl!.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.doesNotMatch(html, /editToken/);
+  assert.match(html, new RegExp(fixture.inviteUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
+
+test("RSVP notifications prefer celebrant names over an extracted invitation slogan", async () => {
+  const subjects: string[] = [];
+  const htmlBodies: string[] = [];
+  await dispatchRsvpNotifications({
+    ...fixture,
+    event: { ...baseEvent, title: "Save the Date in style", honoreeNames: "Mercy & John", guestEmailConfirmations: true },
+  }, {
+    ...alwaysAllow(),
+    reserve: async (_channel, input) => ({ id: `${input.audience}-${input.kind}`, allowed: true }),
+    email: { send: async (input) => { subjects.push(input.subject); htmlBodies.push(input.html); return { ok: true, providerId: "e1" }; } },
+  });
+  assert.ok(subjects.some((subject) => subject === "New RSVP — Mercy & John"));
+  assert.equal(subjects.some((subject) => subject.includes("Save the Date in style")), false);
+  assert.ok(htmlBodies.every((html) => !html.includes("Save the Date in style")));
 });
 
 test("an RSVP update mints no new edit token, so its guest confirmation email falls back to the invite page", async () => {
@@ -364,7 +382,7 @@ test("a Spanish-locale event renders the owner notification email and subject in
   let subject = "";
   let html = "";
   await dispatchRsvpNotifications(
-    { ...fixture, event: { ...baseEvent, locale: "es" } },
+    { ...fixture, event: { ...baseEvent, locale: "es", honoreeNames: "" } },
     {
       savePayload: async () => undefined,
       reserve: async () => ({ id: "n-email", allowed: true }),
@@ -405,7 +423,7 @@ test("a Spanish-locale event renders the guest confirmation email in Spanish", a
   let html = "";
   let subject = "";
   await dispatchRsvpNotifications(
-    { ...fixture, event: { ...baseEvent, locale: "es", guestEmailConfirmations: true } },
+    { ...fixture, event: { ...baseEvent, locale: "es", honoreeNames: "", guestEmailConfirmations: true } },
     {
       savePayload: async () => undefined,
       reserve: async () => ({ id: "n", allowed: true }),
@@ -422,7 +440,7 @@ test("a Spanish-locale event renders the guest confirmation email in Spanish", a
   );
   assert.match(subject, /^Su RSVP para Sample Wedding$/);
   assert.match(html, /¡Gracias, Jamie Guest!/);
-  assert.match(html, /Actualizar su RSVP/);
+  assert.match(html, /envíe de nuevo el formulario de RSVP/);
   assert.doesNotMatch(html, /Thanks,|Update your RSVP/);
 });
 
@@ -444,7 +462,7 @@ test("a Spanish-locale guest confirmation without an edit link falls back to the
       sms: { send: async () => ({ ok: true, providerId: "s1" }) },
     },
   );
-  assert.match(html, /confirmación original/);
+  assert.match(html, /envíe de nuevo el formulario de RSVP/);
   assert.match(html, /la página de la invitación/);
   assert.doesNotMatch(html, /original confirmation|the invitation page/);
 });
@@ -456,7 +474,7 @@ test("event-authored fields (title, primary name) render as entered regardless o
     {
       ...fixture,
       rsvp: authoredRsvp,
-      event: { ...baseEvent, locale: "es", title: "Boda de Ana y Luis" },
+      event: { ...baseEvent, locale: "es", title: "Save the Date in style", honoreeNames: "Boda de Ana y Luis" },
     },
     {
       savePayload: async () => undefined,
@@ -468,6 +486,7 @@ test("event-authored fields (title, primary name) render as entered regardless o
     },
   );
   assert.match(html, /Boda de Ana y Luis/);
+  assert.doesNotMatch(html, /Save the Date in style/);
   assert.match(html, /María José/);
 });
 

@@ -41,6 +41,7 @@ const STATUS_BY_CODE: Readonly<Record<RsvpErrorCode, number>> = {
   capacity_reached: 409,
   submission_limit_reached: 409,
   duplicate_contact: 409,
+  contact_conflict: 409,
   invalid_edit_token: 404,
   rate_limited: 429,
 };

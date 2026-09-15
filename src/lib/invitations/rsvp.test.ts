@@ -31,6 +31,7 @@ test("stable database exception codes map without parsing provider prose", () =>
   assert.equal(mapRsvpRpcError({ message: "INVITE_CAPACITY_REACHED" }), "capacity_reached");
   assert.equal(mapRsvpRpcError({ message: "prefix INVITE_CAPACITY_REACHED suffix" }), "event_unavailable");
   assert.equal(mapRsvpRpcError({ message: "INVITE_INVALID_EDIT_TOKEN" }), "invalid_edit_token");
+  assert.equal(mapRsvpRpcError({ message: "INVITE_CONTACT_CONFLICT" }), "contact_conflict");
   assert.equal(mapRsvpRpcError({ code: "PGRST500", message: "database offline" }), "event_unavailable");
 });
 
@@ -106,6 +107,24 @@ test("update hashes the supplied credential and never returns it", async () => {
   assert.equal(calls[0]?.existingRsvpId, "rsvp-1");
   assert.equal(result.ok && result.value.editToken, null);
   assert.equal(result.ok && result.value.created, false);
+});
+
+test("an identical contact submission returns unchanged without exposing a fresh credential", async () => {
+  const result = await submitRsvp(
+    { eventId: "event-1", input: normalizedInput },
+    {
+      createToken: () => ({ token: "unused-new-token", hash: "unused-new-hash" }),
+      hashToken: () => { throw new Error("must not hash"); },
+      mutate: async () => ({
+        data: [{ rsvp_id: "rsvp-1", mutation_kind: "unchanged", attending_total: 2, declined_party_total: 0, remaining_capacity: 8 }],
+        error: null,
+      }),
+    },
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.ok && result.value.outcome, "unchanged");
+  assert.equal(result.ok && result.value.created, false);
+  assert.equal(result.ok && result.value.editToken, null);
 });
 
 test("administrative updates explicitly bypass guest tokens without creating responses", async () => {
@@ -202,6 +221,7 @@ test("public RSVP processing uses the exact slug and redacts disabled aggregates
           rsvp: { id: "rsvp-1", eventId: "event-1", ...normalizedInput },
           rsvpId: "rsvp-1",
           created: true,
+          outcome: "created",
           attendingTotal: 99,
           declinedPartyTotal: 20,
           remainingCapacity: 1,
@@ -214,7 +234,8 @@ test("public RSVP processing uses the exact slug and redacts disabled aggregates
   assert.deepEqual(lookedUp, ["Mia-And-Lee"]);
   assert.equal(result.status, 200);
   assert.equal("summary" in result.body, false);
-  assert.match(String(result.body.editUrl), /\/invite\/Mia-And-Lee#rsvpId=rsvp-1&editToken=secret-token$/);
+  assert.equal(result.body.outcome, "created");
+  assert.equal("editUrl" in result.body, false);
   assert.doesNotMatch(JSON.stringify(result.body), /99|20/);
 });
 

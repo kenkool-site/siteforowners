@@ -225,6 +225,7 @@ export type NotificationEventContext = {
   slug: string;
   publicSubdomain?: string | null;
   title: string;
+  honoreeNames: string;
   locale: InvitationLocale;
   ownerEmailNotifications: boolean;
   ownerEmailRecipients?: string[];
@@ -233,6 +234,10 @@ export type NotificationEventContext = {
   notificationPhone: string | null;
   guestEmailConfirmations: boolean;
 };
+
+export function notificationDisplayTitle(event: Pick<NotificationEventContext, "title" | "honoreeNames">): string {
+  return event.honoreeNames.trim() || event.title;
+}
 
 export function notificationInvitationUrl(event: NotificationEventContext, origin: string): string {
   return invitationPublicUrl(event, origin);
@@ -287,7 +292,8 @@ export async function dispatchRsvpNotifications(
   input: DispatchRsvpNotificationsInput,
   dependencies: NotificationDispatchDependencies,
 ): Promise<DispatchRsvpNotificationsResult> {
-  const { event, rsvp, created, editUrl, dashboardUrl, inviteUrl } = input;
+  const { event, rsvp, created, dashboardUrl, inviteUrl } = input;
+  const displayTitle = notificationDisplayTitle(event);
   const kind: InvitationNotificationKind = created ? "rsvp_created" : "rsvp_updated";
   const attempts: PlannedAttempt[] = [];
 
@@ -305,8 +311,8 @@ export async function dispatchRsvpNotifications(
       payload: (idempotencyKey) => ({ channel: "email", input: {
         from: EMAIL_FROM,
         to,
-        subject: ownerEmailSubject({ eventTitle: event.title, created, rsvp, locale: event.locale }),
-        html: renderOwnerEmailHtml({ eventTitle: event.title, created, rsvp, dashboardUrl, locale: event.locale }),
+        subject: ownerEmailSubject({ eventTitle: displayTitle, created, rsvp, locale: event.locale }),
+        html: renderOwnerEmailHtml({ eventTitle: displayTitle, created, rsvp, dashboardUrl, locale: event.locale }),
         idempotencyKey,
       } }),
     });
@@ -323,7 +329,7 @@ export async function dispatchRsvpNotifications(
       payload: (idempotencyKey) => ({ channel: "sms", input: {
         from: twilioFromNumber || "",
         to,
-        body: renderOwnerSmsBody({ eventTitle: event.title, rsvp, dashboardUrl, locale: event.locale }),
+        body: renderOwnerSmsBody({ eventTitle: displayTitle, rsvp, dashboardUrl, locale: event.locale }),
         idempotencyKey,
       } }),
     });
@@ -341,8 +347,8 @@ export async function dispatchRsvpNotifications(
       payload: (idempotencyKey) => ({ channel: "email", input: {
         from: EMAIL_FROM,
         to,
-        subject: guestEmailSubject(event.title, event.locale),
-        html: renderGuestConfirmationEmailHtml({ eventTitle: event.title, rsvp, editUrl, inviteUrl, locale: event.locale }),
+        subject: guestEmailSubject(displayTitle, event.locale),
+        html: renderGuestConfirmationEmailHtml({ eventTitle: displayTitle, rsvp, editUrl: null, inviteUrl, locale: event.locale }),
         idempotencyKey,
       } }),
     });
@@ -504,7 +510,7 @@ async function getInvitationNotificationEventContext(eventId: string): Promise<N
   const client = createAdminClient();
   const { data, error } = await client
     .from("invitation_events")
-    .select("id,slug,public_subdomain,title,locale,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
+    .select("id,slug,public_subdomain,title,honoree_names,locale,owner_email_notifications,owner_sms_notifications,notification_email,notification_phone,guest_email_confirmations")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
@@ -525,6 +531,7 @@ async function getInvitationNotificationEventContext(eventId: string): Promise<N
     slug: data.slug,
     publicSubdomain: data.public_subdomain,
     title: data.title,
+    honoreeNames: data.honoree_names,
     locale: data.locale === "es" ? "es" : "en",
     ownerEmailNotifications: data.owner_email_notifications,
     ownerEmailRecipients: [data.notification_email, ...cohostEmails].flatMap((email) => typeof email === "string" ? [email] : []),
