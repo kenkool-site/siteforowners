@@ -299,6 +299,11 @@
         "addColor": "Agregar color",
         "remove": "Eliminar"
       },
+      "frame": {
+        "title": "Marco de portada",
+        "help": "Elija un marco que use el color de acento de esta invitación.",
+        "options": { "none": "Sin marco", "line": "Mínimo", "double": "Doble", "botanical": "Botánico", "floral": "Floral", "ornamental": "Ornamental" }
+      },
       "reference": {
         "title": "Recrear desde su diseño",
         "help": "Usamos la invitación diseñada como referencia privada para sugerir texto, colores y diseño editables.",

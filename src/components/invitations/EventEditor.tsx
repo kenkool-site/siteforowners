@@ -13,7 +13,7 @@ import type { InvitationEventStatus } from "@/lib/invitations/types";
 import { ResponsesDashboard } from "./ResponsesDashboard";
 import { ReferenceImportReview } from "./ReferenceImportReview";
 import type { ExtractedFact, InvitationReferenceAnalysis } from "@/lib/invitations/reference-analysis";
-import type { InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
+import { DEFAULT_INVITATION_DESIGN_RECIPE, type InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
 import type { InvitationWording } from "@/lib/invitations/wording";
 import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import type { InvitationStyleGuide } from "@/lib/invitations/style-guide";
@@ -389,6 +389,13 @@ export function EventEditor({
       setPreviewAccent(analysis.recipe.palette.accent);
     }
     markDirty();
+  }
+
+  function selectFrame(style: InvitationDesignRecipe["frame"]["style"]) {
+    setDesignRecipe((current) => ({
+      ...structuredClone(current ?? DEFAULT_INVITATION_DESIGN_RECIPE),
+      frame: { ...(current ?? DEFAULT_INVITATION_DESIGN_RECIPE).frame, style },
+    }));
   }
 
   async function suggestWording() {
@@ -816,6 +823,18 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.primaryColor")}<input type="color" name="primaryColor" value={previewPrimary} onChange={(e) => setPreviewPrimary(e.target.value)} className={`${inputClass} p-1`} /></label>
               <label className={labelClass}>{t("fields.accentColor")}<input type="color" name="accentColor" value={previewAccent} onChange={(e) => setPreviewAccent(e.target.value)} className={`${inputClass} p-1`} /></label>
             </div>
+            <fieldset className="mt-6">
+              <legend className={labelClass}>{t("frame.title")}</legend>
+              <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("frame.help")}</p>
+              <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {(["none", "line", "double", "botanical", "floral", "ornamental"] as const).map((frame) => (
+                  <label key={frame} className="flex min-h-12 cursor-pointer items-center gap-2 rounded-md border border-[#d8cedc] bg-white px-3 py-2 text-sm font-medium has-[:checked]:border-[#6D456F] has-[:checked]:bg-[#F1EDF4]">
+                    <input type="radio" name="coverFrameStyle" value={frame} checked={(designRecipe ?? DEFAULT_INVITATION_DESIGN_RECIPE).frame.style === frame} onChange={() => selectFrame(frame)} />
+                    {t(`frame.options.${frame}`)}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             <div className="mt-8 border-b border-[#ddd4e1]" onChange={(eventChange) => eventChange.stopPropagation()}>
               <div className="border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-3">
                 <h3 className="font-semibold text-[#2B2231]">{t("media.heading")}</h3>

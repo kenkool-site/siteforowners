@@ -299,6 +299,11 @@
         "addColor": "Add color",
         "remove": "Remove"
       },
+      "frame": {
+        "title": "Cover frame",
+        "help": "Choose a frame that uses this invitation's accent color.",
+        "options": { "none": "No frame", "line": "Minimal", "double": "Double", "botanical": "Botanical", "floral": "Floral", "ornamental": "Ornamental" }
+      },
       "reference": {
         "title": "Recreate from your design",
         "help": "We use the designed invitation as a private reference to suggest editable wording, colors, and layout.",

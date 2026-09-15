@@ -161,6 +161,16 @@ test("style guide editor exposes optional note and editable color rows", () => {
   assert.equal(document.querySelector("details[data-style-guide-editor]")?.hasAttribute("open"), true);
 });
 
+test("cover frame choices are editable and include floral and botanical treatments", () => {
+  const html = render("owner");
+  const document = new JSDOM(html).window.document;
+  assert.match(html, /Cover frame/);
+  const values = Array.from(document.querySelectorAll<HTMLInputElement>('input[name="coverFrameStyle"]')).map((input) => input.value);
+  for (const value of ["none", "line", "double", "botanical", "floral", "ornamental"]) {
+    assert.ok(values.includes(value));
+  }
+});
+
 test("a full gallery disables the thirteenth upload", () => {
   const gallery = Array.from({ length: 12 }, (_, index) => ({
     id: `media-${index}`,

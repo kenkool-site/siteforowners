@@ -8,7 +8,7 @@ export type InvitationDesignRecipe = {
   palette: { background: string; surface: string; text: string; mutedText: string; accent: string; overlay: string };
   typography: { display: typeof DISPLAY_STYLES[number]; body: typeof BODY_STYLES[number]; weight: 400 | 500 | 600 | 700; tracking: number; scale: "restrained" | "balanced" | "dramatic" };
   composition: { family: typeof COMPOSITION_FAMILIES[number]; alignment: "left" | "center"; maxWidth: number; rhythm: "compact" | "balanced" | "airy"; heroTextPlacement: "top" | "center" | "bottom" };
-  frame: { style: "none" | "line" | "double" | "botanical" | "ornamental"; width: number; radius: "none" | "soft" | "rounded"; inset: boolean };
+  frame: { style: "none" | "line" | "double" | "botanical" | "floral" | "ornamental"; width: number; radius: "none" | "soft" | "rounded"; inset: boolean };
   decoration: { motif: "none" | "botanical" | "floral" | "geometric" | "ribbon" | "ornamental"; density: "minimal" | "balanced" | "rich"; symmetry: "none" | "balanced" | "mirrored"; divider: "none" | "line" | "dots" | "flourish" };
   hero: { overlayStrength: number; textColor: string; focalX: number; focalY: number; minHeightVh: number };
   contentOrder: Array<typeof CONTENT_SECTIONS[number]>;
@@ -67,7 +67,7 @@ export function normalizeInvitationDesignRecipe(input: unknown): Result {
   if (!palette || Object.values(palette).some((value) => !value)) return { ok: false, errors: ["palette"] };
   if (!isRecord(t) || !oneOf(t.display, DISPLAY_STYLES) || !oneOf(t.body, BODY_STYLES) || !oneOf(t.weight, [400, 500, 600, 700] as const) || !oneOf(t.scale, ["restrained", "balanced", "dramatic"] as const)) return { ok: false, errors: ["typography"] };
   if (!isRecord(c) || !oneOf(c.family, COMPOSITION_FAMILIES) || !oneOf(c.alignment, ["left", "center"] as const) || !oneOf(c.rhythm, ["compact", "balanced", "airy"] as const) || !oneOf(c.heroTextPlacement, ["top", "center", "bottom"] as const)) return { ok: false, errors: ["composition"] };
-  if (!isRecord(f) || !oneOf(f.style, ["none", "line", "double", "botanical", "ornamental"] as const) || !oneOf(f.radius, ["none", "soft", "rounded"] as const) || typeof f.inset !== "boolean") return { ok: false, errors: ["frame"] };
+  if (!isRecord(f) || !oneOf(f.style, ["none", "line", "double", "botanical", "floral", "ornamental"] as const) || !oneOf(f.radius, ["none", "soft", "rounded"] as const) || typeof f.inset !== "boolean") return { ok: false, errors: ["frame"] };
   if (!isRecord(d) || !oneOf(d.motif, ["none", "botanical", "floral", "geometric", "ribbon", "ornamental"] as const) || !oneOf(d.density, ["minimal", "balanced", "rich"] as const) || !oneOf(d.symmetry, ["none", "balanced", "mirrored"] as const) || !oneOf(d.divider, ["none", "line", "dots", "flourish"] as const)) return { ok: false, errors: ["decoration"] };
   if (!isRecord(h)) return { ok: false, errors: ["hero"] };
   const tracking = number(t.tracking, -0.08, 0.12), maxWidth = number(c.maxWidth, 320, 1120), width = number(f.width, 0, 8), overlayStrength = number(h.overlayStrength, 0.2, 0.8), focalX = number(h.focalX, 0, 1), focalY = number(h.focalY, 0, 1), minHeightVh = number(h.minHeightVh, 80, 100), textColor = color(h.textColor);

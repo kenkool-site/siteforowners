@@ -7,6 +7,7 @@ import enMessages from "../../../messages/en.json";
 import esMessages from "../../../messages/es.json";
 import { InvitationStateView, PublicInvitation, type PublicInvitationEvent } from "./PublicInvitation";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
+import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recipe";
 
 Object.assign(globalThis, { React });
 
@@ -142,6 +143,16 @@ test("the honoree names lead the hero while a distinct extracted title supports 
   const html = render("published", { title: "Save the Date in style", honoreeNames: "Mercy & John" });
   assert.match(html, /<h1[^>]*>Mercy &amp; John<\/h1>/);
   assert.match(html, /data-invitation-kicker="true"[^>]*>Save the Date in style<\/p>/);
+});
+
+test("the cover renders the selected decorative frame with the dynamic accent color", () => {
+  const recipe = structuredClone(DEFAULT_INVITATION_DESIGN_RECIPE);
+  recipe.frame.style = "floral";
+  recipe.palette.accent = "#C27A91";
+  const html = render("published", { designRecipe: recipe });
+  assert.match(html, /data-invitation-frame="floral"/);
+  assert.match(html, /border-color:#C27A91/);
+  assert.match(html, /<svg/);
 });
 
 test("gallery photos stack on mobile and balance into two columns on larger screens", () => {
