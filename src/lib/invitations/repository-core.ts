@@ -8,6 +8,8 @@ import type {
   InvitationLocale,
   InvitationOwner,
 } from "./types";
+import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
+import { normalizeInvitationReferenceAnalysis } from "./reference-analysis";
 
 export const INVITATION_SUBMISSION_LIMIT = 250;
 export const INVITATION_EMAIL_NOTIFICATION_LIMIT = 250;
@@ -87,6 +89,8 @@ export type InvitationManagementRow = {
   primary_color: string;
   accent_color: string;
   font_pair_key: string;
+  design_recipe?: unknown;
+  reference_analysis?: unknown;
   designed_invite_path: string | null;
   cover_image_path: string | null;
   video_path: string | null;
@@ -140,6 +144,7 @@ export type InvitationPublicRow = {
   primary_color: string;
   accent_color: string;
   font_pair_key: string;
+  design_recipe?: unknown;
   designed_invite_path: string | null;
   cover_image_path: string | null;
   video_path: string | null;
@@ -169,6 +174,7 @@ export type PublicInvitationEvent = {
   primaryColor: string;
   accentColor: string;
   fontPairKey: string;
+  designRecipe: InvitationDesignRecipe | null;
   designedInvitePath: string | null;
   coverImagePath: string | null;
   videoPath: string | null;
@@ -299,6 +305,7 @@ export async function getInvitationEventForManagement(
   const row = await repository.get(eventId);
   if (!row) return null;
   const owner = firstRelation(row.invitation_owners);
+  const normalizedRecipe = normalizeInvitationDesignRecipe(row.design_recipe);
   return {
     id: row.id,
     ownerId: row.owner_id,
@@ -318,6 +325,8 @@ export async function getInvitationEventForManagement(
     primaryColor: row.primary_color,
     accentColor: row.accent_color,
     fontPairKey: row.font_pair_key,
+    designRecipe: normalizedRecipe.ok ? normalizedRecipe.value : null,
+    referenceAnalysis: normalizeInvitationReferenceAnalysis(row.reference_analysis),
     designedInvitePath: row.designed_invite_path,
     coverImagePath: row.cover_image_path,
     videoPath: row.video_path,
@@ -355,6 +364,7 @@ export async function getPublicInvitationBySlug(
   const row = await repository.findBySlug(slug);
   if (!row) return null;
   const rsvps = row.invitation_rsvps ?? [];
+  const normalizedRecipe = normalizeInvitationDesignRecipe(row.design_recipe);
   return {
     event: {
       id: row.id,
@@ -374,6 +384,7 @@ export async function getPublicInvitationBySlug(
       primaryColor: row.primary_color,
       accentColor: row.accent_color,
       fontPairKey: row.font_pair_key,
+      designRecipe: normalizedRecipe.ok ? normalizedRecipe.value : null,
       designedInvitePath: row.designed_invite_path,
       coverImagePath: row.cover_image_path,
       videoPath: row.video_path,
@@ -409,6 +420,7 @@ const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>>
   primaryColor: "primary_color",
   accentColor: "accent_color",
   fontPairKey: "font_pair_key",
+  designRecipe: "design_recipe",
   showPublicRsvpCount: "show_public_rsvp_count",
   capacity: "capacity",
   rsvpDeadline: "rsvp_deadline",

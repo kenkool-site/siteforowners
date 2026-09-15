@@ -1,6 +1,7 @@
 import { toE164 } from "@/lib/sms";
 import type { InvitationEventForManagement } from "./repository-core";
 import type { InvitationEventStatus, InvitationLocale } from "./types";
+import { normalizeInvitationDesignRecipe, type InvitationDesignRecipe } from "./design-recipe";
 
 export type ParsedRsvpInput = {
   primaryName: string;
@@ -41,6 +42,7 @@ export type InvitationEventUpdate = {
   primaryColor?: string;
   accentColor?: string;
   fontPairKey?: InvitationFontPairKey;
+  designRecipe?: InvitationDesignRecipe | null;
   passcode?: string;
   removePasscode?: true;
   showPublicRsvpCount?: boolean;
@@ -207,6 +209,14 @@ export function parseEventUpdate(
     if (typeof body.fontPairKey === "string" && INVITATION_FONT_PAIR_KEYS.includes(body.fontPairKey as InvitationFontPairKey)) {
       value.fontPairKey = body.fontPairKey as InvitationFontPairKey;
     } else errors.fontPairKey = "Choose one of the available font pairs.";
+  }
+  if ("designRecipe" in body) {
+    if (body.designRecipe === null) value.designRecipe = null;
+    else {
+      const recipe = normalizeInvitationDesignRecipe(body.designRecipe);
+      if (recipe.ok) value.designRecipe = recipe.value;
+      else errors.designRecipe = "Use a valid invitation design.";
+    }
   }
   for (const key of ["primaryColor", "accentColor"] as const) {
     if (!(key in body)) continue;

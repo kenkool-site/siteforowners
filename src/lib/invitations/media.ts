@@ -364,6 +364,30 @@ export async function getSignedInvitationMedia(
   return data.signedUrl;
 }
 
+export async function readInvitationReferenceBytes(
+  path: string,
+  eventId: string,
+  dependencies?: { download(path: string): Promise<Blob> },
+): Promise<{ bytes: Uint8Array; mediaType: "image/jpeg" | "image/png" | "image/webp" }> {
+  if (!isInvitationMediaPathForEvent(path, eventId, "designed_invite")) throw new Error("Invalid invitation reference path");
+  const extension = path.split(".").pop()?.toLowerCase();
+  const mediaType = extension === "png" ? "image/png" : extension === "webp" ? "image/webp" : extension === "jpg" || extension === "jpeg" ? "image/jpeg" : null;
+  if (!mediaType) throw new Error("Invalid invitation reference image");
+  let blob: Blob;
+  if (dependencies) blob = await dependencies.download(path);
+  else {
+    const { createAdminClient } = await import("@/lib/supabase/admin");
+    const { data, error } = await createAdminClient().storage.from(INVITATION_MEDIA_BUCKET).download(path);
+    if (error || !data) throw new Error("Invitation reference unavailable", { cause: error });
+    blob = data;
+  }
+  if (blob.size > INVITATION_IMAGE_MAX_BYTES) throw new Error("Invitation reference image is too large");
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const validation = await validateInvitationMedia({ name: `reference.${extension}`, type: mediaType, size: bytes.byteLength, arrayBuffer: async () => bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) }, "designed_invite");
+  if (!validation.ok) throw new Error("Invalid invitation reference image");
+  return { bytes: validation.bytes, mediaType: validation.contentType as "image/jpeg" | "image/png" | "image/webp" };
+}
+
 export async function createInvitationMediaSnapshot(
   event: {
     id: string;

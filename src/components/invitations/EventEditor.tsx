@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { zonedWallTimeToUtcIso } from "@/lib/invitations/event-time";
 import type {
@@ -11,6 +11,10 @@ import type {
 import type { InvitationEventForManagement } from "@/lib/invitations/repository";
 import type { InvitationEventStatus } from "@/lib/invitations/types";
 import { ResponsesDashboard } from "./ResponsesDashboard";
+import { ReferenceImportReview } from "./ReferenceImportReview";
+import type { ExtractedFact, InvitationReferenceAnalysis } from "@/lib/invitations/reference-analysis";
+import type { InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
+import type { InvitationWording } from "@/lib/invitations/wording";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -170,6 +174,14 @@ export function EventEditor({
   const [mediaProgress, setMediaProgress] = useState<number | null>(null);
   const [mediaError, setMediaError] = useState("");
   const [galleryAltText, setGalleryAltText] = useState("");
+  const [analysis, setAnalysis] = useState<InvitationReferenceAnalysis | null>(event.referenceAnalysis);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [designRecipe, setDesignRecipe] = useState<InvitationDesignRecipe | null>(event.designRecipe);
+  const [wordingSuggestion, setWordingSuggestion] = useState<InvitationWording | null>(null);
+  const [wordingBusy, setWordingBusy] = useState(false);
+  const [wordingError, setWordingError] = useState("");
+  const eventFormRef = useRef<HTMLFormElement>(null);
 
   const dateLabel = useMemo(() => currentEvent.startsAt
     ? new Intl.DateTimeFormat(locale, {
@@ -235,6 +247,7 @@ export function EventEditor({
         fontPairKey: stringValue(data, "fontPairKey"),
         primaryColor: stringValue(data, "primaryColor"),
         accentColor: stringValue(data, "accentColor"),
+        designRecipe,
         capacity: numberOrNull(data.get("capacity")),
         rsvpDeadline: wallTime("rsvpDeadline"),
         passcode: stringValue(data, "passcode") || undefined,
@@ -279,6 +292,8 @@ export function EventEditor({
       setPreviewPrimary(result.event.primaryColor);
       setPreviewAccent(result.event.accentColor);
       setPreviewFont(result.event.fontPairKey === "geist-geist" ? "geist-geist" : "fraunces-geist");
+      setDesignRecipe(result.event.designRecipe);
+      setAnalysis(result.event.referenceAnalysis);
       setDirty(false);
       setSaved(true);
     } catch {
@@ -286,6 +301,64 @@ export function EventEditor({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function analyzeReference() {
+    setAnalyzing(true);
+    setAnalysisError("");
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/analyze-reference`, { method: "POST" });
+      const result = await response.json() as { analysis?: InvitationReferenceAnalysis; error?: string };
+      if (!response.ok || !result.analysis) {
+        const code = result.error === "reference_required" || result.error === "analysis_rate_limited" ? result.error : "analysis_unavailable";
+        setAnalysisError(t(`reference.errors.${code}`));
+        return;
+      }
+      setAnalysis(result.analysis);
+    } catch { setAnalysisError(t("reference.errors.analysis_unavailable")); }
+    finally { setAnalyzing(false); }
+  }
+
+  function applyReference(facts: ExtractedFact[], includeDesign: boolean) {
+    const form = eventFormRef.current;
+    if (!form) return;
+    for (const fact of facts) {
+      const field = form.elements.namedItem(fact.key);
+      if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) continue;
+      field.value = fact.key === "startsAt" ? toLocalInput(fact.value, currentEvent.timezone) : fact.value;
+      if (fact.key === "title") setPreviewTitle(fact.value);
+      if (fact.key === "description") setPreviewDescription(fact.value);
+    }
+    if (includeDesign && analysis) {
+      setDesignRecipe(analysis.recipe);
+      setPreviewPrimary(analysis.recipe.palette.text);
+      setPreviewAccent(analysis.recipe.palette.accent);
+    }
+    markDirty();
+  }
+
+  async function suggestWording() {
+    setWordingBusy(true);
+    setWordingError("");
+    try {
+      const response = await fetch(`/api/invitations/events/${currentEvent.id}/suggest-wording`, { method: "POST" });
+      const result = await response.json() as { wording?: InvitationWording; error?: string };
+      if (!response.ok || !result.wording) {
+        setWordingError(t(result.error === "wording_rate_limited" ? "wording.errors.rateLimited" : "wording.errors.unavailable"));
+        return;
+      }
+      setWordingSuggestion(result.wording);
+    } catch { setWordingError(t("wording.errors.unavailable")); }
+    finally { setWordingBusy(false); }
+  }
+
+  function applySuggestedDescription() {
+    if (!wordingSuggestion || !eventFormRef.current) return;
+    const description = eventFormRef.current.elements.namedItem("description");
+    if (!(description instanceof HTMLTextAreaElement)) return;
+    description.value = wordingSuggestion.description;
+    setPreviewDescription(wordingSuggestion.description);
+    markDirty();
   }
 
   async function changeStatus(command: StatusCommand) {
@@ -501,7 +574,7 @@ export function EventEditor({
         </nav>
       </div>
 
-      <form key={`${currentEvent.id}:${formVersion}`} data-event-form="true" onSubmit={save} onChange={markDirty} className="mx-auto grid max-w-[1380px] lg:grid-cols-[180px_minmax(0,680px)_minmax(280px,1fr)] lg:gap-10 lg:px-8">
+      <form ref={eventFormRef} key={`${currentEvent.id}:${formVersion}`} data-event-form="true" onSubmit={save} onChange={markDirty} className="mx-auto grid max-w-[1380px] lg:grid-cols-[180px_minmax(0,680px)_minmax(280px,1fr)] lg:gap-10 lg:px-8">
         <fieldset disabled={saving} className="contents border-0 p-0">
         <aside className="hidden py-8 lg:block">
           <nav className="sticky top-6 border-l border-[#cfc3d3]" aria-label={t("sectionNavigation")}>
@@ -523,7 +596,19 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.locale")}<select name="locale" defaultValue={currentEvent.locale} className={inputClass}><option value="en">{t("options.english")}</option><option value="es">{t("options.spanish")}</option></select></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.title")}<input name="title" defaultValue={currentEvent.title} placeholder={t("placeholders.title")} onInput={(e) => setPreviewTitle(e.currentTarget.value)} className={inputClass} /><FieldError name="title" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.honorees")}<input name="honoreeNames" defaultValue={currentEvent.honoreeNames} placeholder={t("placeholders.honorees")} className={inputClass} /><FieldError name="honoreeNames" errors={errors} /></label>
-              <label className={`${labelClass} sm:col-span-2`}>{t("fields.description")}<textarea name="description" defaultValue={currentEvent.description} placeholder={t("placeholders.description")} onInput={(e) => setPreviewDescription(e.currentTarget.value)} rows={4} className={inputClass} /></label>
+              <div className="sm:col-span-2">
+                <label className={labelClass}>{t("fields.description")}<textarea name="description" defaultValue={currentEvent.description} placeholder={t("placeholders.description")} onInput={(e) => setPreviewDescription(e.currentTarget.value)} rows={4} className={inputClass} /></label>
+                <button type="button" disabled={wordingBusy} onClick={() => void suggestWording()} className="mt-3 min-h-11 rounded-md border border-[#6D456F] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{wordingBusy ? t("wording.suggesting") : t("wording.suggest")}</button>
+                {wordingError && <p role="alert" className="mt-2 text-sm text-[#A33A3A]">{wordingError}</p>}
+                {wordingSuggestion && (
+                  <div className="mt-3 border-l-2 border-[#6D456F] bg-[#F1EDF4] px-4 py-3 text-sm">
+                    <p className="font-semibold text-[#2B2231]">{t("wording.title")}</p>
+                    <p className="mt-2 leading-6 text-[#55485a]">{wordingSuggestion.description}</p>
+                    {wordingSuggestion.styleNote && <p className="mt-2 text-xs text-[#675d6a]">{wordingSuggestion.styleNote}</p>}
+                    <button type="button" onClick={applySuggestedDescription} className="mt-3 min-h-11 rounded-md bg-[#6D456F] px-4 py-2 font-semibold text-white">{t("wording.apply")}</button>
+                  </div>
+                )}
+              </div>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.timezone")}<input name="timezone" defaultValue={currentEvent.timezone} placeholder={t("placeholders.timezone")} className={inputClass} /><FieldError name="timezone" errors={errors} /></label>
               <label className={labelClass}>{t("fields.startsAt")}<input type="datetime-local" name="startsAt" defaultValue={toLocalInput(currentEvent.startsAt, currentEvent.timezone)} className={inputClass} /><FieldError name="startsAt" errors={errors} /></label>
               <label className={labelClass}>{t("fields.endsAt")}<input type="datetime-local" name="endsAt" defaultValue={toLocalInput(currentEvent.endsAt, currentEvent.timezone)} className={inputClass} /><FieldError name="endsAt" errors={errors} /></label>
@@ -559,6 +644,13 @@ export function EventEditor({
               {singletonMediaRow("designed_invite", t("media.designedInvite"), t("media.imageLimit"), media.designedInvite)}
               {singletonMediaRow("cover", t("media.cover"), t("media.imageLimit"), media.cover)}
               {singletonMediaRow("video", t("media.video"), t("media.videoLimit"), media.video)}
+              <div className="border-t border-[#ddd4e1] py-5">
+                <h3 className="text-sm font-semibold">{t("reference.title")}</h3>
+                <p className="mt-1 text-xs leading-5 text-[#675d6a]">{t("reference.help")}</p>
+                <button type="button" disabled={!media.designedInvite || analyzing} onClick={() => void analyzeReference()} className="mt-3 min-h-11 rounded-md border border-[#6D456F] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{analyzing ? t("reference.analyzing") : t("reference.analyze")}</button>
+                {analysisError && <p role="alert" className="mt-3 text-sm text-[#A33A3A]">{analysisError}</p>}
+                {analysis && <ReferenceImportReview analysis={analysis} onApply={applyReference} />}
+              </div>
               <div className="border-t border-[#ddd4e1] py-5">
                 <div className="flex items-start justify-between gap-4">
                   <div>

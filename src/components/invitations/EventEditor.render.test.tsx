@@ -29,6 +29,8 @@ const event: EditorEvent = {
   primaryColor: "#2B2231",
   accentColor: "#6D456F",
   fontPairKey: "fraunces-geist",
+  designRecipe: null,
+  referenceAnalysis: null,
   designedInvitePath: null,
   coverImagePath: null,
   videoPath: null,
@@ -99,7 +101,7 @@ test("the theme preview remains available in the mobile editing column", () => {
 
 test("the design section explains every private media slot and its limits", () => {
   const html = render("owner");
-  for (const label of ["Designed invitation", "Cover image", "Event video", "Photo gallery"]) {
+  for (const label of ["Private design reference", "Full-screen opening photo", "Event video", "Photo gallery"]) {
     assert.match(html, new RegExp(label));
   }
   assert.match(html, /JPEG, PNG, or WebP · 10 MB maximum/);

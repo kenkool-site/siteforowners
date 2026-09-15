@@ -29,6 +29,7 @@ const event: PublicInvitationEvent = {
   primaryColor: "#18253A",
   accentColor: "#9B6A44",
   fontPairKey: "fraunces-geist",
+  designRecipe: null,
   showPublicRsvpCount: false,
 };
 

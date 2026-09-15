@@ -153,9 +153,9 @@
       },
       "media": {
         "heading": "Invitation media",
-        "help": "Add the visual pieces guests will see. Files stay private and are shared through short-lived links.",
-        "designedInvite": "Designed invitation",
-        "cover": "Cover image",
+        "help": "The opening photo appears to guests. Your design reference stays private and guides the editable recreation.",
+        "designedInvite": "Private design reference",
+        "cover": "Full-screen opening photo",
         "video": "Event video",
         "gallery": "Photo gallery",
         "imageLimit": "JPEG, PNG, or WebP · 10 MB maximum",
@@ -265,6 +265,29 @@
       "credentialSaveError": "Owner credentials were not saved. Fix the highlighted fields and try again.",
       "statusError": "The invitation status could not be changed. Fix the listed fields and try again.",
       "saveBeforeStatus": "Save your changes before changing the invitation status.",
+      "reference": {
+        "title": "Recreate from your design",
+        "help": "We use the designed invitation as a private reference to suggest editable wording, colors, and layout.",
+        "analyze": "Analyze invitation",
+        "analyzing": "Analyzing…",
+        "reviewTitle": "Import review",
+        "reviewHelp": "Choose what to bring into your editable invitation. Nothing is saved until you save changes.",
+        "high": "High confidence",
+        "review": "Review carefully",
+        "low": "Low confidence",
+        "foundInImage": "Found in image: “{evidence}”",
+        "design": "Colors, typography, and layout",
+        "applySelected": "Apply selected",
+        "fields": { "title": "Event title", "honoreeNames": "Honoree names", "startsAt": "Date and time", "venueName": "Venue", "address": "Address", "description": "Description" },
+        "errors": { "reference_required": "Upload a design reference first.", "analysis_rate_limited": "Analysis limit reached. Try again later.", "analysis_unavailable": "The invitation could not be analyzed. Try again." }
+      },
+      "wording": {
+        "title": "AI wording suggestion",
+        "suggest": "Suggest wording with AI",
+        "suggesting": "Writing…",
+        "apply": "Use this description",
+        "errors": { "rateLimited": "AI suggestion limit reached. Try again later.", "unavailable": "A wording suggestion could not be created. Try again." }
+      },
       "responsePlaceholderTitle": "Responses will appear here",
       "responsePlaceholderBody": "After guests reply, this section will show totals and response details.",
       "responsesDashboard": {
@@ -407,6 +430,7 @@
         "error": "The passcode could not be checked. Try again."
       },
       "datePending": "Date and time to come",
+      "viewInvitation": "View invitation",
       "designedInviteAlt": "Designed event invitation",
       "coverAlt": "Cover for {title}",
       "details": "The details",

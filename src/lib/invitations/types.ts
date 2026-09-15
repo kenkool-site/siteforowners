@@ -51,6 +51,8 @@ export interface InvitationEvent {
   primaryColor: string;
   accentColor: string;
   fontPairKey: string;
+  designRecipe: InvitationDesignRecipe | null;
+  referenceAnalysis: InvitationReferenceAnalysis | null;
   designedInvitePath: string | null;
   coverImagePath: string | null;
   videoPath: string | null;
@@ -146,3 +148,5 @@ export interface RsvpMutationResult {
   remainingCapacity: number | null;
   editToken: string | null;
 }
+import type { InvitationDesignRecipe } from "./design-recipe";
+import type { InvitationReferenceAnalysis } from "./reference-analysis";

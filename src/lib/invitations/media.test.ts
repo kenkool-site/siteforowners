@@ -8,6 +8,7 @@ import {
   isInvitationMediaPathForEvent,
   isInvitationMediaOrphan,
   readMp4VideoTimelineDuration,
+  readInvitationReferenceBytes,
   removeInvitationSingletonMedia,
   validateInvitationGalleryCount,
   validateInvitationMedia,
@@ -19,6 +20,14 @@ const PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const WEBP = Uint8Array.from([
   0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50,
 ]);
+
+test("private reference reads require the exact event-scoped designed-invite path", async () => {
+  const eventId = "152b6e19-81e9-4bff-b402-77af52e2ed2a";
+  await assert.rejects(() => readInvitationReferenceBytes(`other/designed_invite/reference.png`, eventId, { download: async () => new Blob([PNG]) }), /path/i);
+  const result = await readInvitationReferenceBytes(`${eventId}/designed_invite/reference.png`, eventId, { download: async () => new Blob([PNG]) });
+  assert.equal(result.mediaType, "image/png");
+  assert.deepEqual(result.bytes, PNG);
+});
 const ascii = (value: string) => Uint8Array.from(value, (character) => character.charCodeAt(0));
 
 function concat(...parts: Uint8Array[]): Uint8Array {

@@ -153,9 +153,9 @@
       },
       "media": {
         "heading": "Contenido multimedia",
-        "help": "Agregue los elementos visuales que verán sus invitados. Los archivos se mantienen privados y se comparten mediante enlaces temporales.",
-        "designedInvite": "Invitación diseñada",
-        "cover": "Imagen de portada",
+        "help": "Los invitados ven la foto de apertura. La referencia de diseño se mantiene privada y guía la recreación editable.",
+        "designedInvite": "Referencia de diseño privada",
+        "cover": "Foto de apertura a pantalla completa",
         "video": "Video del evento",
         "gallery": "Galería de fotos",
         "imageLimit": "JPEG, PNG o WebP · máximo de 10 MB",
@@ -265,6 +265,29 @@
       "credentialSaveError": "Las credenciales del propietario no se guardaron. Corrija los campos marcados e inténtelo de nuevo.",
       "statusError": "No se pudo cambiar el estado. Corrija los campos indicados e inténtelo de nuevo.",
       "saveBeforeStatus": "Guarde los cambios antes de modificar el estado de la invitación.",
+      "reference": {
+        "title": "Recrear desde su diseño",
+        "help": "Usamos la invitación diseñada como referencia privada para sugerir texto, colores y diseño editables.",
+        "analyze": "Analizar invitación",
+        "analyzing": "Analizando…",
+        "reviewTitle": "Revisión de importación",
+        "reviewHelp": "Elija qué incorporar. Nada se guarda hasta que guarde los cambios.",
+        "high": "Alta confianza",
+        "review": "Revisar cuidadosamente",
+        "low": "Baja confianza",
+        "foundInImage": "Encontrado en la imagen: “{evidence}”",
+        "design": "Colores, tipografía y diseño",
+        "applySelected": "Aplicar selección",
+        "fields": { "title": "Título del evento", "honoreeNames": "Nombres homenajeados", "startsAt": "Fecha y hora", "venueName": "Lugar", "address": "Dirección", "description": "Descripción" },
+        "errors": { "reference_required": "Primero suba una referencia de diseño.", "analysis_rate_limited": "Se alcanzó el límite de análisis. Inténtelo más tarde.", "analysis_unavailable": "No se pudo analizar la invitación. Inténtelo de nuevo." }
+      },
+      "wording": {
+        "title": "Sugerencia de texto con IA",
+        "suggest": "Sugerir texto con IA",
+        "suggesting": "Escribiendo…",
+        "apply": "Usar esta descripción",
+        "errors": { "rateLimited": "Se alcanzó el límite de sugerencias. Inténtelo más tarde.", "unavailable": "No se pudo crear una sugerencia. Inténtelo de nuevo." }
+      },
       "responsePlaceholderTitle": "Las respuestas aparecerán aquí",
       "responsePlaceholderBody": "Cuando los invitados respondan, esta sección mostrará los totales y detalles.",
       "responsesDashboard": {
@@ -407,6 +430,7 @@
         "error": "No se pudo verificar la clave. Inténtelo de nuevo."
       },
       "datePending": "Fecha y hora por confirmar",
+      "viewInvitation": "Ver invitación",
       "designedInviteAlt": "Invitación diseñada para el evento",
       "coverAlt": "Portada de {title}",
       "details": "Los detalles",
