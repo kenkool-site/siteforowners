@@ -367,6 +367,7 @@
         "primaryColor": "Elija un color principal válido de seis dígitos.",
         "accentColor": "Elija un color de acento válido de seis dígitos.",
         "capacity": "Ingrese una capacidad entera mayor que cero o déjela en blanco.",
+        "capacityBelowAttendance": "La capacidad no puede ser menor que la asistencia actual. Reduzca primero las respuestas de asistentes.",
         "rsvpDeadline": "Elija una fecha límite de RSVP anterior o igual al inicio.",
         "passcode": "Use al menos cuatro caracteres o déjelo en blanco para conservar la clave actual.",
         "removePasscode": "Elija una nueva clave o elimine la actual, no ambas opciones.",
@@ -386,6 +387,7 @@
       }
     },
     "public": {
+      "previewNotice": "Vista previa — el envío de RSVP está desactivado.",
       "unavailable": {
         "title": "Esta invitación no está disponible",
         "body": "Vuelva más tarde o comuníquese con el anfitrión."

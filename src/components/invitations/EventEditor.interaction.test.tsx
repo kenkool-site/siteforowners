@@ -125,6 +125,14 @@ function response(body: unknown, ok = true): Response {
   return { ok, json: async () => body } as Response;
 }
 
+test("capacity below attendance reports the corrective action beside the capacity field", async () => {
+  await withEditor("owner", async () => response({ errors: { capacity: "below_attendance" } }, false), async (container, dom) => {
+    const input = container.querySelector<HTMLInputElement>('input[name="capacity"]')!;
+    await act(async () => { setInput(dom, input, "1"); submit(dom, input.form!); });
+    assert.match(container.textContent ?? "", /Capacity cannot be lower than current attendance/);
+  });
+});
+
 test("editing is disabled while a save request is pending", async () => {
   let finish: ((value: Response) => void) | undefined;
   const pending = new Promise<Response>((resolve) => { finish = resolve; });
@@ -294,13 +302,21 @@ test("uploading singleton media preserves dirty title and venue drafts", async (
     withCredentials = false;
     private listeners = new Map<string, EventListener>();
     upload = { addEventListener: (_type: string, _listener: EventListener) => undefined };
-    open(_method: string, _url: string) {}
+    open(method: string, url: string) { assert.equal(method, "PUT"); assert.equal(url, "https://private-storage.test/signed-upload"); }
+    setRequestHeader(_name: string, _value: string) {}
     addEventListener(type: string, listener: EventListener) { this.listeners.set(type, listener); }
     send(_body: Document | XMLHttpRequestBodyInit | null) {
       queueMicrotask(() => this.listeners.get("load")?.(new Event("load")));
     }
   }
-  await withEditor("owner", async () => response({}), async (container, dom) => {
+  const actions: string[] = [];
+  await withEditor("owner", async (_url, init) => {
+    const body = JSON.parse(String(init?.body)) as { action: string; ticket?: string };
+    actions.push(body.action);
+    if (body.action === "initiate") return response({ uploadUrl: "https://private-storage.test/signed-upload", ticket: "signed-ticket" });
+    assert.equal(body.ticket, "signed-ticket");
+    return response(mediaMutation(uploadedCover, "2026-09-06T00:00:00.000Z"));
+  }, async (container, dom) => {
     const title = container.querySelector<HTMLInputElement>('input[name="title"]')!;
     const venue = container.querySelector<HTMLInputElement>('input[name="venueName"]')!;
     await act(async () => {
@@ -317,5 +333,6 @@ test("uploading singleton media preserves dirty title and venue drafts", async (
     assert.equal(container.querySelector<HTMLInputElement>('input[name="title"]')?.value, "Dirty title");
     assert.equal(container.querySelector<HTMLInputElement>('input[name="venueName"]')?.value, "Dirty venue");
     assert.match(container.querySelector<HTMLFormElement>('form[data-event-form="true"]')?.textContent ?? "", /Unsaved changes/);
+    assert.deepEqual(actions, ["initiate", "finalize"]);
   }, { XMLHttpRequest: SuccessfulUploadRequest as unknown as typeof XMLHttpRequest });
 });

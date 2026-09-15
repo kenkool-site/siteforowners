@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   invitationPageMetadata,
   resolvePublicInvitationPage,
+  resolveInvitationPreview,
 } from "./public-access";
 import type { PublicInvitationLookup } from "./repository-core";
 
@@ -38,6 +39,23 @@ const invitation: PublicInvitationLookup = {
 };
 
 const emptyMedia = { designedInvite: null, cover: null, video: null, gallery: [] };
+
+test("preview authorizes the exact event before details or media and preserves draft locale and theme", async () => {
+  for (const allowed of [false, true]) {
+    const calls: string[] = [];
+    const result = await resolveInvitationPreview("event-1", {
+      authorize: async (id) => { assert.equal(id, "event-1"); calls.push("authorize"); return allowed; },
+      find: async () => { calls.push("find"); return { ...invitation, event: { ...invitation.event, status: "draft", locale: "es", themeKey: "celebration" } }; },
+      loadMedia: async () => { calls.push("media"); return emptyMedia; },
+    });
+    assert.deepEqual(calls, allowed ? ["authorize", "find", "media"] : ["authorize"]);
+    if (allowed) {
+      assert.equal(result?.event.locale, "es");
+      assert.equal(result?.event.themeKey, "celebration");
+      assert.equal(result?.event.description, "Celebrate with us");
+    } else assert.equal(result, null);
+  }
+});
 
 test("unknown and offline events resolve as not found before signing media", async () => {
   let signed = 0;

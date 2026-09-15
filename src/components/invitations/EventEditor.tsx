@@ -51,15 +51,23 @@ function emptyMedia(event: EditorEvent): InvitationMediaSnapshot {
   };
 }
 
-function postMedia(
+async function postMedia(
   url: string,
   body: FormData,
   onProgress: (percent: number) => void,
 ): Promise<{ ok: boolean; result: MediaMutationResponse }> {
-  return new Promise((resolve, reject) => {
+  const file = body.get("file") as File;
+  const initiation = await fetch(url, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "initiate", kind: body.get("kind"), name: file.name, type: file.type, size: file.size, altText: body.get("altText"), mediaId: body.get("mediaId") }),
+  });
+  const authorization = await initiation.json() as MediaMutationResponse & { ticket?: string; uploadUrl?: string };
+  if (!initiation.ok || !authorization.ticket || !authorization.uploadUrl) return { ok: false, result: authorization };
+  await new Promise<void>((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open("POST", url);
-    request.withCredentials = true;
+    request.open("PUT", authorization.uploadUrl!);
+    request.setRequestHeader("content-type", file.type);
+    request.setRequestHeader("x-upsert", "false");
     request.upload.addEventListener("progress", (event) => {
       if (event.lengthComputable && event.total > 0) {
         onProgress(Math.round((event.loaded / event.total) * 100));
@@ -67,16 +75,16 @@ function postMedia(
     });
     request.addEventListener("error", () => reject(new Error("upload failed")));
     request.addEventListener("load", () => {
-      let result: MediaMutationResponse = {};
-      try {
-        result = JSON.parse(request.responseText) as MediaMutationResponse;
-      } catch {
-        result = {};
-      }
-      resolve({ ok: request.status >= 200 && request.status < 300, result });
+      if (request.status >= 200 && request.status < 300) resolve();
+      else reject(new Error("upload failed"));
     });
-    request.send(body);
+    request.send(file);
   });
+  const finalization = await fetch(url, {
+    method: "POST", headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "finalize", ticket: authorization.ticket }),
+  });
+  return { ok: finalization.ok, result: await finalization.json() as MediaMutationResponse };
 }
 
 function toLocalInput(value: string | null, timeZone: string): string {
@@ -184,6 +192,7 @@ export function EventEditor({
   function localizeErrors(serverErrors: FieldErrors | undefined, fallback: "save" | "status"): FieldErrors {
     if (!serverErrors) return { [fallback === "save" ? "form" : "status"]: fallback === "save" ? t("saveError") : t("statusError") };
     return Object.fromEntries(Object.keys(serverErrors).map((key) => {
+      if (key === "capacity" && serverErrors[key] === "below_attendance") return [key, t("errors.capacityBelowAttendance")];
       if (key === "form") return [key, t("saveError")];
       if (key === "status") return [key, t("statusError")];
       return [key, LOCALIZED_ERROR_KEYS.has(key) ? t(`errors.${key}`) : fallback === "save" ? t("saveError") : t("statusError")];
@@ -692,7 +701,7 @@ export function EventEditor({
               ))}
             </div>
             <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold">
-              <a href={`/invite/${currentEvent.slug}`} target="_blank" rel="noreferrer" className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.openPreview")}</a>
+              <a href={`/invitations/preview/${currentEvent.id}`} target="_blank" rel="noreferrer" className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.openPreview")}</a>
               <button type="button" onClick={() => navigator.clipboard.writeText(`${window.location.origin}/invite/${currentEvent.slug}`)} className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.copyLink")}</button>
             </div>
           </section>

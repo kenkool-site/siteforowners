@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 
 type RsvpFormProps = {
+  preview?: boolean;
   slug: string;
   allowCreate: boolean;
   showPublicRsvpCount: boolean;
@@ -42,7 +43,7 @@ function credentialFromUrl(value: string): EditCredential | null {
   }
 }
 
-export function RsvpForm({ slug, allowCreate, showPublicRsvpCount }: RsvpFormProps) {
+export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = false }: RsvpFormProps) {
   const t = useTranslations("invitations.public.rsvp");
   const [attending, setAttending] = useState(true);
   const [editCredential, setEditCredential] = useState<EditCredential | null>(null);
@@ -52,6 +53,7 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount }: RsvpFormPro
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    if (preview) return;
     const fromLocation = credentialFromUrl(window.location.href);
     const saved = window.localStorage.getItem(storageKey(slug));
     const credential = fromLocation ?? (saved ? credentialFromUrl(saved) : null);
@@ -59,12 +61,13 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount }: RsvpFormPro
       setEditCredential(credential);
       window.localStorage.setItem(storageKey(slug), credential.editUrl);
     }
-  }, [slug]);
+  }, [slug, preview]);
 
   const canShowForm = allowCreate || editCredential !== null;
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (preview) return;
     setSubmitting(true);
     setErrorCode(null);
     setCopied(false);
@@ -126,7 +129,8 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount }: RsvpFormPro
   }
 
   return (
-    <form className="mt-6 grid gap-5" onSubmit={handleSubmit} data-rsvp-slug={slug}>
+    <form className="mt-6" onSubmit={handleSubmit} data-rsvp-slug={slug}>
+      <fieldset disabled={preview} className="grid gap-5">
       {editCredential && <p className="border border-current/30 px-4 py-3 text-sm leading-6">{t("editing")}</p>}
       <label className="grid gap-2 text-sm font-semibold">
         {t("fields.primaryName")}
@@ -197,6 +201,7 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount }: RsvpFormPro
       <button disabled={submitting} className="min-h-11 rounded-full bg-white px-6 py-3 font-semibold text-slate-950 outline-none transition-[transform,opacity] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:opacity-60 motion-reduce:transform-none motion-reduce:transition-none">
         {submitting ? t("submitting") : editCredential ? t("update") : t("submit")}
       </button>
+      </fieldset>
     </form>
   );
 }

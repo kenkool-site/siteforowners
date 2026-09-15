@@ -55,6 +55,7 @@ test("provisioning normalizes email, hashes the PIN, and applies founder limits"
         locale: "en",
         title: "Mia & Lee",
         starts_at: null,
+        expire_at: null,
         timezone: "America/New_York",
         submission_limit: 250,
         email_notification_limit: 250,
@@ -63,6 +64,17 @@ test("provisioning normalizes email, hashes the PIN, and applies founder limits"
       },
     },
   ]);
+});
+
+test("provisioning persists timezone-derived expiry and explicit disabling remains null", async () => {
+  await createInvitationOwnerAndEvent({ ownerName: "A", ownerEmail: "a@example.com", ownerPhone: null, title: "Event", eventType: "party", locale: "en", startsAt: "2026-03-07T22:00:00Z", timezone: "America/New_York" }, {
+    hashPin: async () => "hash", generatePin: () => "123456", generateSlug: () => "event",
+    insert: async (rows) => {
+      assert.equal(rows.event.expire_at, "2026-03-09T04:00:00.000Z");
+      return { ownerId: "owner", eventId: "event" };
+    },
+  });
+  assert.equal(buildInvitationEventUpdateRow({ expireAt: null }).expire_at, null);
 });
 
 test("generated credentials use a six-digit PIN and a title slug with six random base36 characters", () => {

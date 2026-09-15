@@ -30,6 +30,18 @@ export type PublicInvitationResolutionDependencies = {
 
 export type PublicInvitationClientDetails = Extract<PublicInvitationResolution, { kind: "details" }>;
 
+export async function resolveInvitationPreview(eventId: string, dependencies: {
+  authorize(eventId: string): Promise<boolean>;
+  find(eventId: string): Promise<PublicInvitationLookup | null>;
+  loadMedia(event: PublicInvitationEvent): Promise<InvitationMediaSnapshot>;
+}): Promise<PublicInvitationClientDetails | null> {
+  if (!await dependencies.authorize(eventId)) return null;
+  const invitation = await dependencies.find(eventId);
+  if (!invitation || invitation.event.id !== eventId) return null;
+  return toPublicInvitationClientDetails({ kind: "details", event: invitation.event,
+    state: "published", media: await dependencies.loadMedia(invitation.event), rsvpSummary: invitation.rsvpSummary });
+}
+
 export function toPublicInvitationClientDetails(
   resolution: PublicInvitationClientDetails,
 ): PublicInvitationClientDetails {

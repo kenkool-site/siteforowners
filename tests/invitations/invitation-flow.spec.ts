@@ -105,6 +105,15 @@ test("founder provisions, owner edits, and guest RSVPs without exceeding capacit
   await page.locator('[data-event-form="true"]').evaluate((form: HTMLFormElement) => form.requestSubmit());
   expect((await saved).status()).toBe(200);
   await expect(page.getByText("Changes saved")).toBeVisible();
+  const previewLink = page.getByRole("link", { name: "Open guest preview" });
+  await expect(previewLink).toHaveAttribute("href", `/invitations/preview/${eventId}`);
+  const previewPage = await page.context().newPage();
+  await previewPage.goto(`/invitations/preview/${eventId}`);
+  await expect(previewPage.getByRole("heading", { name: "Pilot Celebration", level: 1 })).toBeVisible();
+  await expect(previewPage.getByRole("img", { name: "Designed event invitation" })).toBeVisible();
+  await expect(previewPage.getByRole("button", { name: "Send response" })).toBeDisabled();
+  await expect(previewPage.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  await previewPage.close();
   await page.getByRole("button", { name: "Publish invitation" }).click();
   await expect(page.getByText("Published", { exact: true }).first()).toBeVisible();
 
@@ -196,15 +205,21 @@ test("deadline, expiration, and offline lifecycle states reveal only the intende
 });
 
 test("owners are denied cross-event access while the founder retains access", async ({ page }) => {
+  expect((await page.goto(`/invitations/preview/${fixtures.events.english.id}`))?.status()).toBe(404);
   await ownerLogin(page, fixtures.owners.primary.email, fixtures.owners.primary.pin);
   const denied = await page.goto(`/invitations/manage/${fixtures.events.secondary.id}`);
   expect(denied?.status()).toBe(404);
+  expect((await page.goto(`/invitations/preview/${fixtures.events.secondary.id}`))?.status()).toBe(404);
+  await page.goto(`/invitations/preview/${fixtures.events.spanish.id}`);
+  await expect(page.getByText("Vista previa — el envío de RSVP está desactivado.")).toBeVisible();
 
   await page.context().clearCookies();
   await founderLogin(page);
   await page.goto(`/admin/invitations/${fixtures.events.secondary.id}`);
   await expect(page.getByRole("heading", { name: fixtures.events.secondary.title, level: 1 })).toBeVisible();
   await expect(page.getByText("Founder controls").first()).toBeVisible();
+  await page.goto(`/invitations/preview/${fixtures.events.secondary.id}`);
+  await expect(page.getByRole("heading", { name: fixtures.events.secondary.title, level: 1 })).toBeVisible();
 });
 
 test("fixture-only media writes fail closed and founder retry uses the recording sender", async ({ page, request }) => {

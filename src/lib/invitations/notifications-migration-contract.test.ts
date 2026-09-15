@@ -20,7 +20,7 @@ test("reservation locks the event before counting attempts and inserting either 
 });
 
 test("suppressed rows never consume capacity: the count excludes 'suppressed' status", () => {
-  const countClauseStart = migration.indexOf("SELECT pg_catalog.count(*)::integer INTO v_count FROM public.invitation_notifications WHERE event_id = p_event_id");
+  const countClauseStart = migration.indexOf("SELECT pg_catalog.count(*)::integer INTO v_count FROM public.invitation_notifications AS notification WHERE notification.event_id = p_event_id");
   assert.ok(countClauseStart >= 0);
   const clause = migration.slice(countClauseStart, countClauseStart + 300);
   assert.match(clause, /status IN \('pending', 'sent', 'failed'\)/);
@@ -34,9 +34,9 @@ test("retry only proceeds for a currently-failed notification and locks it befor
 });
 
 test("retry excludes the row being retried from its own limit re-check", () => {
-  const recheckStart = migration.indexOf("SELECT pg_catalog.count(*)::integer INTO v_count FROM public.invitation_notifications WHERE event_id = v_notification.event_id");
+  const recheckStart = migration.indexOf("SELECT pg_catalog.count(*)::integer INTO v_count FROM public.invitation_notifications AS notification WHERE notification.event_id = v_notification.event_id");
   assert.ok(recheckStart >= 0);
-  const clause = migration.slice(recheckStart, recheckStart + 300);
+  const clause = migration.slice(recheckStart, migration.indexOf(";", recheckStart));
   assert.match(clause, /id <> p_notification_id/);
 });
 

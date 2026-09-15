@@ -57,10 +57,10 @@ BEGIN
 
   SELECT pg_catalog.count(*)::integer
   INTO v_count
-  FROM public.invitation_notifications
-  WHERE event_id = p_event_id
-    AND channel = p_channel
-    AND status IN ('pending', 'sent', 'failed');
+  FROM public.invitation_notifications AS notification
+  WHERE notification.event_id = p_event_id
+    AND notification.channel = p_channel
+    AND notification.status IN ('pending', 'sent', 'failed');
 
   IF v_count >= v_limit THEN
     INSERT INTO public.invitation_notifications (
@@ -152,11 +152,11 @@ BEGIN
 
   SELECT pg_catalog.count(*)::integer
   INTO v_count
-  FROM public.invitation_notifications
-  WHERE event_id = v_notification.event_id
-    AND channel = v_notification.channel
-    AND status IN ('pending', 'sent', 'failed')
-    AND id <> p_notification_id;
+  FROM public.invitation_notifications AS notification
+  WHERE notification.event_id = v_notification.event_id
+    AND notification.channel = v_notification.channel
+    AND notification.status IN ('pending', 'sent', 'failed')
+    AND notification.id <> p_notification_id;
 
   IF v_count >= v_limit THEN
     RETURN QUERY SELECT
@@ -166,9 +166,9 @@ BEGIN
     RETURN;
   END IF;
 
-  UPDATE public.invitation_notifications
+  UPDATE public.invitation_notifications AS notification
   SET status = 'pending', failure_reason = NULL, updated_at = pg_catalog.now()
-  WHERE id = p_notification_id;
+  WHERE notification.id = p_notification_id;
 
   RETURN QUERY SELECT
     true, NULL::text,

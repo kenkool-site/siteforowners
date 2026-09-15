@@ -38,6 +38,7 @@ export type PublicInvitationEvent = Pick<
 >;
 
 type PublicInvitationProps = {
+  preview?: boolean;
   event: PublicInvitationEvent;
   state: Extract<EffectiveEventState, "published" | "rsvp_closed">;
   media: InvitationMediaSnapshot;
@@ -158,7 +159,7 @@ export function InvitationStateView({ state }: { state: "draft" | "expired" }) {
   return <StateView><h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{t("ended.title")}</h1><p className="mt-4 text-base leading-7 text-[#665C69]">{t("ended.body")}</p></StateView>;
 }
 
-export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInvitationProps) {
+export function PublicInvitation({ event, state, media, rsvpSummary, preview = false }: PublicInvitationProps) {
   const t = useTranslations("invitations.public");
 
   const theme = themeFor(event.themeKey);
@@ -259,8 +260,10 @@ export function PublicInvitation({ event, state, media, rsvpSummary }: PublicInv
         {event.showPublicRsvpCount && <PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${theme.count} mt-12 sm:mt-16`} />}
 
         <section id="rsvp" className={`${theme.rsvp} mb-8 mt-12 px-6 py-9 sm:mb-12 sm:mt-16 sm:px-10`}>
+          {preview && <p className="mb-4" role="status">{t("previewNotice")}</p>}
           <h2 className={`${titleFont} text-3xl sm:text-4xl`}>{state === "rsvp_closed" ? t("rsvp.closedTitle") : t("rsvp.title")}</h2>
           <RsvpForm
+            preview={preview}
             slug={event.slug}
             allowCreate={state === "published"}
             showPublicRsvpCount={event.showPublicRsvpCount}

@@ -47,7 +47,7 @@ test("RSVP mutation and serialized limiter are service-role-only with pinned sea
 test("capacity check is gated on p_attending so declines and non-increasing edits cannot trigger it", () => {
   assert.match(
     migration,
-    /IF\s+p_attending\s+AND\s+v_event\.capacity IS NOT NULL\s+AND\s+v_attending_total \+ p_party_size > v_event\.capacity\s+THEN\s+RAISE EXCEPTION USING MESSAGE = 'INVITE_CAPACITY_REACHED';/,
+    /IF\s+p_attending\s+AND\s+v_event\.capacity IS NOT NULL\s+AND\s+\(NOT v_is_update OR p_party_size > CASE WHEN v_existing.attending THEN v_existing.party_size ELSE 0 END\)\s+AND\s+v_attending_total \+ p_party_size > v_event\.capacity\s+THEN\s+RAISE EXCEPTION USING MESSAGE = 'INVITE_CAPACITY_REACHED';/,
   );
 
   const capacityIndex = migration.indexOf("INVITE_CAPACITY_REACHED");

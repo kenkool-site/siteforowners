@@ -1,4 +1,5 @@
 import { randomInt } from "node:crypto";
+import { defaultInvitationExpiry } from "./event-time";
 import { normalizeInvitationEmail } from "./validation";
 import type { InvitationEventUpdate, InvitationOwnerCredentialUpdate } from "./validation";
 import type {
@@ -36,6 +37,7 @@ export type InvitationProvisionRows = {
     locale: InvitationLocale;
     title: string;
     starts_at: string | null;
+    expire_at: string | null;
     timezone: string;
     submission_limit: number;
     email_notification_limit: number;
@@ -251,6 +253,7 @@ export async function createInvitationOwnerAndEvent(
       locale: input.locale,
       title: input.title.trim(),
       starts_at: input.startsAt ?? null,
+      expire_at: input.startsAt ? defaultInvitationExpiry(input.startsAt, input.timezone?.trim() || "America/New_York") : null,
       timezone: input.timezone?.trim() || "America/New_York",
       submission_limit: INVITATION_SUBMISSION_LIMIT,
       email_notification_limit: INVITATION_EMAIL_NOTIFICATION_LIMIT,

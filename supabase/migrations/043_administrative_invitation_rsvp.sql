@@ -68,7 +68,7 @@ BEGIN
     OR p_attending IS NULL
     OR (p_attending AND (p_party_size IS NULL OR p_party_size < 1))
     OR (NOT p_attending AND p_party_size <> 0)
-    OR pg_catalog.coalesce(pg_catalog.array_length(p_additional_guest_names, 1), 0) > pg_catalog.greatest(p_party_size - 1, 0)
+    OR coalesce(pg_catalog.array_length(p_additional_guest_names, 1), 0) > greatest(p_party_size - 1, 0)
   THEN
     RAISE EXCEPTION USING MESSAGE = 'INVITE_EVENT_UNAVAILABLE';
   END IF;
@@ -115,7 +115,7 @@ BEGIN
     END IF;
   END IF;
 
-  SELECT pg_catalog.coalesce(pg_catalog.sum(party_size) FILTER (WHERE attending), 0)::integer
+  SELECT coalesce(pg_catalog.sum(party_size) FILTER (WHERE attending), 0)::integer
   INTO v_attending_total
   FROM public.invitation_rsvps
   WHERE event_id = p_event_id
@@ -123,6 +123,7 @@ BEGIN
 
   IF p_attending
     AND v_event.capacity IS NOT NULL
+    AND (NOT v_is_update OR p_party_size > CASE WHEN v_existing.attending THEN v_existing.party_size ELSE 0 END)
     AND v_attending_total + p_party_size > v_event.capacity
   THEN
     RAISE EXCEPTION USING MESSAGE = 'INVITE_CAPACITY_REACHED';
@@ -136,7 +137,7 @@ BEGIN
       phone = NULLIF(pg_catalog.btrim(p_phone), ''),
       attending = p_attending,
       party_size = CASE WHEN p_attending THEN p_party_size ELSE 0 END,
-      additional_guest_names = CASE WHEN p_attending THEN pg_catalog.coalesce(p_additional_guest_names, '{}') ELSE '{}' END,
+      additional_guest_names = CASE WHEN p_attending THEN coalesce(p_additional_guest_names, '{}') ELSE '{}' END,
       dietary_or_accessibility_notes = NULLIF(pg_catalog.btrim(p_dietary_or_accessibility_notes), ''),
       message = NULLIF(pg_catalog.btrim(p_message), ''),
       updated_at = pg_catalog.now()
@@ -162,7 +163,7 @@ BEGIN
       NULLIF(pg_catalog.btrim(p_phone), ''),
       p_attending,
       CASE WHEN p_attending THEN p_party_size ELSE 0 END,
-      CASE WHEN p_attending THEN pg_catalog.coalesce(p_additional_guest_names, '{}') ELSE '{}' END,
+      CASE WHEN p_attending THEN coalesce(p_additional_guest_names, '{}') ELSE '{}' END,
       NULLIF(pg_catalog.btrim(p_dietary_or_accessibility_notes), ''),
       NULLIF(pg_catalog.btrim(p_message), ''),
       p_edit_token_hash
@@ -171,7 +172,7 @@ BEGIN
   END IF;
 
   SELECT
-    pg_catalog.coalesce(pg_catalog.sum(party_size) FILTER (WHERE attending), 0)::integer,
+    coalesce(pg_catalog.sum(party_size) FILTER (WHERE attending), 0)::integer,
     pg_catalog.count(*) FILTER (WHERE NOT attending)::integer
   INTO v_attending_total, v_declined_total
   FROM public.invitation_rsvps

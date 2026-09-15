@@ -37,6 +37,9 @@ export async function PATCH(
     if (!event) return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
     return NextResponse.json({ event });
   } catch (error) {
+    if (error instanceof Error && error.message === "INVITE_CAPACITY_BELOW_ATTENDANCE") {
+      return NextResponse.json({ errors: { capacity: "below_attendance" } }, { status: 409 });
+    }
     console.error("[invitations/events] update failed", { eventId: params.eventId, error });
     return NextResponse.json({ errors: { form: "Changes could not be saved." } }, { status: 500 });
   }

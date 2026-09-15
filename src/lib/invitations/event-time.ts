@@ -8,6 +8,25 @@ type WallTime = {
 
 const LOCAL_DATETIME_PATTERN = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/;
 
+/** Calendar arithmetic in the event zone, including days whose midnight is skipped. */
+export function defaultInvitationExpiry(startsAt: string, timeZone: string): string {
+  const formatter = formatterFor(timeZone);
+  const parts = getZonedParts(formatter, new Date(startsAt).getTime());
+  const target = Date.UTC(parts.year, parts.month - 1, parts.day + 2);
+  // Locate the first instant whose local date has reached the target date.
+  // This handles DST gaps/folds at midnight as well as normal offset changes.
+  let low = target - 36 * 60 * 60 * 1000;
+  let high = target + 36 * 60 * 60 * 1000;
+  while (high - low > 1) {
+    const middle = Math.floor((low + high) / 2);
+    const local = getZonedParts(formatter, middle);
+    const date = Date.UTC(local.year, local.month - 1, local.day);
+    if (date >= target) high = middle;
+    else low = middle;
+  }
+  return new Date(high).toISOString();
+}
+
 function parseWallTime(value: string): WallTime {
   const match = LOCAL_DATETIME_PATTERN.exec(value);
   if (!match) throw new Error("Enter a valid local date and time");

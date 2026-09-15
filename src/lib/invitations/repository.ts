@@ -160,6 +160,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
     if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.updateEvent(eventId, row);
     const supabase = createAdminClient();
     const { error } = await supabase.from("invitation_events").update(row).eq("id", eventId);
+    if (error?.message.includes("INVITE_CAPACITY_BELOW_ATTENDANCE")) throw new Error("INVITE_CAPACITY_BELOW_ATTENDANCE");
     if (error) throw new Error("Unable to update invitation", { cause: error });
   },
 

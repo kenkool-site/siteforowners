@@ -16,6 +16,10 @@ This guide is for the founder operating the invitation-events pilot. It assumes 
 3. Send the owner the event-management URL and PIN through an approved private channel. Never put a PIN in a public post or on the public invitation.
 4. Have the owner sign in at `/invitations/login`, complete event details, and verify the public preview. The owner can only access events they own; the founder can access every event.
 
+Provisioning with a start time defaults automatic expiry to the first instant after the calendar day following the event, in the event timezone (including daylight-saving changes). Clearing expiry later disables it; subsequent edits do not restore a cleared expiry. An undated draft has no automatic expiry until the owner sets one.
+
+**Open preview** opens the protected `/invitations/preview/[eventId]` page, including for drafts. It uses the event's actual design, language and private media, is excluded from indexing, and disables RSVP submission. Share the separate public URL only after publishing.
+
 ## Prepare, publish, and share
 
 1. Add a designed invitation or cover image, gallery images, and optional video. Use only media you have permission to publish. Keep uploads web-sized and test them on a mobile connection; remove any oversized or inappropriate file before publishing.
@@ -24,12 +28,20 @@ This guide is for the founder operating the invitation-events pilot. It assumes 
 4. Publish the event, open the public URL in a signed-out/private browser, and test the entire guest flow. If a passcode is enabled, test one incorrect entry and one correct entry.
 5. Use the editor's copy-link control only after the signed-out check. Share that link through the owner’s chosen channel; the pilot does not deliver a guest list on the founder’s behalf.
 
+### Private media upload and validation
+
+The editor first requests an authorized, event-scoped upload URL, then sends the file directly to the private Supabase bucket. Only small authorization/finalization JSON requests pass through Vercel. Images support up to 10 MB; video supports up to 50 MB and 60 seconds. Finalization rechecks access, actual size, MIME, magic bytes and video duration, uploads validated bytes to a new final object, and atomically attaches it. Signed upload tokens never grant reads or access to final objects. The bucket must remain private and allow browser uploads from the application origin.
+
+Apply migrations 044 and 045 before using this flow. Verify a full-size image/video, rejected mismatched media, gallery cap races, and cross-event denial against staging Supabase before deployment. The local browser fixtures deliberately cannot mutate storage. Provisional objects are deleted after finalization; the existing daily media cleanup removes abandoned uploads and unattached final objects after 24 hours. Keep `CRON_SECRET` configured. A failed cleanup is retried by that cron.
+
 ## Operating an active event
 
 ### Responses and notifications
 
 - Watch the RSVP dashboard for attending totals, declines, capacity, failed or suppressed notifications, and filterable guest details.
 - If a notification fails, only the founder can use the retry control after correcting provider credentials or sender verification. A retry uses the notification’s stored recipient; changing the event destination affects future notifications, not an existing retry. Retrying delivery must not create or alter an RSVP.
+- Retries use the exact original provider payload, including sender, locale, content and guest edit link. Payloads are encrypted with an authenticated, domain-separated key derived from `SESSION_COOKIE_SECRET`; keep that secret backed up. Rotating or losing it makes outstanding payloads unrecoverable and retries fail without sending. Older notifications without a stored payload also fail safely. No private payload appears in dashboards or logs. Resend reuses the same idempotency key; Twilio's installed SDK does not provide provider-level SMS deduplication, so an ambiguous SMS delivery followed by retry may duplicate a text.
+- A changed non-null capacity cannot be lower than current attendance. Changes serialize with RSVP mutations; restorative edits to legacy over-capacity responses remain possible.
 - If an email or SMS budget warning appears, the founder may raise the applicable event limit only after confirming the new budget. Keep the limit finite; a higher limit increases spend exposure.
 - Change notification email/phone in the event editor, save, then submit a controlled RSVP in the appropriate owner-approved test event if you need to prove delivery. Do not use real guests as test data.
 - Export RSVPs as CSV from the dashboard when needed. Treat the export as private guest data: download it only to an approved device, transfer it through an approved channel, and delete local copies when the purpose is complete.

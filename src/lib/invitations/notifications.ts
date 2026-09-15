@@ -14,6 +14,7 @@
 // never turn a successful RSVP into an error response for the guest — see
 // dispatchInvitationRsvpNotifications's outer try/catch.
 
+import { sealNotificationPayload, openNotificationPayload } from "./notification-payload";
 import { Resend } from "resend";
 import twilio from "twilio";
 import { escapeHtml } from "@/lib/marketing-lead";
@@ -64,6 +65,7 @@ export interface NotificationSender<TInput> {
 }
 
 export type EmailSendInput = {
+  from: string;
   to: string;
   subject: string;
   html: string;
@@ -71,6 +73,7 @@ export type EmailSendInput = {
 };
 
 export type SmsSendInput = {
+  from: string;
   to: string;
   body: string;
   idempotencyKey: string;
@@ -79,13 +82,26 @@ export type SmsSendInput = {
 export type EmailSender = NotificationSender<EmailSendInput>;
 export type SmsSender = NotificationSender<SmsSendInput>;
 
-function sanitizeFailureReason(error: unknown): string {
-  if (typeof error === "string" && error.trim()) return error.trim().slice(0, 500);
-  if (error && typeof error === "object") {
-    const message = (error as { message?: unknown }).message;
-    if (typeof message === "string" && message.trim()) return message.trim().slice(0, 500);
-  }
+function sanitizeFailureReason(_error: unknown): string {
+  // Provider errors can echo recipients, authored content or capability links.
   return "Notification delivery failed";
+}
+export type NotificationPayload =
+  | { channel: "email"; input: EmailSendInput }
+  | { channel: "sms"; input: SmsSendInput };
+
+function validPayload(value: unknown): value is NotificationPayload {
+  if (!value || typeof value !== "object") return false;
+  const payload = value as Record<string, unknown>;
+  if (!payload.input || typeof payload.input !== "object") return false;
+  const input = payload.input as Record<string, unknown>;
+  return typeof input.from === "string" && typeof input.to === "string" && typeof input.idempotencyKey === "string"
+    && (payload.channel === "email" ? typeof input.subject === "string" && typeof input.html === "string"
+      : payload.channel === "sms" && typeof input.body === "string");
+}
+
+async function sendPayload(payload: NotificationPayload, dependencies: { email: EmailSender; sms: SmsSender }): Promise<NotificationSendResult> {
+  return payload.channel === "email" ? dependencies.email.send(payload.input) : dependencies.sms.send(payload.input);
 }
 
 // ---------------------------------------------------------------------------
@@ -234,6 +250,7 @@ export type ReserveNotificationInput = {
 export type ReserveNotificationResult = { id: string; allowed: boolean };
 
 export type NotificationDispatchDependencies = {
+  savePayload(notificationId: string, payload: NotificationPayload): Promise<void>;
   reserve(
     channel: InvitationNotificationChannel,
     input: ReserveNotificationInput,
@@ -255,7 +272,7 @@ type PlannedAttempt = {
   audience: InvitationNotificationAudience;
   kind: InvitationNotificationKind;
   recipient: string;
-  send(idempotencyKey: string): Promise<NotificationSendResult>;
+  payload(idempotencyKey: string): NotificationPayload;
 };
 
 export async function dispatchRsvpNotifications(
@@ -273,12 +290,13 @@ export async function dispatchRsvpNotifications(
       audience: "owner",
       kind,
       recipient: to,
-      send: (idempotencyKey) => dependencies.email.send({
+      payload: (idempotencyKey) => ({ channel: "email", input: {
+        from: EMAIL_FROM,
         to,
         subject: ownerEmailSubject({ eventTitle: event.title, created, rsvp, locale: event.locale }),
         html: renderOwnerEmailHtml({ eventTitle: event.title, created, rsvp, dashboardUrl, locale: event.locale }),
         idempotencyKey,
-      }),
+      } }),
     });
   }
 
@@ -289,11 +307,12 @@ export async function dispatchRsvpNotifications(
       audience: "owner",
       kind,
       recipient: to,
-      send: (idempotencyKey) => dependencies.sms.send({
+      payload: (idempotencyKey) => ({ channel: "sms", input: {
+        from: twilioFromNumber || "",
         to,
         body: renderOwnerSmsBody({ eventTitle: event.title, rsvp, dashboardUrl, locale: event.locale }),
         idempotencyKey,
-      }),
+      } }),
     });
   }
 
@@ -306,12 +325,13 @@ export async function dispatchRsvpNotifications(
       audience: "guest",
       kind: "guest_confirmation",
       recipient: to,
-      send: (idempotencyKey) => dependencies.email.send({
+      payload: (idempotencyKey) => ({ channel: "email", input: {
+        from: EMAIL_FROM,
         to,
         subject: guestEmailSubject(event.title, event.locale),
         html: renderGuestConfirmationEmailHtml({ eventTitle: event.title, rsvp, editUrl, inviteUrl, locale: event.locale }),
         idempotencyKey,
-      }),
+      } }),
     });
   }
 
@@ -334,7 +354,9 @@ export async function dispatchRsvpNotifications(
     }
 
     try {
-      const result = await attempt.send(reservation.id);
+      const payload = attempt.payload(reservation.id);
+      await dependencies.savePayload(reservation.id, payload);
+      const result = await sendPayload(payload, dependencies);
       if (result.ok) {
         await dependencies.markSent(reservation.id, result.providerId);
       } else {
@@ -370,7 +392,7 @@ export const resendEmailSender: EmailSender = {
     if (!resend) return { ok: false, error: "Email delivery is not configured" };
     try {
       const result = await resend.emails.send(
-        { from: EMAIL_FROM, to: input.to, subject: input.subject, html: input.html },
+        { from: input.from, to: input.to, subject: input.subject, html: input.html },
         { idempotencyKey: input.idempotencyKey },
       );
       if (!result.data?.id) {
@@ -392,7 +414,7 @@ export const twilioSmsSender: SmsSender = {
       // is accepted here for interface symmetry with EmailSender and is not
       // forwarded to the API.
       const message = await twilioClient.messages.create({
-        from: twilioFromNumber,
+        from: input.from,
         to: input.to,
         body: input.body,
       });
@@ -504,7 +526,7 @@ export async function dispatchInvitationRsvpNotifications(
 ): Promise<{ notificationsDelayed: boolean }> {
   try {
     const event = await getInvitationNotificationEventContext(input.eventId);
-    if (!event) return { notificationsDelayed: false };
+    if (!event) return { notificationsDelayed: true };
 
     const dashboardUrl = new URL(`/invitations/manage/${input.eventId}`, input.origin).toString();
     const inviteUrl = new URL(`/invite/${encodeURIComponent(event.slug)}`, input.origin).toString();
@@ -519,6 +541,7 @@ export async function dispatchInvitationRsvpNotifications(
       },
       {
         reserve: reserveInvitationNotification,
+        savePayload: saveInvitationNotificationPayload,
         markSent: markInvitationNotificationSent,
         markFailed: markInvitationNotificationFailed,
         email: resendEmailSender,
@@ -527,7 +550,7 @@ export async function dispatchInvitationRsvpNotifications(
     );
     return { notificationsDelayed: result.notificationsDelayed };
   } catch (error) {
-    console.error("[invitations/notifications] dispatch failed", { eventId: input.eventId, error });
+    console.error("[invitations/notifications] dispatch failed", { eventId: input.eventId });
     return { notificationsDelayed: true };
   }
 }
@@ -555,7 +578,7 @@ export type RetryRsvpSnapshot = NotificationRsvpFields;
 
 export type RetryDependencies = {
   reserveRetry(notificationId: string): Promise<RetryReservation>;
-  getRsvpSnapshot(rsvpId: string): Promise<RetryRsvpSnapshot | null>;
+  loadPayload(notificationId: string): Promise<NotificationPayload | null>;
   markSent(notificationId: string, providerMessageId: string | null): Promise<void>;
   markFailed(notificationId: string, reason: string): Promise<void>;
   email: EmailSender;
@@ -580,49 +603,12 @@ export async function processInvitationNotificationRetry(
   // {ok:false}) must not strand the row in 'pending' forever, since retry
   // only re-accepts rows whose status is already 'failed'.
   try {
-    const rsvp = await dependencies.getRsvpSnapshot(reservation.rsvpId);
-    if (!rsvp) {
-      await dependencies.markFailed(input.notificationId, "RSVP record no longer available");
-      return { ok: true, status: "failed" };
+    const payload = await dependencies.loadPayload(input.notificationId);
+    if (!payload || !validPayload(payload) || payload.channel !== reservation.channel
+      || payload.input.to !== reservation.recipient || payload.input.idempotencyKey !== input.notificationId) {
+      throw new Error("Original notification payload unavailable");
     }
-
-    const dashboardUrl = new URL(`/invitations/manage/${reservation.eventId}`, input.origin).toString();
-    const created = reservation.kind === "rsvp_created";
-
-    let sendResult: NotificationSendResult;
-    if (reservation.kind === "guest_confirmation") {
-      // The plaintext edit token is never persisted (by design — see
-      // src/lib/invitations/auth.ts createEditToken/hashEditToken), so a
-      // retried guest-confirmation email cannot recover the original
-      // private edit link. The guest already received that link
-      // synchronously in the original RSVP API response regardless of this
-      // email's fate, so the retry falls back to the public invitation page.
-      sendResult = await dependencies.email.send({
-        to: reservation.recipient,
-        subject: guestEmailSubject(reservation.eventTitle, reservation.eventLocale),
-        html: renderGuestConfirmationEmailHtml({
-          eventTitle: reservation.eventTitle,
-          rsvp,
-          editUrl: null,
-          inviteUrl: new URL(`/invite/${encodeURIComponent(reservation.eventSlug)}`, input.origin).toString(),
-          locale: reservation.eventLocale,
-        }),
-        idempotencyKey: input.notificationId,
-      });
-    } else if (reservation.channel === "sms") {
-      sendResult = await dependencies.sms.send({
-        to: reservation.recipient,
-        body: renderOwnerSmsBody({ eventTitle: reservation.eventTitle, rsvp, dashboardUrl, locale: reservation.eventLocale }),
-        idempotencyKey: input.notificationId,
-      });
-    } else {
-      sendResult = await dependencies.email.send({
-        to: reservation.recipient,
-        subject: ownerEmailSubject({ eventTitle: reservation.eventTitle, created, rsvp, locale: reservation.eventLocale }),
-        html: renderOwnerEmailHtml({ eventTitle: reservation.eventTitle, created, rsvp, dashboardUrl, locale: reservation.eventLocale }),
-        idempotencyKey: input.notificationId,
-      });
-    }
+    const sendResult = await sendPayload(payload, dependencies);
 
     if (sendResult.ok) {
       await dependencies.markSent(input.notificationId, sendResult.providerId);
@@ -711,22 +697,20 @@ async function reserveInvitationNotificationRetry(notificationId: string): Promi
   };
 }
 
-async function getInvitationRsvpSnapshot(rsvpId: string): Promise<RetryRsvpSnapshot | null> {
-  const { data, error } = await createAdminClient()
-    .from("invitation_rsvps")
-    .select("primary_name,email,phone,attending,party_size,dietary_or_accessibility_notes,message")
-    .eq("id", rsvpId)
-    .maybeSingle();
-  if (error || !data) return null;
-  return {
-    primaryName: data.primary_name,
-    email: data.email,
-    phone: data.phone,
-    attending: data.attending,
-    partySize: data.party_size,
-    dietaryOrAccessibilityNotes: data.dietary_or_accessibility_notes,
-    message: data.message,
-  };
+async function saveInvitationNotificationPayload(id: string, payload: NotificationPayload): Promise<void> {
+  const sealed = sealNotificationPayload(JSON.stringify(payload), id);
+  const { data, error } = await createAdminClient().from("invitation_notifications")
+    .update({ provider_payload_encrypted: sealed }).eq("id", id).eq("status", "pending")
+    .is("provider_payload_encrypted", null).select("id").maybeSingle();
+  if (error || !data) throw new Error("Unable to persist notification payload");
+}
+
+async function loadInvitationNotificationPayload(id: string): Promise<NotificationPayload | null> {
+  const { data, error } = await createAdminClient().from("invitation_notifications")
+    .select("provider_payload_encrypted").eq("id", id).maybeSingle();
+  if (error || !data?.provider_payload_encrypted) return null;
+  const payload: unknown = JSON.parse(openNotificationPayload(data.provider_payload_encrypted, id));
+  return validPayload(payload) ? payload : null;
 }
 
 /**
@@ -742,7 +726,7 @@ export async function retryInvitationNotification(
     { notificationId, origin },
     {
       reserveRetry: reserveInvitationNotificationRetry,
-      getRsvpSnapshot: getInvitationRsvpSnapshot,
+      loadPayload: loadInvitationNotificationPayload,
       markSent: markInvitationNotificationSent,
       markFailed: markInvitationNotificationFailed,
       email: resendEmailSender,

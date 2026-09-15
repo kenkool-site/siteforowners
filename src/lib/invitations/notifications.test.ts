@@ -59,6 +59,7 @@ const smsFixture: DispatchRsvpNotificationsInput = {
 
 function alwaysAllow(): NotificationDispatchDependencies {
   return {
+    savePayload: async () => undefined,
     reserve: async (channel) => ({ id: `n-${channel}`, allowed: true }),
     markSent: async () => undefined,
     markFailed: async () => undefined,
@@ -67,9 +68,43 @@ function alwaysAllow(): NotificationDispatchDependencies {
   };
 }
 
+test("dispatch persists the exact payload before delivery and retry ignores mutable RSVP, locale, origin and sender", async () => {
+  const saved = new Map<string, string>();
+  const sent: string[] = [];
+  const email = { send: async (input: import("./notifications").EmailSendInput) => {
+    assert.equal(saved.has(input.idempotencyKey), true);
+    sent.push(JSON.stringify(input));
+    return { ok: false as const, error: "down" };
+  } };
+  await dispatchRsvpNotifications({ ...fixture, event: { ...baseEvent, locale: "es", ownerEmailNotifications: false, guestEmailConfirmations: true } }, {
+    ...alwaysAllow(), email,
+    savePayload: async (id, payload) => { saved.set(id, JSON.stringify(payload)); },
+  });
+  const original = sent[0];
+  assert.ok(original?.includes("editToken=secret"));
+  await processInvitationNotificationRetry({ notificationId: "n-email", origin: "https://changed.invalid" }, {
+    reserveRetry: async () => ({ ...ownerFailedReservation, recipient: "guest@example.com", audience: "guest", kind: "guest_confirmation", eventTitle: "Changed", eventLocale: "en" }),
+    loadPayload: async (id) => JSON.parse(saved.get(id)!),
+    email, sms: { send: notCalled("sms") }, markSent: async () => undefined, markFailed: async () => undefined,
+  });
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1], original);
+});
+
+test("no provider call occurs if the original payload cannot be durably saved", async () => {
+  let calls = 0;
+  const result = await dispatchRsvpNotifications(fixture, {
+    ...alwaysAllow(), savePayload: async () => { throw new Error("database unavailable"); },
+    email: { send: async () => { calls += 1; return { ok: true, providerId: "id" }; } },
+  });
+  assert.equal(calls, 0);
+  assert.equal(result.notificationsDelayed, true);
+});
+
 test("RSVP remains successful when owner email fails", async () => {
   const stored: string[] = [];
   const result = await dispatchRsvpNotifications(fixture, {
+    savePayload: async () => undefined,
     reserve: async (channel) => ({ id: `n-${channel}`, allowed: true }),
     markSent: async () => undefined,
     markFailed: async (id) => { stored.push(id); },
@@ -84,6 +119,7 @@ test("RSVP remains successful when owner email fails", async () => {
 test("a reached SMS limit records suppression without calling Twilio", async () => {
   let calls = 0;
   const result = await dispatchRsvpNotifications(smsFixture, {
+    savePayload: async () => undefined,
     reserve: async () => ({ id: "n-sms", allowed: false }),
     markSent: async () => undefined,
     markFailed: async () => undefined,
@@ -98,6 +134,7 @@ test("a reached SMS limit records suppression without calling Twilio", async () 
 test("a reached email limit records suppression without calling Resend", async () => {
   let calls = 0;
   const result = await dispatchRsvpNotifications(fixture, {
+    savePayload: async () => undefined,
     reserve: async () => ({ id: "n-email", allowed: false }),
     markSent: async () => undefined,
     markFailed: async () => undefined,
@@ -117,13 +154,14 @@ test("everything sending successfully leaves nothing suppressed or delayed", asy
 test("a provider throwing is recorded as a failure, not an unhandled rejection", async () => {
   const failed: Array<{ id: string; reason: string }> = [];
   const result = await dispatchRsvpNotifications(fixture, {
+    savePayload: async () => undefined,
     reserve: async (channel) => ({ id: `n-${channel}`, allowed: true }),
     markSent: async () => undefined,
     markFailed: async (id, reason) => { failed.push({ id, reason }); },
     email: { send: async () => { throw new Error("network blip"); } },
     sms: { send: async () => ({ ok: true, providerId: "s1" }) },
   });
-  assert.deepEqual(failed, [{ id: "n-email", reason: "network blip" }]);
+  assert.deepEqual(failed, [{ id: "n-email", reason: "Notification delivery failed" }]);
   assert.equal(result.notificationsDelayed, true);
 });
 
@@ -131,6 +169,7 @@ test("guest confirmation is only attempted when enabled and the guest has an ema
   async function plannedAttempts(input: DispatchRsvpNotificationsInput) {
     const calls: Array<{ channel: string; audience: string; kind: string }> = [];
     await dispatchRsvpNotifications(input, {
+      savePayload: async () => undefined,
       reserve: async (channel, reserveInput) => {
         calls.push({ channel, audience: reserveInput.audience, kind: reserveInput.kind });
         return { id: `n-${calls.length}`, allowed: true };
@@ -184,6 +223,7 @@ test("a guest is never sent SMS, even when the owner gets SMS and the guest has 
   };
   const calls: Array<{ channel: string; audience: string }> = [];
   await dispatchRsvpNotifications(input, {
+    savePayload: async () => undefined,
     reserve: async (channel, reserveInput) => {
       calls.push({ channel, audience: reserveInput.audience });
       return { id: `n-${calls.length}`, allowed: true };
@@ -205,6 +245,7 @@ test("a guest is never sent SMS, even when the owner gets SMS and the guest has 
 test("the reservation id is reused as the provider idempotency key", async () => {
   const receivedKeys: string[] = [];
   await dispatchRsvpNotifications(fixture, {
+    savePayload: async () => undefined,
     reserve: async () => ({ id: "reservation-abc", allowed: true }),
     markSent: async () => undefined,
     markFailed: async () => undefined,
@@ -225,6 +266,7 @@ test("authored fields are escaped in the owner notification email", async () => 
   await dispatchRsvpNotifications(
     { ...fixture, rsvp: maliciousRsvp },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n-email", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -243,6 +285,7 @@ test("guest confirmation email includes the private edit link when one is suppli
   await dispatchRsvpNotifications(
     { ...fixture, event: { ...baseEvent, guestEmailConfirmations: true } },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -262,6 +305,7 @@ test("an RSVP update mints no new edit token, so its guest confirmation email fa
   await dispatchRsvpNotifications(
     { ...fixture, created: false, editUrl: null, event: { ...baseEvent, guestEmailConfirmations: true } },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -286,6 +330,7 @@ test("a Spanish-locale event renders the owner notification email and subject in
   await dispatchRsvpNotifications(
     { ...fixture, event: { ...baseEvent, locale: "es" } },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n-email", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -310,6 +355,7 @@ test("a Spanish-locale declined RSVP appends the Spanish declined suffix and own
       rsvp: { ...baseRsvp, attending: false },
     },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -328,6 +374,7 @@ test("a Spanish-locale event renders the guest confirmation email in Spanish", a
   await dispatchRsvpNotifications(
     { ...fixture, event: { ...baseEvent, locale: "es", guestEmailConfirmations: true } },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -351,6 +398,7 @@ test("a Spanish-locale guest confirmation without an edit link falls back to the
   await dispatchRsvpNotifications(
     { ...fixture, created: false, editUrl: null, event: { ...baseEvent, locale: "es", guestEmailConfirmations: true } },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -378,6 +426,7 @@ test("event-authored fields (title, primary name) render as entered regardless o
       event: { ...baseEvent, locale: "es", title: "Boda de Ana y Luis" },
     },
     {
+      savePayload: async () => undefined,
       reserve: async () => ({ id: "n", allowed: true }),
       markSent: async () => undefined,
       markFailed: async () => undefined,
@@ -410,213 +459,48 @@ const ownerFailedReservation: RetryReservation = {
   kind: "rsvp_created",
 };
 
-const rsvpSnapshot = {
-  primaryName: "Jamie Guest",
-  email: "guest@example.com",
-  phone: null,
-  attending: true,
-  partySize: 2,
-  dietaryOrAccessibilityNotes: null,
-  message: null,
-};
+for (const code of ["not_found", "limit_reached"] as const) {
+  test(`retry stops before reading private payload for ${code}`, async () => {
+    assert.deepEqual(await processInvitationNotificationRetry({ notificationId: "n", origin: "https://example.test" }, {
+      reserveRetry: async () => ({ allowed: false, code }), loadPayload: notCalled("loadPayload"),
+      markSent: notCalled("markSent"), markFailed: notCalled("markFailed"),
+      email: { send: notCalled("email") }, sms: { send: notCalled("sms") },
+    }), { ok: false, code });
+  });
+}
 
-test("retry only accepts a currently-failed notification", async () => {
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ({ allowed: false, code: "not_found" }),
-    getRsvpSnapshot: notCalled("getRsvpSnapshot"),
-    markSent: notCalled("markSent"),
-    markFailed: notCalled("markFailed"),
-    email: { send: notCalled("email.send") },
-    sms: { send: notCalled("sms.send") },
-  };
-  const result = await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.deepEqual(result, { ok: false, code: "not_found" });
-});
+for (const scenario of ["email", "sms", "missing", "corrupt", "throws", "provider_failure"] as const) {
+  test(`retry finalizes pending reservation safely: ${scenario}`, async () => {
+    let status = "";
+    let calls = 0;
+    const channel = scenario === "sms" ? "sms" : "email";
+    const input = { from: "original@example.com", to: "owner@example.com", idempotencyKey: "notif-1" };
+    const dependencies: RetryDependencies = {
+      reserveRetry: async () => ({ ...ownerFailedReservation, channel }),
+      loadPayload: async () => {
+        if (scenario === "missing") return null;
+        if (scenario === "corrupt") throw new Error("unrecoverable");
+        return channel === "sms" ? { channel, input: { ...input, body: "Original SMS" } }
+          : { channel, input: { ...input, subject: "Original subject", html: "<p>Original body</p>" } };
+      },
+      markSent: async () => { status = "sent"; },
+      markFailed: async (_id, reason) => { status = "failed"; assert.equal(reason, "Notification delivery failed"); },
+      email: { send: async (payload) => {
+        calls++;
+        assert.equal(payload.from, "original@example.com");
+        assert.equal(payload.idempotencyKey, "notif-1");
+        if (scenario === "throws") throw new Error("Private provider echo");
+        return scenario === "provider_failure" ? { ok: false, error: "private content" } : { ok: true, providerId: "email" };
+      } },
+      sms: { send: async (payload) => { calls++; assert.equal(payload.body, "Original SMS"); return { ok: true, providerId: "sms" }; } },
+    };
+    await processInvitationNotificationRetry({ notificationId: "notif-1", origin: "https://changed.test" }, dependencies);
+    assert.equal(status, scenario === "email" || scenario === "sms" ? "sent" : "failed");
+    assert.equal(calls, scenario === "missing" || scenario === "corrupt" ? 0 : 1);
+  });
+}
 
-test("retry respects the current channel limit", async () => {
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ({ allowed: false, code: "limit_reached" }),
-    getRsvpSnapshot: notCalled("getRsvpSnapshot"),
-    markSent: notCalled("markSent"),
-    markFailed: notCalled("markFailed"),
-    email: { send: notCalled("email.send") },
-    sms: { send: notCalled("sms.send") },
-  };
-  const result = await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.deepEqual(result, { ok: false, code: "limit_reached" });
-});
-
-test("a successful retry reuses the notification id as the idempotency key and marks sent", async () => {
-  let receivedKey = "";
-  let sentArgs: [string, string | null] | null = null;
-  const dependencies: RetryDependencies = {
-    reserveRetry: async (id) => { assert.equal(id, "notif-1"); return ownerFailedReservation; },
-    getRsvpSnapshot: async () => rsvpSnapshot,
-    markSent: async (id, providerMessageId) => { sentArgs = [id, providerMessageId]; },
-    markFailed: notCalled("markFailed"),
-    email: { send: async (input) => { receivedKey = input.idempotencyKey; return { ok: true, providerId: "prov-1" }; } },
-    sms: { send: notCalled("sms.send") },
-  };
-  const result = await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.deepEqual(result, { ok: true, status: "sent" });
-  assert.equal(receivedKey, "notif-1");
-  assert.deepEqual(sentArgs, ["notif-1", "prov-1"]);
-});
-
-test("a retry that fails again is marked failed, not thrown", async () => {
-  let failedArgs: [string, string] | null = null;
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ownerFailedReservation,
-    getRsvpSnapshot: async () => rsvpSnapshot,
-    markSent: notCalled("markSent"),
-    markFailed: async (id, reason) => { failedArgs = [id, reason]; },
-    email: { send: async () => ({ ok: false, error: "still down" }) },
-    sms: { send: notCalled("sms.send") },
-  };
-  const result = await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.deepEqual(result, { ok: true, status: "failed" });
-  assert.deepEqual(failedArgs, ["notif-1", "still down"]);
-});
-
-test("retrying an owner SMS notification calls the SMS sender, not email", async () => {
-  let smsCalled = false;
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ({ ...ownerFailedReservation, channel: "sms", recipient: "+15555550123" }),
-    getRsvpSnapshot: async () => rsvpSnapshot,
-    markSent: async () => undefined,
-    markFailed: notCalled("markFailed"),
-    email: { send: notCalled("email.send") },
-    sms: { send: async () => { smsCalled = true; return { ok: true, providerId: "SM1" }; } },
-  };
-  await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.equal(smsCalled, true);
-});
-
-test("retrying a guest confirmation falls back to the public invite page since the private edit token cannot be recovered", async () => {
-  let html = "";
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ({
-      ...ownerFailedReservation,
-      audience: "guest",
-      channel: "email",
-      kind: "guest_confirmation",
-      recipient: "guest@example.com",
-      eventSlug: "sample-event",
-    }),
-    getRsvpSnapshot: async () => rsvpSnapshot,
-    markSent: async () => undefined,
-    markFailed: notCalled("markFailed"),
-    email: { send: async (input) => { html = input.html; return { ok: true, providerId: "e1" }; } },
-    sms: { send: notCalled("sms.send") },
-  };
-  await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.doesNotMatch(html, /editToken/);
-  assert.match(html, /original confirmation/);
-  assert.match(html, /href="https:\/\/events\.example\.test\/invite\/sample-event"/);
-});
-
-test("a retry never strands the row in 'pending': a missing RSVP after reservation is marked failed", async () => {
-  let failedArgs: [string, string] | null = null;
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ownerFailedReservation,
-    getRsvpSnapshot: async () => null,
-    markSent: notCalled("markSent"),
-    markFailed: async (id, reason) => { failedArgs = [id, reason]; },
-    email: { send: notCalled("email.send") },
-    sms: { send: notCalled("sms.send") },
-  };
-  const result = await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.deepEqual(result, { ok: true, status: "failed" });
-  assert.equal(failedArgs?.[0], "notif-1");
-});
-
-test("a retry never strands the row in 'pending': a provider throwing (not returning {ok:false}) is marked failed, not thrown", async () => {
-  let failedArgs: [string, string] | null = null;
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ownerFailedReservation,
-    getRsvpSnapshot: async () => rsvpSnapshot,
-    markSent: notCalled("markSent"),
-    markFailed: async (id, reason) => { failedArgs = [id, reason]; },
-    email: { send: async () => { throw new Error("resend timeout"); } },
-    sms: { send: notCalled("sms.send") },
-  };
-  const result = await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.deepEqual(result, { ok: true, status: "failed" });
-  assert.deepEqual(failedArgs, ["notif-1", "resend timeout"]);
-});
-
-test("retrying an owner notification for a Spanish-locale event re-renders the content in Spanish", async () => {
-  let subject = "";
-  let html = "";
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ({ ...ownerFailedReservation, eventLocale: "es" }),
-    getRsvpSnapshot: async () => rsvpSnapshot,
-    markSent: async () => undefined,
-    markFailed: notCalled("markFailed"),
-    email: { send: async (input) => { subject = input.subject; html = input.html; return { ok: true, providerId: "e1" }; } },
-    sms: { send: notCalled("sms.send") },
-  };
-  await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.match(subject, /^Nuevo RSVP — Sample Wedding$/);
-  assert.match(html, /Contacto:/);
-  assert.doesNotMatch(html, /Contact:/);
-});
-
-test("retrying a guest confirmation for a Spanish-locale event falls back to the Spanish invitation-page text", async () => {
-  let html = "";
-  const dependencies: RetryDependencies = {
-    reserveRetry: async () => ({
-      ...ownerFailedReservation,
-      eventLocale: "es",
-      audience: "guest",
-      channel: "email",
-      kind: "guest_confirmation",
-      recipient: "guest@example.com",
-      eventSlug: "sample-event",
-    }),
-    getRsvpSnapshot: async () => rsvpSnapshot,
-    markSent: async () => undefined,
-    markFailed: notCalled("markFailed"),
-    email: { send: async (input) => { html = input.html; return { ok: true, providerId: "e1" }; } },
-    sms: { send: notCalled("sms.send") },
-  };
-  await processInvitationNotificationRetry(
-    { notificationId: "notif-1", origin: "https://events.example.test" },
-    dependencies,
-  );
-  assert.doesNotMatch(html, /editToken/);
-  assert.match(html, /confirmación original/);
-  assert.match(html, /href="https:\/\/events\.example\.test\/invite\/sample-event"/);
-  assert.doesNotMatch(html, /original confirmation/);
-});
-
+// ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // messages/en.json and messages/es.json must define exactly the same set of
 // keys under invitations.notifications — the plain-object lookup in

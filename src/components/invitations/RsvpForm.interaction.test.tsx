@@ -15,6 +15,7 @@ async function withRsvpForm(
     url: string;
     slug: string;
     allowCreate: boolean;
+    preview?: boolean;
     storage?: Record<string, string>;
     fetchImpl?: typeof fetch;
   },
@@ -52,7 +53,7 @@ async function withRsvpForm(
     root = createRoot(container) as Root;
     await act(async () => root!.render(
       <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-        <RsvpForm slug={options.slug} allowCreate={options.allowCreate} showPublicRsvpCount={false} />
+        <RsvpForm slug={options.slug} allowCreate={options.allowCreate} showPublicRsvpCount={false} preview={options.preview} />
       </NextIntlClientProvider>,
     ));
     await run(container, dom);
@@ -84,6 +85,18 @@ function storageKey(slug: string): string {
 
 const ORIGIN = "https://app.example.test";
 const SLUG = "ana-and-luis";
+
+test("preview ignores stored edit capabilities and blocks even programmatic submission", async () => {
+  let calls = 0;
+  await withRsvpForm({ url: ORIGIN, slug: SLUG, allowCreate: true, preview: true,
+    storage: { [storageKey(SLUG)]: editUrl(ORIGIN, SLUG, "11111111-1111-4111-8111-111111111111", "secret") },
+    fetchImpl: async () => { calls++; return new Response(JSON.stringify({ ok: true })); },
+  }, async (container, dom) => {
+    assert.doesNotMatch(container.textContent ?? "", /securely updating/);
+    await act(async () => submit(dom, container.querySelector("form")!));
+    assert.equal(calls, 0);
+  });
+});
 
 test("a guest who opens their real saved edit link resumes the edit session (window.location path)", async () => {
   const rsvpId = "11111111-1111-4111-8111-111111111111";

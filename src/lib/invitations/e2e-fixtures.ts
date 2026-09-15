@@ -247,6 +247,7 @@ export const invitationE2ERepository = {
     const event = store.events[0]!;
     event.event_type = rows.event.event_type;
     event.starts_at = rows.event.starts_at;
+    event.expire_at = rows.event.expire_at;
     event.timezone = rows.event.timezone;
     event.submission_limit = rows.event.submission_limit;
     event.email_notification_limit = rows.event.email_notification_limit;
@@ -293,6 +294,10 @@ export const invitationE2ERepository = {
   async updateEvent(eventId: string, row: Record<string, string | number | boolean | null>): Promise<void> {
     const event = requireStore().events.find((candidate) => candidate.id === eventId);
     if (!event) throw new Error("Fixture event not found");
+    const attending = requireStore().rsvps.filter((rsvp) => rsvp.event_id === eventId && rsvp.attending).reduce((total, rsvp) => total + rsvp.party_size, 0);
+    if (typeof row.capacity === "number" && row.capacity !== event.capacity && row.capacity < attending) {
+      throw new Error("INVITE_CAPACITY_BELOW_ATTENDANCE");
+    }
     Object.assign(event, row);
   },
   async updateStatus(eventId: string, status: InvitationManagementRow["status"]): Promise<void> {
@@ -478,6 +483,7 @@ export async function dispatchFixtureInvitationRsvpNotifications(
       store.notifications.push({ id, eventId: event.id, rsvpId: notification.rsvpId, channel, status: used >= limit ? "suppressed" : "pending" });
       return used >= limit ? { id, allowed: false as const } : { id, allowed: true as const };
     },
+    savePayload: async () => undefined,
     markSent: async (notificationId) => {
       const notification = store.notifications.find((row) => row.id === notificationId);
       if (notification) notification.status = "sent";

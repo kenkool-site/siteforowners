@@ -367,6 +367,7 @@
         "primaryColor": "Choose a valid six-digit primary color.",
         "accentColor": "Choose a valid six-digit accent color.",
         "capacity": "Enter a whole-number capacity greater than zero, or leave it blank.",
+        "capacityBelowAttendance": "Capacity cannot be lower than current attendance. Reduce attending responses first.",
         "rsvpDeadline": "Choose an RSVP deadline on or before the event start.",
         "passcode": "Use at least four characters, or leave this blank to keep the current passcode.",
         "removePasscode": "Choose either a new passcode or removal, not both.",
@@ -386,6 +387,7 @@
       }
     },
     "public": {
+      "previewNotice": "Preview — RSVP submission is disabled.",
       "unavailable": {
         "title": "This invitation is unavailable",
         "body": "Please check back later or contact the host."

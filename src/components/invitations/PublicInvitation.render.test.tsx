@@ -10,6 +10,16 @@ import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 
 Object.assign(globalThis, { React });
 
+test("full preview renders private media and locale while disabling every RSVP control", () => {
+  const html = renderToStaticMarkup(<NextIntlClientProvider locale="es" messages={esMessages} timeZone="America/New_York">
+    <PublicInvitation event={{ ...event, locale: "es" }} state="published" media={media} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} preview />
+  </NextIntlClientProvider>);
+  assert.match(html, /https:\/\/signed.example.test\/video/);
+  assert.match(html, /Mia &amp; Lee/);
+  assert.match(html, /<fieldset[^>]*disabled/);
+  assert.match(html, /Vista previa/);
+});
+
 const event: PublicInvitationEvent = {
   id: "event-1",
   slug: "mia-and-lee",

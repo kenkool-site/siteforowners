@@ -1,20 +1,17 @@
+import { createMediaUploadTicket, verifyMediaUploadTicket, finalizeDirectMedia, DirectMediaError } from "@/lib/invitations/direct-media";
 import { isSameOrigin } from "@/lib/invitations/auth";
 import { requireInvitationAccess } from "@/lib/invitations/access";
 import {
-  buildInvitationMediaPath,
   createInvitationMediaSnapshot,
-  finalizeInvitationMediaUpload,
   getSignedInvitationMedia,
   INVITATION_MEDIA_BUCKET,
   isInvitationMediaPathForEvent,
   removeInvitationSingletonMedia,
-  validateInvitationMedia,
   type InvitationMediaKind,
   type InvitationMediaSnapshot,
 } from "@/lib/invitations/media";
 import {
   getInvitationEventForManagement,
-  invitationRepository,
 } from "@/lib/invitations/repository";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-fixtures";
@@ -29,8 +26,6 @@ type GalleryRow = {
   sort_order: number;
 };
 
-class InvitationGalleryFullError extends Error {}
-
 const EVENT_PATH_FIELD = {
   designed_invite: "designed_invite_path",
   cover: "cover_image_path",
@@ -41,15 +36,6 @@ function parseKind(value: FormDataEntryValue | null): InvitationMediaKind | null
   return value === "designed_invite" || value === "cover" || value === "gallery" || value === "video"
     ? value
     : null;
-}
-
-function isUpload(value: FormDataEntryValue | null): value is File {
-  return typeof value !== "string"
-    && value !== null
-    && typeof value.name === "string"
-    && typeof value.type === "string"
-    && typeof value.size === "number"
-    && typeof value.arrayBuffer === "function";
 }
 
 function eventPath(
@@ -133,99 +119,67 @@ export async function POST(
     return NextResponse.json({ error: "Fixture media mutations are unavailable" }, { status: 503 });
   }
 
-  let form: FormData;
+  let body: Record<string, unknown>;
   try {
-    form = await request.formData();
+    const value: unknown = await request.json();
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error();
+    body = value as Record<string, unknown>;
   } catch {
     return NextResponse.json({ errors: { media: "invalid_form" } }, { status: 400 });
   }
-  const kind = parseKind(form.get("kind"));
-  const file = form.get("file");
-  if (!kind || !isUpload(file)) {
-    return NextResponse.json({ errors: { media: "invalid_media_type" } }, { status: 400 });
-  }
-
-  const altTextValue = form.get("altText");
-  const altText = typeof altTextValue === "string" ? altTextValue.trim() : "";
-  const mediaIdValue = form.get("mediaId");
-  const mediaId = typeof mediaIdValue === "string" && mediaIdValue ? mediaIdValue : null;
-  if (kind === "gallery" && !altText) {
-    return NextResponse.json({ errors: { media: "gallery_alt_required" } }, { status: 400 });
-  }
-
   const client = createAdminClient();
-  let replacedGalleryRow: GalleryRow | null = null;
+  const storage = client.storage.from(INVITATION_MEDIA_BUCKET);
   try {
-    if (kind === "gallery" && mediaId) {
-      replacedGalleryRow = (await listGallery(client, params.eventId)).find((row) => row.id === mediaId) ?? null;
-      if (!replacedGalleryRow) {
-        return NextResponse.json({ errors: { media: "invalid_media_reference" } }, { status: 404 });
+    if (body.action === "initiate") {
+      const kind = typeof body.kind === "string" ? parseKind(body.kind) : null;
+      if (!kind || typeof body.name !== "string" || typeof body.type !== "string" || typeof body.size !== "number") {
+        throw new DirectMediaError("invalid_media_type");
       }
+      const mediaId = typeof body.mediaId === "string" ? body.mediaId : null;
+      const altText = typeof body.altText === "string" ? body.altText.trim() : "";
+      if (mediaId && !(await listGallery(client, params.eventId)).some((row) => row.id === mediaId)) {
+        throw new DirectMediaError("invalid_media_reference");
+      }
+      const upload = createMediaUploadTicket(params.eventId, { kind, name: body.name, type: body.type, size: body.size, mediaId, altText });
+      const { data, error } = await storage.createSignedUploadUrl(upload.path, { upsert: false });
+      if (error || !data) throw new Error("Unable to authorize upload");
+      return NextResponse.json({ ticket: upload.ticket, uploadUrl: data.signedUrl }, { headers: { "Cache-Control": "no-store" } });
     }
-    const validation = await validateInvitationMedia(file, kind);
-    if (!validation.ok) {
-      return NextResponse.json({ errors: { media: validation.code } }, { status: 400 });
-    }
-
-    const newPath = buildInvitationMediaPath(params.eventId, kind, validation.extension);
-    const oldPath = kind === "gallery" ? replacedGalleryRow?.storage_path ?? null : eventPath(current, kind);
-    await finalizeInvitationMediaUpload({
-      newPath,
-      oldPath,
-      upload: async (path) => {
-        const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).upload(path, validation.bytes, {
-          contentType: validation.contentType,
-          upsert: false,
-        });
-        if (error) throw new Error("Unable to upload invitation media", { cause: error });
+    if (body.action !== "finalize" || typeof body.ticket !== "string") throw new DirectMediaError("invalid_form");
+    const ticket = verifyMediaUploadTicket(body.ticket, params.eventId);
+    if (!ticket) throw new DirectMediaError("invalid_media_reference");
+    await finalizeDirectMedia(ticket, {
+      download: async (path) => {
+        const { data, error } = await storage.download(path);
+        if (error || !data) throw new Error("Uploaded media unavailable");
+        return data;
       },
-      finalize: async () => {
-        if (kind === "gallery") {
-          if (replacedGalleryRow) {
-            const { data, error } = await client
-              .from("invitation_media")
-              .update({
-                storage_path: newPath,
-                alt_text: altText,
-                updated_at: new Date().toISOString(),
-              })
-              .eq("id", replacedGalleryRow.id)
-              .eq("event_id", params.eventId)
-              .eq("storage_path", replacedGalleryRow.storage_path)
-              .select("id")
-              .maybeSingle();
-            if (error || !data) throw new Error("Unable to replace invitation gallery image", { cause: error });
-            return;
-          }
-          const { error } = await client.rpc("insert_invitation_gallery_media", {
-            p_event_id: params.eventId,
-            p_storage_path: newPath,
-            p_alt_text: altText,
-          });
-          if (error?.message.includes("invitation_gallery_full")) throw new InvitationGalleryFullError();
-          if (error) throw new Error("Unable to save invitation gallery image", { cause: error });
-          return;
-        }
-        await invitationRepository.updateEvent(params.eventId, {
-          [EVENT_PATH_FIELD[kind]]: newPath,
-          updated_at: new Date().toISOString(),
+      upload: async (path, bytes, contentType) => {
+        const { error } = await storage.upload(path, bytes, { contentType, upsert: false });
+        if (error) throw new Error("Unable to store validated media");
+      },
+      attach: async (path) => {
+        // Recheck ownership after the storage read and validation as well.
+        if (!await requireInvitationAccess(request, params.eventId)) throw new DirectMediaError("invalid_media_reference");
+        const { data, error } = await client.rpc("attach_invitation_media", {
+          p_event_id: params.eventId, p_kind: ticket.kind, p_storage_path: path,
+          p_media_id: ticket.mediaId, p_alt_text: ticket.altText,
         });
+        if (error?.message.includes("invitation_gallery_full")) throw new DirectMediaError("gallery_full");
+        if (error) throw new Error("Unable to attach validated media");
+        return typeof data === "string" ? data : null;
       },
       remove: async (path) => {
-        const { error } = await client.storage.from(INVITATION_MEDIA_BUCKET).remove([path]);
-        if (error) throw new Error("Unable to remove invitation media", { cause: error });
+        const { error } = await storage.remove([path]);
+        if (error) throw new Error("Unable to clean up media");
       },
     });
-
     const event = await getInvitationEventForManagement(params.eventId);
-    if (!event) throw new Error("Invitation disappeared after media update");
+    if (!event) throw new Error("Invitation unavailable");
     return NextResponse.json({ event, media: await loadMediaSnapshot(client, event) });
   } catch (error) {
-    console.error("[invitations/media] upload failed", { eventId: params.eventId, kind, error });
-    if (error instanceof InvitationGalleryFullError) {
-      return NextResponse.json({ errors: { media: "gallery_full" } }, { status: 409 });
-    }
-    return NextResponse.json({ errors: { media: "upload_failed" } }, { status: 500 });
+    const code = error instanceof DirectMediaError ? error.code : "upload_failed";
+    return NextResponse.json({ errors: { media: code } }, { status: code === "gallery_full" ? 409 : code === "upload_failed" ? 500 : 400 });
   }
 }
 
