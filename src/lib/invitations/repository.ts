@@ -90,7 +90,7 @@ const MANAGEMENT_SELECT = [
   "email_notification_limit", "sms_notification_limit", "owner_email_notifications",
   "owner_sms_notifications", "notification_email", "notification_phone",
   "guest_email_confirmations", "status", "expire_at", "created_at", "updated_at",
-  "invitation_owners!inner(id,name,email,phone,is_active,created_at,updated_at)",
+  "invitation_owners!invitation_events_owner_id_fkey!inner(id,name,email,phone,is_active,created_at,updated_at)",
 ].join(",");
 
 const PUBLIC_SELECT = [
@@ -100,7 +100,7 @@ const PUBLIC_SELECT = [
   "design_recipe",
   "designed_invite_path", "cover_image_path", "video_path", "passcode_hash",
   "show_public_rsvp_count", "rsvp_deadline", "status", "expire_at",
-  "invitation_owners!inner(is_active)", "invitation_rsvps(attending,party_size)",
+  "invitation_owners!invitation_events_owner_id_fkey!inner(is_active)", "invitation_rsvps(attending,party_size)",
 ].join(",");
 
 export const invitationRepository: InvitationRepository & InvitationManagementRepository & InvitationPublicRepository & InvitationResponsesRepository = {
@@ -123,7 +123,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
     const { data, error } = await supabase
       .from("invitation_events")
       .select(
-        "id,slug,public_subdomain,title,starts_at,status,invitation_owners!inner(name,email),invitation_rsvps(attending,party_size),invitation_notifications(status)",
+        "id,slug,public_subdomain,title,starts_at,status,invitation_owners!invitation_events_owner_id_fkey!inner(name,email),invitation_rsvps(attending,party_size),invitation_notifications(status)",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error("Unable to list invitations", { cause: error });
@@ -142,7 +142,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
     if (!data) return null;
     const { data: membership, error: membershipError } = await supabase
       .from("invitation_event_hosts")
-      .select("invitation_owners!inner(id,name,email,phone,is_active,created_at,updated_at)")
+      .select("invitation_owners!invitation_event_hosts_owner_id_fkey!inner(id,name,email,phone,is_active,created_at,updated_at)")
       .eq("event_id", eventId)
       .eq("role", "cohost")
       .maybeSingle();

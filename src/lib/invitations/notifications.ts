@@ -510,7 +510,7 @@ async function getInvitationNotificationEventContext(eventId: string): Promise<N
   if (error || !data) return null;
   const { data: hostRows, error: hostError } = await client
     .from("invitation_event_hosts")
-    .select("role,invitation_owners!inner(email,is_active)")
+    .select("role,invitation_owners!invitation_event_hosts_owner_id_fkey!inner(email,is_active)")
     .eq("event_id", eventId)
     .eq("role", "cohost")
     .eq("invitation_owners.is_active", true);
