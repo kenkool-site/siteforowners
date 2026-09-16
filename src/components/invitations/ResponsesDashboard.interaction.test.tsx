@@ -42,6 +42,7 @@ async function withDashboard(
   initialData: InvitationResponsesDashboard,
   fetchImpl: typeof fetch,
   run: (container: HTMLElement, dom: JSDOM) => Promise<void>,
+  mode: "owner" | "founder" = "owner",
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.example.test" });
   const names = ["window", "document", "HTMLElement", "HTMLInputElement", "HTMLFormElement", "Event", "DOMException", "AbortController", "fetch", "IS_REACT_ACT_ENVIRONMENT"] as const;
@@ -66,7 +67,7 @@ async function withDashboard(
     await act(async () => {
       root.render(
         <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
-          <ResponsesDashboard eventId="event-1" mode="owner" initialData={initialData} />
+          <ResponsesDashboard eventId="event-1" mode={mode} initialData={initialData} />
         </NextIntlClientProvider>,
       );
       await Promise.resolve();
@@ -126,4 +127,37 @@ test("a clamped response reload synchronizes the next request to the last valid 
     assert.match(requestedUrls[0] ?? "", /[?&]page=2(?:&|$)/);
     assert.match(requestedUrls[1] ?? "", /[?&]page=1(?:&|$)/);
   });
+});
+
+test("founder can confirm permanent response removal and refresh the ledger", async () => {
+  const requests: Array<{ method: string; body: unknown }> = [];
+  let removed = false;
+  const emptyDashboard = {
+    ...dashboard,
+    responses: [],
+    filteredTotal: 0,
+    summary: { ...dashboard.summary, attendingPeople: 0, attendingParties: 0, totalSubmissions: 0 },
+  };
+  await withDashboard(dashboard, async (_input, init) => {
+    const method = init?.method ?? "GET";
+    requests.push({ method, body: init?.body ? JSON.parse(String(init.body)) : null });
+    if (method === "DELETE") {
+      removed = true;
+      return { ok: true, json: async () => ({ ok: true }) } as Response;
+    }
+    return { ok: true, json: async () => removed ? emptyDashboard : dashboard } as Response;
+  }, async (container, dom) => {
+    dom.window.confirm = () => true;
+    const remove = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Remove guest");
+    assert.ok(remove);
+    await act(async () => {
+      remove.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.deepEqual(requests.find((request) => request.method === "DELETE")?.body, {
+      rsvpId: "00000000-0000-4000-8000-000000000001",
+    });
+    assert.doesNotMatch(container.textContent ?? "", /Ana Rivera/);
+  }, "founder");
 });

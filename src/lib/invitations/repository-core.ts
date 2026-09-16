@@ -213,6 +213,10 @@ export interface InvitationPublicRepository {
   findBySlug(slug: string): Promise<InvitationPublicRow | null>;
 }
 
+export interface InvitationResponseRemovalRepository {
+  removeResponse(eventId: string, rsvpId: string): Promise<boolean>;
+}
+
 export interface InvitationRepository {
   insert(rows: InvitationProvisionRows): Promise<InvitationProvisionIds>;
   list(): Promise<InvitationFounderListRow[]>;
@@ -505,6 +509,14 @@ export function buildInvitationOwnerUpdateRow(
   if (update.ownerPhone !== undefined) row.phone = update.ownerPhone;
   if (update.newOwnerPin !== undefined && pinHash !== undefined) row.pin_hash = pinHash;
   return row;
+}
+
+export async function removeInvitationResponse(
+  eventId: string,
+  rsvpId: string,
+  repository: InvitationResponseRemovalRepository,
+): Promise<boolean> {
+  return repository.removeResponse(eventId, rsvpId);
 }
 
 export async function updateInvitationOwnerCredentials(

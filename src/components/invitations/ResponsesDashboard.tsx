@@ -79,6 +79,7 @@ export function ResponsesDashboard({
   const [draft, setDraft] = useState<ResponseDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [retrying, setRetrying] = useState<string | null>(null);
+  const [removing, setRemoving] = useState<string | null>(null);
   const editHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const query = useMemo(() => new URLSearchParams({
@@ -183,6 +184,34 @@ export function ResponsesDashboard({
     }
   }
 
+  async function removeResponse(responseToRemove: InvitationResponse) {
+    if (mode !== "founder" || removing) return;
+    if (!window.confirm(t("remove.confirm", { name: responseToRemove.primaryName }))) return;
+    setRemoving(responseToRemove.id);
+    setError("");
+    try {
+      const response = await fetch(`/api/invitations/events/${eventId}/responses`, {
+        method: "DELETE",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ rsvpId: responseToRemove.id }),
+      });
+      const result = await response.json() as { ok?: boolean };
+      if (!response.ok || !result.ok) {
+        setError(t("remove.error"));
+        return;
+      }
+      if (editing?.id === responseToRemove.id) {
+        setEditing(null);
+        setDraft(null);
+      }
+      await load();
+    } catch {
+      setError(t("remove.error"));
+    } finally {
+      setRemoving(null);
+    }
+  }
+
   const summaryItems = data ? [
     [data.summary.attendingPeople, t("summary.attendingPeople", { count: data.summary.attendingPeople })],
     [data.summary.attendingParties, t("summary.attendingParties", { count: data.summary.attendingParties })],
@@ -260,7 +289,10 @@ export function ResponsesDashboard({
                 <div><p className="font-semibold text-[#2B2231]">{t("notes")}</p><p className="mt-1 whitespace-pre-wrap text-[#675d6a]">{response.dietaryOrAccessibilityNotes || "—"}</p></div>
                 <div><p className="font-semibold text-[#2B2231]">{t("message")}</p><p className="mt-1 whitespace-pre-wrap text-[#675d6a]">{response.message || "—"}</p></div>
                 <p className="text-xs text-[#807484] sm:col-span-2">{t("received", { date: new Intl.DateTimeFormat(locale, { dateStyle: "medium", timeStyle: "short" }).format(new Date(response.createdAt)) })}</p>
-                <button type="button" onClick={() => beginEdit(response)} className="min-h-11 w-fit rounded-md border border-[#b9aabc] bg-white px-4 py-2 text-sm font-semibold text-[#55405a]">{t("edit.action")}</button>
+                <div className="flex flex-wrap gap-3 sm:col-span-2">
+                  <button type="button" onClick={() => beginEdit(response)} className="min-h-11 w-fit rounded-md border border-[#b9aabc] bg-white px-4 py-2 text-sm font-semibold text-[#55405a]">{t("edit.action")}</button>
+                  {mode === "founder" && <button type="button" disabled={removing !== null} onClick={() => void removeResponse(response)} className="min-h-11 w-fit rounded-md border border-[#b75b5b] bg-white px-4 py-2 text-sm font-semibold text-[#8a2d2d] disabled:opacity-50">{removing === response.id ? t("remove.removing") : t("remove.action")}</button>}
+                </div>
               </div>
             </details>
           ))}

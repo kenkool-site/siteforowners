@@ -20,6 +20,7 @@ import {
   type InvitationProvisionDependencies,
   type InvitationPublicRepository,
   type InvitationRepository,
+  type InvitationResponseRemovalRepository,
 } from "./repository-core";
 import type { InvitationEventUpdate, InvitationOwnerCredentialUpdate } from "./validation";
 import type { InvitationEventStatus } from "./types";
@@ -103,7 +104,7 @@ const PUBLIC_SELECT = [
   "invitation_owners!invitation_events_owner_id_fkey!inner(is_active)", "invitation_rsvps(attending,party_size)",
 ].join(",");
 
-export const invitationRepository: InvitationRepository & InvitationManagementRepository & InvitationPublicRepository & InvitationResponsesRepository = {
+export const invitationRepository: InvitationRepository & InvitationManagementRepository & InvitationPublicRepository & InvitationResponsesRepository & InvitationResponseRemovalRepository = {
   async insert(rows: InvitationProvisionRows) {
     if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.insert(rows);
     const supabase = createAdminClient();
@@ -242,6 +243,20 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
     if (error) throw new Error("Unable to load response notifications", { cause: error });
     return (data ?? []) as InvitationNotificationWarningRow[];
   },
+
+  async removeResponse(eventId, rsvpId) {
+    if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.removeResponse(eventId, rsvpId);
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
+      .from("invitation_rsvps")
+      .delete()
+      .eq("event_id", eventId)
+      .eq("id", rsvpId)
+      .select("id")
+      .maybeSingle();
+    if (error) throw new Error("Unable to remove invitation response", { cause: error });
+    return data !== null;
+  },
 };
 
 export async function createInvitationOwnerAndEvent(
@@ -356,4 +371,8 @@ export async function listInvitationResponseRows(
   repository: InvitationResponsesRepository = invitationRepository,
 ): Promise<InvitationResponseRow[]> {
   return repository.listResponseRows(eventId);
+}
+
+export async function removeInvitationResponse(eventId: string, rsvpId: string): Promise<boolean> {
+  return invitationRepository.removeResponse(eventId, rsvpId);
 }

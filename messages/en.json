@@ -360,6 +360,12 @@
         "failedChannel": "Failed {channel} delivery",
         "retry": "Retry delivery",
         "retrying": "Retrying…",
+        "remove": {
+          "action": "Remove guest",
+          "removing": "Removing…",
+          "confirm": "Permanently remove {name}'s response? This cannot be undone.",
+          "error": "The response could not be removed. Try again."
+        },
         "channels": {
           "email": "email",
           "sms": "SMS"

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireInvitationAccess } from "@/lib/invitations/access";
+import { canRemoveInvitationResponse, requireInvitationAccess } from "@/lib/invitations/access";
 import { isSameOrigin } from "@/lib/invitations/auth";
-import { getInvitationResponsesDashboard } from "@/lib/invitations/repository";
+import { getInvitationResponsesDashboard, removeInvitationResponse } from "@/lib/invitations/repository";
 import { submitInvitationRsvp, type RsvpErrorCode } from "@/lib/invitations/rsvp";
 import { parseRsvpInput } from "@/lib/invitations/validation";
 import { administrativeRsvpAuditMetadata } from "@/lib/invitations/responses";
@@ -46,6 +46,8 @@ const STATUS_BY_CODE: Readonly<Record<RsvpErrorCode, number>> = {
   rate_limited: 429,
 };
 
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { eventId: string } },
@@ -66,7 +68,7 @@ export async function PATCH(
     return NextResponse.json({ errors: { form: "Send valid response details" } }, { status: 400 });
   }
   const values = body as Record<string, unknown>;
-  if (typeof values.rsvpId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(values.rsvpId)) {
+  if (typeof values.rsvpId !== "string" || !UUID_PATTERN.test(values.rsvpId)) {
     return NextResponse.json({ errors: { rsvpId: "Choose a valid response" } }, { status: 400 });
   }
   const parsed = parseRsvpInput(values.response);
@@ -110,5 +112,45 @@ export async function PATCH(
       error,
     });
     return NextResponse.json({ ok: false, code: "event_unavailable" }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: { eventId: string } },
+) {
+  if (!isSameOrigin(request)) {
+    return NextResponse.json({ error: "Cross-origin request blocked" }, { status: 403 });
+  }
+  const access = await requireInvitationAccess(request, params.eventId);
+  if (!access) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!canRemoveInvitationResponse(access)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  let body: unknown;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ errors: { rsvpId: "Choose a valid response" } }, { status: 400 });
+  }
+  const rsvpId = body && typeof body === "object" && !Array.isArray(body)
+    ? (body as Record<string, unknown>).rsvpId
+    : null;
+  if (typeof rsvpId !== "string" || !UUID_PATTERN.test(rsvpId)) {
+    return NextResponse.json({ errors: { rsvpId: "Choose a valid response" } }, { status: 400 });
+  }
+
+  try {
+    const removed = await removeInvitationResponse(params.eventId, rsvpId);
+    if (!removed) return NextResponse.json({ error: "Response not found" }, { status: 404 });
+    console.info("[invitations/responses] RSVP removed", {
+      eventId: params.eventId,
+      rsvpId,
+      actor: "founder",
+      removedAt: new Date().toISOString(),
+    });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[invitations/responses] removal failed", { eventId: params.eventId, rsvpId, actor: "founder", error });
+    return NextResponse.json({ error: "Response could not be removed" }, { status: 500 });
   }
 }
