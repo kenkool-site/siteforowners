@@ -15,6 +15,10 @@ export type InvitationAccessInput = {
   ownerOwnsEvent(ownerId: string, eventId: string): Promise<boolean>;
 };
 
+export function canRemoveInvitationResponse(access: InvitationAccess | null): boolean {
+  return access?.kind === "founder";
+}
+
 export async function invitationOwnerOwnsEvent(
   ownerId: string,
   eventId: string,

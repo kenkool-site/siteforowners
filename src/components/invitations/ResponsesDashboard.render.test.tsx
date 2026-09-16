@@ -70,6 +70,7 @@ test("owner dashboard renders private response details, all totals, warnings, an
   assert.match(html, /data-response-ledger="true"/);
   assert.match(html, /Download CSV/);
   assert.doesNotMatch(html, /Retry delivery/);
+  assert.doesNotMatch(html, /Remove guest/);
 });
 
 test("founder dashboard exposes retry controls without rendering notification recipients", () => {
@@ -78,6 +79,7 @@ test("founder dashboard exposes retry controls without rendering notification re
   ));
 
   assert.match(html, /Retry delivery/);
+  assert.match(html, /Remove guest/);
   assert.doesNotMatch(html, /notification-recipient@example\.test/);
 });
 

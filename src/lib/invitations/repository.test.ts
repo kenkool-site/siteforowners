@@ -9,6 +9,7 @@ import {
   getInvitationEventForManagement,
   getPublicInvitationBySlug,
   listFounderEvents,
+  removeInvitationResponse,
   updateInvitationOwnerCredentials,
 } from "./repository-core";
 import type { InvitationEventUpdate } from "./validation";
@@ -305,6 +306,19 @@ test("owner credential rows persist only founder-normalized values and a supplie
   });
   assert.equal(typeof updatedAt, "string");
   assert.equal(JSON.stringify(row).includes("654321"), false);
+});
+
+test("response removal is scoped to both event and response ids", async () => {
+  const removals: Array<{ eventId: string; rsvpId: string }> = [];
+  const removed = await removeInvitationResponse("event-1", "rsvp-1", {
+    removeResponse: async (eventId, rsvpId) => {
+      removals.push({ eventId, rsvpId });
+      return true;
+    },
+  });
+
+  assert.equal(removed, true);
+  assert.deepEqual(removals, [{ eventId: "event-1", rsvpId: "rsvp-1" }]);
 });
 
 test("duplicate owner email failure stays inside the credential repository boundary", async () => {

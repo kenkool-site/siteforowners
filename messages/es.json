@@ -360,6 +360,12 @@
         "failedChannel": "Falló la entrega por {channel}",
         "retry": "Reintentar entrega",
         "retrying": "Reintentando…",
+        "remove": {
+          "action": "Eliminar invitado",
+          "removing": "Eliminando…",
+          "confirm": "¿Eliminar permanentemente la respuesta de {name}? Esta acción no se puede deshacer.",
+          "error": "No se pudo eliminar la respuesta. Inténtelo de nuevo."
+        },
         "channels": {
           "email": "correo",
           "sms": "SMS"

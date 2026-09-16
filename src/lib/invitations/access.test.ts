@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveInvitationAccess } from "./access";
+import { canRemoveInvitationResponse, resolveInvitationAccess } from "./access";
+
+test("only founder access can permanently remove an invitation response", () => {
+  assert.equal(canRemoveInvitationResponse({ kind: "founder" }), true);
+  assert.equal(canRemoveInvitationResponse({ kind: "owner", ownerId: "owner-1" }), false);
+  assert.equal(canRemoveInvitationResponse(null), false);
+});
 
 test("founder access does not depend on event ownership", async () => {
   const access = await resolveInvitationAccess({

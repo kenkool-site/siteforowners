@@ -340,6 +340,14 @@ export const invitationE2ERepository = {
   async listResponseNotifications(eventId: string): Promise<InvitationNotificationWarningRow[]> {
     return requireStore().notifications.filter((row) => row.eventId === eventId);
   },
+  async removeResponse(eventId: string, rsvpId: string): Promise<boolean> {
+    const store = requireStore();
+    const index = store.rsvps.findIndex((row) => row.event_id === eventId && row.id === rsvpId);
+    if (index < 0) return false;
+    store.rsvps.splice(index, 1);
+    store.notifications = store.notifications.filter((row) => !(row.eventId === eventId && row.rsvpId === rsvpId));
+    return true;
+  },
 };
 
 export function fixtureProvisionHelpers() {
