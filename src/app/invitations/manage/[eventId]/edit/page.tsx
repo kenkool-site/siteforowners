@@ -1,14 +1,15 @@
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
-import { OwnerGuestDashboard } from "@/components/invitations/OwnerGuestDashboard";
+import { EventEditor } from "@/components/invitations/EventEditor";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { INVITATION_OWNER_SESSION_COOKIE, verifyOwnerSession } from "@/lib/invitations/auth";
-import { getInvitationEventForManagement, getInvitationResponsesDashboard } from "@/lib/invitations/repository";
+import { getInvitationMediaForManagement } from "@/lib/invitations/media";
+import { getInvitationEventForManagement } from "@/lib/invitations/repository";
 import { invitationOwnerOwnsEvent } from "@/lib/invitations/access";
 
 export const revalidate = 0;
 
-export default async function OwnerInvitationManagementPage({ params }: { params: { eventId: string } }) {
+export default async function OwnerInvitationEditorPage({ params }: { params: { eventId: string } }) {
   const signed = cookies().get(INVITATION_OWNER_SESSION_COOKIE)?.value;
   let ownerId: string | null = null;
   try {
@@ -20,16 +21,11 @@ export default async function OwnerInvitationManagementPage({ params }: { params
 
   const event = await getInvitationEventForManagement(params.eventId);
   if (!event || !await invitationOwnerOwnsEvent(ownerId, params.eventId)) notFound();
-  let initialData;
-  try {
-    initialData = await getInvitationResponsesDashboard(event.id, {});
-  } catch (error) {
-    console.error("[invitations] owner dashboard responses failed", { eventId: event.id, error });
-  }
+  const media = await getInvitationMediaForManagement(event);
 
   return (
     <InvitationPublicProvider locale={event.locale} timeZone={event.timezone}>
-      <OwnerGuestDashboard event={event} initialData={initialData ?? undefined} />
+      <EventEditor event={event} mode="owner" media={media} canManageCohost={ownerId === event.ownerId} />
     </InvitationPublicProvider>
   );
 }

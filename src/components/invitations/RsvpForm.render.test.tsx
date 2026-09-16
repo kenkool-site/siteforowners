@@ -12,7 +12,7 @@ Object.assign(globalThis, { React });
 function render(locale: "en" | "es" = "en", allowCreate = true): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale={locale} messages={locale === "es" ? esMessages : enMessages} timeZone="UTC">
-      <RsvpForm slug="mia-and-lee" allowCreate={allowCreate} showPublicRsvpCount />
+      <RsvpForm slug="mia-and-lee" allowCreate={allowCreate} showPublicRsvpCount accent="#245C36" />
     </NextIntlClientProvider>,
   );
 }
@@ -47,4 +47,11 @@ test("a closed invitation directs changes to the host without exposing a create 
   assert.match(html, /host is no longer accepting new responses/i);
   assert.match(html, /contact the host/i);
   assert.doesNotMatch(html, /name="primaryName"/);
+});
+
+test("the response action is a solid palette-aware button", () => {
+  const html = render();
+  assert.match(html, /background-color:#245C36/);
+  assert.match(html, /color:#FFFFFF/);
+  assert.doesNotMatch(html, /rounded-full bg-white/);
 });

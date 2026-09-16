@@ -131,7 +131,25 @@
       "emptyBody": "Your event will appear here after it is created.",
       "open": "Open event",
       "eventDatePending": "Date not set",
-      "loadError": "Your invitations could not be loaded. Refresh the page to try again."
+      "loadError": "Your invitations could not be loaded. Refresh the page to try again.",
+      "dashboard": {
+        "back": "All invitations",
+        "title": "Guest responses",
+        "subtitle": "Manage replies for {name}.",
+        "ledgerTitle": "Guest list",
+        "ledgerHelp": "Search guests, review attendance, and update response details.",
+        "customize": "Customize invitation",
+        "preview": "Preview invitation",
+        "copy": "Copy guest link",
+        "copied": "Guest link copied",
+        "status": {
+          "draft": "Draft",
+          "published": "Published",
+          "rsvp_closed": "RSVP closed",
+          "expired": "Expired",
+          "offline": "Offline"
+        }
+      }
     },
     "editor": {
       "backToEvents": "Back to invitations",

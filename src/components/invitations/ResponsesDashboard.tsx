@@ -278,7 +278,13 @@ export function ResponsesDashboard({
           {data.responses.map((response) => (
             <details key={response.id} className="group px-4 py-1 sm:px-5">
               <summary className="grid min-h-16 cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 marker:content-none sm:grid-cols-[minmax(0,1.5fr)_8rem_7rem_auto]">
-                <span className="min-w-0"><strong className="block truncate text-sm text-[#2B2231]">{response.primaryName}</strong><span className="mt-1 block truncate text-xs text-[#675d6a]">{response.email || response.phone}</span></span>
+                <span className="min-w-0">
+                  <strong className="block truncate text-sm text-[#2B2231]">{response.primaryName}</strong>
+                  <span data-response-contact className="mt-1 grid gap-0.5 text-xs leading-4 text-[#675d6a]">
+                    {response.email && <span className="truncate">{response.email}</span>}
+                    {response.phone && <span>{response.phone}</span>}
+                  </span>
+                </span>
                 <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${response.attending ? "bg-[#e6f2eb] text-[#285d44]" : "bg-[#f2e8e8] text-[#7f2929]"}`}>{response.attending ? t("status.attending") : t("status.declined")}</span>
                 <span className="hidden text-sm text-[#55485a] sm:block">{t("partySize", { count: response.partySize })}</span>
                 <span aria-hidden="true" className="text-xl text-[#6D456F] transition-transform group-open:rotate-45 motion-reduce:transition-none">+</span>

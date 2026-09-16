@@ -3,6 +3,7 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
+import { JSDOM } from "jsdom";
 import enMessages from "../../../messages/en.json";
 import { PublicRsvpAggregate } from "./PublicInvitation";
 import {
@@ -71,6 +72,11 @@ test("owner dashboard renders private response details, all totals, warnings, an
   assert.match(html, /Download CSV/);
   assert.doesNotMatch(html, /Retry delivery/);
   assert.doesNotMatch(html, /Remove guest/);
+
+  const document = new JSDOM(html).window.document;
+  const visibleContact = document.querySelector("summary [data-response-contact]")?.textContent ?? "";
+  assert.match(visibleContact, /private@example\.test/);
+  assert.match(visibleContact, /\+19175550199/);
 });
 
 test("founder dashboard exposes retry controls without rendering notification recipients", () => {
