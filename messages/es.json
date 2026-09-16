@@ -131,7 +131,25 @@
       "emptyBody": "Su evento aparecerá aquí después de ser creado.",
       "open": "Abrir evento",
       "eventDatePending": "Fecha no establecida",
-      "loadError": "No se pudieron cargar sus invitaciones. Actualice la página para intentarlo de nuevo."
+      "loadError": "No se pudieron cargar sus invitaciones. Actualice la página para intentarlo de nuevo.",
+      "dashboard": {
+        "back": "Todas las invitaciones",
+        "title": "Respuestas de invitados",
+        "subtitle": "Administre las respuestas para {name}.",
+        "ledgerTitle": "Lista de invitados",
+        "ledgerHelp": "Busque invitados, revise la asistencia y actualice los detalles de las respuestas.",
+        "customize": "Personalizar invitación",
+        "preview": "Vista previa de la invitación",
+        "copy": "Copiar enlace para invitados",
+        "copied": "Enlace copiado",
+        "status": {
+          "draft": "Borrador",
+          "published": "Publicada",
+          "rsvp_closed": "RSVP cerrado",
+          "expired": "Vencida",
+          "offline": "Fuera de línea"
+        }
+      }
     },
     "editor": {
       "backToEvents": "Volver a invitaciones",

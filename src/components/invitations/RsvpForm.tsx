@@ -2,12 +2,14 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
+import { readableTextColor } from "@/lib/invitations/design-recipe";
 
 type RsvpFormProps = {
   preview?: boolean;
   slug: string;
   allowCreate: boolean;
   showPublicRsvpCount: boolean;
+  accent?: string;
 };
 
 type EditCredential = { rsvpId: string; editToken: string };
@@ -39,7 +41,7 @@ function credentialFromUrl(value: string): EditCredential | null {
   }
 }
 
-export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = false }: RsvpFormProps) {
+export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = false, accent = "#6D456F" }: RsvpFormProps) {
   const t = useTranslations("invitations.public.rsvp");
   const [attending, setAttending] = useState(true);
   const [editCredential, setEditCredential] = useState<EditCredential | null>(null);
@@ -168,7 +170,7 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = fal
           )}
         </div>
       )}
-      <button disabled={submitting} className="min-h-11 rounded-full bg-white px-6 py-3 font-semibold text-slate-950 outline-none transition-[transform,opacity] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:opacity-60 motion-reduce:transform-none motion-reduce:transition-none">
+      <button disabled={submitting} style={{ backgroundColor: accent, color: readableTextColor(accent) }} className="min-h-11 rounded-full px-6 py-3 font-semibold shadow-sm outline-none transition-[transform,opacity] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 focus-visible:ring-offset-transparent disabled:opacity-60 motion-reduce:transform-none motion-reduce:transition-none">
         {submitting ? t("submitting") : (hasSubmitted || editCredential) ? t("update") : t("submit")}
       </button>
       </fieldset>

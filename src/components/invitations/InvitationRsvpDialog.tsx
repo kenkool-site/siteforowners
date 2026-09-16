@@ -66,7 +66,7 @@ export function InvitationRsvpDialog({ slug, state, preview, showPublicRsvpCount
               <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label={t("close")} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-current/25 outline-none focus-visible:ring-2 focus-visible:ring-current"><X aria-hidden="true" className="size-5" /></button>
             </div>
             {preview && <p className="mt-4" role="status">{tPublic("previewNotice")}</p>}
-            <RsvpForm preview={preview} slug={slug} allowCreate={state === "published"} showPublicRsvpCount={showPublicRsvpCount} />
+            <RsvpForm preview={preview} slug={slug} allowCreate={state === "published"} showPublicRsvpCount={showPublicRsvpCount} accent={accent} />
           </section>
         </div>
       )}
