@@ -31,6 +31,7 @@ const event: PublicInvitationEvent = {
   description: "Celebrate with us — exactly as written.",
   startsAt: "2026-10-10T22:00:00.000Z",
   endsAt: "2026-10-11T03:00:00.000Z",
+  rsvpDeadline: null,
   timezone: "America/New_York",
   venueName: "The Garden",
   address: "42 Celebration Way",
@@ -88,6 +89,17 @@ test("a published invitation exposes useful public details and only aggregate RS
   for (const privateGuestValue of ["guest@example.com", "+19175550199", "peanut allergy", "Guest Two"]) {
     assert.doesNotMatch(html, new RegExp(privateGuestValue.replace("+", "\\+"), "i"));
   }
+});
+
+test("a published invitation shows its RSVP deadline in the public details", () => {
+  const html = render("published", { rsvpDeadline: "2026-10-01T03:59:00.000Z" });
+  assert.match(html, /Please RSVP by September 30, 2026/);
+});
+
+test("a closed invitation replaces its RSVP deadline with a closed notice", () => {
+  const html = render("rsvp_closed", { rsvpDeadline: "2026-10-01T03:59:00.000Z" });
+  assert.match(html, /RSVPs are closed/);
+  assert.doesNotMatch(html, /Please RSVP by/);
 });
 
 test("expired and draft states reveal no authored details or signed media", () => {
