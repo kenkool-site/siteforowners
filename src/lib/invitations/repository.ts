@@ -87,7 +87,7 @@ const MANAGEMENT_SELECT = [
   "map_url", "travel_info", "style_guide", "additional_sections", "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe", "reference_analysis",
   "designed_invite_path", "cover_image_path", "video_path",
-  "show_public_rsvp_count", "capacity", "rsvp_deadline", "submission_limit",
+  "show_public_rsvp_count", "comment_wall_enabled", "comment_wall_reviewed_at", "capacity", "rsvp_deadline", "submission_limit",
   "email_notification_limit", "sms_notification_limit", "owner_email_notifications",
   "owner_sms_notifications", "notification_email", "notification_phone",
   "guest_email_confirmations", "status", "expire_at", "created_at", "updated_at",
@@ -100,7 +100,7 @@ const PUBLIC_SELECT = [
   "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe",
   "designed_invite_path", "cover_image_path", "video_path", "passcode_hash",
-  "show_public_rsvp_count", "rsvp_deadline", "status", "expire_at",
+  "show_public_rsvp_count", "comment_wall_enabled", "comment_wall_reviewed_at", "rsvp_deadline", "status", "expire_at",
   "invitation_owners!invitation_events_owner_id_fkey!inner(is_active)", "invitation_rsvps(attending,party_size)",
 ].join(",");
 

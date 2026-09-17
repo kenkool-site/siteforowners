@@ -62,6 +62,8 @@ export interface InvitationEvent {
   videoPath: string | null;
   passcodeHash: string | null;
   showPublicRsvpCount: boolean;
+  commentWallEnabled: boolean;
+  commentWallReviewedAt: string | null;
   capacity: number | null;
   rsvpDeadline: string | null;
   submissionLimit: number;
