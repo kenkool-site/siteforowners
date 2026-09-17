@@ -578,9 +578,8 @@
         "success": "Su comentario ha sido publicado.",
         "errors": { "invalid_request": "Ingrese su nombre y un comentario.", "comment_wall_closed": "El libro de invitados está cerrado.", "rate_limited": "Se enviaron demasiados comentarios. Espere e inténtelo de nuevo.", "retry": "No se pudo publicar su comentario. Inténtelo de nuevo." }
       },
-      "countsLabel": "Totales de respuestas",
-      "attending": "{count, plural, one {# asistirá} other {# asistirán}}",
-      "declined": "{count, plural, one {# grupo no podrá asistir} other {# grupos no podrán asistir}}",
+      "countsLabel": "Invitados que celebrarán con nosotros",
+      "celebrating": "{count, plural, one {# invitado celebrará con nosotros} other {# invitados celebrarán con nosotros}}",
       "rsvp": {
         "title": "Responder a esta invitación",
         "close": "Cerrar formulario de RSVP",
@@ -609,7 +608,7 @@
         "successCreated": "Su respuesta ha sido guardada.",
         "successUpdated": "Su respuesta ha sido actualizada.",
         "successUnchanged": "Ya envió esta respuesta.",
-        "updatedCounts": "Ahora asistirán {attending} y no podrán asistir {declined}.",
+        "updatedCounts": "{count, plural, one {# invitado celebrará con nosotros} other {# invitados celebrarán con nosotros}}.",
         "errors": {
           "invalid_request": "Revise los detalles de la respuesta e inténtelo de nuevo.",
           "event_unavailable": "Esta invitación no está disponible.",

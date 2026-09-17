@@ -578,9 +578,8 @@
         "success": "Your comment has been posted.",
         "errors": { "invalid_request": "Enter your name and a comment.", "comment_wall_closed": "The guestbook is currently closed.", "rate_limited": "Too many comments were sent. Please wait and try again.", "retry": "Your comment could not be posted. Please try again." }
       },
-      "countsLabel": "Response totals",
-      "attending": "{count, plural, one {# attending} other {# attending}}",
-      "declined": "{count, plural, one {# party unable to attend} other {# parties unable to attend}}",
+      "countsLabel": "Celebrating guests",
+      "celebrating": "{count, plural, one {# guest is celebrating with us} other {# guests are celebrating with us}}",
       "rsvp": {
         "title": "Respond to this invitation",
         "close": "Close RSVP form",
@@ -609,7 +608,7 @@
         "successCreated": "Your response has been saved.",
         "successUpdated": "Your response has been updated.",
         "successUnchanged": "You already submitted this response.",
-        "updatedCounts": "Now {attending} attending and {declined} unable to attend.",
+        "updatedCounts": "{count, plural, one {# guest is celebrating with us} other {# guests are celebrating with us}}.",
         "errors": {
           "invalid_request": "Check the highlighted response details and try again.",
           "event_unavailable": "This invitation is not available.",

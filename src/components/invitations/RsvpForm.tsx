@@ -166,7 +166,7 @@ export function RsvpForm({ slug, allowCreate, showPublicRsvpCount, preview = fal
         <div role="status" className="border border-emerald-200 bg-emerald-50 px-4 py-4 text-emerald-950">
           <p className="font-semibold">{t(result.outcome === "updated" ? "successUpdated" : result.outcome === "unchanged" ? "successUnchanged" : "successCreated")}</p>
           {showPublicRsvpCount && result.summary && (
-            <p className="mt-3 text-sm">{t("updatedCounts", { attending: result.summary.attendingPeople, declined: result.summary.declinedParties })}</p>
+            <p className="mt-3 text-sm">{t("updatedCounts", { count: result.summary.attendingPeople })}</p>
           )}
         </div>
       )}

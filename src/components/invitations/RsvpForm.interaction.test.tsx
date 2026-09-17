@@ -16,6 +16,7 @@ async function withRsvpForm(
     slug: string;
     allowCreate: boolean;
     preview?: boolean;
+    showPublicRsvpCount?: boolean;
     storage?: Record<string, string>;
     fetchImpl?: typeof fetch;
   },
@@ -53,7 +54,7 @@ async function withRsvpForm(
     root = createRoot(container) as Root;
     await act(async () => root!.render(
       <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-        <RsvpForm slug={options.slug} allowCreate={options.allowCreate} showPublicRsvpCount={false} preview={options.preview} />
+        <RsvpForm slug={options.slug} allowCreate={options.allowCreate} showPublicRsvpCount={options.showPublicRsvpCount ?? false} preview={options.preview} />
       </NextIntlClientProvider>,
     ));
     await run(container, dom);
@@ -169,6 +170,39 @@ test("a successful submission shows its outcome without exposing or persisting a
       assert.doesNotMatch(container.textContent ?? "", /securely updating an existing response/i);
       assert.doesNotMatch(container.textContent ?? "", /copy edit link/i);
       assert.match(container.textContent ?? "", /update response/i);
+    },
+  );
+});
+
+test("a successful public RSVP count celebrates attendees without exposing declined totals", async () => {
+  await withRsvpForm(
+    {
+      url: `${ORIGIN}/invite/${SLUG}`,
+      slug: SLUG,
+      allowCreate: true,
+      showPublicRsvpCount: true,
+      fetchImpl: (async () => ({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          outcome: "created",
+          summary: { attendingPeople: 8, declinedParties: 5, remainingCapacity: null },
+        }),
+      })) as unknown as typeof fetch,
+    },
+    async (container, dom) => {
+      const name = container.querySelector<HTMLInputElement>('input[name="primaryName"]')!;
+      const email = container.querySelector<HTMLInputElement>('input[name="email"]')!;
+      await act(async () => {
+        setInput(dom, name, "Ana Guest");
+        setInput(dom, email, "ana@example.com");
+        submit(dom, name.form!);
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      assert.match(container.textContent ?? "", /8 guests are celebrating with us/i);
+      assert.doesNotMatch(container.textContent ?? "", /5 unable to attend|declined/i);
     },
   );
 });

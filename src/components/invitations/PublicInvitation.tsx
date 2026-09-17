@@ -158,9 +158,8 @@ export function PublicRsvpAggregate({
 }) {
   const t = useTranslations("invitations.public");
   return (
-    <section className={`${className ?? ""} grid grid-cols-2 gap-4 px-5 py-7 text-center sm:px-9`} aria-label={t("countsLabel")}>
-      <p><strong className={`${titleClass} block text-4xl`}>{summary.attendingPeople}</strong><span className="mt-1 block text-sm leading-5">{t("attending", { count: summary.attendingPeople })}</span></p>
-      <p><strong className={`${titleClass} block text-4xl`}>{summary.declinedParties}</strong><span className="mt-1 block text-sm leading-5">{t("declined", { count: summary.declinedParties })}</span></p>
+    <section className={`${className ?? ""} px-5 py-8 text-center sm:px-9 sm:py-10`} aria-label={t("countsLabel")}>
+      <p className={`${titleClass} text-3xl leading-tight sm:text-4xl`}>{t("celebrating", { count: summary.attendingPeople })}</p>
     </section>
   );
 }
