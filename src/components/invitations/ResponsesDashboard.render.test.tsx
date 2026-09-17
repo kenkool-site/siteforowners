@@ -89,7 +89,7 @@ test("founder dashboard exposes retry controls without rendering notification re
   assert.doesNotMatch(html, /notification-recipient@example\.test/);
 });
 
-test("public aggregate renders the same totals without any private response fields", () => {
+test("public aggregate renders only celebrating guests without private or declined response data", () => {
   const html = renderToStaticMarkup(provider(
     <PublicRsvpAggregate
       summary={{
@@ -101,8 +101,8 @@ test("public aggregate renders the same totals without any private response fiel
     />,
   ));
 
-  assert.match(html, /3 attending/);
-  assert.match(html, /2 parties unable to attend/);
+  assert.match(html, /3 guests are celebrating with us/);
+  assert.doesNotMatch(html, /2 parties unable to attend|declined/i);
   for (const value of [
     privateResponse.primaryName,
     privateResponse.email,

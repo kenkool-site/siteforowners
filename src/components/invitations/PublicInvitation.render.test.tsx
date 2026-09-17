@@ -56,6 +56,7 @@ function render(
   state: "published" | "rsvp_closed" | "expired" | "draft",
   overrides: Partial<PublicInvitationEvent> = {},
   locale: "en" | "es" = "en",
+  rsvpSummary = { attendingPeople: 17, declinedParties: 3 },
 ): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider
@@ -70,25 +71,32 @@ function render(
           event={{ ...event, locale, ...overrides }}
           state={state}
           media={media}
-          rsvpSummary={{ attendingPeople: 17, declinedParties: 3 }}
+          rsvpSummary={rsvpSummary}
         />
       )}
     </NextIntlClientProvider>,
   );
 }
 
-test("a published invitation exposes useful public details and only aggregate RSVP counts", () => {
+test("a published invitation celebrates attending guests without exposing declined totals", () => {
   const html = render("published");
 
-  for (const expected of ["Mia and Lee", "42 Celebration Way", "https://maps.example.test/garden", "Respond to this invitation", "17 attending", "3 parties unable to attend"]) {
+  for (const expected of ["Mia and Lee", "42 Celebration Way", "https://maps.example.test/garden", "Respond to this invitation", "17 guests are celebrating with us"]) {
     assert.match(html, new RegExp(expected));
   }
+  assert.doesNotMatch(html, /3 parties unable to attend|declined|not attending/i);
   assert.match(html, /https:\/\/calendar\.google\.com\/calendar\/render/);
   assert.match(html, /<button[^>]*>Respond to this invitation<\/button>/);
   assert.doesNotMatch(html, /name="primaryName"/, "the full RSVP form should stay closed until requested");
   for (const privateGuestValue of ["guest@example.com", "+19175550199", "peanut allergy", "Guest Two"]) {
     assert.doesNotMatch(html, new RegExp(privateGuestValue.replace("+", "\\+"), "i"));
   }
+});
+
+test("the public celebration count uses singular guest grammar", () => {
+  const html = render("published", {}, "en", { attendingPeople: 1, declinedParties: 4 });
+  assert.match(html, /1 guest is celebrating with us/);
+  assert.doesNotMatch(html, /4 parties unable to attend|1 guests are/);
 });
 
 test("a published invitation shows its RSVP deadline in the public details", () => {
@@ -129,7 +137,7 @@ test("closed invitations keep their details but replace the new RSVP action", ()
 test("Spanish event locale translates system copy without changing authored copy", () => {
   const html = render("published", {}, "es");
   assert.match(html, /Responder a esta invitación/);
-  assert.match(html, /17 asistirán/);
+  assert.match(html, /17 invitados celebrarán con nosotros/);
   assert.match(html, /Celebrate with us — exactly as written\./);
 });
 
