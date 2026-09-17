@@ -134,11 +134,11 @@ test("only published passcode-free invitations receive authored metadata", () =>
     event: { ...invitation.event, title: "Save the Date", publicSubdomain: "mia-lee", coverImagePath: "event-1/cover/share.png" },
   }, "published");
   assert.equal(publicMetadata.title, "Mia and Lee");
-  assert.equal(publicMetadata.description, "Save the Date — Celebrate with us");
+  assert.equal(publicMetadata.description, "Save the Date — The Garden — Celebrate with us");
   assert.equal(publicMetadata.openGraph?.title, "Mia and Lee");
-  assert.equal(publicMetadata.openGraph?.description, "Save the Date — Celebrate with us");
+  assert.equal(publicMetadata.openGraph?.description, "Save the Date — The Garden — Celebrate with us");
   assert.equal(publicMetadata.twitter?.title, "Mia and Lee");
-  assert.equal(publicMetadata.twitter?.description, "Save the Date — Celebrate with us");
+  assert.equal(publicMetadata.twitter?.description, "Save the Date — The Garden — Celebrate with us");
   assert.deepEqual(publicMetadata.robots, { index: true, follow: true });
   assert.equal(publicMetadata.alternates?.canonical, "https://mia-lee.siteforowners.com/");
   assert.deepEqual(publicMetadata.openGraph?.images, [{ url: "https://www.siteforowners.com/api/invitations/public/mia-and-lee/cover", alt: "Mia and Lee" }]);
@@ -162,12 +162,12 @@ test("invitation metadata falls back to the invitation title and avoids duplicat
     event: { ...invitation.event, honoreeNames: "", title: "Birthday Celebration" },
   }, "published");
   assert.equal(fallback.title, "Birthday Celebration");
-  assert.equal(fallback.description, "Celebrate with us");
+  assert.equal(fallback.description, "The Garden — Celebrate with us");
 
   const sameTitle = invitationPageMetadata({
     ...invitation,
     event: { ...invitation.event, honoreeNames: "  Mia and Lee  ", title: "mia and lee" },
   }, "published");
   assert.equal(sameTitle.title, "Mia and Lee");
-  assert.equal(sameTitle.description, "Celebrate with us");
+  assert.equal(sameTitle.description, "The Garden — Celebrate with us");
 });

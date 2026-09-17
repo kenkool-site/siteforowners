@@ -90,7 +90,8 @@ function invitationShareText(event: PublicInvitationEvent): { title: string; des
   const supportingTitle = honoreeNames && invitationTitle.localeCompare(honoreeNames, undefined, { sensitivity: "accent" }) !== 0
     ? invitationTitle
     : "";
-  const supportingText = [supportingTitle, description].filter(Boolean).join(" — ");
+  const venueName = event.venueName?.trim() ?? "";
+  const supportingText = [supportingTitle, venueName, description].filter(Boolean).join(" — ");
   return { title, description: supportingText || undefined };
 }
 
