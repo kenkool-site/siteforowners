@@ -544,6 +544,8 @@
       "details": "Los detalles",
       "styleGuide": { "title": "Guía de estilo", "colors": "Colores del día" },
       "when": "Cuándo",
+      "rsvpDeadline": "Responda antes del {date}",
+      "rsvpDeadlineClosed": "Las respuestas están cerradas",
       "where": "Dónde",
       "openMap": "Abrir mapa",
       "googleCalendar": "Agregar a Google Calendar",

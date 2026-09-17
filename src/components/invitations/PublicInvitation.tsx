@@ -33,6 +33,7 @@ export type PublicInvitationEvent = Pick<
   | "description"
   | "startsAt"
   | "endsAt"
+  | "rsvpDeadline"
   | "timezone"
   | "venueName"
   | "address"
@@ -217,6 +218,12 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
         timeZone: event.timezone,
       }).format(new Date(event.startsAt))
     : t("datePending");
+  const rsvpDeadlineDate = event.rsvpDeadline
+    ? new Intl.DateTimeFormat(event.locale, {
+        dateStyle: "long",
+        timeZone: event.timezone,
+      }).format(new Date(event.rsvpDeadline))
+    : null;
   const calendarInput: EventCalendarInput | null = event.startsAt ? {
     uid: event.id,
     title: event.title,
@@ -252,7 +259,11 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
           <div className="mt-7 grid gap-6 sm:grid-cols-2">
             <div className="flex gap-3">
               <CalendarDays aria-hidden="true" className="mt-1 size-5 shrink-0" />
-              <div><p className="font-semibold">{t("when")}</p><p className="mt-1 leading-7 opacity-80">{date}</p></div>
+              <div>
+                <p className="font-semibold">{t("when")}</p>
+                <p className="mt-1 leading-7 opacity-80">{date}</p>
+                {rsvpDeadlineDate && <p className="mt-2 text-sm font-semibold">{state === "rsvp_closed" ? t("rsvpDeadlineClosed") : t("rsvpDeadline", { date: rsvpDeadlineDate })}</p>}
+              </div>
             </div>
             {(event.venueName || event.address) && (
               <div className="flex gap-3">
@@ -338,7 +349,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
       </article>
       {event.commentWallEnabled && <InvitationCommentWall slug={event.slug} initialPage={initialComments} preview={preview} accent={recipe.palette.accent} surface={recipe.palette.surface} foreground={recipe.palette.text} titleClass={titleFont} />}
       <InvitationFooter />
-      <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
+      <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} deadlineDate={rsvpDeadlineDate} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
     </main>
   );
 }

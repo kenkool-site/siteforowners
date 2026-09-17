@@ -544,6 +544,8 @@
       "details": "The details",
       "styleGuide": { "title": "Style guide", "colors": "Colors of the day" },
       "when": "When",
+      "rsvpDeadline": "Please RSVP by {date}",
+      "rsvpDeadlineClosed": "RSVPs are closed",
       "where": "Where",
       "openMap": "Open map",
       "googleCalendar": "Add to Google Calendar",

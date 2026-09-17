@@ -21,6 +21,7 @@ const event: PublicInvitationEvent = {
   description: "Celebrate with us — exactly as written.",
   startsAt: "2026-10-10T22:00:00.000Z",
   endsAt: null,
+  rsvpDeadline: null,
   timezone: "America/New_York",
   venueName: "The Garden",
   address: "42 Celebration Way",

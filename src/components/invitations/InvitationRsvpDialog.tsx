@@ -6,10 +6,11 @@ import { useTranslations } from "next-intl";
 import { RsvpForm } from "./RsvpForm";
 import { readableTextColor } from "@/lib/invitations/design-recipe";
 
-export function InvitationRsvpDialog({ slug, state, preview, showPublicRsvpCount, accent, background, foreground }: {
+export function InvitationRsvpDialog({ slug, state, preview, deadlineDate, showPublicRsvpCount, accent, background, foreground }: {
   slug: string;
   state: "published" | "rsvp_closed";
   preview: boolean;
+  deadlineDate: string | null;
   showPublicRsvpCount: boolean;
   accent: string;
   background: string;
@@ -65,6 +66,7 @@ export function InvitationRsvpDialog({ slug, state, preview, showPublicRsvpCount
               <h2 id="invitation-rsvp-title" className="font-[family-name:var(--font-fraunces)] text-3xl sm:text-4xl">{title}</h2>
               <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label={t("close")} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-current/25 outline-none focus-visible:ring-2 focus-visible:ring-current"><X aria-hidden="true" className="size-5" /></button>
             </div>
+            {state === "published" && deadlineDate && <p className="mt-4 text-sm font-semibold">{tPublic("rsvpDeadline", { date: deadlineDate })}</p>}
             {preview && <p className="mt-4" role="status">{tPublic("previewNotice")}</p>}
             <RsvpForm preview={preview} slug={slug} allowCreate={state === "published"} showPublicRsvpCount={showPublicRsvpCount} accent={accent} />
           </section>

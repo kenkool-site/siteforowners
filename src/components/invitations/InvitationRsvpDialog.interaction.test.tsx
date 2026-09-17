@@ -22,11 +22,12 @@ test("the floating RSVP action locks background scroll and Escape restores it", 
   const container = dom.window.document.querySelector<HTMLElement>("#root")!;
   const root = createRoot(container);
   try {
-    await act(async () => root.render(<NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC"><InvitationRsvpDialog slug="ana-and-luis" state="published" preview showPublicRsvpCount={false} accent="#B58A55" background="#FCFBF7" foreground="#172238" /></NextIntlClientProvider>));
+    await act(async () => root.render(<NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC"><InvitationRsvpDialog slug="ana-and-luis" state="published" preview deadlineDate="September 30, 2026" showPublicRsvpCount={false} accent="#B58A55" background="#FCFBF7" foreground="#172238" /></NextIntlClientProvider>));
     assert.equal(container.querySelector('[role="dialog"]'), null);
     await act(async () => container.querySelector<HTMLButtonElement>("button")!.click());
     const dialog = container.querySelector<HTMLElement>('[role="dialog"]')!;
     assert.ok(dialog);
+    assert.match(dialog.textContent ?? "", /Please RSVP by September 30, 2026/);
     assert.ok(container.querySelector('input[name="primaryName"]'));
     assert.equal(dom.window.document.body.style.position, "fixed");
     assert.equal(dom.window.document.body.style.top, "-240px");
