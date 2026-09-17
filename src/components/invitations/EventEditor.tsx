@@ -677,6 +677,7 @@ export function EventEditor({
           <div className="shrink-0 border-l border-[#ddd4e1] pl-4 text-right">
             <span className="block text-xs text-[#675d6a]">{t("status.label")}</span>
             <span className="text-sm font-semibold text-[#6D456F]">{t(`status.${status}`)}</span>
+            <a href={mode === "founder" ? `/admin/invitations/${currentEvent.id}/guestbook` : `/invitations/manage/${currentEvent.id}/guestbook`} className="mt-1 block text-xs font-semibold text-[#6D456F] underline underline-offset-4">{t("actions.guestbook")}</a>
           </div>
         </div>
       </header>

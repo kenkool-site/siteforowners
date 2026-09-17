@@ -7,6 +7,7 @@ import type { InvitationResponsesDashboard as InvitationResponsesDashboardData }
 import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import { InvitationCopyLinkButton } from "./InvitationCopyLinkButton";
 import { ResponsesDashboard } from "./ResponsesDashboard";
+import type { InvitationGuestbookSummary } from "@/lib/invitations/comments";
 
 type OwnerGuestDashboardEvent = {
   id: string;
@@ -17,9 +18,10 @@ type OwnerGuestDashboardEvent = {
   publicSubdomain: string | null;
 };
 
-export function OwnerGuestDashboard({ event, initialData }: {
+export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled: false, totalCount: 0, newCount: 0 } }: {
   event: OwnerGuestDashboardEvent;
   initialData?: InvitationResponsesDashboardData;
+  guestbook?: InvitationGuestbookSummary;
 }) {
   const t = useTranslations("invitations.manage.dashboard");
   const publicUrl = invitationPublicUrl(event);
@@ -45,6 +47,13 @@ export function OwnerGuestDashboard({ event, initialData }: {
           </div>
         </div>
       </header>
+
+      <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6 sm:pt-9">
+        <div className="flex flex-col gap-4 rounded-lg border border-[#cfc3d3] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div><div className="flex items-center gap-3"><h2 className="text-lg font-semibold">{t("guestbook.title")}</h2>{guestbook.newCount > 0 && <span className="rounded-full bg-[#6D456F] px-2.5 py-1 text-xs font-semibold text-white">{t("guestbook.new", { count: guestbook.newCount })}</span>}</div><p className="mt-1 text-sm text-[#675d6a]">{t(guestbook.enabled ? "guestbook.enabled" : "guestbook.disabled", { count: guestbook.totalCount })}</p></div>
+          <Link href={`/invitations/manage/${event.id}/guestbook`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#6D456F] px-4 py-2 text-sm font-semibold text-[#55405a]">{t("guestbook.open")}</Link>
+        </div>
+      </section>
 
       <section className="mx-auto max-w-6xl px-0 py-6 sm:px-6 sm:py-9" aria-labelledby="guest-ledger-heading">
         <div className="px-4 sm:px-0">
