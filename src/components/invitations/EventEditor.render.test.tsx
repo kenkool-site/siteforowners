@@ -24,6 +24,7 @@ const event: EditorEvent = {
   endsAt: "2026-10-21T02:00:00.000Z",
   timezone: "America/New_York",
   venueName: "The Foundry",
+  venueUrl: null,
   address: "42 Celebration Way",
   mapUrl: null,
   themeKey: "editorial",
@@ -78,6 +79,13 @@ test("the event editor exposes five clearly labeled sections", () => {
   }
   assert.match(html, />Save changes</);
   assert.match(html, /No unsaved changes/);
+});
+
+test("the event editor keeps an optional venue website separate from map directions", () => {
+  const html = render("owner", undefined, { venueUrl: "https://www.theblissataubrey.com/" });
+  assert.match(html, />Venue website</);
+  assert.match(html, /name="venueUrl"[^>]*type="url"[^>]*value="https:\/\/www\.theblissataubrey\.com\/"/);
+  assert.match(html, />Map link</);
 });
 
 test("primary host can manage a co-host while a co-host sees read-only access details", () => {

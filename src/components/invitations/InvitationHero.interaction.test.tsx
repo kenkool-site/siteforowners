@@ -38,7 +38,7 @@ async function withHero(url: string, run: (container: HTMLElement, dom: JSDOM, s
   try {
     await act(async () => root.render(
       <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-        <InvitationHero coverUrl={null} title="You're invited" honoreeNames="Mia and Lee" date="October 10, 2026" venueName="The Garden" recipe={DEFAULT_INVITATION_DESIGN_RECIPE} />
+        <InvitationHero coverUrl={null} title="You're invited" honoreeNames="Mia and Lee" date="October 10, 2026" venueName="The Garden" venueUrl={null} recipe={DEFAULT_INVITATION_DESIGN_RECIPE} />
       </NextIntlClientProvider>,
     ));
     await run(container, dom, scrolls);

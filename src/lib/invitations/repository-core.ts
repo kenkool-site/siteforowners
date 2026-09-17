@@ -90,6 +90,7 @@ export type InvitationManagementRow = {
   ends_at: string | null;
   timezone: string;
   venue_name: string | null;
+  venue_url?: string | null;
   address: string | null;
   map_url: string | null;
   travel_info?: unknown;
@@ -152,6 +153,7 @@ export type InvitationPublicRow = {
   ends_at: string | null;
   timezone: string;
   venue_name: string | null;
+  venue_url?: string | null;
   address: string | null;
   map_url: string | null;
   travel_info?: unknown;
@@ -187,6 +189,7 @@ export type PublicInvitationEvent = {
   endsAt: string | null;
   timezone: string;
   venueName: string | null;
+  venueUrl: string | null;
   address: string | null;
   mapUrl: string | null;
   travelInfo?: InvitationTravelInfo;
@@ -352,6 +355,7 @@ export async function getInvitationEventForManagement(
     endsAt: row.ends_at,
     timezone: row.timezone,
     venueName: row.venue_name,
+    venueUrl: row.venue_url ?? null,
     address: row.address,
     mapUrl: row.map_url,
     travelInfo: normalizeInvitationTravelInfo(row.travel_info),
@@ -426,6 +430,7 @@ export async function getPublicInvitationBySlug(
       endsAt: row.ends_at,
       timezone: row.timezone,
       venueName: row.venue_name,
+      venueUrl: row.venue_url ?? null,
       address: row.address,
       mapUrl: row.map_url,
       travelInfo: normalizeInvitationTravelInfo(row.travel_info),
@@ -467,6 +472,7 @@ const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>>
   endsAt: "ends_at",
   timezone: "timezone",
   venueName: "venue_name",
+  venueUrl: "venue_url",
   address: "address",
   mapUrl: "map_url",
   travelInfo: "travel_info",

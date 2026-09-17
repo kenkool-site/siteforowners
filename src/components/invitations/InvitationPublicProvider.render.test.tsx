@@ -24,6 +24,7 @@ const event: PublicInvitationEvent = {
   rsvpDeadline: null,
   timezone: "America/New_York",
   venueName: "The Garden",
+  venueUrl: null,
   address: "42 Celebration Way",
   mapUrl: null,
   themeKey: "classic",

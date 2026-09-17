@@ -46,6 +46,7 @@ export interface InvitationEvent {
   endsAt: string | null;
   timezone: string;
   venueName: string | null;
+  venueUrl: string | null;
   address: string | null;
   mapUrl: string | null;
   travelInfo?: InvitationTravelInfo;
