@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
 import { ChevronDown } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { neutralOverlayColor, type InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
@@ -10,14 +10,27 @@ function comparableHeading(value: string): string {
   return value.toLocaleLowerCase().replaceAll("&", "and").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-export function InvitationHero({ coverUrl, title, honoreeNames, date, recipe }: {
+export function InvitationHero({ coverUrl, title, honoreeNames, date, venueName, recipe }: {
   coverUrl: string | null;
   title: string;
   honoreeNames: string;
   date: string;
+  venueName: string | null;
   recipe: InvitationDesignRecipe;
 }) {
   const t = useTranslations("invitations.public");
+
+  useEffect(() => {
+    if (window.location.hash === "#invitation-content") {
+      window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
+  function viewInvitation() {
+    document.getElementById("invitation-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   const placement = recipe.composition.heroTextPlacement === "top" ? "justify-start pt-24" : recipe.composition.heroTextPlacement === "bottom" ? "justify-end pb-56" : "justify-center pb-48 pt-16";
   const alignment = recipe.composition.alignment === "left" ? "items-start text-left" : "items-center text-center";
   const displayStyle = recipe.typography.display === "formal-script" ? "italic" : "normal";
@@ -42,9 +55,10 @@ export function InvitationHero({ coverUrl, title, honoreeNames, date, recipe }: 
       </div>
       <div className="absolute inset-x-8 bottom-24 z-20 flex flex-col items-center text-center" style={{ color: recipe.hero.textColor }}>
         <p className="text-[clamp(1rem,2.5vw,1.35rem)] font-medium tracking-[0.04em]">{date}</p>
-        <a href="#invitation-content" className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2">
+        {venueName && <p data-invitation-venue="true" className="mt-2 text-sm font-medium tracking-[0.04em] opacity-90 sm:text-base">{venueName}</p>}
+        <button type="button" onClick={viewInvitation} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2">
           {t("viewInvitation")}<ChevronDown className="size-4" aria-hidden="true" />
-        </a>
+        </button>
       </div>
     </section>
   );

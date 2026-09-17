@@ -244,7 +244,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
       className={`min-h-screen overflow-x-hidden pb-24 sm:pb-28 ${bodyFont} ${theme.page}`}
       style={variables}
     >
-      <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} recipe={recipe} />
+      <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} venueName={event.venueName} recipe={recipe} />
       <article id="invitation-content" className={`${recreated ? "mx-auto flex flex-col px-4 py-8 sm:px-8 sm:py-14" : theme.stage}`} style={recreated ? { maxWidth: recipe.composition.maxWidth } : undefined}>
 
         {event.description && (

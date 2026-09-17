@@ -85,6 +85,7 @@ test("a published invitation celebrates attending guests without exposing declin
     assert.match(html, new RegExp(expected));
   }
   assert.doesNotMatch(html, /3 parties unable to attend|declined|not attending/i);
+  assert.match(html, /data-invitation-venue="true"[^>]*>The Garden</);
   assert.match(html, /https:\/\/calendar\.google\.com\/calendar\/render/);
   assert.match(html, /<button[^>]*>Respond to this invitation<\/button>/);
   assert.doesNotMatch(html, /name="primaryName"/, "the full RSVP form should stay closed until requested");
