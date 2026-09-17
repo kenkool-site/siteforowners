@@ -32,7 +32,6 @@ const privateCountsInvitation: PublicInvitationLookup = {
     videoPath: null,
     showPublicRsvpCount: false,
     commentWallEnabled: false,
-    commentWallReviewedAt: null,
     rsvpDeadline: null,
     status: "published",
     expireAt: null,

@@ -41,6 +41,7 @@ const event: PublicInvitationEvent = {
   fontPairKey: "fraunces-geist",
   designRecipe: null,
   showPublicRsvpCount: true,
+  commentWallEnabled: false,
 };
 
 const media: InvitationMediaSnapshot = {
@@ -222,4 +223,11 @@ test("flexible additional sections render headings and preserve authored line br
     assert.match(html, new RegExp(expected));
   }
   assert.match(html, /Wedding Ceremony @ 1pm[\s\S]*<br\/>[\s\S]*Cocktail @ 2:30pm/);
+});
+
+test("enabled guestbook renders after invitation content and before the footer", () => {
+  const html = render("published", { commentWallEnabled: true });
+  assert.match(html, /data-invitation-comment-wall="true"/);
+  assert.ok(html.indexOf('data-invitation-comment-wall="true"') < html.indexOf('data-invitation-footer="true"'));
+  assert.match(html, /Leave a note/);
 });

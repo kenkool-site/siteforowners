@@ -19,6 +19,8 @@ import type {
   EffectiveEventState,
 } from "@/lib/invitations/state";
 import type { PublicInvitationEvent as RepositoryPublicInvitationEvent } from "@/lib/invitations/repository-core";
+import type { InvitationCommentPage } from "@/lib/invitations/comments";
+import { InvitationCommentWall } from "./InvitationCommentWall";
 
 export type PublicInvitationEvent = Pick<
   RepositoryPublicInvitationEvent,
@@ -44,6 +46,7 @@ export type PublicInvitationEvent = Pick<
   | "fontPairKey"
   | "designRecipe"
   | "showPublicRsvpCount"
+  | "commentWallEnabled"
 >;
 
 type PublicInvitationProps = {
@@ -52,6 +55,7 @@ type PublicInvitationProps = {
   state: Extract<EffectiveEventState, "published" | "rsvp_closed">;
   media: InvitationMediaSnapshot;
   rsvpSummary: { attendingPeople: number; declinedParties: number };
+  initialComments?: InvitationCommentPage;
 };
 
 type ThemeKey = "classic" | "romantic" | "celebration";
@@ -168,7 +172,7 @@ export function InvitationStateView({ state }: { state: "draft" | "expired" }) {
   return <StateView><h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{t("ended.title")}</h1><p className="mt-4 text-base leading-7 text-[#665C69]">{t("ended.body")}</p></StateView>;
 }
 
-export function PublicInvitation({ event, state, media, rsvpSummary, preview = false }: PublicInvitationProps) {
+export function PublicInvitation({ event, state, media, rsvpSummary, preview = false, initialComments = { comments: [], nextCursor: null } }: PublicInvitationProps) {
   const t = useTranslations("invitations.public");
 
   const theme = themeFor(event.themeKey);
@@ -332,6 +336,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
         {event.showPublicRsvpCount && <div style={{ order: sectionOrder("counts") }}><PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${recreated ? "" : theme.count} ${rhythm}`} /></div>}
 
       </article>
+      {event.commentWallEnabled && <InvitationCommentWall slug={event.slug} initialPage={initialComments} preview={preview} accent={recipe.palette.accent} surface={recipe.palette.surface} foreground={recipe.palette.text} titleClass={titleFont} />}
       <InvitationFooter />
       <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
     </main>

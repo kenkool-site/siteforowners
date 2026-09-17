@@ -112,7 +112,7 @@ const PUBLIC_SELECT = [
   "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe",
   "designed_invite_path", "cover_image_path", "video_path", "passcode_hash",
-  "show_public_rsvp_count", "comment_wall_enabled", "comment_wall_reviewed_at", "rsvp_deadline", "status", "expire_at",
+  "show_public_rsvp_count", "comment_wall_enabled", "rsvp_deadline", "status", "expire_at",
   "invitation_owners!invitation_events_owner_id_fkey!inner(is_active)", "invitation_rsvps(attending,party_size)",
 ].join(",");
 

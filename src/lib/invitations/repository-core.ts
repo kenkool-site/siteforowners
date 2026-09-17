@@ -168,7 +168,6 @@ export type InvitationPublicRow = {
   passcode_hash: string | null;
   show_public_rsvp_count: boolean;
   comment_wall_enabled?: boolean;
-  comment_wall_reviewed_at?: string | null;
   rsvp_deadline: string | null;
   status: InvitationEventStatus;
   expire_at: string | null;
@@ -203,7 +202,6 @@ export type PublicInvitationEvent = {
   videoPath: string | null;
   showPublicRsvpCount: boolean;
   commentWallEnabled: boolean;
-  commentWallReviewedAt: string | null;
   rsvpDeadline: string | null;
   status: InvitationEventStatus;
   expireAt: string | null;
@@ -443,7 +441,6 @@ export async function getPublicInvitationBySlug(
       videoPath: row.video_path,
       showPublicRsvpCount: row.show_public_rsvp_count,
       commentWallEnabled: row.comment_wall_enabled ?? false,
-      commentWallReviewedAt: row.comment_wall_reviewed_at ?? null,
       rsvpDeadline: row.rsvp_deadline,
       status: row.status,
       expireAt: row.expire_at,

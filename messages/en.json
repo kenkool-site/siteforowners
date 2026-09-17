@@ -142,6 +142,7 @@
         "preview": "Preview invitation",
         "copy": "Copy guest link",
         "copied": "Guest link copied",
+        "guestbook": { "title": "Guestbook", "new": "{count} new", "enabled": "Public · {count} comments", "disabled": "Hidden · {count} saved comments", "open": "Manage guestbook" },
         "status": {
           "draft": "Draft",
           "published": "Published",
@@ -149,6 +150,16 @@
           "expired": "Expired",
           "offline": "Offline"
         }
+      },
+      "guestbook": {
+        "back": "Back to event", "title": "Guestbook", "subtitle": "Manage notes for {title}.",
+        "enable": "Enable Comment Wall", "disable": "Hide Comment Wall", "saving": "Saving…",
+        "enabled": "Comment Wall is public.", "disabled": "Comment Wall is hidden.",
+        "enabledHelp": "Guests can read and post comments.", "disabledHelp": "Saved comments remain private until you enable it again.",
+        "enabledSuccess": "The Comment Wall is now public.", "disabledSuccess": "The Comment Wall is now hidden.",
+        "commentsLabel": "Guestbook comments", "empty": "No comments yet.", "visible": "Visible", "hidden": "Hidden",
+        "hide": "Hide", "restore": "Restore", "delete": "Delete permanently",
+        "deleteConfirm": "Permanently delete the comment from {name}?", "error": "The guestbook could not be updated. Try again."
       }
     },
     "editor": {
@@ -295,6 +306,7 @@
         "offline": "Take offline",
         "draft": "Move to draft",
         "openPreview": "Open guest preview",
+        "guestbook": "Manage guestbook",
         "copyLink": "Copy public link"
       },
       "dirty": "Unsaved changes",
@@ -548,6 +560,22 @@
       "galleryAlt": "Event photo {number}",
       "videoLabel": "Event video",
       "footer": { "poweredBy": "Powered by SiteForOwners", "hostSignIn": "Host sign in" },
+      "guestbook": {
+        "title": "Guestbook",
+        "intro": "We’re excited to celebrate with you. Leave a note for the hosts.",
+        "leaveNote": "Leave a note",
+        "empty": "Be the first to leave a note.",
+        "showMore": "Show more",
+        "loading": "Loading…",
+        "formTitle": "Leave a note",
+        "close": "Close guestbook form",
+        "name": "Your name",
+        "comment": "Your comment",
+        "post": "Post comment",
+        "posting": "Posting…",
+        "success": "Your comment has been posted.",
+        "errors": { "invalid_request": "Enter your name and a comment.", "comment_wall_closed": "The guestbook is currently closed.", "rate_limited": "Too many comments were sent. Please wait and try again.", "retry": "Your comment could not be posted. Please try again." }
+      },
       "countsLabel": "Response totals",
       "attending": "{count, plural, one {# attending} other {# attending}}",
       "declined": "{count, plural, one {# party unable to attend} other {# parties unable to attend}}",

@@ -33,7 +33,6 @@ const invitation: PublicInvitationLookup = {
     videoPath: null,
     showPublicRsvpCount: true,
     commentWallEnabled: false,
-    commentWallReviewedAt: null,
     rsvpDeadline: null,
     status: "published",
     expireAt: "2026-10-12T04:00:00.000Z",

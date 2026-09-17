@@ -31,6 +31,7 @@ const event: PublicInvitationEvent = {
   fontPairKey: "fraunces-geist",
   designRecipe: null,
   showPublicRsvpCount: false,
+  commentWallEnabled: false,
 };
 
 test("the actual public client provider supplies event-locale messages without request configuration", () => {
