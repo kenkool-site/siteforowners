@@ -21,6 +21,7 @@ const invitation: PublicInvitationLookup = {
     endsAt: null,
     timezone: "America/New_York",
     venueName: "The Garden",
+    venueUrl: null,
     address: "42 Secret Celebration Way",
     mapUrl: "https://maps.example.test/secret",
     themeKey: "classic",

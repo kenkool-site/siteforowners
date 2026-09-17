@@ -10,12 +10,13 @@ function comparableHeading(value: string): string {
   return value.toLocaleLowerCase().replaceAll("&", "and").replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-export function InvitationHero({ coverUrl, title, honoreeNames, date, venueName, recipe }: {
+export function InvitationHero({ coverUrl, title, honoreeNames, date, venueName, venueUrl, recipe }: {
   coverUrl: string | null;
   title: string;
   honoreeNames: string;
   date: string;
   venueName: string | null;
+  venueUrl: string | null;
   recipe: InvitationDesignRecipe;
 }) {
   const t = useTranslations("invitations.public");
@@ -55,7 +56,9 @@ export function InvitationHero({ coverUrl, title, honoreeNames, date, venueName,
       </div>
       <div className="absolute inset-x-8 bottom-24 z-20 flex flex-col items-center text-center" style={{ color: recipe.hero.textColor }}>
         <p className="text-[clamp(1rem,2.5vw,1.35rem)] font-medium tracking-[0.04em]">{date}</p>
-        {venueName && <p data-invitation-venue="true" className="mt-2 text-sm font-medium tracking-[0.04em] opacity-90 sm:text-base">{venueName}</p>}
+        {venueName && (venueUrl
+          ? <a data-invitation-venue="true" href={venueUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-sm font-medium tracking-[0.04em] underline decoration-current/60 underline-offset-4 opacity-90 sm:text-base">{venueName}</a>
+          : <p data-invitation-venue="true" className="mt-2 text-sm font-medium tracking-[0.04em] opacity-90 sm:text-base">{venueName}</p>)}
         <button type="button" onClick={viewInvitation} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2">
           {t("viewInvitation")}<ChevronDown className="size-4" aria-hidden="true" />
         </button>

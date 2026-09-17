@@ -34,6 +34,7 @@ const event: PublicInvitationEvent = {
   rsvpDeadline: null,
   timezone: "America/New_York",
   venueName: "The Garden",
+  venueUrl: null,
   address: "42 Celebration Way",
   mapUrl: "https://maps.example.test/garden",
   themeKey: "classic",
@@ -92,6 +93,15 @@ test("a published invitation celebrates attending guests without exposing declin
   for (const privateGuestValue of ["guest@example.com", "+19175550199", "peanut allergy", "Guest Two"]) {
     assert.doesNotMatch(html, new RegExp(privateGuestValue.replace("+", "\\+"), "i"));
   }
+});
+
+test("an optional venue website links the venue name on the cover and in event details", () => {
+  const html = render("published", {
+    venueUrl: "https://www.theblissataubrey.com/",
+  } as unknown as Partial<PublicInvitationEvent>);
+  const links = html.match(/href="https:\/\/www\.theblissataubrey\.com\/"/g) ?? [];
+  assert.equal(links.length, 2);
+  assert.doesNotMatch(html, />https:\/\/www\.theblissataubrey\.com\/</);
 });
 
 test("the public celebration count uses singular guest grammar", () => {

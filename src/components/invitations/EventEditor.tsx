@@ -28,7 +28,7 @@ type StatusCommand = "publish" | "close" | "reopen" | "expire" | "offline" | "dr
 const SECTION_KEYS = ["event", "design", "rsvp", "preview", "responses"] as const;
 const LOCALIZED_ERROR_KEYS = new Set([
   "eventType", "locale", "title", "honoreeNames", "timezone", "startsAt", "endsAt",
-  "venueName", "address", "themeKey", "fontPairKey", "primaryColor", "accentColor",
+  "venueName", "venueUrl", "address", "themeKey", "fontPairKey", "primaryColor", "accentColor",
   "publicSubdomain",
   "travelInfo",
   "styleGuide",
@@ -257,6 +257,7 @@ export function EventEditor({
         startsAt: wallTime("startsAt"),
         endsAt: wallTime("endsAt"),
         venueName: stringValue(data, "venueName"),
+        venueUrl: stringValue(data, "venueUrl"),
         address: stringValue(data, "address"),
         mapUrl: stringValue(data, "mapUrl"),
         travelInfo: {
@@ -732,6 +733,7 @@ export function EventEditor({
               <label className={labelClass}>{t("fields.endsAt")}<input type="datetime-local" name="endsAt" defaultValue={toLocalInput(currentEvent.endsAt, currentEvent.timezone)} className={inputClass} /><FieldError name="endsAt" errors={errors} /></label>
               <label className={labelClass}>{t("fields.venue")}<input name="venueName" defaultValue={currentEvent.venueName ?? ""} placeholder={t("placeholders.venue")} className={inputClass} /><FieldError name="venueName" errors={errors} /></label>
               <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
+              <label className={`${labelClass} sm:col-span-2`}>{t("fields.venueUrl")}<input name="venueUrl" type="url" defaultValue={currentEvent.venueUrl ?? ""} placeholder={t("placeholders.venueUrl")} className={inputClass} /><FieldError name="venueUrl" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
             <details data-style-guide-editor open={Boolean(styleGuide?.note || styleGuide?.colors.length)} className="group mt-8 border-t border-[#ddd4e1] pt-5">

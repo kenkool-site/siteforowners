@@ -241,6 +241,7 @@
         "startsAt": "Starts",
         "endsAt": "Ends",
         "venue": "Venue name",
+        "venueUrl": "Venue website",
         "address": "Address",
         "mapUrl": "Map link",
         "publicSubdomain": "Public subdomain",
@@ -283,6 +284,7 @@
         "description": "A short welcome for your guests",
         "timezone": "America/New_York",
         "venue": "Venue name",
+        "venueUrl": "https://venue.example/",
         "address": "Street, city, state",
         "mapUrl": "https://maps.google.com/…",
         "passcode": "Leave blank to keep the current passcode"
@@ -488,6 +490,7 @@
         "startsAt": "Choose a valid future event start time.",
         "endsAt": "Choose an end time later than the start time.",
         "venueName": "Add the venue name before publishing.",
+        "venueUrl": "Enter a secure HTTPS venue website.",
         "address": "Add the event address before publishing.",
         "publicSubdomain": "Choose an available public address.",
         "themeKey": "Choose one of the three invitation themes.",

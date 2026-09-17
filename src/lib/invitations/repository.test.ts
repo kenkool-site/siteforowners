@@ -145,6 +145,7 @@ test("management projection omits owner PIN and event passcode hashes", async ()
       ends_at: null,
       timezone: "America/New_York",
       venue_name: null,
+      venue_url: "https://venue.example/",
       address: null,
       map_url: null,
       travel_info: {
@@ -205,6 +206,7 @@ test("management projection omits owner PIN and event passcode hashes", async ()
   assert.equal(event.cohost && "pinHash" in event.cohost, false);
   assert.equal(JSON.stringify(event).includes("must-not-leak"), false);
   assert.equal(event.endsAt, null);
+  assert.equal(event.venueUrl, "https://venue.example/");
   assert.deepEqual((event as unknown as { travelInfo: unknown }).travelInfo, {
     airports: [{ name: "DFW", note: "35 minutes away", directionsUrl: "https://maps.example.test/dfw" }],
     hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
@@ -229,6 +231,7 @@ test("public lookup preserves the exact slug and returns only presentation field
         ends_at: null,
         timezone: "America/New_York",
         venue_name: "The Garden",
+        venue_url: "https://venue.example/",
         address: "42 Celebration Way",
         map_url: null,
         travel_info: { airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }] },
@@ -261,6 +264,7 @@ test("public lookup preserves the exact slug and returns only presentation field
   assert.equal("ownerId" in invitation.event, false);
   assert.equal("notificationEmail" in invitation.event, false);
   assert.equal("passcodeHash" in invitation.event, false);
+  assert.equal(invitation.event.venueUrl, "https://venue.example/");
   assert.deepEqual((invitation.event as unknown as { travelInfo: unknown }).travelInfo, {
     airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
   });
@@ -270,6 +274,7 @@ test("public lookup preserves the exact slug and returns only presentation field
 test("event update rows map editable fields without inventing passcode changes", () => {
   const update: InvitationEventUpdate = {
     title: "Updated",
+    venueUrl: "https://venue.example/",
     endsAt: "2026-10-04T01:00:00.000Z",
     showPublicRsvpCount: true,
     ...({ travelInfo: { airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }] } } as unknown as InvitationEventUpdate),
@@ -279,6 +284,7 @@ test("event update rows map editable fields without inventing passcode changes",
   const { updated_at: updatedAt, ...persisted } = row;
   assert.deepEqual(persisted, {
     title: "Updated",
+    venue_url: "https://venue.example/",
     ends_at: "2026-10-04T01:00:00.000Z",
     show_public_rsvp_count: true,
     travel_info: { airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }] },

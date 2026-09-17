@@ -84,6 +84,21 @@ test("owners cannot change founder-controlled limits", () => {
   assert.equal(parsed.ok && parsed.value.title, "Updated");
 });
 
+test("venue websites accept normalized HTTPS links and reject unsafe schemes", () => {
+  assert.deepEqual(parseEventUpdate({ venueUrl: " https://www.theblissataubrey.com/ " }, "owner"), {
+    ok: true,
+    value: { venueUrl: "https://www.theblissataubrey.com/" },
+  });
+  assert.deepEqual(parseEventUpdate({ venueUrl: "" }, "owner"), {
+    ok: true,
+    value: { venueUrl: null },
+  });
+  assert.deepEqual(parseEventUpdate({ venueUrl: "javascript:alert(1)" }, "owner"), {
+    ok: false,
+    errors: { venueUrl: "Enter a secure HTTPS venue website." },
+  });
+});
+
 test("founders can normalize owner credentials", () => {
   const parsed = parseOwnerCredentialUpdate({
     ownerName: " Ana Rivera ",

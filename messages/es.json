@@ -241,6 +241,7 @@
         "startsAt": "Comienza",
         "endsAt": "Termina",
         "venue": "Nombre del lugar",
+        "venueUrl": "Sitio web del lugar",
         "address": "Dirección",
         "mapUrl": "Enlace del mapa",
         "publicSubdomain": "Subdominio público",
@@ -283,6 +284,7 @@
         "description": "Un saludo breve para sus invitados",
         "timezone": "America/New_York",
         "venue": "Nombre del lugar",
+        "venueUrl": "https://lugar.example/",
         "address": "Calle, ciudad, estado",
         "mapUrl": "https://maps.google.com/…",
         "passcode": "Déjelo en blanco para conservar la clave actual"
@@ -488,6 +490,7 @@
         "startsAt": "Elija una fecha y hora de inicio futura y válida.",
         "endsAt": "Elija una hora de finalización posterior al inicio.",
         "venueName": "Agregue el nombre del lugar antes de publicar.",
+        "venueUrl": "Ingrese un sitio web seguro HTTPS para el lugar.",
         "address": "Agregue la dirección del evento antes de publicar.",
         "publicSubdomain": "Elija una dirección pública disponible.",
         "themeKey": "Elija uno de los tres temas de invitación.",

@@ -41,6 +41,7 @@ export type InvitationEventUpdate = {
   endsAt?: string | null;
   timezone?: string;
   venueName?: string | null;
+  venueUrl?: string | null;
   address?: string | null;
   mapUrl?: string | null;
   travelInfo?: InvitationTravelInfo;
@@ -165,6 +166,14 @@ function hasText(value: string | null | undefined): boolean {
   return Boolean(value?.trim());
 }
 
+function isSecureWebUrl(value: string): boolean {
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 function isValidMediaPath(value: string | null): boolean {
   return Boolean(value && value.trim() && !/^(?:data|blob|javascript):/i.test(value));
 }
@@ -202,6 +211,16 @@ export function parseEventUpdate(
       continue;
     }
     value[key] = normalizeOptionalText(body[key] as string | null);
+  }
+
+  if ("venueUrl" in body) {
+    if (body.venueUrl !== null && typeof body.venueUrl !== "string") {
+      errors.venueUrl = "Enter a secure HTTPS venue website.";
+    } else {
+      const venueUrl = normalizeOptionalText(body.venueUrl as string | null);
+      if (venueUrl && !isSecureWebUrl(venueUrl)) errors.venueUrl = "Enter a secure HTTPS venue website.";
+      else value.venueUrl = venueUrl;
+    }
   }
 
   if ("travelInfo" in body) {

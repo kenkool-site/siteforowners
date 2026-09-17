@@ -36,6 +36,7 @@ export type PublicInvitationEvent = Pick<
   | "rsvpDeadline"
   | "timezone"
   | "venueName"
+  | "venueUrl"
   | "address"
   | "mapUrl"
   | "travelInfo"
@@ -244,7 +245,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
       className={`min-h-screen overflow-x-hidden pb-24 sm:pb-28 ${bodyFont} ${theme.page}`}
       style={variables}
     >
-      <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} venueName={event.venueName} recipe={recipe} />
+      <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} venueName={event.venueName} venueUrl={event.venueUrl} recipe={recipe} />
       <article id="invitation-content" className={`${recreated ? "mx-auto flex flex-col px-4 py-8 sm:px-8 sm:py-14" : theme.stage}`} style={recreated ? { maxWidth: recipe.composition.maxWidth } : undefined}>
 
         {event.description && (
@@ -267,7 +268,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
             {(event.venueName || event.address) && (
               <div className="flex gap-3">
                 <MapPin aria-hidden="true" className="mt-1 size-5 shrink-0" />
-                <div><p className="font-semibold">{t("where")}</p>{event.venueName && <p className="mt-1 leading-7">{event.venueName}</p>}{event.address && <p className="leading-7 opacity-80">{event.address}</p>}</div>
+                <div><p className="font-semibold">{t("where")}</p>{event.venueName && (event.venueUrl ? <a href={event.venueUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block min-h-11 py-2 font-semibold underline decoration-1 underline-offset-4">{event.venueName}</a> : <p className="mt-1 leading-7">{event.venueName}</p>)}{event.address && <p className="leading-7 opacity-80">{event.address}</p>}</div>
               </div>
             )}
           </div>
