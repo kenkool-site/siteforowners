@@ -142,6 +142,7 @@
         "preview": "Vista previa de la invitación",
         "copy": "Copiar enlace para invitados",
         "copied": "Enlace copiado",
+        "guestbook": { "title": "Libro de invitados", "new": "{count} nuevos", "enabled": "Público · {count} comentarios", "disabled": "Oculto · {count} comentarios guardados", "open": "Administrar libro" },
         "status": {
           "draft": "Borrador",
           "published": "Publicada",
@@ -149,6 +150,16 @@
           "expired": "Vencida",
           "offline": "Fuera de línea"
         }
+      },
+      "guestbook": {
+        "back": "Volver al evento", "title": "Libro de invitados", "subtitle": "Administre las notas para {title}.",
+        "enable": "Activar muro de comentarios", "disable": "Ocultar muro de comentarios", "saving": "Guardando…",
+        "enabled": "El muro de comentarios es público.", "disabled": "El muro de comentarios está oculto.",
+        "enabledHelp": "Los invitados pueden leer y publicar comentarios.", "disabledHelp": "Los comentarios guardados permanecen privados hasta que vuelva a activarlo.",
+        "enabledSuccess": "El muro de comentarios ahora es público.", "disabledSuccess": "El muro de comentarios ahora está oculto.",
+        "commentsLabel": "Comentarios del libro de invitados", "empty": "Aún no hay comentarios.", "visible": "Visible", "hidden": "Oculto",
+        "hide": "Ocultar", "restore": "Restaurar", "delete": "Eliminar permanentemente",
+        "deleteConfirm": "¿Eliminar permanentemente el comentario de {name}?", "error": "No se pudo actualizar el libro de invitados. Inténtelo de nuevo."
       }
     },
     "editor": {
@@ -295,6 +306,7 @@
         "offline": "Quitar de línea",
         "draft": "Mover a borrador",
         "openPreview": "Abrir vista de invitados",
+        "guestbook": "Administrar libro de invitados",
         "copyLink": "Copiar enlace público"
       },
       "dirty": "Cambios sin guardar",
@@ -548,6 +560,22 @@
       "galleryAlt": "Foto del evento {number}",
       "videoLabel": "Video del evento",
       "footer": { "poweredBy": "Creado con SiteForOwners", "hostSignIn": "Acceso del anfitrión" },
+      "guestbook": {
+        "title": "Libro de invitados",
+        "intro": "Nos emociona celebrar con usted. Deje una nota para los anfitriones.",
+        "leaveNote": "Dejar una nota",
+        "empty": "Sea la primera persona en dejar una nota.",
+        "showMore": "Ver más",
+        "loading": "Cargando…",
+        "formTitle": "Dejar una nota",
+        "close": "Cerrar formulario del libro de invitados",
+        "name": "Su nombre",
+        "comment": "Su comentario",
+        "post": "Publicar comentario",
+        "posting": "Publicando…",
+        "success": "Su comentario ha sido publicado.",
+        "errors": { "invalid_request": "Ingrese su nombre y un comentario.", "comment_wall_closed": "El libro de invitados está cerrado.", "rate_limited": "Se enviaron demasiados comentarios. Espere e inténtelo de nuevo.", "retry": "No se pudo publicar su comentario. Inténtelo de nuevo." }
+      },
       "countsLabel": "Totales de respuestas",
       "attending": "{count, plural, one {# asistirá} other {# asistirán}}",
       "declined": "{count, plural, one {# grupo no podrá asistir} other {# grupos no podrán asistir}}",

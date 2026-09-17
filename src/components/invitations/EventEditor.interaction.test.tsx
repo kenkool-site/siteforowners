@@ -38,6 +38,8 @@ const baseEvent: EditorEvent = {
   coverImagePath: null,
   videoPath: null,
   showPublicRsvpCount: false,
+  commentWallEnabled: false,
+  commentWallReviewedAt: null,
   capacity: 120,
   rsvpDeadline: null,
   submissionLimit: 250,

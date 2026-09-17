@@ -14,7 +14,7 @@ import {
   resolvePublicInvitationPage,
   toPublicInvitationClientDetails,
 } from "@/lib/invitations/public-access";
-import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
+import { getPublicInvitationBySlug, listPublicInvitationComments } from "@/lib/invitations/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 
 export const dynamic = "force-dynamic";
@@ -62,6 +62,9 @@ export default async function PublicInvitationPage({ params }: { params: { slug:
   }
 
   const clientDetails = toPublicInvitationClientDetails(resolution);
+  const initialComments = clientDetails.event.commentWallEnabled
+    ? await listPublicInvitationComments(clientDetails.event.id)
+    : { comments: [], nextCursor: null };
   return (
     <InvitationPublicProvider locale={clientDetails.event.locale} timeZone={clientDetails.event.timezone}>
       <PublicInvitation
@@ -69,6 +72,7 @@ export default async function PublicInvitationPage({ params }: { params: { slug:
         state={clientDetails.state}
         media={clientDetails.media}
         rsvpSummary={clientDetails.rsvpSummary}
+        initialComments={initialComments}
       />
     </InvitationPublicProvider>
   );

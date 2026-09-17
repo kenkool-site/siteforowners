@@ -38,6 +38,18 @@ import {
   isInvitationE2EFixturesEnabled,
 } from "./e2e-fixtures";
 import { uniqueEventIdsForHost } from "./hosts";
+import {
+  buildInvitationGuestbookSummary,
+  decodeCommentCursor,
+  encodeCommentCursor,
+  toManagementInvitationComment,
+  toPublicInvitationComment,
+  type InvitationCommentForManagement,
+  type InvitationCommentPage,
+  type InvitationCommentRow,
+  type InvitationCommentSubmitResult,
+  type InvitationGuestbookSummary,
+} from "./comments";
 
 export type {
   CreateInvitationOwnerAndEventInput,
@@ -87,7 +99,7 @@ const MANAGEMENT_SELECT = [
   "map_url", "travel_info", "style_guide", "additional_sections", "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe", "reference_analysis",
   "designed_invite_path", "cover_image_path", "video_path",
-  "show_public_rsvp_count", "capacity", "rsvp_deadline", "submission_limit",
+  "show_public_rsvp_count", "comment_wall_enabled", "comment_wall_reviewed_at", "capacity", "rsvp_deadline", "submission_limit",
   "email_notification_limit", "sms_notification_limit", "owner_email_notifications",
   "owner_sms_notifications", "notification_email", "notification_phone",
   "guest_email_confirmations", "status", "expire_at", "created_at", "updated_at",
@@ -100,7 +112,7 @@ const PUBLIC_SELECT = [
   "theme_key", "primary_color", "accent_color", "font_pair_key",
   "design_recipe",
   "designed_invite_path", "cover_image_path", "video_path", "passcode_hash",
-  "show_public_rsvp_count", "rsvp_deadline", "status", "expire_at",
+  "show_public_rsvp_count", "comment_wall_enabled", "rsvp_deadline", "status", "expire_at",
   "invitation_owners!invitation_events_owner_id_fkey!inner(is_active)", "invitation_rsvps(attending,party_size)",
 ].join(",");
 
@@ -375,4 +387,90 @@ export async function listInvitationResponseRows(
 
 export async function removeInvitationResponse(eventId: string, rsvpId: string): Promise<boolean> {
   return invitationRepository.removeResponse(eventId, rsvpId);
+}
+
+type RpcCommentRow = { comment_id: string; guest_name: string; body: string; created_at: string; outcome: "created" | "duplicate" };
+
+export async function listPublicInvitationComments(eventId: string, cursorValue?: string | null): Promise<InvitationCommentPage> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.listPublicComments(eventId, cursorValue);
+  const cursor = decodeCommentCursor(cursorValue);
+  const supabase = createAdminClient();
+  let query = supabase.from("invitation_comments")
+    .select("id,event_id,guest_name,body,is_hidden,created_at,updated_at")
+    .eq("event_id", eventId).eq("is_hidden", false)
+    .order("created_at", { ascending: false }).order("id", { ascending: false }).limit(11);
+  if (cursor) query = query.or(`created_at.lt.${cursor.createdAt},and(created_at.eq.${cursor.createdAt},id.lt.${cursor.id})`);
+  const { data, error } = await query;
+  if (error) throw new Error("Unable to load invitation comments", { cause: error });
+  const rows = (data ?? []) as InvitationCommentRow[];
+  const pageRows = rows.slice(0, 10);
+  const last = pageRows.at(-1);
+  return {
+    comments: pageRows.map(toPublicInvitationComment),
+    nextCursor: rows.length > 10 && last ? encodeCommentCursor({ createdAt: last.created_at, id: last.id }) : null,
+  };
+}
+
+export async function submitInvitationComment(input: { eventId: string; guestName: string; body: string; ipHash: string; contentHash: string }): Promise<InvitationCommentSubmitResult> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.submitComment(input);
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.rpc("submit_invitation_comment", {
+    p_event_id: input.eventId, p_guest_name: input.guestName, p_body: input.body,
+    p_ip_hash: input.ipHash, p_content_hash: input.contentHash,
+  });
+  if (error) {
+    if (error.message.includes("COMMENT_WALL_CLOSED")) return { ok: false, code: "comment_wall_closed" };
+    if (error.message.includes("COMMENT_RATE_LIMITED")) return { ok: false, code: "rate_limited" };
+    throw new Error("Unable to submit invitation comment", { cause: error });
+  }
+  const row = (Array.isArray(data) ? data[0] : data) as RpcCommentRow | null;
+  if (!row) throw new Error("Invitation comment submission returned no record");
+  return { ok: true, outcome: row.outcome, comment: { id: row.comment_id, guestName: row.guest_name, body: row.body, createdAt: row.created_at } };
+}
+
+export async function getInvitationGuestbookSummary(eventId: string, enabled: boolean, reviewedAt: string | null): Promise<InvitationGuestbookSummary> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.guestbookSummary(eventId, enabled, reviewedAt);
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from("invitation_comments").select("created_at").eq("event_id", eventId);
+  if (error) throw new Error("Unable to load guestbook summary", { cause: error });
+  return buildInvitationGuestbookSummary({ enabled, reviewedAt, createdAt: (data ?? []).map((row) => row.created_at) });
+}
+
+export async function listInvitationCommentsForManagement(eventId: string): Promise<InvitationCommentForManagement[]> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.listManagementComments(eventId);
+  const supabase = createAdminClient();
+  const { data, error } = await supabase.from("invitation_comments")
+    .select("id,event_id,guest_name,body,is_hidden,created_at,updated_at")
+    .eq("event_id", eventId).order("created_at", { ascending: false }).order("id", { ascending: false });
+  if (error) throw new Error("Unable to load guestbook", { cause: error });
+  return ((data ?? []) as InvitationCommentRow[]).map(toManagementInvitationComment);
+}
+
+export async function setInvitationCommentWallEnabled(eventId: string, enabled: boolean): Promise<void> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.setCommentWallEnabled(eventId, enabled);
+  const { error } = await createAdminClient().from("invitation_events").update({ comment_wall_enabled: enabled, updated_at: new Date().toISOString() }).eq("id", eventId);
+  if (error) throw new Error("Unable to update guestbook", { cause: error });
+}
+
+export async function markInvitationGuestbookReviewed(eventId: string): Promise<string> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.markGuestbookReviewed(eventId);
+  const reviewedAt = new Date().toISOString();
+  const { error } = await createAdminClient().from("invitation_events").update({ comment_wall_reviewed_at: reviewedAt }).eq("id", eventId);
+  if (error) throw new Error("Unable to mark guestbook reviewed", { cause: error });
+  return reviewedAt;
+}
+
+export async function setInvitationCommentHidden(eventId: string, commentId: string, hidden: boolean): Promise<boolean> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.setCommentHidden(eventId, commentId, hidden);
+  const { data, error } = await createAdminClient().from("invitation_comments")
+    .update({ is_hidden: hidden, updated_at: new Date().toISOString() }).eq("event_id", eventId).eq("id", commentId).select("id").maybeSingle();
+  if (error) throw new Error("Unable to moderate invitation comment", { cause: error });
+  return data !== null;
+}
+
+export async function removeInvitationComment(eventId: string, commentId: string): Promise<boolean> {
+  if (isInvitationE2EFixturesEnabled()) return invitationE2ERepository.removeComment(eventId, commentId);
+  const { data, error } = await createAdminClient().from("invitation_comments").delete().eq("event_id", eventId).eq("id", commentId).select("id").maybeSingle();
+  if (error) throw new Error("Unable to remove invitation comment", { cause: error });
+  return data !== null;
 }

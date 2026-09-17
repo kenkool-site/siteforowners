@@ -36,6 +36,8 @@ const event: EditorEvent = {
   coverImagePath: null,
   videoPath: null,
   showPublicRsvpCount: false,
+  commentWallEnabled: false,
+  commentWallReviewedAt: null,
   capacity: 120,
   rsvpDeadline: "2026-10-01T04:00:00.000Z",
   submissionLimit: 250,
