@@ -19,6 +19,14 @@ import type {
 } from "./responses";
 import { submitRsvp, type SubmitRsvpRequest, type SubmitRsvpResult } from "./rsvp";
 import type { InvitationNotificationChannel, InvitationNotificationStatus } from "./types";
+import {
+  buildInvitationGuestbookSummary,
+  decodeCommentCursor,
+  encodeCommentCursor,
+  toManagementInvitationComment,
+  toPublicInvitationComment,
+  type InvitationCommentRow,
+} from "./comments";
 
 type FixtureOwner = {
   id: string;
@@ -39,6 +47,8 @@ type FixtureNotification = InvitationNotificationWarningRow & {
   rsvpId: string;
 };
 
+type FixtureComment = InvitationCommentRow & { ipHash: string; contentHash: string };
+
 type FixtureProviderCall = { channel: InvitationNotificationChannel; eventId: string };
 
 type FixtureStore = {
@@ -47,6 +57,7 @@ type FixtureStore = {
   rsvps: FixtureRsvp[];
   notifications: FixtureNotification[];
   providerCalls: FixtureProviderCall[];
+  comments: FixtureComment[];
   nextId: number;
 };
 
@@ -143,6 +154,8 @@ function eventRow(input: {
     video_path: FIXTURE_VIDEO,
     passcode_hash: input.passcodeHash ?? null,
     show_public_rsvp_count: true,
+    comment_wall_enabled: false,
+    comment_wall_reviewed_at: null,
     capacity: 8,
     rsvp_deadline: input.deadline ?? null,
     submission_limit: 250,
@@ -216,6 +229,7 @@ export async function resetInvitationE2EFixtures(): Promise<InvitationE2EManifes
       { id: uuid(900), eventId: uuid(17), rsvpId: uuid(901), channel: "email", status: "sent" },
       { id: uuid(902), eventId: uuid(11), rsvpId: uuid(903), channel: "email", status: "failed" },
     ],
+    comments: [],
     providerCalls: [],
     nextId: 100,
   };
@@ -346,6 +360,57 @@ export const invitationE2ERepository = {
     if (index < 0) return false;
     store.rsvps.splice(index, 1);
     store.notifications = store.notifications.filter((row) => !(row.eventId === eventId && row.rsvpId === rsvpId));
+    return true;
+  },
+  async listPublicComments(eventId: string, cursorValue?: string | null) {
+    const cursor = decodeCommentCursor(cursorValue);
+    const rows = requireStore().comments
+      .filter((row) => row.event_id === eventId && !row.is_hidden)
+      .filter((row) => !cursor || row.created_at < cursor.createdAt || (row.created_at === cursor.createdAt && row.id < cursor.id))
+      .sort((left, right) => right.created_at.localeCompare(left.created_at) || right.id.localeCompare(left.id));
+    const page = rows.slice(0, 10);
+    const last = page.at(-1);
+    return { comments: page.map(toPublicInvitationComment), nextCursor: rows.length > 10 && last ? encodeCommentCursor({ createdAt: last.created_at, id: last.id }) : null };
+  },
+  async submitComment(input: { eventId: string; guestName: string; body: string; ipHash: string; contentHash: string }) {
+    const store = requireStore();
+    const recent = store.comments.find((row) => row.event_id === input.eventId && row.ipHash === input.ipHash && row.contentHash === input.contentHash);
+    if (recent) return { ok: true as const, outcome: "duplicate" as const, comment: toPublicInvitationComment(recent) };
+    const now = new Date().toISOString();
+    const row: FixtureComment = { id: uuid(store.nextId++), event_id: input.eventId, guest_name: input.guestName, body: input.body, is_hidden: false, created_at: now, updated_at: now, ipHash: input.ipHash, contentHash: input.contentHash };
+    store.comments.push(row);
+    return { ok: true as const, outcome: "created" as const, comment: toPublicInvitationComment(row) };
+  },
+  async guestbookSummary(eventId: string, enabled: boolean, reviewedAt: string | null) {
+    return buildInvitationGuestbookSummary({ enabled, reviewedAt, createdAt: requireStore().comments.filter((row) => row.event_id === eventId).map((row) => row.created_at) });
+  },
+  async listManagementComments(eventId: string) {
+    return requireStore().comments.filter((row) => row.event_id === eventId).sort((a, b) => b.created_at.localeCompare(a.created_at)).map(toManagementInvitationComment);
+  },
+  async setCommentWallEnabled(eventId: string, enabled: boolean) {
+    const event = requireStore().events.find((row) => row.id === eventId);
+    if (!event) throw new Error("Fixture event not found");
+    event.comment_wall_enabled = enabled;
+  },
+  async markGuestbookReviewed(eventId: string) {
+    const event = requireStore().events.find((row) => row.id === eventId);
+    if (!event) throw new Error("Fixture event not found");
+    const value = new Date().toISOString();
+    event.comment_wall_reviewed_at = value;
+    return value;
+  },
+  async setCommentHidden(eventId: string, commentId: string, hidden: boolean) {
+    const row = requireStore().comments.find((comment) => comment.event_id === eventId && comment.id === commentId);
+    if (!row) return false;
+    row.is_hidden = hidden;
+    row.updated_at = new Date().toISOString();
+    return true;
+  },
+  async removeComment(eventId: string, commentId: string) {
+    const store = requireStore();
+    const index = store.comments.findIndex((comment) => comment.event_id === eventId && comment.id === commentId);
+    if (index < 0) return false;
+    store.comments.splice(index, 1);
     return true;
   },
 };
