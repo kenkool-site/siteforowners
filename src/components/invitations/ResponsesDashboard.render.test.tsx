@@ -85,6 +85,14 @@ test("owner dashboard renders private response details, all totals, warnings, an
     /(?:^|\s)hidden(?:\s|$)/,
     "party size must stay visible at mobile widths, not just sm: and up",
   );
+
+  const summarySpans = Array.from(document.querySelectorAll("summary span"));
+  const viewLabel = summarySpans.find((span) => span.textContent === "View details");
+  const hideLabel = summarySpans.find((span) => span.textContent === "Hide details");
+  assert.ok(viewLabel, "expected a 'View details' label on the collapsed row");
+  assert.ok(hideLabel, "expected a 'Hide details' label for the expanded state");
+  assert.doesNotMatch(viewLabel?.getAttribute("class") ?? "", /(?:^|\s)hidden(?:\s|$)/, "'View details' is the closed-state label and must be visible by default");
+  assert.match(hideLabel?.getAttribute("class") ?? "", /(?:^|\s)hidden(?:\s|$)/, "'Hide details' must stay hidden until the row is expanded");
 });
 
 test("founder dashboard exposes retry controls without rendering notification recipients", () => {
