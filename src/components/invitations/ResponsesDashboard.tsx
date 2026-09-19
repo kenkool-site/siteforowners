@@ -286,7 +286,7 @@ export function ResponsesDashboard({
                   </span>
                 </span>
                 <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${response.attending ? "bg-[#e6f2eb] text-[#285d44]" : "bg-[#f2e8e8] text-[#7f2929]"}`}>{response.attending ? t("status.attending") : t("status.declined")}</span>
-                <span className="hidden text-sm text-[#55485a] sm:block">{t("partySize", { count: response.partySize })}</span>
+                <span data-response-party-size className="text-sm text-[#55485a]">{t("partySize", { count: response.partySize })}</span>
                 <span aria-hidden="true" className="text-xl text-[#6D456F] transition-transform group-open:rotate-45 motion-reduce:transition-none">+</span>
               </summary>
               <div className="grid gap-4 border-t border-[#e7e0e9] py-5 text-sm sm:grid-cols-2">

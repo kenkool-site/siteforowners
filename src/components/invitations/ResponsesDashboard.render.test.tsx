@@ -77,6 +77,14 @@ test("owner dashboard renders private response details, all totals, warnings, an
   const visibleContact = document.querySelector("summary [data-response-contact]")?.textContent ?? "";
   assert.match(visibleContact, /private@example\.test/);
   assert.match(visibleContact, /\+19175550199/);
+
+  const partySize = document.querySelector("summary [data-response-party-size]");
+  assert.match(partySize?.textContent ?? "", /3 people/);
+  assert.doesNotMatch(
+    partySize?.getAttribute("class") ?? "",
+    /(?:^|\s)hidden(?:\s|$)/,
+    "party size must stay visible at mobile widths, not just sm: and up",
+  );
 });
 
 test("founder dashboard exposes retry controls without rendering notification recipients", () => {
