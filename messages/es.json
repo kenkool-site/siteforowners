@@ -384,6 +384,8 @@
         "next": "Siguiente",
         "page": "Página {page} de {total}",
         "partySize": "{count, plural, one {# persona} other {# personas}}",
+        "viewDetails": "Ver detalles",
+        "hideDetails": "Ocultar detalles",
         "contact": "Contacto",
         "additionalGuests": "Invitados adicionales",
         "notes": "Notas de dieta o accesibilidad",

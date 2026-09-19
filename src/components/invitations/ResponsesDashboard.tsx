@@ -274,22 +274,34 @@ export function ResponsesDashboard({
       {data && data.responses.length === 0 && !loading && <p className="px-4 py-10 text-center text-sm text-[#675d6a]">{t("empty")}</p>}
 
       {data && data.responses.length > 0 && (
-        <div className="divide-y divide-[#ddd4e1]">
+        <div className="grid gap-3 bg-[#F7F4F8] p-3 sm:p-4">
           {data.responses.map((response) => (
-            <details key={response.id} className="group px-4 py-1 sm:px-5">
-              <summary className="grid min-h-16 cursor-pointer list-none grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3 marker:content-none sm:grid-cols-[minmax(0,1.5fr)_8rem_7rem_auto]">
-                <span className="min-w-0">
-                  <strong className="block truncate text-sm text-[#2B2231]">{response.primaryName}</strong>
-                  <span data-response-contact className="mt-1 grid gap-0.5 text-xs leading-4 text-[#675d6a]">
-                    {response.email && <span className="truncate">{response.email}</span>}
-                    {response.phone && <span>{response.phone}</span>}
+            <details key={response.id} className="group overflow-hidden rounded-lg border border-[#ddd4e1] bg-white">
+              <summary className="flex cursor-pointer list-none flex-col gap-3 px-4 py-3 marker:content-none sm:px-5">
+                <span className="flex items-start justify-between gap-3">
+                  <span className="min-w-0">
+                    <strong className="block truncate text-sm text-[#2B2231]">{response.primaryName}</strong>
+                    <span data-response-contact className="mt-1 grid gap-0.5 text-xs leading-4 text-[#675d6a]">
+                      {response.email && <span className="truncate">{response.email}</span>}
+                      {response.phone && <span>{response.phone}</span>}
+                    </span>
+                  </span>
+                  <span className={`w-fit shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${response.attending ? "bg-[#e6f2eb] text-[#285d44]" : "bg-[#f2e8e8] text-[#7f2929]"}`}>{response.attending ? t("status.attending") : t("status.declined")}</span>
+                </span>
+                <span className="flex items-center justify-between gap-3 border-t border-dashed border-[#e7e0e9] pt-3">
+                  <span>
+                    {response.attending && (
+                      <span data-response-party-size className="w-fit rounded-full bg-[#F7F4F8] px-2.5 py-1 text-xs font-semibold text-[#6D456F]">{t("partySize", { count: response.partySize })}</span>
+                    )}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs font-semibold text-[#6D456F]">
+                    <span className="group-open:hidden">{t("viewDetails")}</span>
+                    <span className="hidden group-open:inline">{t("hideDetails")}</span>
+                    <span aria-hidden="true" className="inline-block transition-transform group-open:rotate-180 motion-reduce:transition-none">⌄</span>
                   </span>
                 </span>
-                <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${response.attending ? "bg-[#e6f2eb] text-[#285d44]" : "bg-[#f2e8e8] text-[#7f2929]"}`}>{response.attending ? t("status.attending") : t("status.declined")}</span>
-                <span data-response-party-size className="text-sm text-[#55485a]">{t("partySize", { count: response.partySize })}</span>
-                <span aria-hidden="true" className="text-xl text-[#6D456F] transition-transform group-open:rotate-45 motion-reduce:transition-none">+</span>
               </summary>
-              <div className="grid gap-4 border-t border-[#e7e0e9] py-5 text-sm sm:grid-cols-2">
+              <div className="grid gap-4 border-t border-[#e7e0e9] px-4 py-5 text-sm sm:grid-cols-2 sm:px-5">
                 <div><p className="font-semibold text-[#2B2231]">{t("contact")}</p><p className="mt-1 break-all text-[#675d6a]">{response.email || "—"}<br />{response.phone || "—"}</p></div>
                 <div><p className="font-semibold text-[#2B2231]">{t("additionalGuests")}</p><p className="mt-1 whitespace-pre-line text-[#675d6a]">{response.additionalGuestNames.join("\n") || "—"}</p></div>
                 <div><p className="font-semibold text-[#2B2231]">{t("notes")}</p><p className="mt-1 whitespace-pre-wrap text-[#675d6a]">{response.dietaryOrAccessibilityNotes || "—"}</p></div>
