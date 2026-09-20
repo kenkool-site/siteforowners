@@ -178,9 +178,9 @@
         "templates": {
           "label": "Comenzar con una plantilla",
           "blank": "Comenzar en blanco",
-          "thankYou": { "label": "Agradecimiento", "subject": "¡Gracias por celebrar con nosotros!", "body": "Muchas gracias por ser parte de nuestro día especial. Significó mucho tenerte ahí." },
-          "reminder": { "label": "Recordatorio", "subject": "Un recordatorio sobre nuestro gran día", "body": "Solo un recordatorio amistoso sobre nuestro próximo evento. ¡No podemos esperar a verte!" },
-          "update": { "label": "Actualización", "subject": "Una actualización sobre nuestro evento", "body": "Queríamos contarte sobre una pequeña actualización. Revisa la página de la invitación para los últimos detalles." }
+          "thankYou": { "label": "Agradecimiento", "subject": "¡Gracias por celebrar con nosotros!", "body": "{name}: Muchas gracias por ser parte de nuestro día especial. Significó mucho tenerte ahí." },
+          "reminder": { "label": "Recordatorio", "subject": "Un recordatorio sobre nuestro gran día", "body": "{name}: Solo un recordatorio amistoso sobre nuestro próximo evento. ¡No podemos esperar a verte!" },
+          "update": { "label": "Actualización", "subject": "Una actualización sobre nuestro evento", "body": "{name}: Queríamos contarte sobre una pequeña actualización. Revisa la página de la invitación para los últimos detalles." }
         },
         "fields": {
           "subject": "Asunto",
