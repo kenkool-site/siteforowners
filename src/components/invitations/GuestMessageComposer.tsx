@@ -7,6 +7,14 @@ import type { InvitationBroadcast, InvitationNotificationChannel } from "@/lib/i
 
 type TemplateKey = "thankYou" | "reminder" | "update";
 
+// Rough, GSM-7-based estimate (ignores Unicode/UCS-2 detection): 160 chars
+// for a single segment, 153 per segment once concatenated. Good enough for
+// a cost-awareness hint, not billing-accurate.
+function estimateSmsSegments(text: string): number {
+  if (text.length === 0) return 0;
+  return text.length <= 160 ? 1 : Math.ceil(text.length / 153);
+}
+
 type ComposerResult = {
   sentCount: number;
   failedCount: number;
@@ -39,6 +47,7 @@ export function GuestMessageComposer({
 
   const recipientCount = channel === "email" ? initialRecipientCounts.email : initialRecipientCounts.sms;
   const missingCount = initialTotalResponses - recipientCount;
+  const smsSegments = channel === "sms" ? estimateSmsSegments(body) : 0;
 
   const templates = useMemo(() => ({
     thankYou: { subject: t("templates.thankYou.subject"), body: t("templates.thankYou.body") },
@@ -123,7 +132,12 @@ export function GuestMessageComposer({
             {t("fields.body")}
             <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={6} maxLength={5000} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
           </label>
-          {channel === "sms" && <p className="mt-1 text-xs text-[#807484]">{t("smsCharacterCount", { count: body.length })}</p>}
+          {channel === "sms" && (
+            <p className="mt-1 text-xs text-[#807484]">
+              {t("smsCharacterCount", { count: body.length })}
+              {smsSegments > 1 && <span className="text-[#9a6b2f]"> · {t("smsSegmentWarning", { count: smsSegments })}</span>}
+            </p>
+          )}
 
           <p className="mt-5 text-sm text-[#675d6a]">{t("recipientPreview", { reached: recipientCount, total: initialTotalResponses })}</p>
           {missingCount > 0 && <p className="mt-1 text-xs text-[#807484]">{t("recipientPreviewGap", { missing: missingCount, channel })}</p>}
