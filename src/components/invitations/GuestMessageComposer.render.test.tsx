@@ -14,6 +14,7 @@ function render(): string {
       <GuestMessageComposer
         eventId="event-1"
         eventName="Mercy & John"
+        eventTitle="You're Invited"
         backHref="/invitations/manage/event-1"
         initialRecipientCounts={{ email: 8, sms: 5 }}
         initialTotalResponses={10}
