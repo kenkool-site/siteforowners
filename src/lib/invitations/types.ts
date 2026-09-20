@@ -14,7 +14,8 @@ export type InvitationNotificationChannel = "email" | "sms";
 export type InvitationNotificationKind =
   | "rsvp_created"
   | "rsvp_updated"
-  | "guest_confirmation";
+  | "guest_confirmation"
+  | "celebrant_broadcast";
 export type InvitationNotificationStatus =
   | "pending"
   | "sent"
@@ -122,6 +123,21 @@ export interface InvitationNotification {
   failureReason: string | null;
   createdAt: string;
   updatedAt: string;
+  broadcastId: string | null;
+}
+
+export interface InvitationBroadcast {
+  id: string;
+  eventId: string;
+  channel: InvitationNotificationChannel;
+  subject: string | null;
+  body: string;
+  sentBy: "owner" | "founder";
+  recipientCount: number;
+  sentCount: number;
+  failedCount: number;
+  suppressedCount: number;
+  createdAt: string;
 }
 
 export interface RsvpInput {
