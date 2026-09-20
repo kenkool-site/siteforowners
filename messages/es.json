@@ -187,6 +187,7 @@
           "body": "Mensaje"
         },
         "smsCharacterCount": "{count} caracteres",
+        "smsSegmentWarning": "{count, plural, one {Esto se enviará como # segmento de mensaje por destinatario.} other {Esto se enviará como # segmentos de mensaje por destinatario — los mensajes más largos cuestan más.}}",
         "recipientPreview": "Esto llegará a {reached} de {total, plural, one {# invitado} other {# invitados}}.",
         "recipientPreviewGap": "{missing, plural, one {# invitado no tiene} other {# invitados no tienen}} {channel, select, email {un correo electrónico} other {un número de teléfono}} registrado y no lo recibirá{missing, plural, one {} other {n}}.",
         "confirm": "¿Enviar a {count, plural, one {# invitado} other {# invitados}} por {channel}?",

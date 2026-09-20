@@ -115,3 +115,32 @@ test("selecting a template fills in subject and body, and sending posts the comp
     assert.match(container.textContent ?? "", /Sent to 8/);
   });
 });
+
+test("a long SMS body shows a segment-count warning; a short one and email don't", async () => {
+  await withComposer(async () => ({ ok: true, json: async () => ({}) }) as Response, async (container) => {
+    const smsRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
+      .find((input) => input.parentElement?.textContent?.includes("Text message"))!;
+    assert.ok(smsRadio, "expected an SMS channel radio");
+    await act(async () => { smsRadio.click(); });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    const setValue = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(textarea), "value")!.set!;
+
+    await act(async () => {
+      setValue.call(textarea, "short body");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    assert.doesNotMatch(container.textContent ?? "", /segment/i, "a short SMS body should not show a segment warning");
+
+    await act(async () => {
+      setValue.call(textarea, "x".repeat(200));
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    assert.match(container.textContent ?? "", /2 message segments/i, "a 200-character body (>160) should warn it spans 2 segments");
+
+    const emailRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
+      .find((input) => input.parentElement?.textContent?.includes("Email"))!;
+    await act(async () => { emailRadio.click(); });
+    assert.doesNotMatch(container.textContent ?? "", /segment/i, "email channel should never show an SMS segment warning");
+  });
+});

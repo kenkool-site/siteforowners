@@ -187,6 +187,7 @@
           "body": "Message"
         },
         "smsCharacterCount": "{count} characters",
+        "smsSegmentWarning": "{count, plural, one {This will send as # message segment per recipient.} other {This will send as # message segments per recipient — longer messages cost more.}}",
         "recipientPreview": "This will reach {reached} of {total, plural, one {# guest} other {# guests}}.",
         "recipientPreviewGap": "{missing, plural, one {# guest doesn't} other {# guests don't}} have {channel, select, email {an email address} other {a phone number}} on file and won't receive this.",
         "confirm": "Send to {count, plural, one {# guest} other {# guests}} via {channel}?",
