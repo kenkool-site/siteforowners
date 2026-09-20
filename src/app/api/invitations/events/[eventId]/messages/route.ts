@@ -9,12 +9,8 @@ import {
 } from "@/lib/invitations/broadcasts";
 import { getInvitationEventForManagement, listInvitationResponseRows } from "@/lib/invitations/repository";
 
-async function access(request: NextRequest, eventId: string) {
-  return requireInvitationAccess(request, eventId);
-}
-
 export async function GET(request: NextRequest, { params }: { params: { eventId: string } }) {
-  const actor = await access(request, params.eventId);
+  const actor = await requireInvitationAccess(request, params.eventId);
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const [broadcasts, rows] = await Promise.all([
@@ -40,7 +36,7 @@ const TWILIO_FROM = process.env.TWILIO_FROM || "";
 
 export async function POST(request: NextRequest, { params }: { params: { eventId: string } }) {
   if (!isSameOrigin(request)) return NextResponse.json({ error: "Cross-origin request blocked" }, { status: 403 });
-  const actor = await access(request, params.eventId);
+  const actor = await requireInvitationAccess(request, params.eventId);
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   let body: unknown;

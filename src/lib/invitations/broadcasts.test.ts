@@ -202,6 +202,110 @@ test("a reservation that throws for one recipient does not abort siblings in the
   assert.ok(!sentIds.includes("n-r9"));
 });
 
+test("a markFailed throw on the failure path does not abort the batch or the whole dispatch", async () => {
+  // 20 recipients spans three batches of 8 (r0..r7, r8..r15, r16..r19).
+  // r9's provider send fails (a realistic case: provider rejects one
+  // recipient), and this fake markFailed additionally throws for that one
+  // notification id — simulating the same class of Supabase/RPC error that
+  // reserve() can throw, but one level deeper in sendToRecipient. Before
+  // the fix, the else-branch's markFailed throw fell into the outer catch,
+  // which called markFailed a second time; that second call is not wrapped
+  // in anything and its throw escaped sendToRecipient entirely, rejecting
+  // Promise.all for r9's whole batch and aborting the dispatch loop before
+  // the third batch (r16..r19) was ever attempted.
+  const recipients = Array.from({ length: 20 }, (_, i) => ({
+    rsvpId: `r${i}`,
+    primaryName: `Guest ${i}`,
+    contact: `guest${i}@example.test`,
+  }));
+  const reserveAttempts: string[] = [];
+  const markFailedAttempts: string[] = [];
+  const sentIds: string[] = [];
+
+  const result = await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1", broadcastId: "broadcast-1", channel: "email",
+      subject: "Hi", body: "Hi all", from: "hello@example.test",
+      recipients,
+    },
+    {
+      reserve: async (_channel, input) => {
+        reserveAttempts.push(input.rsvpId);
+        return { id: `n-${input.rsvpId}`, allowed: true };
+      },
+      savePayload: async () => undefined,
+      markSent: async (id) => { sentIds.push(id); },
+      markFailed: async (id) => {
+        markFailedAttempts.push(id);
+        if (id === "n-r9") throw new Error("simulated Supabase/RPC failure recording the failure");
+      },
+      email: {
+        send: async (input) => input.to === "guest9@example.test"
+          ? { ok: false, error: "provider rejected this recipient" }
+          : { ok: true, providerId: "e1" },
+      },
+      sms: { send: async () => ({ ok: true, providerId: "sms-1" }) },
+    },
+  );
+
+  // The function must resolve with accurate counts, not reject.
+  assert.deepEqual(result, { sentCount: 19, failedCount: 1, suppressedCount: 0 });
+
+  // Every recipient in every batch — including the rest of r9's own batch
+  // and the entire third batch (r16..r19) — got a reservation attempt.
+  assert.equal(reserveAttempts.length, 20);
+  assert.deepEqual(new Set(reserveAttempts), new Set(recipients.map((r) => r.rsvpId)));
+
+  // markFailed was attempted for r9 (and only r9) despite throwing.
+  assert.deepEqual(markFailedAttempts, ["n-r9"]);
+
+  // Every recipient except r9 was actually sent, and that outcome is
+  // reflected in the function's returned result.
+  assert.equal(sentIds.length, 19);
+  assert.ok(!sentIds.includes("n-r9"));
+});
+
+test("a markSent throw for a successful send is counted as failed exactly once, never also as sent", async () => {
+  // Before the fix, sentCount was incremented BEFORE awaiting markSent, so
+  // a markSent throw fell into the catch block and incremented failedCount
+  // too — double-counting this recipient (sentCount + failedCount would
+  // exceed the recipient total) and mislabeling a message that was
+  // actually delivered as "failed" in the database.
+  const recipients = Array.from({ length: 5 }, (_, i) => ({
+    rsvpId: `r${i}`,
+    primaryName: `Guest ${i}`,
+    contact: `guest${i}@example.test`,
+  }));
+  const markSentAttempts: string[] = [];
+  const markFailedAttempts: string[] = [];
+
+  const result = await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1", broadcastId: "broadcast-1", channel: "email",
+      subject: "Hi", body: "Hi all", from: "hello@example.test",
+      recipients,
+    },
+    {
+      reserve: async (_channel, input) => ({ id: `n-${input.rsvpId}`, allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async (id) => {
+        markSentAttempts.push(id);
+        if (id === "n-r2") throw new Error("simulated DB write failure recording sent status");
+      },
+      markFailed: async (id) => { markFailedAttempts.push(id); },
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: { send: async () => ({ ok: true, providerId: "sms-1" }) },
+    },
+  );
+
+  // r2's provider send succeeded but the DB write recording that failed —
+  // this must count as exactly one outcome (failed), never both sentCount
+  // and failedCount for the same recipient.
+  assert.deepEqual(result, { sentCount: 4, failedCount: 1, suppressedCount: 0 });
+  assert.equal(result.sentCount + result.failedCount + result.suppressedCount, recipients.length);
+  assert.deepEqual(markFailedAttempts, ["n-r2"]);
+});
+
 test("createInvitationBroadcast rejects an empty body before touching the database", async () => {
   await assert.rejects(
     () => createInvitationBroadcast({ eventId: "event-1", channel: "email", subject: "Hi", body: "", sentBy: "owner" }),

@@ -187,13 +187,14 @@
           "body": "Mensaje"
         },
         "smsCharacterCount": "{count} caracteres",
-        "recipientPreview": "Esto llegará a {reached} de {total} invitados.",
-        "recipientPreviewGap": "{missing} invitados no tienen {channel} registrado y no lo recibirán.",
-        "confirm": "¿Enviar a {count} invitados por {channel}?",
+        "recipientPreview": "Esto llegará a {reached} de {total, plural, one {# invitado} other {# invitados}}.",
+        "recipientPreviewGap": "{missing, plural, one {# invitado no tiene} other {# invitados no tienen}} {channel, select, email {un correo electrónico} other {un número de teléfono}} registrado y no lo recibirá{missing, plural, one {} other {n}}.",
+        "confirm": "¿Enviar a {count, plural, one {# invitado} other {# invitados}} por {channel}?",
         "send": "Enviar mensaje",
         "sending": "Enviando…",
         "resultSummary": "Enviado a {sent}, fallido para {failed}, omitido {suppressed} por el límite de mensajes.",
         "error": "No se pudo enviar el mensaje. Inténtalo de nuevo.",
+        "bodyTooLong": "Tu mensaje es demasiado largo. Redúcelo a 5000 caracteres o menos e inténtalo de nuevo.",
         "history": {
           "title": "Mensajes recientes",
           "empty": "Aún no se han enviado mensajes.",

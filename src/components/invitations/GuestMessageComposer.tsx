@@ -65,7 +65,8 @@ export function GuestMessageComposer({
       });
       const data: unknown = await response.json();
       if (!response.ok || !data || typeof data !== "object" || !("ok" in data) || !(data as { ok: boolean }).ok) {
-        setMessage(t("error"));
+        const code = data && typeof data === "object" && "code" in data ? (data as { code?: unknown }).code : undefined;
+        setMessage(code === "body_too_long" ? t("bodyTooLong") : t("error"));
         return;
       }
       const payload = data as ComposerResult & { ok: true; broadcast: InvitationBroadcast };
@@ -120,12 +121,12 @@ export function GuestMessageComposer({
 
           <label className="mt-5 block text-sm font-semibold">
             {t("fields.body")}
-            <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={6} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
+            <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={6} maxLength={5000} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
           </label>
           {channel === "sms" && <p className="mt-1 text-xs text-[#807484]">{t("smsCharacterCount", { count: body.length })}</p>}
 
           <p className="mt-5 text-sm text-[#675d6a]">{t("recipientPreview", { reached: recipientCount, total: initialTotalResponses })}</p>
-          {missingCount > 0 && <p className="mt-1 text-xs text-[#807484]">{t("recipientPreviewGap", { missing: missingCount, channel: t(`channel.${channel}`) })}</p>}
+          {missingCount > 0 && <p className="mt-1 text-xs text-[#807484]">{t("recipientPreviewGap", { missing: missingCount, channel })}</p>}
 
           {message && <p role="alert" className="mt-4 text-sm text-[#8a2d2d]">{message}</p>}
           {result && <p role="status" aria-live="polite" className="mt-4 text-sm text-[#285d44]">{t("resultSummary", { sent: result.sentCount, failed: result.failedCount, suppressed: result.suppressedCount })}</p>}

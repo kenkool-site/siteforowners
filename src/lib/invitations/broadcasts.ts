@@ -1,5 +1,6 @@
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isInvitationE2EFixturesEnabled } from "./e2e-guard";
 import type { InvitationResponseRow } from "./responses";
 import {
   markInvitationNotificationFailed,
@@ -97,6 +98,22 @@ export async function dispatchBroadcastNotifications(
   let failedCount = 0;
   let suppressedCount = 0;
 
+  // Swallows any throw from markFailed. Without this, a markFailed call
+  // that itself throws (e.g. the same kind of Supabase/RPC error reserve()
+  // can throw) would escape whichever try/catch invoked it uncaught — see
+  // the longer note in sendToRecipient below for why an uncaught throw
+  // anywhere in that function takes down its whole Promise.all batch, not
+  // just this one recipient. There is nothing further to do if the DB
+  // write recording "failed" itself fails: the recipient is already
+  // counted as failed by the caller regardless.
+  async function safeMarkFailed(notificationId: string, reason: string): Promise<void> {
+    try {
+      await dependencies.markFailed(notificationId, reason);
+    } catch {
+      // Intentionally swallowed — see comment above.
+    }
+  }
+
   async function sendToRecipient(recipient: BroadcastRecipient): Promise<void> {
     let reservation: ReserveNotificationResult;
     try {
@@ -148,19 +165,37 @@ export async function dispatchBroadcastNotifications(
           },
         };
 
+    // From here on, every exit must resolve to exactly one outcome (sent or
+    // failed) and must never throw back into Promise.all — the same
+    // batch-isolation reasoning as the reserve() catch above, one level
+    // deeper: this function runs inside Promise.all for a whole batch, so
+    // an uncaught throw anywhere past this point would reject every
+    // sibling in the batch (their sends may already be in flight and would
+    // complete with their outcomes silently lost) and abort every later
+    // batch entirely. This single try/catch is a safety net around the
+    // specific success/failure-result handling below, not a replacement
+    // for it — it exists for when savePayload, sendPayload, or either mark
+    // call throws instead of resolving normally.
     try {
       await dependencies.savePayload(reservation.id, payload);
       const result = await sendPayload(payload, dependencies);
       if (result.ok) {
-        sentCount += 1;
+        // Only counted as sent once markSent has actually persisted that
+        // status. Incrementing sentCount first (before this await) meant a
+        // markSent throw fell through to the catch below and ALSO
+        // incremented failedCount — double-counting this recipient and
+        // mislabeling a delivered message as failed in the database, which
+        // could then surface in the founder's retry UI and risk a
+        // duplicate send to a guest who already received it.
         await dependencies.markSent(reservation.id, result.providerId);
+        sentCount += 1;
       } else {
         failedCount += 1;
-        await dependencies.markFailed(reservation.id, sanitizeFailureReason(result.error));
+        await safeMarkFailed(reservation.id, sanitizeFailureReason(result.error));
       }
     } catch (error) {
       failedCount += 1;
-      await dependencies.markFailed(reservation.id, sanitizeFailureReason(error));
+      await safeMarkFailed(reservation.id, sanitizeFailureReason(error));
     }
   }
 
@@ -197,6 +232,16 @@ export async function createInvitationBroadcast(
   input: CreateInvitationBroadcastInput,
 ): Promise<InvitationBroadcast> {
   if (!input.body.trim()) throw new Error("Broadcast body is required");
+  if (isInvitationE2EFixturesEnabled()) {
+    const { fixtureCreateBroadcast } = await import("./e2e-fixtures");
+    return fixtureCreateBroadcast({
+      eventId: input.eventId,
+      channel: input.channel,
+      subject: input.subject,
+      body: input.body,
+      sentBy: input.sentBy,
+    });
+  }
   const { data, error } = await createAdminClient()
     .from("invitation_broadcasts")
     .insert({
@@ -217,6 +262,10 @@ async function updateInvitationBroadcastCounts(
   broadcastId: string,
   counts: { recipientCount: number; sentCount: number; failedCount: number; suppressedCount: number },
 ): Promise<void> {
+  if (isInvitationE2EFixturesEnabled()) {
+    const { fixtureUpdateBroadcastCounts } = await import("./e2e-fixtures");
+    return fixtureUpdateBroadcastCounts(broadcastId, counts);
+  }
   const { error } = await createAdminClient()
     .from("invitation_broadcasts")
     .update({
@@ -230,6 +279,10 @@ async function updateInvitationBroadcastCounts(
 }
 
 export async function listInvitationBroadcasts(eventId: string): Promise<InvitationBroadcast[]> {
+  if (isInvitationE2EFixturesEnabled()) {
+    const { fixtureListBroadcasts } = await import("./e2e-fixtures");
+    return fixtureListBroadcasts(eventId);
+  }
   const { data, error } = await createAdminClient()
     .from("invitation_broadcasts")
     .select("*")
@@ -259,6 +312,10 @@ export type SendInvitationBroadcastResult = {
 // this file for why this file never imports from repository.ts. Same
 // select shape as repository.ts's listResponseRows.
 async function listInvitationRsvpsForBroadcast(eventId: string): Promise<InvitationResponseRow[]> {
+  if (isInvitationE2EFixturesEnabled()) {
+    const { invitationE2ERepository } = await import("./e2e-fixtures");
+    return invitationE2ERepository.listResponseRows(eventId);
+  }
   const { data, error } = await createAdminClient()
     .from("invitation_rsvps")
     .select("id,event_id,primary_name,email,phone,attending,party_size,additional_guest_names,dietary_or_accessibility_notes,message,created_at,updated_at")
