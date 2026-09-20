@@ -50,10 +50,10 @@ export function GuestMessageComposer({
   const smsSegments = channel === "sms" ? estimateSmsSegments(body) : 0;
 
   const templates = useMemo(() => ({
-    thankYou: { subject: t("templates.thankYou.subject"), body: t("templates.thankYou.body") },
-    reminder: { subject: t("templates.reminder.subject"), body: t("templates.reminder.body") },
-    update: { subject: t("templates.update.subject"), body: t("templates.update.body") },
-  }), [t]);
+    thankYou: { subject: t("templates.thankYou.subject"), body: t("templates.thankYou.body", { name: eventName }) },
+    reminder: { subject: t("templates.reminder.subject"), body: t("templates.reminder.body", { name: eventName }) },
+    update: { subject: t("templates.update.subject"), body: t("templates.update.body", { name: eventName }) },
+  }), [t, eventName]);
 
   function applyTemplate(key: TemplateKey | "blank") {
     if (key === "blank") { setSubject(""); setBody(""); return; }

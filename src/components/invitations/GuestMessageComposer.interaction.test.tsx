@@ -116,6 +116,17 @@ test("selecting a template fills in subject and body, and sending posts the comp
   });
 });
 
+test("selecting a template inserts the actual event name into the body, not generic placeholder text", async () => {
+  await withComposer(async () => ({ ok: true, json: async () => ({}) }) as Response, async (container) => {
+    const reminderButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Reminder")!;
+    assert.ok(reminderButton, "expected a Reminder template button");
+    await act(async () => { reminderButton.click(); });
+
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    assert.match(textarea.value, /Mercy & John/, "expected the Reminder template body to reference the actual event name (the composer's eventName prop is 'Mercy & John')");
+  });
+});
+
 test("a long SMS body shows a segment-count warning; a short one and email don't", async () => {
   await withComposer(async () => ({ ok: true, json: async () => ({}) }) as Response, async (container) => {
     const smsRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
