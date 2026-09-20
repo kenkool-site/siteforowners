@@ -438,7 +438,7 @@ git commit -m "feat: extend notification primitives for celebrant broadcasts"
 - Test: `src/lib/invitations/broadcasts.test.ts`
 
 **Interfaces:**
-- Consumes: `InvitationBroadcast`, `InvitationNotificationChannel` (`types.ts`); `InvitationResponseRow`, `listInvitationResponseRows(eventId)` (`responses.ts`/`repository.ts`); `sendPayload`, `sanitizeFailureReason`, `saveInvitationNotificationPayload`, `reserveInvitationNotification`, `markInvitationNotificationSent`, `markInvitationNotificationFailed`, `resendEmailSender`, `twilioSmsSender`, `NotificationDispatchDependencies`, `NotificationPayload` (`notifications.ts`, all already exported or exported by Task 1); `escapeHtml` (`@/lib/marketing-lead`); `createAdminClient` (`@/lib/supabase/admin`).
+- Consumes: `InvitationBroadcast`, `InvitationNotificationChannel` (`types.ts`); `InvitationResponseRow` (type only, from `responses.ts` — this task does NOT import `repository.ts`'s `listInvitationResponseRows`, see the note in Step 3 for why); `sendPayload`, `sanitizeFailureReason`, `saveInvitationNotificationPayload`, `reserveInvitationNotification`, `markInvitationNotificationSent`, `markInvitationNotificationFailed`, `resendEmailSender`, `twilioSmsSender`, `NotificationDispatchDependencies`, `NotificationPayload` (`notifications.ts`, all already exported or exported by Task 1); `escapeHtml` (`@/lib/marketing-lead`); `createAdminClient` (`@/lib/supabase/admin`).
 - Produces: `eligibleBroadcastRecipients`, `parseComposeBroadcastInput`, `dispatchBroadcastNotifications` (pure), `createInvitationBroadcast`, `dispatchInvitationBroadcast` (wired), `listInvitationBroadcasts` — exact signatures below, used by Task 3's route.
 
 - [ ] **Step 1: Write the failing tests for recipient computation and input parsing**
@@ -521,10 +521,12 @@ Expected: FAIL — `Cannot find module './broadcasts'`.
 
 Create `src/lib/invitations/broadcasts.ts`:
 
+**Important:** do not import anything from `./repository` in this file. `repository.ts` starts with `import "server-only"`, which throws immediately when the module is loaded outside Next's runtime — importing it (even transitively) breaks `npx tsx --test` for this file entirely, which is why `notifications.ts` never imports from `repository.ts` either, instead running its own small inline Supabase queries (see `getInvitationNotificationEventContext` in `notifications.ts` for the exact precedent). Follow that same pattern here: write a local, self-contained RSVP-listing query in this file rather than reusing `repository.ts`'s `listInvitationResponseRows`. `InvitationResponseRow` (the row shape) is still imported from `./responses` — that file has no `server-only` guard and no Supabase dependency, it's pure types/helpers.
+
 ```ts
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { listInvitationResponseRows, type InvitationResponseRow } from "./responses";
+import type { InvitationResponseRow } from "./responses";
 import {
   markInvitationNotificationFailed,
   markInvitationNotificationSent,
@@ -902,6 +904,19 @@ export type SendInvitationBroadcastResult = {
   suppressedCount: number;
 };
 
+// A local, self-contained query rather than repository.ts's
+// listInvitationResponseRows — see the note above the imports at the top of
+// this file for why this file never imports from repository.ts. Same
+// select shape as repository.ts's listResponseRows.
+async function listInvitationRsvpsForBroadcast(eventId: string): Promise<InvitationResponseRow[]> {
+  const { data, error } = await createAdminClient()
+    .from("invitation_rsvps")
+    .select("id,event_id,primary_name,email,phone,attending,party_size,additional_guest_names,dietary_or_accessibility_notes,message,created_at,updated_at")
+    .eq("event_id", eventId);
+  if (error) throw new Error("Unable to load invitation responses for broadcast", { cause: error });
+  return (data ?? []) as InvitationResponseRow[];
+}
+
 /**
  * Real wiring: creates the broadcast row, computes recipients from live RSVP
  * data, dispatches through the real reservation/provider primitives, and
@@ -912,7 +927,7 @@ export async function dispatchInvitationBroadcast(
   input: SendInvitationBroadcastInput,
 ): Promise<SendInvitationBroadcastResult> {
   const broadcast = await createInvitationBroadcast(input);
-  const rows = await listInvitationResponseRows(input.eventId);
+  const rows = await listInvitationRsvpsForBroadcast(input.eventId);
   const recipients = eligibleBroadcastRecipients(rows, input.channel);
 
   const result = await dispatchBroadcastNotifications(
