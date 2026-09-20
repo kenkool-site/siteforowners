@@ -73,10 +73,12 @@ export function FounderEventForm() {
           publicSubdomain: form.get("publicSubdomain"),
         }),
       });
-      const result = (await response.json()) as CreatedInvitation & { error?: string; errors?: { publicSubdomain?: string } };
+      const result = (await response.json()) as CreatedInvitation & { error?: string; errors?: { publicSubdomain?: string; ownerEmail?: string } };
       if (!response.ok) {
         throw new Error(result.errors?.publicSubdomain === "already_in_use"
           ? "That public subdomain is already in use. Try another."
+          : result.errors?.ownerEmail === "already_in_use"
+          ? "An invitation owner already exists with that email. Use a different email for this event's owner."
           : result.error || "Unable to create invitation");
       }
       setCreated(result);

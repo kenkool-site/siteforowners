@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
 import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { createInvitationOwnerAndEvent } from "@/lib/invitations/repository";
+import { isDuplicateOwnerEmailError } from "@/lib/invitations/repository-core";
 import { normalizeInvitationEmail, normalizeInvitationPhone } from "@/lib/invitations/validation";
 import type { InvitationLocale } from "@/lib/invitations/types";
 import { validatePlatformSubdomain } from "@/lib/subdomain";
@@ -103,6 +104,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (isPlatformSubdomainTakenError(error)) {
       return NextResponse.json({ errors: { publicSubdomain: "already_in_use" } }, { status: 409 });
+    }
+    if (isDuplicateOwnerEmailError(error)) {
+      return NextResponse.json({ errors: { ownerEmail: "already_in_use" } }, { status: 409 });
     }
     console.error("[invitations/admin/events] provisioning failed", { error });
     return NextResponse.json({ error: "Unable to create invitation" }, { status: 500 });
