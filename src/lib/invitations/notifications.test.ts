@@ -552,6 +552,36 @@ for (const scenario of ["email", "sms", "missing", "corrupt", "throws", "provide
   });
 }
 
+test("processInvitationNotificationRetry succeeds for a celebrant_broadcast kind", async () => {
+  const calls: string[] = [];
+  const result = await processInvitationNotificationRetry(
+    { notificationId: "notif-1", origin: "https://example.test" },
+    {
+      reserveRetry: async () => ({
+        allowed: true,
+        eventId: "event-1", eventTitle: "Mercy & John", eventSlug: "mercy-and-john", eventLocale: "en",
+        rsvpId: "rsvp-1", audience: "guest", channel: "email",
+        recipient: "guest@example.test", kind: "celebrant_broadcast",
+      }),
+      loadPayload: async () => ({
+        channel: "email",
+        input: { from: "hello@example.test", to: "guest@example.test", subject: "Thank you!", html: "<p>Thanks!</p>", idempotencyKey: "notif-1" },
+      }),
+      markSent: async () => { calls.push("sent"); },
+      markFailed: async () => { calls.push("failed"); },
+      email: { send: async () => ({ ok: true, providerId: "resend-1" }) },
+      sms: { send: async () => ({ ok: true, providerId: "sms-1" }) },
+    },
+  );
+  assert.deepEqual(result, { ok: true, status: "sent" });
+  assert.deepEqual(calls, ["sent"]);
+});
+
+test("reserveInvitationNotificationRetry's kind guard accepts celebrant_broadcast, not just the three RSVP kinds", async () => {
+  const { reserveInvitationNotificationRetry } = await import("./notifications");
+  assert.match(reserveInvitationNotificationRetry.toString(), /celebrant_broadcast/);
+});
+
 // ---------------------------------------------------------------------------
 // ---------------------------------------------------------------------------
 // messages/en.json and messages/es.json must define exactly the same set of

@@ -143,6 +143,11 @@
         "copy": "Copy guest link",
         "copied": "Guest link copied",
         "guestbook": { "title": "Guestbook", "new": "{count} new", "enabled": "Public · {count} comments", "disabled": "Hidden · {count} saved comments", "open": "Manage guestbook" },
+        "message": {
+          "title": "Guest messages",
+          "description": "Send an update, reminder, or thank-you to everyone who RSVP'd.",
+          "open": "Message guests"
+        },
         "status": {
           "draft": "Draft",
           "published": "Published",
@@ -160,6 +165,41 @@
         "commentsLabel": "Guestbook comments", "empty": "No comments yet.", "visible": "Visible", "hidden": "Hidden",
         "hide": "Hide", "restore": "Restore", "delete": "Delete permanently",
         "deleteConfirm": "Permanently delete the comment from {name}?", "error": "The guestbook could not be updated. Try again."
+      },
+      "messageComposer": {
+        "back": "Back to guest responses",
+        "title": "Message guests",
+        "subtitle": "Reach everyone who RSVP'd for {name}.",
+        "channel": {
+          "label": "Send by",
+          "email": "Email",
+          "sms": "Text message"
+        },
+        "templates": {
+          "label": "Start from a template",
+          "blank": "Start blank",
+          "thankYou": { "label": "Thank you", "subject": "Thank you for celebrating with us!", "body": "Thank you so much for being part of our special day. It meant the world to have you there." },
+          "reminder": { "label": "Reminder", "subject": "A quick reminder about our big day", "body": "Just a friendly reminder about our upcoming event — we can't wait to see you there!" },
+          "update": { "label": "Update", "subject": "An update about our event", "body": "We wanted to let you know about a small update — please check the invitation page for the latest details." }
+        },
+        "fields": {
+          "subject": "Subject",
+          "body": "Message"
+        },
+        "smsCharacterCount": "{count} characters",
+        "recipientPreview": "This will reach {reached} of {total, plural, one {# guest} other {# guests}}.",
+        "recipientPreviewGap": "{missing, plural, one {# guest doesn't} other {# guests don't}} have {channel, select, email {an email address} other {a phone number}} on file and won't receive this.",
+        "confirm": "Send to {count, plural, one {# guest} other {# guests}} via {channel}?",
+        "send": "Send message",
+        "sending": "Sending…",
+        "resultSummary": "Sent to {sent}, failed for {failed}, skipped {suppressed} due to the messaging limit.",
+        "error": "The message could not be sent. Try again.",
+        "bodyTooLong": "Your message is too long. Shorten it to 5,000 characters or fewer and try again.",
+        "history": {
+          "title": "Recent messages",
+          "empty": "No messages sent yet.",
+          "counts": "{sent} sent · {failed} failed · {suppressed} skipped"
+        }
       }
     },
     "editor": {
@@ -309,7 +349,8 @@
         "draft": "Move to draft",
         "openPreview": "Open guest preview",
         "guestbook": "Manage guestbook",
-        "copyLink": "Copy public link"
+        "copyLink": "Copy public link",
+        "message": "Message guests"
       },
       "dirty": "Unsaved changes",
       "clean": "No unsaved changes",

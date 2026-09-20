@@ -83,7 +83,7 @@ export type SmsSendInput = {
 export type EmailSender = NotificationSender<EmailSendInput>;
 export type SmsSender = NotificationSender<SmsSendInput>;
 
-function sanitizeFailureReason(error: unknown): string {
+export function sanitizeFailureReason(error: unknown): string {
   void error;
   // Provider errors can echo recipients, authored content or capability links.
   return "Notification delivery failed";
@@ -102,7 +102,7 @@ function validPayload(value: unknown): value is NotificationPayload {
       : payload.channel === "sms" && typeof input.body === "string");
 }
 
-async function sendPayload(payload: NotificationPayload, dependencies: { email: EmailSender; sms: SmsSender }): Promise<NotificationSendResult> {
+export async function sendPayload(payload: NotificationPayload, dependencies: { email: EmailSender; sms: SmsSender }): Promise<NotificationSendResult> {
   return payload.channel === "email" ? dependencies.email.send(payload.input) : dependencies.sms.send(payload.input);
 }
 
@@ -258,6 +258,7 @@ export type ReserveNotificationInput = {
   audience: InvitationNotificationAudience;
   recipient: string;
   kind: InvitationNotificationKind;
+  broadcastId?: string;
 };
 
 export type ReserveNotificationResult = { id: string; allowed: boolean };
@@ -472,6 +473,7 @@ export async function reserveInvitationNotification(
     p_channel: channel,
     p_recipient: input.recipient,
     p_kind: input.kind,
+    p_broadcast_id: input.broadcastId ?? null,
   });
   if (error) throw new Error("Unable to reserve invitation notification", { cause: error });
   const row = Array.isArray(data) ? data[0] : data;
@@ -694,7 +696,7 @@ async function getInvitationEventLocale(eventId: string): Promise<InvitationLoca
   }
 }
 
-async function reserveInvitationNotificationRetry(notificationId: string): Promise<RetryReservation> {
+export async function reserveInvitationNotificationRetry(notificationId: string): Promise<RetryReservation> {
   const { data, error } = await createAdminClient().rpc("retry_invitation_notification", {
     p_notification_id: notificationId,
   });
@@ -713,7 +715,7 @@ async function reserveInvitationNotificationRetry(notificationId: string): Promi
     || typeof row.recipient !== "string"
     || (row.audience !== "owner" && row.audience !== "guest")
     || (row.channel !== "email" && row.channel !== "sms")
-    || (row.kind !== "rsvp_created" && row.kind !== "rsvp_updated" && row.kind !== "guest_confirmation")
+    || (row.kind !== "rsvp_created" && row.kind !== "rsvp_updated" && row.kind !== "guest_confirmation" && row.kind !== "celebrant_broadcast")
   ) {
     throw new Error("Invalid invitation notification retry response");
   }
@@ -732,7 +734,7 @@ async function reserveInvitationNotificationRetry(notificationId: string): Promi
   };
 }
 
-async function saveInvitationNotificationPayload(id: string, payload: NotificationPayload): Promise<void> {
+export async function saveInvitationNotificationPayload(id: string, payload: NotificationPayload): Promise<void> {
   const sealed = sealNotificationPayload(JSON.stringify(payload), id);
   const { data, error } = await createAdminClient().from("invitation_notifications")
     .update({ provider_payload_encrypted: sealed }).eq("id", id).eq("status", "pending")

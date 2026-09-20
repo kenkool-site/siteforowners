@@ -18,7 +18,7 @@ import type {
   InvitationResponsesEventRow,
 } from "./responses";
 import { submitRsvp, type SubmitRsvpRequest, type SubmitRsvpResult } from "./rsvp";
-import type { InvitationNotificationChannel, InvitationNotificationStatus } from "./types";
+import type { InvitationBroadcast, InvitationNotificationChannel, InvitationNotificationStatus } from "./types";
 import {
   buildInvitationGuestbookSummary,
   decodeCommentCursor,
@@ -51,11 +51,19 @@ type FixtureComment = InvitationCommentRow & { ipHash: string; contentHash: stri
 
 type FixtureProviderCall = { channel: InvitationNotificationChannel; eventId: string };
 
+// Broadcasts (src/lib/invitations/broadcasts.ts) are already stored and
+// consumed exclusively as the app-level InvitationBroadcast shape — unlike
+// FixtureRsvp/FixtureNotification, there's no other codepath that needs a
+// snake_case "row" shape for this table, so the fixture just stores the
+// same shape its only caller uses.
+type FixtureBroadcast = InvitationBroadcast;
+
 type FixtureStore = {
   owners: FixtureOwner[];
   events: InvitationManagementRow[];
   rsvps: FixtureRsvp[];
   notifications: FixtureNotification[];
+  broadcasts: FixtureBroadcast[];
   providerCalls: FixtureProviderCall[];
   comments: FixtureComment[];
   nextId: number;
@@ -230,6 +238,7 @@ export async function resetInvitationE2EFixtures(): Promise<InvitationE2EManifes
       { id: uuid(902), eventId: uuid(11), rsvpId: uuid(903), channel: "email", status: "failed" },
     ],
     comments: [],
+    broadcasts: [],
     providerCalls: [],
     nextId: 100,
   };
@@ -458,6 +467,57 @@ export function invitationE2EFixtureSafetySnapshot(): { externalCredentialKeys: 
   return {
     externalCredentialKeys: EXTERNAL_CREDENTIAL_KEYS.filter((key) => Boolean(process.env[key])),
   };
+}
+
+// Fixture equivalents of broadcasts.ts's createInvitationBroadcast /
+// updateInvitationBroadcastCounts / listInvitationBroadcasts, which
+// otherwise call createAdminClient() directly and unconditionally —
+// createClient("", "") throws "supabaseUrl is required" the moment any of
+// them are invoked under this project's E2E fixture environment (see
+// playwright.config.ts, which runs the dev server with empty Supabase
+// credentials). These three mirror the same requireStore()-backed,
+// in-memory-array convention used above for rsvps/comments/notifications.
+export async function fixtureCreateBroadcast(input: {
+  eventId: string;
+  channel: InvitationNotificationChannel;
+  subject: string | null;
+  body: string;
+  sentBy: "owner" | "founder";
+}): Promise<InvitationBroadcast> {
+  const store = requireStore();
+  const broadcast: FixtureBroadcast = {
+    id: uuid(store.nextId++),
+    eventId: input.eventId,
+    channel: input.channel,
+    subject: input.subject,
+    body: input.body,
+    sentBy: input.sentBy,
+    recipientCount: 0,
+    sentCount: 0,
+    failedCount: 0,
+    suppressedCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+  store.broadcasts.unshift(broadcast);
+  return broadcast;
+}
+
+export async function fixtureUpdateBroadcastCounts(
+  broadcastId: string,
+  counts: { recipientCount: number; sentCount: number; failedCount: number; suppressedCount: number },
+): Promise<void> {
+  const broadcast = requireStore().broadcasts.find((candidate) => candidate.id === broadcastId);
+  if (!broadcast) throw new Error("Fixture broadcast not found");
+  broadcast.recipientCount = counts.recipientCount;
+  broadcast.sentCount = counts.sentCount;
+  broadcast.failedCount = counts.failedCount;
+  broadcast.suppressedCount = counts.suppressedCount;
+}
+
+export async function fixtureListBroadcasts(eventId: string): Promise<InvitationBroadcast[]> {
+  return requireStore().broadcasts
+    .filter((broadcast) => broadcast.eventId === eventId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export async function retryFixtureInvitationNotification(notificationId: string): Promise<{ ok: boolean; status?: string }> {

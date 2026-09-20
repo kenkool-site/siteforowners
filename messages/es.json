@@ -143,6 +143,11 @@
         "copy": "Copiar enlace para invitados",
         "copied": "Enlace copiado",
         "guestbook": { "title": "Libro de invitados", "new": "{count} nuevos", "enabled": "Público · {count} comentarios", "disabled": "Oculto · {count} comentarios guardados", "open": "Administrar libro" },
+        "message": {
+          "title": "Mensajes a los invitados",
+          "description": "Envía una actualización, un recordatorio o un agradecimiento a quienes confirmaron asistencia.",
+          "open": "Enviar mensaje"
+        },
         "status": {
           "draft": "Borrador",
           "published": "Publicada",
@@ -160,6 +165,41 @@
         "commentsLabel": "Comentarios del libro de invitados", "empty": "Aún no hay comentarios.", "visible": "Visible", "hidden": "Oculto",
         "hide": "Ocultar", "restore": "Restaurar", "delete": "Eliminar permanentemente",
         "deleteConfirm": "¿Eliminar permanentemente el comentario de {name}?", "error": "No se pudo actualizar el libro de invitados. Inténtelo de nuevo."
+      },
+      "messageComposer": {
+        "back": "Volver a las respuestas",
+        "title": "Enviar mensaje a los invitados",
+        "subtitle": "Comunícate con todos los que confirmaron para {name}.",
+        "channel": {
+          "label": "Enviar por",
+          "email": "Correo electrónico",
+          "sms": "Mensaje de texto"
+        },
+        "templates": {
+          "label": "Comenzar con una plantilla",
+          "blank": "Comenzar en blanco",
+          "thankYou": { "label": "Agradecimiento", "subject": "¡Gracias por celebrar con nosotros!", "body": "Muchas gracias por ser parte de nuestro día especial. Significó mucho tenerte ahí." },
+          "reminder": { "label": "Recordatorio", "subject": "Un recordatorio sobre nuestro gran día", "body": "Solo un recordatorio amistoso sobre nuestro próximo evento. ¡No podemos esperar a verte!" },
+          "update": { "label": "Actualización", "subject": "Una actualización sobre nuestro evento", "body": "Queríamos contarte sobre una pequeña actualización. Revisa la página de la invitación para los últimos detalles." }
+        },
+        "fields": {
+          "subject": "Asunto",
+          "body": "Mensaje"
+        },
+        "smsCharacterCount": "{count} caracteres",
+        "recipientPreview": "Esto llegará a {reached} de {total, plural, one {# invitado} other {# invitados}}.",
+        "recipientPreviewGap": "{missing, plural, one {# invitado no tiene} other {# invitados no tienen}} {channel, select, email {un correo electrónico} other {un número de teléfono}} registrado y no lo recibirá{missing, plural, one {} other {n}}.",
+        "confirm": "¿Enviar a {count, plural, one {# invitado} other {# invitados}} por {channel}?",
+        "send": "Enviar mensaje",
+        "sending": "Enviando…",
+        "resultSummary": "Enviado a {sent}, fallido para {failed}, omitido {suppressed} por el límite de mensajes.",
+        "error": "No se pudo enviar el mensaje. Inténtalo de nuevo.",
+        "bodyTooLong": "Tu mensaje es demasiado largo. Redúcelo a 5000 caracteres o menos e inténtalo de nuevo.",
+        "history": {
+          "title": "Mensajes recientes",
+          "empty": "Aún no se han enviado mensajes.",
+          "counts": "{sent} enviados · {failed} fallidos · {suppressed} omitidos"
+        }
       }
     },
     "editor": {
@@ -309,7 +349,8 @@
         "draft": "Mover a borrador",
         "openPreview": "Abrir vista de invitados",
         "guestbook": "Administrar libro de invitados",
-        "copyLink": "Copiar enlace público"
+        "copyLink": "Copiar enlace público",
+        "message": "Enviar mensaje"
       },
       "dirty": "Cambios sin guardar",
       "clean": "No hay cambios sin guardar",

@@ -55,6 +55,13 @@ export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled:
         </div>
       </section>
 
+      <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+        <div className="flex flex-col gap-4 rounded-lg border border-[#cfc3d3] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+          <div><h2 className="text-lg font-semibold">{t("message.title")}</h2><p className="mt-1 text-sm text-[#675d6a]">{t("message.description")}</p></div>
+          <Link href={`/invitations/manage/${event.id}/message`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#6D456F] px-4 py-2 text-sm font-semibold text-[#55405a]">{t("message.open")}</Link>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-6xl px-0 py-6 sm:px-6 sm:py-9" aria-labelledby="guest-ledger-heading">
         <div className="px-4 sm:px-0">
           <h2 id="guest-ledger-heading" className="text-xl font-semibold tracking-[-0.02em]">{t("ledgerTitle")}</h2>
