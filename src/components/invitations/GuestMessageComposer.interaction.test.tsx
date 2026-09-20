@@ -46,6 +46,7 @@ async function withComposer(
           <GuestMessageComposer
             eventId="event-1"
             eventName="Mercy & John"
+            eventTitle="You're Invited"
             backHref="/invitations/manage/event-1"
             initialRecipientCounts={{ email: 8, sms: 5 }}
             initialTotalResponses={10}
@@ -116,14 +117,15 @@ test("selecting a template fills in subject and body, and sending posts the comp
   });
 });
 
-test("selecting a template inserts the actual event name into the body, not generic placeholder text", async () => {
+test("selecting a template inserts the invitation title, not the honoree-names-based eventName", async () => {
   await withComposer(async () => ({ ok: true, json: async () => ({}) }) as Response, async (container) => {
     const reminderButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Reminder")!;
     assert.ok(reminderButton, "expected a Reminder template button");
     await act(async () => { reminderButton.click(); });
 
     const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
-    assert.match(textarea.value, /Mercy & John/, "expected the Reminder template body to reference the actual event name (the composer's eventName prop is 'Mercy & John')");
+    assert.match(textarea.value, /You're Invited/, "expected the Reminder template body to reference eventTitle ('You're Invited'), not eventName");
+    assert.doesNotMatch(textarea.value, /Mercy & John/, "the template body should use eventTitle specifically, not the honoree-names-based eventName used elsewhere on the page");
   });
 });
 

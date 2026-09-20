@@ -20,6 +20,7 @@ export default async function FounderMessagePage({ params }: { params: { eventId
       <GuestMessageComposer
         eventId={event.id}
         eventName={event.honoreeNames || event.title}
+        eventTitle={event.title}
         backHref={`/admin/invitations/${event.id}`}
         initialRecipientCounts={{
           email: eligibleBroadcastRecipients(rows, "email").length,

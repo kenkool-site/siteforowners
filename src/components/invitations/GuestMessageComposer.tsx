@@ -24,6 +24,7 @@ type ComposerResult = {
 export function GuestMessageComposer({
   eventId,
   eventName,
+  eventTitle,
   backHref,
   initialRecipientCounts,
   initialTotalResponses,
@@ -31,6 +32,7 @@ export function GuestMessageComposer({
 }: {
   eventId: string;
   eventName: string;
+  eventTitle: string;
   backHref: string;
   initialRecipientCounts: { email: number; sms: number };
   initialTotalResponses: number;
@@ -50,10 +52,10 @@ export function GuestMessageComposer({
   const smsSegments = channel === "sms" ? estimateSmsSegments(body) : 0;
 
   const templates = useMemo(() => ({
-    thankYou: { subject: t("templates.thankYou.subject"), body: t("templates.thankYou.body", { name: eventName }) },
-    reminder: { subject: t("templates.reminder.subject"), body: t("templates.reminder.body", { name: eventName }) },
-    update: { subject: t("templates.update.subject"), body: t("templates.update.body", { name: eventName }) },
-  }), [t, eventName]);
+    thankYou: { subject: t("templates.thankYou.subject"), body: t("templates.thankYou.body", { name: eventTitle }) },
+    reminder: { subject: t("templates.reminder.subject"), body: t("templates.reminder.body", { name: eventTitle }) },
+    update: { subject: t("templates.update.subject"), body: t("templates.update.body", { name: eventTitle }) },
+  }), [t, eventTitle]);
 
   function applyTemplate(key: TemplateKey | "blank") {
     if (key === "blank") { setSubject(""); setBody(""); return; }

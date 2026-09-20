@@ -27,6 +27,7 @@ export default async function OwnerMessagePage({ params }: { params: { eventId: 
       <GuestMessageComposer
         eventId={event.id}
         eventName={event.honoreeNames || event.title}
+        eventTitle={event.title}
         backHref={`/invitations/manage/${event.id}`}
         initialRecipientCounts={{
           email: eligibleBroadcastRecipients(rows, "email").length,
