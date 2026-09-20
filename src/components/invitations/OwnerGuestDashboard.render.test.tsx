@@ -52,3 +52,16 @@ test("owner landing page leads with guests and keeps customization as a secondar
   assert.match(html, /Copy guest link/);
   assert.doesNotMatch(html, /Event type|Welcome message|Invitation language/);
 });
+
+test("owner dashboard links to the guest message composer", () => {
+  const html = renderToStaticMarkup(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
+      <OwnerGuestDashboard
+        event={{ id: "event-1", title: "You're Invited", honoreeNames: "Mercy & John", status: "published", slug: "mercy-john", publicSubdomain: "mercy-john" }}
+        initialData={responses}
+      />
+    </NextIntlClientProvider>,
+  );
+  assert.match(html, /Guest messages/);
+  assert.match(html, /href="\/invitations\/manage\/event-1\/message"/);
+});
