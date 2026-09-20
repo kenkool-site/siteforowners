@@ -538,6 +538,7 @@ import {
   twilioSmsSender,
   type NotificationDispatchDependencies,
   type NotificationPayload,
+  type ReserveNotificationResult,
 } from "./notifications";
 import type { InvitationBroadcast, InvitationNotificationChannel } from "./types";
 
@@ -730,14 +731,29 @@ export async function dispatchBroadcastNotifications(
   let suppressedCount = 0;
 
   async function sendToRecipient(recipient: BroadcastRecipient): Promise<void> {
-    const reservation = await dependencies.reserve(input.channel, {
-      eventId: input.eventId,
-      rsvpId: recipient.rsvpId,
-      audience: "guest",
-      recipient: recipient.contact,
-      kind: "celebrant_broadcast",
-      broadcastId: input.broadcastId,
-    });
+    let reservation: ReserveNotificationResult;
+    try {
+      reservation = await dependencies.reserve(input.channel, {
+        eventId: input.eventId,
+        rsvpId: recipient.rsvpId,
+        audience: "guest",
+        recipient: recipient.contact,
+        kind: "celebrant_broadcast",
+        broadcastId: input.broadcastId,
+      });
+    } catch {
+      // reserveInvitationNotification throws on any Supabase/RPC error (see
+      // notifications.ts). This must be caught here, not left to propagate:
+      // sendToRecipient runs inside Promise.all for a whole batch, so an
+      // uncaught throw here would reject every sibling in the batch too —
+      // not "abort the batch" cleanly, but leave already-in-flight siblings
+      // running detached in the background with their outcomes silently
+      // lost, and any later batches never attempted at all. There is no
+      // notification row to mark failed (the reservation itself never
+      // succeeded), so this recipient simply counts as failed.
+      failedCount += 1;
+      return;
+    }
 
     if (!reservation.allowed) {
       suppressedCount += 1;

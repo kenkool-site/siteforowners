@@ -148,6 +148,60 @@ test("a hundred recipients all get processed even though they're batched", async
   assert.equal(sendCalls, 100);
 });
 
+test("a reservation that throws for one recipient does not abort siblings in the same batch or any later batch", async () => {
+  const recipients = Array.from({ length: 20 }, (_, i) => ({
+    rsvpId: `r${i}`,
+    primaryName: `Guest ${i}`,
+    contact: `guest${i}@example.test`,
+  }));
+  const reserveAttempts: string[] = [];
+  const sentIds: string[] = [];
+
+  // r9 falls inside the second batch of 8 (r8..r15) — a realistic position
+  // to prove that a mid-batch throw doesn't stop the rest of that batch,
+  // and that a later batch (r16..r19) is still attempted at all.
+  const result = await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1", broadcastId: "broadcast-1", channel: "email",
+      subject: "Hi", body: "Hi all", from: "hello@example.test",
+      recipients,
+    },
+    {
+      reserve: async (_channel, input) => {
+        reserveAttempts.push(input.rsvpId);
+        if (input.rsvpId === "r9") {
+          throw new Error("simulated Supabase/RPC failure");
+        }
+        return { id: `n-${input.rsvpId}`, allowed: true };
+      },
+      savePayload: async () => undefined,
+      markSent: async (id) => { sentIds.push(id); },
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: { send: async () => ({ ok: true, providerId: "sms-1" }) },
+    },
+  );
+
+  // The function must resolve with accurate counts, not reject — a thrown
+  // reservation for one recipient is a per-recipient failure, not a fatal
+  // error for the whole dispatch.
+  assert.deepEqual(result, { sentCount: 19, failedCount: 1, suppressedCount: 0 });
+
+  // Every recipient in every batch — including the rest of r9's own batch
+  // and the entire later batch (r16..r19) — got a reservation attempt.
+  // An uncaught throw inside Promise.all would have rejected the whole
+  // batch's Promise.all, aborting the dispatch loop before later batches
+  // were ever reached.
+  assert.equal(reserveAttempts.length, 20);
+  assert.deepEqual(new Set(reserveAttempts), new Set(recipients.map((r) => r.rsvpId)));
+
+  // Every recipient except r9 was actually sent, and that outcome is
+  // reflected in the function's returned result rather than lost to a
+  // detached background task racing an already-rejected promise.
+  assert.equal(sentIds.length, 19);
+  assert.ok(!sentIds.includes("n-r9"));
+});
+
 test("createInvitationBroadcast rejects an empty body before touching the database", async () => {
   await assert.rejects(
     () => createInvitationBroadcast({ eventId: "event-1", channel: "email", subject: "Hi", body: "", sentBy: "owner" }),
