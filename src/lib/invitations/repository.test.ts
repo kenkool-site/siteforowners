@@ -8,11 +8,33 @@ import {
   generateInvitationSlug,
   getInvitationEventForManagement,
   getPublicInvitationBySlug,
+  isDuplicateOwnerEmailError,
   listFounderEvents,
   removeInvitationResponse,
   updateInvitationOwnerCredentials,
 } from "./repository-core";
 import type { InvitationEventUpdate } from "./validation";
+
+test("isDuplicateOwnerEmailError recognizes the real Postgres unique-violation shape", () => {
+  const pgError = {
+    code: "23505",
+    details: "Key (lower(email))=(aws.kenkool@gmail.com) already exists.",
+    hint: null,
+    message: 'duplicate key value violates unique constraint "invitation_owners_email_lower_idx"',
+  };
+  const wrapped = new Error("Unable to provision invitation", { cause: pgError });
+  assert.equal(isDuplicateOwnerEmailError(wrapped), true);
+});
+
+test("isDuplicateOwnerEmailError rejects an unrelated unique-violation and non-error values", () => {
+  const otherConstraint = new Error("Unable to provision invitation", {
+    cause: { code: "23505", message: 'duplicate key value violates unique constraint "invitation_events_slug_key"' },
+  });
+  assert.equal(isDuplicateOwnerEmailError(otherConstraint), false);
+  assert.equal(isDuplicateOwnerEmailError(new Error("some other failure")), false);
+  assert.equal(isDuplicateOwnerEmailError(null), false);
+  assert.equal(isDuplicateOwnerEmailError("a string"), false);
+});
 
 test("provisioning normalizes email, hashes the PIN, and applies founder limits", async () => {
   const inserted: unknown[] = [];

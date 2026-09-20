@@ -271,6 +271,25 @@ export function generateInvitationSlug(title: string): string {
   return `${prefix}-${suffix}`;
 }
 
+// createInvitationOwnerAndEvent always inserts a brand-new owner row (there
+// is currently no "attach this event to an existing owner" path), so a
+// founder provisioning a second event with an email already on file hits
+// this Postgres unique-violation raw, wrapped as the cause of the generic
+// "Unable to provision invitation" error thrown in repository.ts. Detecting
+// it here lets the route return a specific, actionable message instead of
+// a bare 500.
+export function isDuplicateOwnerEmailError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  const cause = error.cause;
+  if (
+    cause && typeof cause === "object"
+    && "code" in cause && cause.code === "23505"
+    && "message" in cause && typeof cause.message === "string"
+    && cause.message.includes("invitation_owners_email_lower_idx")
+  ) return true;
+  return isDuplicateOwnerEmailError(cause);
+}
+
 export async function createInvitationOwnerAndEvent(
   input: CreateInvitationOwnerAndEventInput,
   dependencies: InvitationProvisionDependencies,
