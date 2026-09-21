@@ -17,13 +17,22 @@ export async function POST(request: NextRequest) {
   if (!settings) return NextResponse.json({ error: "event not found" }, { status: 404 });
 
   const storage = new R2StorageProvider();
-  const downloadUrl = await storage.getSignedDownloadUrl(media.objectKeyDisplay, 60);
-  const imageResponse = await fetch(downloadUrl);
-  const bytes = new Uint8Array(await imageResponse.arrayBuffer());
+  let outcome;
+  try {
+    const downloadUrl = await storage.getSignedDownloadUrl(media.objectKeyDisplay, 60);
+    const imageResponse = await fetch(downloadUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`R2 download failed with status ${imageResponse.status}`);
+    }
+    const bytes = new Uint8Array(await imageResponse.arrayBuffer());
 
-  const provider = new RekognitionAIProvider();
-  const result = await provider.moderateImage(bytes);
-  const outcome = resolveModerationOutcome(settings.memoriesMode, result);
+    const provider = new RekognitionAIProvider();
+    const result = await provider.moderateImage(bytes);
+    outcome = resolveModerationOutcome(settings.memoriesMode, result);
+  } catch (err) {
+    console.error("[memories/moderate] failed to fetch or moderate image", { mediaId, error: err });
+    return NextResponse.json({ error: "moderation failed" }, { status: 500 });
+  }
 
   await updateMemoryMediaModeration(mediaId, outcome);
   return NextResponse.json({ ok: true, moderationStatus: outcome.moderationStatus });

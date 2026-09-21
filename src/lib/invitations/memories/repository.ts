@@ -118,6 +118,7 @@ export async function updateMemoryMediaModeration(
     })
     .eq("id", mediaId)
     .eq("moderation_status", "pending"); // idempotent: a retried moderation call can't re-flag an already-decided item
+  if (error) throw new Error(`failed to update memory_media moderation: ${error.message}`);
 }
 
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
