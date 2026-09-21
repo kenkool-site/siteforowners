@@ -59,7 +59,7 @@ async function handleOne(event: R2EventNotification, env: Env, ctx: ExecutionCon
   const res = await fetch(`${env.MEMORIES_APP_BASE_URL}/api/memories/processing-complete`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-memories-internal-secret": env.MEMORIES_INTERNAL_SECRET },
-    body: JSON.stringify({ mediaId, eventId }),
+    body: JSON.stringify({ mediaId, eventId, hasDerivatives: true }),
   });
 
   if (!res.ok) {
@@ -83,7 +83,7 @@ async function markProcessingComplete(mediaId: string, eventId: string, env: Env
   const res = await fetch(`${env.MEMORIES_APP_BASE_URL}/api/memories/processing-complete`, {
     method: "POST",
     headers: { "content-type": "application/json", "x-memories-internal-secret": env.MEMORIES_INTERNAL_SECRET },
-    body: JSON.stringify({ mediaId, eventId }),
+    body: JSON.stringify({ mediaId, eventId, hasDerivatives: false }),
   });
 
   if (!res.ok) {
