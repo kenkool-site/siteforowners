@@ -104,6 +104,22 @@ export async function getEventMemoriesSettings(
   };
 }
 
+export async function updateMemoryMediaModeration(
+  mediaId: string,
+  outcome: { moderationStatus: string; moderationScore: number; moderationCategories: string[] },
+): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client
+    .from("memory_media")
+    .update({
+      moderation_status: outcome.moderationStatus,
+      moderation_score: outcome.moderationScore,
+      moderation_categories: outcome.moderationCategories,
+    })
+    .eq("id", mediaId)
+    .eq("moderation_status", "pending"); // idempotent: a retried moderation call can't re-flag an already-decided item
+}
+
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   const { count, error } = await client
