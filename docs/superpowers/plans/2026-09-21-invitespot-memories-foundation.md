@@ -56,8 +56,8 @@ src/lib/invitations/memories/
   ai-provider.test.ts      (new)
   gallery.ts               (new — computeGalleryVisible + visible-media query helpers)
   gallery.test.ts          (new)
-src/app/api/memories/upload/init/route.ts     (new)
-src/app/api/memories/upload/complete/route.ts (new)
+src/app/api/memories/events/[eventId]/upload/init/route.ts     (new)
+src/app/api/memories/events/[eventId]/upload/complete/route.ts (new)
 src/app/api/memories/moderate/route.ts        (new — internal, Worker-triggered)
 src/app/api/cron/memories-dlq-drain/route.ts  (new)
 workers/memories-processing/
@@ -703,8 +703,8 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 **Files:**
 - Create: `src/lib/invitations/memories/repository.ts`
 - Test: `src/lib/invitations/memories/repository.test.ts`
-- Create: `src/app/api/memories/upload/init/route.ts`
-- Create: `src/app/api/memories/upload/complete/route.ts`
+- Create: `src/app/api/memories/events/[eventId]/upload/init/route.ts`
+- Create: `src/app/api/memories/events/[eventId]/upload/complete/route.ts`
 
 **Interfaces:**
 - Consumes: `MemoriesGuestSession`/`verifyMemoriesGuestSession` (Task 2), `createMemoriesUploadTicket` (Task 3), `MemoryMedia` type (Task 2), `isInvitationE2EFixturesEnabled()` (existing, from the RSVP/broadcast E2E fixture layer).
@@ -854,7 +854,7 @@ Expected: PASS
 - [ ] **Step 5: Implement the upload/init route**
 
 ```ts
-// src/app/api/memories/upload/init/route.ts
+// src/app/api/memories/events/[eventId]/upload/init/route.ts
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMemoriesGuestSession } from "@/lib/invitations/memories/guest-session";
@@ -930,7 +930,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
 - [ ] **Step 6: Implement the upload/complete route**
 
 ```ts
-// src/app/api/memories/upload/complete/route.ts
+// src/app/api/memories/events/[eventId]/upload/complete/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { verifyMemoriesUploadTicket } from "@/lib/invitations/memories/upload-tickets";
 import { markMemoryMediaUploaded } from "@/lib/invitations/memories/repository";
@@ -959,7 +959,7 @@ Expected: no new errors
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/lib/invitations/memories/repository.ts src/lib/invitations/memories/repository.test.ts src/app/api/memories/upload/init/route.ts src/app/api/memories/upload/complete/route.ts
+git add src/lib/invitations/memories/repository.ts src/lib/invitations/memories/repository.test.ts src/app/api/memories/events/[eventId]/upload/init/route.ts src/app/api/memories/events/[eventId]/upload/complete/route.ts
 git commit -m "feat: add Memories upload init/complete API routes
 
 Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
@@ -1671,7 +1671,7 @@ Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>"
 ## What Plan B builds on top of this
 
 - `signMemoriesGuestSession` / `verifyMemoriesGuestSession` (Task 2) — the guest landing page mints a cookie with this.
-- `POST /api/memories/upload/init` + `.../complete` (Task 4) — the resilient upload queue's two calls per file.
+- `POST /api/memories/events/{eventId}/upload/init` + `.../upload/complete` (Task 4) — the resilient upload queue's two calls per file.
 - `listGalleryVisibleMedia` / `computeGalleryVisible` (Task 8) — both gallery views' data source.
 - `memory_moments` / `memory_moment_media` (Task 1) — Moments/Discovery reads these directly; no new backend work needed for the V1 time-window computation itself (a small pure function: first `memory_moments` row whose `[starts_at, ends_at)` contains `captured_at`, else check `memory_moment_media` for a host override — worth its own tiny task in Plan B rather than assuming it, since Plan A didn't build it).
 - `memory_processing_jobs` (Task 1) + the DLQ drain (Task 6) — the host dashboard's "processing failed, retry" affordance reads/writes these.
