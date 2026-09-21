@@ -2,7 +2,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MediaKind, MemoriesGuestLevel, MemoryMedia } from "./types";
 
-function mapRow(row: Record<string, unknown>): MemoryMedia {
+export function mapRow(row: Record<string, unknown>): MemoryMedia {
   return {
     id: row.id as string,
     eventId: row.event_id as string,
