@@ -12,15 +12,25 @@ import {
 } from "@/lib/invitations/memories/repository";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 import type { MediaKind } from "@/lib/invitations/memories/types";
-// Import path/signature verified against the existing RSVP/broadcast E2E fixture
-// layer (grepped `isInvitationE2EFixturesEnabled` usage across the repo): the
-// canonical implementation lives in ./e2e-guard and is re-exported here from
-// e2e-fixtures.ts, which is the same module every other invitation route
-// (passcode, rsvp, media, auth/login, admin notifications retry) imports it
-// from. Confirmed correct — no change needed from the brief's guess.
-import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-fixtures";
+// Imported from ./e2e-guard, not ./e2e-fixtures: e2e-fixtures.ts begins with
+// `import "server-only"` (and pulls in the whole fixture/Supabase graph), which
+// makes this route module unloadable under `tsx --test`. e2e-guard.ts is the
+// dependency-free canonical implementation that e2e-fixtures.ts itself re-exports,
+// and is what access.ts and broadcasts.ts import directly.
+import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-guard";
 
-const ALLOWED_KINDS: MediaKind[] = ["photo", "video"];
+// Photo only for now. Nothing in the current pipeline can move a video off
+// moderation_status='pending' — video moderation was designed around a
+// client-captured poster frame that does not exist in this codebase — so
+// accepting video uploads would mean shipping unmoderated media. A later plan
+// lifts this restriction once real video moderation exists.
+const ALLOWED_KINDS: MediaKind[] = ["photo"];
+// Must stay in sync with SUPPORTED_IMAGE_EXTENSIONS in
+// workers/memories-processing/src/index.ts (jpg, jpeg, png, webp, gif) — anything
+// the Worker's photon build can't decode is rejected here, at upload time, rather
+// than failing 5x and surfacing in the DLQ up to 30 minutes later. HEIC (the
+// iPhone default) is deliberately unsupported for now.
+const ALLOWED_CONTENT_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — matches this module's existing video cap in direct-media.ts
 const MAX_MEDIA_PER_EVENT = 2000;
 
@@ -40,8 +50,18 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     const { eventId } = params;
     const parsedBody = body as { mediaKind?: string; contentType?: string; sizeBytes?: number };
 
+    if (parsedBody.mediaKind === "video") {
+      return NextResponse.json({ error: "video uploads are not yet supported" }, { status: 400 });
+    }
     if (!ALLOWED_KINDS.includes(parsedBody.mediaKind as MediaKind)) {
       return NextResponse.json({ error: "invalid mediaKind" }, { status: 400 });
+    }
+    const contentType = parsedBody.contentType?.split(";")[0].trim().toLowerCase();
+    if (!contentType || !ALLOWED_CONTENT_TYPES.has(contentType)) {
+      return NextResponse.json(
+        { error: "unsupported file type — upload a JPEG, PNG, WebP, or GIF image" },
+        { status: 400 },
+      );
     }
     if (typeof parsedBody.sizeBytes !== "number" || parsedBody.sizeBytes <= 0 || parsedBody.sizeBytes > MAX_UPLOAD_BYTES) {
       return NextResponse.json({ error: "invalid or oversized file" }, { status: 400 });
@@ -62,7 +82,9 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
 
     const mediaId = randomUUID();
     const mediaKind = parsedBody.mediaKind as MediaKind;
-    const { ticket, objectKey } = createMemoriesUploadTicket(eventId, mediaId, mediaKind);
+    // Pass the validated content type so the object key carries the guest's real
+    // format — the Worker dispatches on that extension.
+    const { ticket, objectKey } = createMemoriesUploadTicket(eventId, mediaId, mediaKind, contentType);
 
     await createPendingMemoryMedia({
       id: mediaId,
@@ -84,12 +106,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     }
 
     const storage = new R2StorageProvider();
-    const uploadUrl = await storage.createPresignedUploadUrl(
-      objectKey,
-      parsedBody.contentType ?? (mediaKind === "video" ? "video/mp4" : "image/jpeg"),
-      15 * 60,
-      parsedBody.sizeBytes,
-    );
+    const uploadUrl = await storage.createPresignedUploadUrl(objectKey, contentType, 15 * 60, parsedBody.sizeBytes);
 
     return NextResponse.json({ mediaId, ticket, uploadUrl });
   } catch (error) {

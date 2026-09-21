@@ -123,10 +123,15 @@ export async function updateMemoryMediaModeration(
 
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
+  // Only completed uploads count toward the quota. Counting every row regardless of
+  // upload_status let an unauthenticated flood of /upload/init calls that never
+  // upload anything (abandoned at 'pending') permanently brick a real event's quota
+  // with no recovery path; an attacker now has to actually complete 2000 uploads.
   const { count, error } = await client
     .from("memory_media")
     .select("id", { count: "exact", head: true })
-    .eq("event_id", eventId);
+    .eq("event_id", eventId)
+    .eq("upload_status", "uploaded");
   if (error) {
     console.error("[memories/repository] countMemoryMediaForEvent failed", { eventId, error });
     return 0;

@@ -9,21 +9,50 @@ function getTicketSecret(): string {
   return secret;
 }
 
-function extensionFor(mediaKind: MediaKind): string {
-  return mediaKind === "video" ? "mp4" : "jpg";
+// The object key's extension is what the Worker dispatches on (its
+// SUPPORTED_IMAGE_EXTENSIONS lookup in workers/memories-processing/src/index.ts),
+// so it has to reflect the guest's real file format. Hardcoding `.jpg` made every
+// iPhone HEIC upload land under a .jpg key, which photon then failed to decode —
+// dead-lettering silently. Unknown types fall back to the kind's default rather
+// than inventing an extension from an untrusted string.
+const EXTENSION_BY_CONTENT_TYPE: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/jpg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "image/heic": "heic",
+  "image/heif": "heif",
+  "video/mp4": "mp4",
+  "video/quicktime": "mov",
+  "video/webm": "webm",
+};
+
+function extensionFor(mediaKind: MediaKind, contentType?: string): string {
+  const fallback = mediaKind === "video" ? "mp4" : "jpg";
+  if (!contentType) return fallback;
+  // Strip any parameters ("image/jpeg; charset=binary") and normalize case.
+  const normalized = contentType.split(";")[0].trim().toLowerCase();
+  return EXTENSION_BY_CONTENT_TYPE[normalized] ?? fallback;
 }
 
-export function objectKeyForOriginal(eventId: string, mediaId: string, mediaKind: MediaKind): string {
-  return `originals/${eventId}/${mediaId}.${extensionFor(mediaKind)}`;
+export function objectKeyForOriginal(
+  eventId: string,
+  mediaId: string,
+  mediaKind: MediaKind,
+  contentType?: string,
+): string {
+  return `originals/${eventId}/${mediaId}.${extensionFor(mediaKind, contentType)}`;
 }
 
 export function createMemoriesUploadTicket(
   eventId: string,
   mediaId: string,
   mediaKind: MediaKind,
+  contentType?: string,
   secret = getTicketSecret(),
 ): { ticket: string; objectKey: string } {
-  const objectKey = objectKeyForOriginal(eventId, mediaId, mediaKind);
+  const objectKey = objectKeyForOriginal(eventId, mediaId, mediaKind, contentType);
   const body = Buffer.from(JSON.stringify({ eventId, mediaId, objectKey })).toString("base64url");
   const signature = createHmac("sha256", secret).update(`memories-upload-ticket-v1:${body}`).digest("base64url");
   return { ticket: `${body}.${signature}`, objectKey };

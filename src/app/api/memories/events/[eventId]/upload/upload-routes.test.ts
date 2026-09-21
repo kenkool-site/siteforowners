@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
 
+// KNOWN FOLLOW-UP: these assert on locally-reconstructed values rather than
+// invoking the real route handlers — they were written while the init route
+// imported a `server-only` module and so could not be loaded here at all. That
+// import is fixed (it now uses @/lib/invitations/e2e-guard), so real route-level
+// integration tests are now possible; writing them is a separate follow-up.
+
 // Test that the routes properly validate same-origin requests
 test("upload init route rejects cross-origin requests with 403", async () => {
   // This test verifies the isSameOrigin check at the start of the route.
