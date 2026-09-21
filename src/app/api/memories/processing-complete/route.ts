@@ -11,8 +11,13 @@ export async function POST(request: NextRequest) {
 
   const client = createAdminClient();
 
-  // Build the update object conditionally based on whether derivatives were generated
-  const mediaUpdate: Record<string, unknown> = { processing_status: "ready" };
+  // Build the update object conditionally based on whether derivatives were generated.
+  // `upload_status: "uploaded"` is set here too: this route only fires because the R2
+  // event notification proved the object was actually written, which is stronger
+  // evidence than the guest's own /upload/complete callback (that call never arrives
+  // if their browser closes mid-upload). Setting it here self-heals a row otherwise
+  // stuck at upload_status='pending' forever.
+  const mediaUpdate: Record<string, unknown> = { processing_status: "ready", upload_status: "uploaded" };
   if (hasDerivatives) {
     // Object keys are fully deterministic from (eventId, mediaId) — derive them
     // server-side rather than trusting the Worker's payload for something that
@@ -30,12 +35,23 @@ export async function POST(request: NextRequest) {
     .neq("processing_status", "ready"); // idempotent against redelivery
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { error: jobError } = await client
-    .from("memory_processing_jobs")
-    .update({ status: "succeeded", finished_at: new Date().toISOString() })
-    .eq("media_id", body.mediaId)
-    .eq("job_type", "derivative")
-    .eq("status", "pending"); // idempotent: a redelivered completion can't flip an already-terminal job
+  // Upsert rather than a conditional update: this route and /upload/complete (which
+  // creates the job row via upsert in markMemoryMediaUploaded) are unordered. If the
+  // Worker wins the race, a `.update(...).eq("status","pending")` would match zero
+  // rows — no error, silently a no-op — and the later /upload/complete upsert would
+  // then insert a fresh `pending` row that its own ignoreDuplicates keeps anyone from
+  // ever closing. Upserting on the same (media_id, job_type, attempt) key makes
+  // whichever side runs second converge on the terminal state either way.
+  const { error: jobError } = await client.from("memory_processing_jobs").upsert(
+    {
+      media_id: body.mediaId,
+      job_type: "derivative",
+      attempt: 1,
+      status: "succeeded",
+      finished_at: new Date().toISOString(),
+    },
+    { onConflict: "media_id,job_type,attempt" },
+  );
   if (jobError) return NextResponse.json({ error: jobError.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });

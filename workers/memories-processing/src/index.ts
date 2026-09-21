@@ -75,7 +75,22 @@ async function handleOne(event: R2EventNotification, env: Env, ctx: ExecutionCon
       method: "POST",
       headers: { "content-type": "application/json", "x-memories-internal-secret": env.MEMORIES_INTERNAL_SECRET },
       body: JSON.stringify({ mediaId }),
-    }).catch((err) => console.error("memories-processing: failed to trigger moderation", mediaId, err))
+    })
+      .then(async (moderationRes) => {
+        // A non-2xx here leaves the row at moderation_status='pending' with nothing
+        // to retry it. Retry infrastructure for moderation is a known follow-up;
+        // until then, at least make the failure visible in Worker logs rather than
+        // letting it vanish into a fire-and-forget promise.
+        if (!moderationRes.ok) {
+          console.error(
+            "memories-processing: moderation trigger failed",
+            mediaId,
+            moderationRes.status,
+            await moderationRes.text().catch(() => "<unreadable body>")
+          );
+        }
+      })
+      .catch((err) => console.error("memories-processing: failed to trigger moderation", mediaId, err))
   );
 }
 

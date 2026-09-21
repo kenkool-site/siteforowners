@@ -25,9 +25,17 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const accountId = requireEnv("R2_ACCOUNT_ID");
-  const queueId = requireEnv("MEMORIES_DLQ_ID");
-  const queuesToken = requireEnv("CLOUDFLARE_QUEUES_API_TOKEN");
+  // The Cloudflare Queues DLQ is provisioned separately from this deploy, so in
+  // any environment where that infra doesn't exist yet these vars are unset.
+  // Throwing here would 500 this cron on every scheduled run; skip instead so a
+  // not-yet-provisioned DLQ is a quiet no-op rather than recurring alert noise.
+  const accountId = process.env.R2_ACCOUNT_ID;
+  const queueId = process.env.MEMORIES_DLQ_ID;
+  const queuesToken = process.env.CLOUDFLARE_QUEUES_API_TOKEN;
+  if (!accountId || !queueId || !queuesToken) {
+    return NextResponse.json({ skipped: "dlq not configured" });
+  }
+
   const pullUrl = DLQ_PULL_URL_TEMPLATE.replace("{accountId}", accountId).replace("{queueId}", queueId);
 
   const response = await fetch(pullUrl, {
@@ -115,10 +123,4 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({ drained });
-}
-
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} must be set`);
-  return value;
 }
