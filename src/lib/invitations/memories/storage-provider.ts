@@ -1,5 +1,5 @@
 export interface StorageProvider {
-  createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number): Promise<string>;
+  createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number, contentLength?: number): Promise<string>;
   getSignedDownloadUrl(objectKey: string, expiresInSeconds: number): Promise<string>;
   deleteObject(objectKey: string): Promise<void>;
 }
@@ -22,10 +22,15 @@ export class R2StorageProvider implements StorageProvider {
     });
   }
 
-  async createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number): Promise<string> {
+  async createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number, contentLength?: number): Promise<string> {
     const { PutObjectCommand } = require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
     const { getSignedUrl } = require("@aws-sdk/s3-request-presigner") as typeof import("@aws-sdk/s3-request-presigner");
-    const command = new PutObjectCommand({ Bucket: this.bucket, Key: objectKey, ContentType: contentType });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const commandInput: any = { Bucket: this.bucket, Key: objectKey, ContentType: contentType };
+    if (contentLength !== undefined) {
+      commandInput.ContentLength = contentLength;
+    }
+    const command = new PutObjectCommand(commandInput);
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
   }
 

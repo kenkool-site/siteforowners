@@ -103,3 +103,16 @@ export async function getEventMemoriesSettings(
     memoriesMode: data.memories_mode as "auto_publish" | "review_required",
   };
 }
+
+export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
+  const client = createAdminClient();
+  const { count, error } = await client
+    .from("memory_media")
+    .select("id", { count: "exact", head: true })
+    .eq("event_id", eventId);
+  if (error) {
+    console.error("[memories/repository] countMemoryMediaForEvent failed", { eventId, error });
+    return 0;
+  }
+  return count ?? 0;
+}
