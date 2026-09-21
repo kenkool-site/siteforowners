@@ -11,5 +11,9 @@
   "description": "",
   "dependencies": {
     "@cf-wasm/photon": "^0.4.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240605.0",
+    "typescript": "^5.3.3"
   }
 }

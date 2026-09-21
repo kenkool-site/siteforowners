@@ -13,10 +13,15 @@ export async function process(original: Uint8Array): Promise<DerivativeResult> {
   try {
     const display = resizeToMax(image, DISPLAY_MAX_DIMENSION);
     const thumbnail = resizeToMax(image, THUMBNAIL_MAX_DIMENSION);
-    return {
-      displayBytes: display.get_bytes_webp(),
-      thumbnailBytes: thumbnail.get_bytes_webp(),
-    };
+    try {
+      return {
+        displayBytes: display.get_bytes_webp(),
+        thumbnailBytes: thumbnail.get_bytes_webp(),
+      };
+    } finally {
+      display.free();
+      thumbnail.free();
+    }
   } finally {
     image.free();
   }

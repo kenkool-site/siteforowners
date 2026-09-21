@@ -6,7 +6,8 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
-    "moduleResolution": "node"
+    "moduleResolution": "node",
+    "types": ["@cloudflare/workers-types"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["node_modules"]
