@@ -23,9 +23,41 @@ test("memory_moments rejects an inverted or zero-length time window", () => {
 });
 
 test("memory_moment_media has exactly one override row per media item", () => {
-  const idx = migration.indexOf("CREATE TABLE public.memory_moment_media");
+  const idx = migration.indexOf("CREATE TABLE IF NOT EXISTS public.memory_moment_media");
   const pk = migration.indexOf("media_id uuid PRIMARY KEY", idx);
   assert.ok(idx >= 0 && pk > idx, "media_id must be the primary key, not a composite key");
+});
+
+test("every CREATE TABLE is re-runnable", () => {
+  // A bare `CREATE TABLE` errors on a second apply; every table in this
+  // migration must be guarded so re-running the file is a no-op.
+  assert.equal(
+    /CREATE TABLE (?!IF NOT EXISTS)/.test(migration),
+    false,
+    "every CREATE TABLE must use IF NOT EXISTS",
+  );
+});
+
+test("deleting an RSVP nulls the uploader link instead of blocking the delete", () => {
+  // invitationRepository.removeResponse() deletes invitation_rsvps rows; a bare
+  // REFERENCES (NO ACTION) would make that fail with an FK violation as soon as
+  // any RSVP guest has uploaded a memory.
+  assert.ok(
+    migration.includes(
+      "uploader_rsvp_id uuid REFERENCES public.invitation_rsvps(id) ON DELETE SET NULL",
+    ),
+  );
+});
+
+test("memory rows are cleaned up when their parent event, media, or moment is deleted", () => {
+  for (const fk of [
+    "event_id uuid NOT NULL REFERENCES public.invitation_events(id) ON DELETE CASCADE",
+    "media_id uuid PRIMARY KEY REFERENCES public.memory_media(id) ON DELETE CASCADE",
+    "moment_id uuid NOT NULL REFERENCES public.memory_moments(id) ON DELETE CASCADE",
+    "media_id uuid NOT NULL REFERENCES public.memory_media(id) ON DELETE CASCADE",
+  ]) {
+    assert.ok(migration.includes(fk), `${fk} must cascade`);
+  }
 });
 
 test("every new table enables row level security", () => {
