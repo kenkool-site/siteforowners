@@ -134,6 +134,24 @@ export async function updateMemoryMediaModeration(
   if (error) throw new Error(`failed to update memory_media moderation: ${error.message}`);
 }
 
+export async function getRsvpForEditCredential(
+  eventId: string,
+  rsvpId: string,
+): Promise<{ primaryName: string | null; editTokenHash: string } | null> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("invitation_rsvps")
+    .select("primary_name, edit_token_hash")
+    .eq("id", rsvpId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    primaryName: (data.primary_name as string | null) ?? null,
+    editTokenHash: data.edit_token_hash as string,
+  };
+}
+
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   // Only completed uploads count toward the quota. Counting every row regardless of

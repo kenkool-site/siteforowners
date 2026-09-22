@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
-import { getEventMemoriesSettings, updateEventMemoriesSettings } from "./repository";
+import { getEventMemoriesSettings, getRsvpForEditCredential, updateEventMemoriesSettings } from "./repository";
 
 // Repository functions hit a real Supabase instance via createAdminClient(),
 // exactly like notifications.test.ts does — this test only proves the pure,
@@ -32,4 +32,14 @@ test("updateEventMemoriesSettings patches only the memories fields provided", ()
   const source = updateEventMemoriesSettings.toString();
   assert.match(source, /memories_enabled/);
   assert.match(source, /memories_mode/);
+});
+
+test("getRsvpForEditCredential returns the stored hash for a real rsvp/event pair", async () => {
+  const row = await getRsvpForEditCredential("some-event-id", "some-rsvp-id");
+  assert.ok(row === null || typeof row.editTokenHash === "string");
+});
+
+test("getRsvpForEditCredential returns null for a mismatched event/rsvp pair", async () => {
+  const row = await getRsvpForEditCredential("wrong-event-id", "some-rsvp-id");
+  assert.equal(row, null);
 });
