@@ -47,6 +47,7 @@
     "dotenv": "^17.4.1",
     "eslint": "^8",
     "eslint-config-next": "14.2.35",
+    "fake-indexeddb": "^6.2.5",
     "jsdom": "^26.1.0",
     "playwright": "^1.59.1",
     "postcss": "^8",
