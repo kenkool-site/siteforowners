@@ -36,7 +36,16 @@ function openDb(eventId: string): Promise<IDBDatabase> {
   });
 }
 
-async function persistItem(db: IDBDatabase, entry: { id: string; file: File; item: QueueItem }): Promise<void> {
+interface PersistedEntry {
+  id: string;
+  file: File;
+  item: QueueItem;
+  // Enqueue timestamp, used only to restore enqueue order on hydration — IndexedDB's
+  // getAll() returns rows ordered by the "id" key (a random UUID), not insertion order.
+  createdAt: number;
+}
+
+async function persistItem(db: IDBDatabase, entry: PersistedEntry): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readwrite");
     tx.objectStore(STORE_NAME).put(entry);
@@ -45,9 +54,19 @@ async function persistItem(db: IDBDatabase, entry: { id: string; file: File; ite
   });
 }
 
+async function readAllItems(db: IDBDatabase): Promise<PersistedEntry[]> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readonly");
+    const request = tx.objectStore(STORE_NAME).getAll();
+    request.onsuccess = () => resolve((request.result as PersistedEntry[] | undefined) ?? []);
+    request.onerror = () => reject(request.error);
+  });
+}
+
 export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): UploadQueue {
   const files = new Map<string, File>();
   const items: QueueItem[] = [];
+  const createdAtById = new Map<string, number>();
   const listeners = new Set<(items: QueueItem[]) => void>();
   let dbPromise: Promise<IDBDatabase> | null = null;
   let processing = false;
@@ -88,10 +107,46 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     }
     notify();
     const db = await getDb();
-    await persistItem(db, { id: next.id, file: files.get(next.id)!, item: { ...next } });
+    await persistItem(db, {
+      id: next.id,
+      file: files.get(next.id)!,
+      item: { ...next },
+      createdAt: createdAtById.get(next.id) ?? Date.now(),
+    });
     processing = false;
     void processNext();
   }
+
+  // Hydration restores queue state from a previous page load (closed tab, refresh, dropped
+  // connection). It's deliberately fire-and-forget: createUploadQueue() returns synchronously
+  // to match the UploadQueue interface Task 4 consumes (not a Promise<UploadQueue>), so a
+  // caller that calls getItems() synchronously right after construction, before this resolves,
+  // may still see an empty array. Real consumers use subscribe(), which does receive the
+  // restored state once hydration completes and calls notify().
+  void (async function hydrate() {
+    const db = await getDb();
+    const entries = await readAllItems(db);
+    entries.sort((a, b) => a.createdAt - b.createdAt);
+    const restored: QueueItem[] = [];
+    for (const entry of entries) {
+      const item: QueueItem = { ...entry.item };
+      if (item.status === "queued" || item.status === "uploading") {
+        // A mid-flight upload from a previous page load is gone — there's no partial-upload
+        // resume, so the whole file goes back to the front of the line to upload again.
+        item.status = "queued";
+        item.progress = 0;
+        item.error = undefined;
+      }
+      files.set(entry.id, entry.file);
+      createdAtById.set(entry.id, entry.createdAt);
+      restored.push(item);
+    }
+    if (restored.length > 0) {
+      items.unshift(...restored);
+      notify();
+      void processNext();
+    }
+  })();
 
   return {
     async enqueue(file: File): Promise<string> {
@@ -104,10 +159,12 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
         status: "queued",
         progress: 0,
       };
+      const createdAt = Date.now();
       files.set(id, file);
+      createdAtById.set(id, createdAt);
       items.push(item);
       const db = await getDb();
-      await persistItem(db, { id, file, item: { ...item } });
+      await persistItem(db, { id, file, item: { ...item }, createdAt });
       notify();
       void processNext();
       return id;

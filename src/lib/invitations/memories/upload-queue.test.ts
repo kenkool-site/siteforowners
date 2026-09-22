@@ -75,3 +75,23 @@ test("subscribe notifies listeners on every state change", async () => {
   assert.ok(snapshots.length >= 2); // at least: queued, then done
   unsubscribe();
 });
+
+test("a new queue instance for the same event hydrates a previously failed item from IndexedDB", async () => {
+  const eventId = "event-6";
+  const queue1 = createUploadQueue(eventId, async () => {
+    throw new Error("network error");
+  });
+  const id = await queue1.enqueue(fakeFile("g.jpg", 1000));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const failedItem = queue1.getItems().find((i) => i.id === id);
+  assert.equal(failedItem!.status, "failed");
+
+  // A closed tab / refresh / dropped connection means a brand-new createUploadQueue() call
+  // for the same event — it should resume exactly where the previous instance left off by
+  // reading what was persisted to IndexedDB, not start from an empty queue.
+  const queue2 = createUploadQueue(eventId, async () => ({ mediaId: "should-not-run" }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  const hydrated = queue2.getItems().find((i) => i.id === id);
+  assert.ok(hydrated);
+  assert.equal(hydrated!.status, "failed");
+});
