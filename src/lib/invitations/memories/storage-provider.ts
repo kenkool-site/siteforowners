@@ -1,3 +1,6 @@
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+
 export interface StorageProvider {
   createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number, contentLength?: number): Promise<string>;
   getSignedDownloadUrl(objectKey: string, expiresInSeconds: number): Promise<string>;
@@ -5,13 +8,12 @@ export interface StorageProvider {
 }
 
 export class R2StorageProvider implements StorageProvider {
-  private readonly client: import("@aws-sdk/client-s3").S3Client;
+  private readonly client: S3Client;
   private readonly bucket: string;
 
   constructor() {
     const accountId = requireEnv("R2_ACCOUNT_ID");
     this.bucket = requireEnv("R2_BUCKET_MEMORIES");
-    const { S3Client } = require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
     this.client = new S3Client({
       region: "auto",
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
@@ -23,10 +25,7 @@ export class R2StorageProvider implements StorageProvider {
   }
 
   async createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number, contentLength?: number): Promise<string> {
-    const { PutObjectCommand } = require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
-    const { getSignedUrl } = require("@aws-sdk/s3-request-presigner") as typeof import("@aws-sdk/s3-request-presigner");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const commandInput: any = { Bucket: this.bucket, Key: objectKey, ContentType: contentType };
+    const commandInput: ConstructorParameters<typeof PutObjectCommand>[0] = { Bucket: this.bucket, Key: objectKey, ContentType: contentType };
     if (contentLength !== undefined) {
       commandInput.ContentLength = contentLength;
     }
@@ -35,14 +34,11 @@ export class R2StorageProvider implements StorageProvider {
   }
 
   async getSignedDownloadUrl(objectKey: string, expiresInSeconds: number): Promise<string> {
-    const { GetObjectCommand } = require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
-    const { getSignedUrl } = require("@aws-sdk/s3-request-presigner") as typeof import("@aws-sdk/s3-request-presigner");
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: objectKey });
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
   }
 
   async deleteObject(objectKey: string): Promise<void> {
-    const { DeleteObjectCommand } = require("@aws-sdk/client-s3") as typeof import("@aws-sdk/client-s3");
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: objectKey }));
   }
 }

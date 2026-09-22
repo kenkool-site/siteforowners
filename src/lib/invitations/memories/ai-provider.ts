@@ -1,4 +1,5 @@
 // src/lib/invitations/memories/ai-provider.ts
+import { RekognitionClient, DetectModerationLabelsCommand } from "@aws-sdk/client-rekognition";
 import type { ModerationStatus } from "./types";
 
 export interface ModerationResult {
@@ -36,8 +37,6 @@ export interface AIProvider {
 
 export class RekognitionAIProvider implements AIProvider {
   async moderateImage(bytes: Uint8Array): Promise<ModerationResult> {
-    const { RekognitionClient, DetectModerationLabelsCommand } =
-      require("@aws-sdk/client-rekognition") as typeof import("@aws-sdk/client-rekognition");
     const client = new RekognitionClient({ region: process.env.AWS_REGION ?? "us-east-1" });
     const response = await client.send(
       new DetectModerationLabelsCommand({ Image: { Bytes: bytes }, MinConfidence: 30 }),
