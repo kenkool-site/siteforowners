@@ -56,7 +56,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     const response = NextResponse.json({ level: session.level, guestName: session.guestName ?? null });
     response.cookies.set("memories_guest_session", token, {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
       maxAge: SESSION_LIFETIME_SECONDS,
