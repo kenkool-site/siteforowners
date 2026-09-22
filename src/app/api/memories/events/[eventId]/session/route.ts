@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { isSameOrigin, verifyEditToken } from "@/lib/invitations/auth";
+import { isSameOrigin } from "@/lib/invitations/auth";
 import { signMemoriesGuestSession } from "@/lib/invitations/memories/guest-session";
 import { getRsvpForEditCredential } from "@/lib/invitations/memories/repository";
-import type { MemoriesGuestSession } from "@/lib/invitations/memories/types";
+import { resolveMemoriesGuestSession, SESSION_LIFETIME_SECONDS } from "./resolve-guest-session";
 
-const SESSION_LIFETIME_SECONDS = 400 * 24 * 60 * 60; // ~13 months — comfortably covers the 12-month gallery-availability window
 const MAX_GUEST_NAME_LENGTH = 80;
 
 export async function POST(request: NextRequest, { params }: { params: { eventId: string } }) {
@@ -23,34 +22,14 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     const { eventId } = params;
     const values = body as { rsvpId?: string; editToken?: string; guestName?: string };
     const providedName = values.guestName?.trim().slice(0, MAX_GUEST_NAME_LENGTH) || undefined;
+    const providedCredential = values.rsvpId && values.editToken
+      ? { rsvpId: values.rsvpId, editToken: values.editToken }
+      : null;
+    const rsvpRow = providedCredential
+      ? await getRsvpForEditCredential(eventId, providedCredential.rsvpId)
+      : null;
 
-    let session: MemoriesGuestSession;
-    if (values.rsvpId && values.editToken) {
-      const rsvp = await getRsvpForEditCredential(eventId, values.rsvpId);
-      if (rsvp && verifyEditToken(values.editToken, rsvp.editTokenHash)) {
-        session = {
-          eventId,
-          level: "rsvp_guest",
-          rsvpId: values.rsvpId,
-          guestName: providedName ?? rsvp.primaryName ?? undefined,
-          expiresAt: Math.floor(Date.now() / 1000) + SESSION_LIFETIME_SECONDS,
-        };
-      } else {
-        session = {
-          eventId,
-          level: "anonymous",
-          guestName: providedName,
-          expiresAt: Math.floor(Date.now() / 1000) + SESSION_LIFETIME_SECONDS,
-        };
-      }
-    } else {
-      session = {
-        eventId,
-        level: "anonymous",
-        guestName: providedName,
-        expiresAt: Math.floor(Date.now() / 1000) + SESSION_LIFETIME_SECONDS,
-      };
-    }
+    const session = resolveMemoriesGuestSession(eventId, rsvpRow, providedCredential, providedName);
 
     const token = signMemoriesGuestSession(session);
     const response = NextResponse.json({ level: session.level, guestName: session.guestName ?? null });
