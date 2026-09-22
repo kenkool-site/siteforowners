@@ -11,6 +11,7 @@ import {
   simulateFixtureMediaReady,
 } from "@/lib/invitations/memories/repository";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
+import { isUploadWindowOpen } from "@/lib/invitations/memories/upload-window";
 import type { MediaKind } from "@/lib/invitations/memories/types";
 // Imported from ./e2e-guard, not ./e2e-fixtures: e2e-fixtures.ts begins with
 // `import "server-only"` (and pulls in the whole fixture/Supabase graph), which
@@ -70,6 +71,9 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     const settings = await getEventMemoriesSettings(eventId);
     if (!settings || !settings.memoriesEnabled) {
       return NextResponse.json({ error: "memories not enabled for this event" }, { status: 404 });
+    }
+    if (!isUploadWindowOpen(settings.startsAt)) {
+      return NextResponse.json({ error: "the upload window for this event has closed" }, { status: 404 });
     }
 
     const mediaCount = await countMemoryMediaForEvent(eventId);
