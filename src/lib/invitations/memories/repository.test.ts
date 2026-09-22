@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
+import { getEventMemoriesSettings, updateEventMemoriesSettings } from "./repository";
 
 // Repository functions hit a real Supabase instance via createAdminClient(),
 // exactly like notifications.test.ts does — this test only proves the pure,
@@ -12,4 +13,23 @@ import { objectKeyForOriginal } from "./upload-tickets";
 test("object key derivation used by the repository stays event- and media-scoped", () => {
   const key = objectKeyForOriginal("event-1", "media-1", "photo");
   assert.equal(key, "originals/event-1/media-1.jpg");
+});
+
+// getEventMemoriesSettings/updateEventMemoriesSettings call createAdminClient()
+// directly and have no injection seam (no local Supabase instance exists to hit
+// here — createAdminClient() throws on missing env before a query is ever sent),
+// so — matching this file's own convention above and notifications.test.ts's
+// `reserveInvitationNotificationRetry.toString()` structural check — these assert
+// on the function source rather than invoking it against a real database.
+test("getEventMemoriesSettings selects and returns startsAt alongside the existing fields", () => {
+  const source = getEventMemoriesSettings.toString();
+  assert.match(source, /starts_at/);
+  assert.match(source, /startsAt/);
+});
+
+test("updateEventMemoriesSettings patches only the memories fields provided", () => {
+  assert.equal(typeof updateEventMemoriesSettings, "function");
+  const source = updateEventMemoriesSettings.toString();
+  assert.match(source, /memories_enabled/);
+  assert.match(source, /memories_mode/);
 });

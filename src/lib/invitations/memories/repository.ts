@@ -90,18 +90,31 @@ export async function simulateFixtureMediaReady(mediaId: string): Promise<void> 
 
 export async function getEventMemoriesSettings(
   eventId: string,
-): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required" } | null> {
+): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null } | null> {
   const client = createAdminClient();
   const { data, error } = await client
     .from("invitation_events")
-    .select("memories_enabled,memories_mode")
+    .select("memories_enabled,memories_mode,starts_at")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
   return {
     memoriesEnabled: data.memories_enabled as boolean,
     memoriesMode: data.memories_mode as "auto_publish" | "review_required",
+    startsAt: (data.starts_at as string | null) ?? null,
   };
+}
+
+export async function updateEventMemoriesSettings(
+  eventId: string,
+  updates: { memoriesEnabled?: boolean; memoriesMode?: "auto_publish" | "review_required" },
+): Promise<void> {
+  const client = createAdminClient();
+  const patch: Record<string, unknown> = {};
+  if (updates.memoriesEnabled !== undefined) patch.memories_enabled = updates.memoriesEnabled;
+  if (updates.memoriesMode !== undefined) patch.memories_mode = updates.memoriesMode;
+  const { error } = await client.from("invitation_events").update(patch).eq("id", eventId);
+  if (error) throw new Error(`failed to update memories settings: ${error.message}`);
 }
 
 export async function updateMemoryMediaModeration(
