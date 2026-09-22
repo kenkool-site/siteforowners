@@ -34,12 +34,27 @@ test("updateEventMemoriesSettings patches only the memories fields provided", ()
   assert.match(source, /memories_mode/);
 });
 
+// invitation_rsvps.id/event_id are both `uuid` columns. Non-UUID literals like
+// "some-rsvp-id" make Postgres/PostgREST reject the .eq() filter with "invalid
+// input syntax for type uuid" *before* the id+event_id AND-scoping this function
+// exists for is ever exercised — both tests would then pass via the error-handling
+// branch, not via real match/no-match semantics. Using syntactically-valid (but
+// non-existent) UUIDs instead makes the query actually reach that AND-scoping and
+// return a genuine "no matching row" null, which is what this function's whole
+// purpose — stopping an RSVP credential from event A upgrading a session on event
+// B — depends on.
 test("getRsvpForEditCredential returns the stored hash for a real rsvp/event pair", async () => {
-  const row = await getRsvpForEditCredential("some-event-id", "some-rsvp-id");
+  const row = await getRsvpForEditCredential(
+    "00000000-0000-0000-0000-000000000001",
+    "00000000-0000-0000-0000-000000000002",
+  );
   assert.ok(row === null || typeof row.editTokenHash === "string");
 });
 
 test("getRsvpForEditCredential returns null for a mismatched event/rsvp pair", async () => {
-  const row = await getRsvpForEditCredential("wrong-event-id", "some-rsvp-id");
+  const row = await getRsvpForEditCredential(
+    "00000000-0000-0000-0000-000000000003",
+    "00000000-0000-0000-0000-000000000002",
+  );
   assert.equal(row, null);
 });
