@@ -680,6 +680,7 @@ export function EventEditor({
             <span className="text-sm font-semibold text-[#6D456F]">{t(`status.${status}`)}</span>
             <a href={mode === "founder" ? `/admin/invitations/${currentEvent.id}/guestbook` : `/invitations/manage/${currentEvent.id}/guestbook`} className="mt-1 block text-xs font-semibold text-[#6D456F] underline underline-offset-4">{t("actions.guestbook")}</a>
             <a href={mode === "founder" ? `/admin/invitations/${currentEvent.id}/message` : `/invitations/manage/${currentEvent.id}/message`} className="mt-1 block text-xs font-semibold text-[#6D456F] underline underline-offset-4">{t("actions.message")}</a>
+            <a href={mode === "founder" ? `/admin/invitations/${currentEvent.id}/memories` : `/invitations/manage/${currentEvent.id}/memories`} className="mt-1 block text-xs font-semibold text-[#6D456F] underline underline-offset-4">{t("actions.memories")}</a>
           </div>
         </div>
       </header>

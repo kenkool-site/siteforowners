@@ -22,12 +22,14 @@ export function resolveMemoriesGuestSession(
   providedCredential: { rsvpId: string; editToken: string } | null,
   providedGuestName: string | undefined,
   now: number = Math.floor(Date.now() / 1000),
+  sessionId?: string,
 ): MemoriesGuestSession {
   const expiresAt = now + SESSION_LIFETIME_SECONDS;
 
   if (providedCredential && rsvpRow && verifyEditToken(providedCredential.editToken, rsvpRow.editTokenHash)) {
     return {
       eventId,
+      sessionId,
       level: "rsvp_guest",
       rsvpId: providedCredential.rsvpId,
       guestName: providedGuestName ?? rsvpRow.primaryName ?? undefined,
@@ -37,6 +39,7 @@ export function resolveMemoriesGuestSession(
 
   return {
     eventId,
+    sessionId,
     level: "anonymous",
     guestName: providedGuestName,
     expiresAt,

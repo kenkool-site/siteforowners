@@ -54,7 +54,7 @@ test("retry re-attempts a failed item", async () => {
 
 test("a second enqueue while one item is uploading stays queued, not uploading", async () => {
   let resolveFirst!: () => void;
-  const queue = createUploadQueue("event-4", (_file, _onProgress) => {
+  const queue = createUploadQueue("event-4", () => {
     return new Promise((resolve) => {
       resolveFirst = () => resolve({ mediaId: "media-4a" });
     });

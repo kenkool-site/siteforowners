@@ -3,6 +3,7 @@ export type MemoriesGuestLevel = "rsvp_guest" | "anonymous";
 
 export interface MemoriesGuestSession {
   eventId: string;
+  sessionId?: string;
   level: MemoriesGuestLevel;
   rsvpId?: string;
   guestName?: string;
@@ -24,6 +25,7 @@ export interface MemoryMedia {
   id: string;
   eventId: string;
   uploaderRsvpId: string | null;
+  uploaderSessionId: string | null;
   uploaderDisplayName: string | null;
   guestSessionLevel: MemoriesGuestLevel;
   mediaKind: MediaKind;

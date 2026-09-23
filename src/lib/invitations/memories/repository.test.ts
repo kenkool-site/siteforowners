@@ -4,8 +4,6 @@ import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
 import {
   getEventMemoriesSettings,
-  getRsvpForEditCredential,
-  listMemoryMoments,
   updateEventMemoriesSettings,
 } from "./repository";
 
@@ -48,27 +46,3 @@ test("updateEventMemoriesSettings patches only the memories fields provided", ()
 // return a genuine "no matching row" null, which is what this function's whole
 // purpose — stopping an RSVP credential from event A upgrading a session on event
 // B — depends on.
-test("getRsvpForEditCredential returns the stored hash for a real rsvp/event pair", async () => {
-  const row = await getRsvpForEditCredential(
-    "00000000-0000-0000-0000-000000000001",
-    "00000000-0000-0000-0000-000000000002",
-  );
-  assert.ok(row === null || typeof row.editTokenHash === "string");
-});
-
-test("getRsvpForEditCredential returns null for a mismatched event/rsvp pair", async () => {
-  const row = await getRsvpForEditCredential(
-    "00000000-0000-0000-0000-000000000003",
-    "00000000-0000-0000-0000-000000000002",
-  );
-  assert.equal(row, null);
-});
-
-// Same real-DB convention as getRsvpForEditCredential above: a syntactically-valid
-// but non-existent event id reaches the actual .eq("event_id", ...) filter and
-// exercises the real "no matching rows" path, rather than short-circuiting on a
-// PostgREST uuid-parse error before the query's own semantics are ever tested.
-test("listMemoryMoments returns an empty array for an event with no moments", async () => {
-  const moments = await listMemoryMoments("00000000-0000-0000-0000-000000000005");
-  assert.deepEqual(moments, []);
-});

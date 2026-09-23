@@ -148,6 +148,17 @@
           "description": "Send an update, reminder, or thank-you to everyone who RSVP'd.",
           "open": "Message guests"
         },
+        "memories": {
+          "title": "Shared photos",
+          "flagged": "{count, plural, one {# needs review} other {# need review}}",
+          "summary": "{photos} photos · {videos} videos · {guests} guests contributed",
+          "viewGallery": "View gallery",
+          "reviewFlagged": "Review photos",
+          "manage": "Manage photos",
+          "enableLabel": "Let guests share photos",
+          "modeLabel": "Require my approval before photos are visible",
+          "saveError": "The photo-sharing setting could not be saved. Try again."
+        },
         "status": {
           "draft": "Draft",
           "published": "Published",
@@ -165,6 +176,22 @@
         "commentsLabel": "Guestbook comments", "empty": "No comments yet.", "visible": "Visible", "hidden": "Hidden",
         "hide": "Hide", "restore": "Restore", "delete": "Delete permanently",
         "deleteConfirm": "Permanently delete the comment from {name}?", "error": "The guestbook could not be updated. Try again."
+      },
+      "memories": {
+        "back": "Back to event",
+        "title": "Shared photos",
+        "subtitle": "Review what guests shared and download the originals.",
+        "tabsLabel": "Photo views",
+        "tabs": { "live": "Live", "flagged": "Needs review", "removed": "Removed", "pending": "Pending", "published": "Published", "rejected": "Rejected" },
+        "bulkApprove": "Approve selected",
+        "bulkReject": "Reject selected",
+        "remove": "Remove from gallery",
+        "empty": "Nothing here right now.",
+        "anonymous": "Anonymous guest",
+        "selectPhoto": "Select photo from {name}",
+        "downloadSelected": "Download selected",
+        "downloadAll": "Download originals",
+        "actionError": "That change could not be completed. Refresh and try again."
       },
       "messageComposer": {
         "back": "Back to guest responses",
@@ -352,6 +379,7 @@
         "guestbook": "Manage guestbook",
         "copyLink": "Copy public link",
         "message": "Message guests"
+        ,"memories": "Manage shared photos"
       },
       "dirty": "Unsaved changes",
       "clean": "No unsaved changes",
@@ -689,6 +717,24 @@
           "quotaError": "This event has reached its photo limit.",
           "windowClosedError": "The photo-upload window for this event has closed.",
           "genericError": "Something went wrong — please try again."
+        },
+        "gallery": {
+          "loading": "Loading photos…",
+          "error": "The gallery could not be loaded. Try again shortly.",
+          "empty": "No photos yet — be the first to share one!",
+          "newPhotos": "{count} new photos just now",
+          "recentLabel": "Recently shared photos",
+          "tonight": "Tonight",
+          "thisAfternoon": "This afternoon",
+          "earlier": "Earlier",
+          "photoAlt": "Shared event photo",
+          "photoBy": "Photo shared by {name}"
+        },
+        "moments": {
+          "loading": "Loading moments…",
+          "empty": "No moments yet — check back soon.",
+          "photoCount": "{count, plural, one {# photo} other {# photos}}",
+          "back": "All moments"
         }
       }
     },

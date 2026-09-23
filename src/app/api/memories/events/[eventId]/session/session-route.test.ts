@@ -82,3 +82,8 @@ test("resolveMemoriesGuestSession: expiresAt is derived from the provided clock 
   const session = resolveMemoriesGuestSession("event-1", null, null, undefined, now);
   assert.equal(session.expiresAt, now + 400 * 24 * 60 * 60);
 });
+
+test("resolveMemoriesGuestSession preserves a stable contributor session id across re-mints", () => {
+  const session = resolveMemoriesGuestSession("event-1", null, null, "Jamie", 1_700_000_000, "session-stable");
+  assert.equal(session.sessionId, "session-stable");
+});

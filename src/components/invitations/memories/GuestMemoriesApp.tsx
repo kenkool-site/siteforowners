@@ -4,6 +4,8 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { GuestUploadView } from "./GuestUploadView";
+import { GuestGalleryView } from "./GuestGalleryView";
+import { GuestMomentsView } from "./GuestMomentsView";
 
 type Tab = "upload" | "gallery" | "moments";
 
@@ -30,11 +32,13 @@ export function GuestMemoriesApp({
   accent,
   background,
   text,
+  surface,
 }: {
   eventId: string;
   accent: string;
   background: string;
   text: string;
+  surface: string;
 }) {
   const t = useTranslations("invitations.public.memories.landing");
   const tUpload = useTranslations("invitations.public.memories.upload");
@@ -106,8 +110,8 @@ export function GuestMemoriesApp({
       </header>
       <main>
         {tab === "upload" && <GuestUploadView eventId={eventId} accent={accent} />}
-        {tab === "gallery" && <div data-testid="gallery-placeholder" />}
-        {tab === "moments" && <div data-testid="moments-placeholder" />}
+        {tab === "gallery" && <GuestGalleryView eventId={eventId} accent={accent} surface={surface} />}
+        {tab === "moments" && <GuestMomentsView eventId={eventId} accent={accent} surface={surface} />}
       </main>
       <nav className="fixed inset-x-0 bottom-0 flex border-t bg-white/95 backdrop-blur">
         {(["upload", "gallery", "moments"] as const).map((value) => (

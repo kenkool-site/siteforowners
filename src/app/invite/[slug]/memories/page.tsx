@@ -38,6 +38,7 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
         accent={recipe.palette.accent}
         background={recipe.palette.background}
         text={recipe.palette.text}
+        surface={recipe.palette.surface}
       />
     </InvitationPublicProvider>
   );

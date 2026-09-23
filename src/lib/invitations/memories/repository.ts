@@ -1,12 +1,14 @@
 // src/lib/invitations/memories/repository.ts
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MediaKind, MemoriesGuestLevel, MemoryMedia } from "./types";
+import { allowedModerationStatuses, buildMemoriesEventSummary, moderationStatusForFilter, type HostModerationAction, type HostReviewFilter, type MemoriesEventSummary } from "./host";
 
 export function mapRow(row: Record<string, unknown>): MemoryMedia {
   return {
     id: row.id as string,
     eventId: row.event_id as string,
     uploaderRsvpId: (row.uploader_rsvp_id as string | null) ?? null,
+    uploaderSessionId: (row.uploader_session_id as string | null) ?? null,
     uploaderDisplayName: (row.uploader_display_name as string | null) ?? null,
     guestSessionLevel: row.guest_session_level as MemoriesGuestLevel,
     mediaKind: row.media_kind as MediaKind,
@@ -31,6 +33,7 @@ export async function createPendingMemoryMedia(input: {
   objectKeyOriginal: string;
   guestSessionLevel: MemoriesGuestLevel;
   uploaderRsvpId: string | null;
+  uploaderSessionId: string | null;
   uploaderDisplayName: string | null;
 }): Promise<void> {
   const client = createAdminClient();
@@ -41,6 +44,7 @@ export async function createPendingMemoryMedia(input: {
     object_key_original: input.objectKeyOriginal,
     guest_session_level: input.guestSessionLevel,
     uploader_rsvp_id: input.uploaderRsvpId,
+    uploader_session_id: input.uploaderSessionId,
     uploader_display_name: input.uploaderDisplayName,
   });
   if (error) throw new Error(`failed to create memory_media row: ${error.message}`);
@@ -193,4 +197,34 @@ export async function countMemoryMediaForEvent(eventId: string): Promise<number>
     return 0;
   }
   return count ?? 0;
+}
+
+export async function listMediaForHostReview(eventId: string, filter: HostReviewFilter): Promise<MemoryMedia[]> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media").select("*")
+    .eq("event_id", eventId)
+    .eq("moderation_status", moderationStatusForFilter(filter))
+    .order("uploaded_at", { ascending: false });
+  if (error) throw new Error(`failed to list Memories media: ${error.message}`);
+  return (data ?? []).map(mapRow);
+}
+
+export async function getMemoriesEventSummary(eventId: string): Promise<MemoriesEventSummary> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media").select("*").eq("event_id", eventId).eq("upload_status", "uploaded");
+  if (error) throw new Error(`failed to summarize Memories media: ${error.message}`);
+  return buildMemoriesEventSummary((data ?? []).map(mapRow));
+}
+
+export async function moderateMemoryMediaForHost(eventId: string, action: HostModerationAction, mediaIds: string[]): Promise<string[]> {
+  const nextStatus = action === "approve" ? "approved" : "rejected";
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media")
+    .update({ moderation_status: nextStatus })
+    .eq("event_id", eventId)
+    .in("id", mediaIds)
+    .in("moderation_status", allowedModerationStatuses(action))
+    .select("id");
+  if (error) throw new Error(`failed to moderate Memories media: ${error.message}`);
+  return (data ?? []).map((row) => row.id as string);
 }

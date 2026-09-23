@@ -1,7 +1,7 @@
 // src/lib/invitations/memories/gallery.test.ts
 import assert from "node:assert/strict";
 import test from "node:test";
-import { computeGalleryVisible } from "./gallery";
+import { computeGalleryVisible, toPublicMemoryMedia } from "./gallery";
 import type { MemoryMedia } from "./types";
 
 function baseMedia(overrides: Partial<MemoryMedia>): MemoryMedia {
@@ -9,6 +9,7 @@ function baseMedia(overrides: Partial<MemoryMedia>): MemoryMedia {
     id: "media-1",
     eventId: "event-1",
     uploaderRsvpId: null,
+    uploaderSessionId: "00000000-0000-4000-8000-000000000001",
     uploaderDisplayName: null,
     guestSessionLevel: "anonymous",
     mediaKind: "photo",
@@ -41,4 +42,17 @@ test("flagged media is never gallery-visible, even if processing finished", () =
 
 test("media still processing is never gallery-visible regardless of moderation outcome", () => {
   assert.equal(computeGalleryVisible(baseMedia({ processingStatus: "processing", moderationStatus: "approved" })), false);
+});
+
+test("public gallery projection excludes original keys, RSVP ids, and moderation details", () => {
+  const projected = toPublicMemoryMedia(baseMedia({ uploaderRsvpId: "rsvp-private", moderationCategories: ["private"] }));
+  assert.deepEqual(projected, {
+    id: "media-1",
+    mediaKind: "photo",
+    uploaderDisplayName: null,
+    objectKeyDisplay: "display/event-1/media-1.webp",
+    objectKeyThumbnail: "thumbnails/event-1/media-1.webp",
+    capturedAt: null,
+    uploadedAt: "2026-09-21T00:00:00Z",
+  });
 });

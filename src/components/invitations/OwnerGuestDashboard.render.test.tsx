@@ -39,6 +39,7 @@ test("owner landing page leads with guests and keeps customization as a secondar
       <OwnerGuestDashboard
         event={{ id: "event-1", title: "You're Invited", honoreeNames: "Mercy & John", status: "published", slug: "mercy-john", publicSubdomain: "mercy-john" }}
         initialData={responses}
+        memories={{ enabled: true, mode: "auto_publish", photoCount: 4, videoCount: 0, guestContributorCount: 2, flaggedCount: 1, recentThumbnailMediaIds: ["media-1"] }}
       />
     </NextIntlClientProvider>,
   );
@@ -51,6 +52,9 @@ test("owner landing page leads with guests and keeps customization as a secondar
   assert.match(html, /Preview invitation/);
   assert.match(html, /Copy guest link/);
   assert.doesNotMatch(html, /Event type|Welcome message|Invitation language/);
+  assert.match(html, /Shared photos/);
+  assert.match(html, /4 photos/);
+  assert.match(html, /1 needs review/);
 });
 
 test("owner dashboard links to the guest message composer", () => {

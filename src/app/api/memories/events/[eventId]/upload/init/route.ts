@@ -97,6 +97,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       objectKeyOriginal: objectKey,
       guestSessionLevel: session?.level ?? "anonymous",
       uploaderRsvpId: session?.rsvpId ?? null,
+      uploaderSessionId: session?.sessionId ?? null,
       uploaderDisplayName: session?.guestName ?? null,
     });
 
