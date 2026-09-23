@@ -13,11 +13,39 @@ export function groupMediaByTime(media: PublicMemoryMedia[], now: Date): Record<
   return groups;
 }
 
+function distanceToWindow(captured: number, startsAt: number, endsAt: number): number {
+  if (captured < startsAt) return startsAt - captured;
+  if (captured >= endsAt) return captured - endsAt;
+  return 0;
+}
+
 export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]): MemoryMoment | null {
-  if (!media.capturedAt) return null;
+  if (!media.capturedAt || moments.length === 0) return null;
   const captured = Date.parse(media.capturedAt);
   if (!Number.isFinite(captured)) return null;
-  return [...moments]
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .find((moment) => captured >= Date.parse(moment.startsAt) && captured < Date.parse(moment.endsAt)) ?? null;
+
+  const sorted = [...moments].sort((a, b) => a.sortOrder - b.sortOrder);
+  const strictMatch = sorted.find(
+    (moment) => captured >= Date.parse(moment.startsAt) && captured < Date.parse(moment.endsAt),
+  );
+  if (strictMatch) return strictMatch;
+
+  // Real events rarely run exactly on the schedule a host typed in — a photo
+  // taken before the first Moment starts, after the last one ends, or in a gap
+  // between two (the ceremony ran long, say) would otherwise never sort into
+  // any Moment at all. Falling back to whichever Moment's boundary is
+  // temporally closest keeps every timestamped photo grouped somewhere,
+  // trading a small amount of precision at the edges for guests never seeing
+  // an unexplained "unsorted" photo. Ties keep the earlier sortOrder (`<`, not
+  // `<=`), matching the strict-match branch's own first-match-wins rule.
+  let closest = sorted[0];
+  let closestDistance = distanceToWindow(captured, Date.parse(closest.startsAt), Date.parse(closest.endsAt));
+  for (const moment of sorted.slice(1)) {
+    const distance = distanceToWindow(captured, Date.parse(moment.startsAt), Date.parse(moment.endsAt));
+    if (distance < closestDistance) {
+      closest = moment;
+      closestDistance = distance;
+    }
+  }
+  return closest;
 }

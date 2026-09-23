@@ -27,3 +27,47 @@ test("moment membership uses the first matching sort order", () => {
   ]);
   assert.equal(found?.id, "first-sort");
 });
+
+test("a photo taken before every defined moment falls back to the nearest one", () => {
+  const early = { ...item, capturedAt: "2026-09-22T17:00:00Z" };
+  const found = momentForMedia(early, [
+    { id: "ceremony", name: "Ceremony", startsAt: "2026-09-22T18:00:00Z", endsAt: "2026-09-22T19:00:00Z", sortOrder: 1 },
+    { id: "reception", name: "Reception", startsAt: "2026-09-22T19:00:00Z", endsAt: "2026-09-22T23:00:00Z", sortOrder: 2 },
+  ]);
+  assert.equal(found?.id, "ceremony");
+});
+
+test("a photo taken after every defined moment falls back to the nearest one", () => {
+  const late = { ...item, capturedAt: "2026-09-23T01:00:00Z" };
+  const found = momentForMedia(late, [
+    { id: "ceremony", name: "Ceremony", startsAt: "2026-09-22T18:00:00Z", endsAt: "2026-09-22T19:00:00Z", sortOrder: 1 },
+    { id: "reception", name: "Reception", startsAt: "2026-09-22T19:00:00Z", endsAt: "2026-09-22T23:00:00Z", sortOrder: 2 },
+  ]);
+  assert.equal(found?.id, "reception");
+});
+
+test("a photo taken in a gap between two moments (the first ran long) falls back to the nearer one", () => {
+  // Ceremony scheduled to end 19:00 but really ran until ~19:20; Reception doesn't
+  // start until 19:30. A photo at 19:10 is closer to Ceremony's end (10 min) than
+  // to Reception's start (20 min).
+  const duringOverrun = { ...item, capturedAt: "2026-09-22T19:10:00Z" };
+  const found = momentForMedia(duringOverrun, [
+    { id: "ceremony", name: "Ceremony", startsAt: "2026-09-22T18:00:00Z", endsAt: "2026-09-22T19:00:00Z", sortOrder: 1 },
+    { id: "reception", name: "Reception", startsAt: "2026-09-22T19:30:00Z", endsAt: "2026-09-22T23:00:00Z", sortOrder: 2 },
+  ]);
+  assert.equal(found?.id, "ceremony");
+});
+
+test("a tie between two equidistant moments keeps the earlier sortOrder", () => {
+  // Exactly halfway between Ceremony's end (19:00) and Reception's start (19:20).
+  const midpoint = { ...item, capturedAt: "2026-09-22T19:10:00Z" };
+  const found = momentForMedia(midpoint, [
+    { id: "ceremony", name: "Ceremony", startsAt: "2026-09-22T18:00:00Z", endsAt: "2026-09-22T19:00:00Z", sortOrder: 1 },
+    { id: "reception", name: "Reception", startsAt: "2026-09-22T19:20:00Z", endsAt: "2026-09-22T23:00:00Z", sortOrder: 2 },
+  ]);
+  assert.equal(found?.id, "ceremony");
+});
+
+test("no moments defined yet returns null, not a crash", () => {
+  assert.equal(momentForMedia(item, []), null);
+});
