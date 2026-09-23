@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
 import {
+  createMemoryMoment,
   getEventMemoriesSettings,
   updateEventMemoriesSettings,
 } from "./repository";
@@ -35,6 +36,15 @@ test("updateEventMemoriesSettings patches only the memories fields provided", ()
   const source = updateEventMemoriesSettings.toString();
   assert.match(source, /memories_enabled/);
   assert.match(source, /memories_mode/);
+});
+
+test("createMemoryMoment inserts into memory_moments scoped to the event", () => {
+  assert.equal(typeof createMemoryMoment, "function");
+  const source = createMemoryMoment.toString();
+  assert.match(source, /memory_moments/);
+  assert.match(source, /event_id/);
+  assert.match(source, /starts_at/);
+  assert.match(source, /ends_at/);
 });
 
 // invitation_rsvps.id/event_id are both `uuid` columns. Non-UUID literals like

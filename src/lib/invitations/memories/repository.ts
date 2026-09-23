@@ -181,6 +181,32 @@ export async function listMemoryMoments(eventId: string): Promise<MemoryMoment[]
   }));
 }
 
+export async function createMemoryMoment(
+  eventId: string,
+  input: { name: string; startsAt: string; endsAt: string; sortOrder?: number },
+): Promise<MemoryMoment> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_moments")
+    .insert({
+      event_id: eventId,
+      name: input.name,
+      starts_at: input.startsAt,
+      ends_at: input.endsAt,
+      sort_order: input.sortOrder ?? 0,
+    })
+    .select("id,name,starts_at,ends_at,sort_order")
+    .single();
+  if (error || !data) throw new Error(`failed to create memory moment: ${error?.message}`);
+  return {
+    id: data.id as string,
+    name: data.name as string,
+    startsAt: data.starts_at as string,
+    endsAt: data.ends_at as string,
+    sortOrder: data.sort_order as number,
+  };
+}
+
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   // Only completed uploads count toward the quota. Counting every row regardless of

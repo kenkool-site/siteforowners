@@ -191,7 +191,20 @@
         "selectPhoto": "Seleccionar foto de {name}",
         "downloadSelected": "Descargar seleccionadas",
         "downloadAll": "Descargar originales",
-        "actionError": "No se pudo completar el cambio. Actualice e inténtelo de nuevo."
+        "actionError": "No se pudo completar el cambio. Actualice e inténtelo de nuevo.",
+        "moments": {
+          "title": "Momentos",
+          "description": "Define ventanas de tiempo para que los invitados naveguen las fotos por momento (p. ej. Ceremonia, Recepción).",
+          "nameLabel": "Nombre",
+          "namePlaceholder": "p. ej. Ceremonia",
+          "startsAtLabel": "Inicio",
+          "endsAtLabel": "Fin",
+          "add": "Agregar momento",
+          "adding": "Agregando…",
+          "empty": "Aún no hay momentos.",
+          "error": "No se pudo crear ese momento — revisa los horarios e inténtalo de nuevo.",
+          "endsBeforeStarts": "La hora de fin debe ser posterior a la de inicio."
+        }
       },
       "messageComposer": {
         "back": "Volver a las respuestas",
