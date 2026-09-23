@@ -7,6 +7,7 @@ const item: PublicMemoryMedia = {
   id: "media-1", mediaKind: "photo", uploaderDisplayName: "Jamie",
   objectKeyDisplay: "display.webp", objectKeyThumbnail: "thumb.webp",
   capturedAt: "2026-09-22T20:00:00Z", uploadedAt: "2026-09-22T20:01:00Z",
+  momentId: null,
 };
 
 test("gallery groups recent evening, afternoon, and earlier media", () => {
@@ -70,4 +71,23 @@ test("a tie between two equidistant moments keeps the earlier sortOrder", () => 
 
 test("no moments defined yet returns null, not a crash", () => {
   assert.equal(momentForMedia(item, []), null);
+});
+
+test("an explicit override (AI-classified or host) wins over the time-window default", () => {
+  // item's capturedAt (20:00) falls inside "on-time" per the window below, but the
+  // override should still redirect it to "content-matched" regardless.
+  const overridden = { ...item, momentId: "content-matched" };
+  const found = momentForMedia(overridden, [
+    { id: "on-time", name: "On Time", startsAt: "2026-09-22T19:00:00Z", endsAt: "2026-09-22T21:00:00Z", sortOrder: 1 },
+    { id: "content-matched", name: "Content Matched", startsAt: "2026-09-23T00:00:00Z", endsAt: "2026-09-23T01:00:00Z", sortOrder: 2 },
+  ]);
+  assert.equal(found?.id, "content-matched");
+});
+
+test("an override pointing at a moment that no longer exists falls back to time-window matching", () => {
+  const dangling = { ...item, momentId: "deleted-moment" };
+  const found = momentForMedia(dangling, [
+    { id: "on-time", name: "On Time", startsAt: "2026-09-22T19:00:00Z", endsAt: "2026-09-22T21:00:00Z", sortOrder: 1 },
+  ]);
+  assert.equal(found?.id, "on-time");
 });

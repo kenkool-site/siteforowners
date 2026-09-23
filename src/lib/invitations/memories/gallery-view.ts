@@ -20,7 +20,19 @@ function distanceToWindow(captured: number, startsAt: number, endsAt: number): n
 }
 
 export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]): MemoryMoment | null {
-  if (!media.capturedAt || moments.length === 0) return null;
+  if (moments.length === 0) return null;
+
+  // An explicit override (AI-classified by content, or later a host's manual
+  // correction) always wins over the computed time-window default — this is
+  // exactly why memory_moment_media exists as an override table rather than
+  // the source of truth. Checked before the capturedAt guard below since an
+  // override doesn't depend on the photo having a usable timestamp at all.
+  if (media.momentId) {
+    const overridden = moments.find((moment) => moment.id === media.momentId);
+    if (overridden) return overridden;
+  }
+
+  if (!media.capturedAt) return null;
   const captured = Date.parse(media.capturedAt);
   if (!Number.isFinite(captured)) return null;
 
