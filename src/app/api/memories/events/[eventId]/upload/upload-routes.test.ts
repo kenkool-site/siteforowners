@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { NextRequest } from "next/server";
 
@@ -111,4 +112,14 @@ test("contentLength parameter is passed to storage provider", async () => {
   assert.equal(expectedContentLength, 5242880);
   // The route passes this to:
   // storage.createPresignedUploadUrl(objectKey, contentType, 15*60, sizeBytes)
+});
+
+// Structural, like the route-contract tests in src/lib/invitations/*-route*.test.ts:
+// the window check sits behind getEventMemoriesSettings() and createAdminClient(),
+// neither of which can be reached from here, so this asserts the route's source
+// actually wires isUploadWindowOpen in against the settings it just loaded.
+test("upload/init enforces the upload window", () => {
+  const source = readFileSync(new URL("./init/route.ts", import.meta.url), "utf8");
+  assert.match(source, /isUploadWindowOpen/);
+  assert.match(source, /isUploadWindowOpen\(settings\.startsAt\)/);
 });

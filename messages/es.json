@@ -148,6 +148,17 @@
           "description": "Envía una actualización, un recordatorio o un agradecimiento a quienes confirmaron asistencia.",
           "open": "Enviar mensaje"
         },
+        "memories": {
+          "title": "Fotos compartidas",
+          "flagged": "{count, plural, one {# necesita revisión} other {# necesitan revisión}}",
+          "summary": "{photos} fotos · {videos} videos · {guests} invitados contribuyeron",
+          "viewGallery": "Ver galería",
+          "reviewFlagged": "Revisar fotos",
+          "manage": "Administrar fotos",
+          "enableLabel": "Permitir que los invitados compartan fotos",
+          "modeLabel": "Requerir mi aprobación antes de mostrar las fotos",
+          "saveError": "No se pudo guardar la configuración. Inténtalo de nuevo."
+        },
         "status": {
           "draft": "Borrador",
           "published": "Publicada",
@@ -165,6 +176,22 @@
         "commentsLabel": "Comentarios del libro de invitados", "empty": "Aún no hay comentarios.", "visible": "Visible", "hidden": "Oculto",
         "hide": "Ocultar", "restore": "Restaurar", "delete": "Eliminar permanentemente",
         "deleteConfirm": "¿Eliminar permanentemente el comentario de {name}?", "error": "No se pudo actualizar el libro de invitados. Inténtelo de nuevo."
+      },
+      "memories": {
+        "back": "Volver al evento",
+        "title": "Fotos compartidas",
+        "subtitle": "Revise lo que compartieron los invitados y descargue los originales.",
+        "tabsLabel": "Vistas de fotos",
+        "tabs": { "live": "En vivo", "flagged": "Necesitan revisión", "removed": "Eliminadas", "pending": "Pendientes", "published": "Publicadas", "rejected": "Rechazadas" },
+        "bulkApprove": "Aprobar seleccionadas",
+        "bulkReject": "Rechazar seleccionadas",
+        "remove": "Quitar de la galería",
+        "empty": "No hay nada aquí por ahora.",
+        "anonymous": "Invitado anónimo",
+        "selectPhoto": "Seleccionar foto de {name}",
+        "downloadSelected": "Descargar seleccionadas",
+        "downloadAll": "Descargar originales",
+        "actionError": "No se pudo completar el cambio. Actualice e inténtelo de nuevo."
       },
       "messageComposer": {
         "back": "Volver a las respuestas",
@@ -352,6 +379,7 @@
         "guestbook": "Administrar libro de invitados",
         "copyLink": "Copiar enlace público",
         "message": "Enviar mensaje"
+        ,"memories": "Administrar fotos compartidas"
       },
       "dirty": "Cambios sin guardar",
       "clean": "No hay cambios sin guardar",
@@ -667,6 +695,46 @@
           "rate_limited": "Demasiados intentos de respuesta. Espere e inténtelo de nuevo.",
           "contact_conflict": "Ese correo y teléfono pertenecen a respuestas diferentes. Use un solo método de contacto o contacte al anfitrión.",
           "server_error": "No se pudo guardar su respuesta. Inténtelo de nuevo."
+        }
+      },
+      "memories": {
+        "landing": {
+          "title": "Comparte tus fotos",
+          "addPhotos": "Agregar tus fotos",
+          "browseGallery": "Solo ver la galería",
+          "nameLabel": "Tu nombre (opcional, para que la pareja sepa a quién agradecer)",
+          "namePlaceholder": "Tu nombre",
+          "tabs": { "upload": "Agregar fotos", "gallery": "Galería", "moments": "Momentos" }
+        },
+        "upload": {
+          "queued": "Esperando para subir",
+          "uploading": "Subiendo… {percent}%",
+          "done": "Subido",
+          "failed": "No se pudo subir — no se perdió nada, toca reintentar",
+          "retry": "Reintentar",
+          "addMore": "Agregar más fotos",
+          "heicError": "El formato de foto predeterminado del iPhone aún no es compatible — cambia tu cámara a \"Más compatible\" en Configuración, o comparte un JPEG.",
+          "quotaError": "Este evento alcanzó su límite de fotos.",
+          "windowClosedError": "La ventana para subir fotos de este evento ya cerró.",
+          "genericError": "Algo salió mal — inténtalo de nuevo."
+        },
+        "gallery": {
+          "loading": "Cargando fotos…",
+          "error": "No se pudo cargar la galería. Inténtalo de nuevo pronto.",
+          "empty": "Aún no hay fotos — ¡sé el primero en compartir una!",
+          "newPhotos": "{count} fotos nuevas justo ahora",
+          "recentLabel": "Fotos compartidas recientemente",
+          "tonight": "Esta noche",
+          "thisAfternoon": "Esta tarde",
+          "earlier": "Más temprano",
+          "photoAlt": "Foto compartida del evento",
+          "photoBy": "Foto compartida por {name}"
+        },
+        "moments": {
+          "loading": "Cargando momentos…",
+          "empty": "Aún no hay momentos — vuelve pronto.",
+          "photoCount": "{count, plural, one {# foto} other {# fotos}}",
+          "back": "Todos los momentos"
         }
       }
     },

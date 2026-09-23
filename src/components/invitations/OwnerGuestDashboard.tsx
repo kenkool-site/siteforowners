@@ -8,6 +8,7 @@ import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import { InvitationCopyLinkButton } from "./InvitationCopyLinkButton";
 import { ResponsesDashboard } from "./ResponsesDashboard";
 import type { InvitationGuestbookSummary } from "@/lib/invitations/comments";
+import { OwnerMemoriesCard, type OwnerMemoriesCardData } from "./memories/OwnerMemoriesCard";
 
 type OwnerGuestDashboardEvent = {
   id: string;
@@ -18,10 +19,11 @@ type OwnerGuestDashboardEvent = {
   publicSubdomain: string | null;
 };
 
-export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled: false, totalCount: 0, newCount: 0 } }: {
+export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled: false, totalCount: 0, newCount: 0 }, memories }: {
   event: OwnerGuestDashboardEvent;
   initialData?: InvitationResponsesDashboardData;
   guestbook?: InvitationGuestbookSummary;
+  memories?: OwnerMemoriesCardData;
 }) {
   const t = useTranslations("invitations.manage.dashboard");
   const publicUrl = invitationPublicUrl(event);
@@ -61,6 +63,8 @@ export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled:
           <Link href={`/invitations/manage/${event.id}/message`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#6D456F] px-4 py-2 text-sm font-semibold text-[#55405a]">{t("message.open")}</Link>
         </div>
       </section>
+
+      {memories && <OwnerMemoriesCard eventId={event.id} slug={event.slug} initial={memories} />}
 
       <section className="mx-auto max-w-6xl px-0 py-6 sm:px-6 sm:py-9" aria-labelledby="guest-ledger-heading">
         <div className="px-4 sm:px-0">

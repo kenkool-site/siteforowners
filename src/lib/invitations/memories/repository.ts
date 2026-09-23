@@ -1,12 +1,14 @@
 // src/lib/invitations/memories/repository.ts
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MediaKind, MemoriesGuestLevel, MemoryMedia } from "./types";
+import { allowedModerationStatuses, buildMemoriesEventSummary, moderationStatusForFilter, type HostModerationAction, type HostReviewFilter, type MemoriesEventSummary } from "./host";
 
 export function mapRow(row: Record<string, unknown>): MemoryMedia {
   return {
     id: row.id as string,
     eventId: row.event_id as string,
     uploaderRsvpId: (row.uploader_rsvp_id as string | null) ?? null,
+    uploaderSessionId: (row.uploader_session_id as string | null) ?? null,
     uploaderDisplayName: (row.uploader_display_name as string | null) ?? null,
     guestSessionLevel: row.guest_session_level as MemoriesGuestLevel,
     mediaKind: row.media_kind as MediaKind,
@@ -31,6 +33,7 @@ export async function createPendingMemoryMedia(input: {
   objectKeyOriginal: string;
   guestSessionLevel: MemoriesGuestLevel;
   uploaderRsvpId: string | null;
+  uploaderSessionId: string | null;
   uploaderDisplayName: string | null;
 }): Promise<void> {
   const client = createAdminClient();
@@ -41,6 +44,7 @@ export async function createPendingMemoryMedia(input: {
     object_key_original: input.objectKeyOriginal,
     guest_session_level: input.guestSessionLevel,
     uploader_rsvp_id: input.uploaderRsvpId,
+    uploader_session_id: input.uploaderSessionId,
     uploader_display_name: input.uploaderDisplayName,
   });
   if (error) throw new Error(`failed to create memory_media row: ${error.message}`);
@@ -90,18 +94,31 @@ export async function simulateFixtureMediaReady(mediaId: string): Promise<void> 
 
 export async function getEventMemoriesSettings(
   eventId: string,
-): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required" } | null> {
+): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null } | null> {
   const client = createAdminClient();
   const { data, error } = await client
     .from("invitation_events")
-    .select("memories_enabled,memories_mode")
+    .select("memories_enabled,memories_mode,starts_at")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
   return {
     memoriesEnabled: data.memories_enabled as boolean,
     memoriesMode: data.memories_mode as "auto_publish" | "review_required",
+    startsAt: (data.starts_at as string | null) ?? null,
   };
+}
+
+export async function updateEventMemoriesSettings(
+  eventId: string,
+  updates: { memoriesEnabled?: boolean; memoriesMode?: "auto_publish" | "review_required" },
+): Promise<void> {
+  const client = createAdminClient();
+  const patch: Record<string, unknown> = {};
+  if (updates.memoriesEnabled !== undefined) patch.memories_enabled = updates.memoriesEnabled;
+  if (updates.memoriesMode !== undefined) patch.memories_mode = updates.memoriesMode;
+  const { error } = await client.from("invitation_events").update(patch).eq("id", eventId);
+  if (error) throw new Error(`failed to update memories settings: ${error.message}`);
 }
 
 export async function updateMemoryMediaModeration(
@@ -121,6 +138,49 @@ export async function updateMemoryMediaModeration(
   if (error) throw new Error(`failed to update memory_media moderation: ${error.message}`);
 }
 
+export async function getRsvpForEditCredential(
+  eventId: string,
+  rsvpId: string,
+): Promise<{ primaryName: string | null; editTokenHash: string } | null> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("invitation_rsvps")
+    .select("primary_name, edit_token_hash")
+    .eq("id", rsvpId)
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    primaryName: (data.primary_name as string | null) ?? null,
+    editTokenHash: data.edit_token_hash as string,
+  };
+}
+
+export interface MemoryMoment {
+  id: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  sortOrder: number;
+}
+
+export async function listMemoryMoments(eventId: string): Promise<MemoryMoment[]> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_moments")
+    .select("id,name,starts_at,ends_at,sort_order")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: true });
+  if (error || !data) return [];
+  return data.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    startsAt: row.starts_at as string,
+    endsAt: row.ends_at as string,
+    sortOrder: row.sort_order as number,
+  }));
+}
+
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   // Only completed uploads count toward the quota. Counting every row regardless of
@@ -137,4 +197,34 @@ export async function countMemoryMediaForEvent(eventId: string): Promise<number>
     return 0;
   }
   return count ?? 0;
+}
+
+export async function listMediaForHostReview(eventId: string, filter: HostReviewFilter): Promise<MemoryMedia[]> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media").select("*")
+    .eq("event_id", eventId)
+    .eq("moderation_status", moderationStatusForFilter(filter))
+    .order("uploaded_at", { ascending: false });
+  if (error) throw new Error(`failed to list Memories media: ${error.message}`);
+  return (data ?? []).map(mapRow);
+}
+
+export async function getMemoriesEventSummary(eventId: string): Promise<MemoriesEventSummary> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media").select("*").eq("event_id", eventId).eq("upload_status", "uploaded");
+  if (error) throw new Error(`failed to summarize Memories media: ${error.message}`);
+  return buildMemoriesEventSummary((data ?? []).map(mapRow));
+}
+
+export async function moderateMemoryMediaForHost(eventId: string, action: HostModerationAction, mediaIds: string[]): Promise<string[]> {
+  const nextStatus = action === "approve" ? "approved" : "rejected";
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media")
+    .update({ moderation_status: nextStatus })
+    .eq("event_id", eventId)
+    .in("id", mediaIds)
+    .in("moderation_status", allowedModerationStatuses(action))
+    .select("id");
+  if (error) throw new Error(`failed to moderate Memories media: ${error.message}`);
+  return (data ?? []).map((row) => row.id as string);
 }
