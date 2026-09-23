@@ -142,3 +142,18 @@ test("same-tick batch enqueues hydrate in original enqueue order despite millise
   const hydratedIds = queue2.getItems().map((i) => i.id);
   assert.deepEqual(hydratedIds, ids);
 });
+
+test("dismiss removes a completed upload from the visible and persisted queue", async () => {
+  const eventId = "event-8";
+  const queue = createUploadQueue(eventId, async () => ({ mediaId: "media-8" }));
+  const id = await queue.enqueue(fakeFile("finished.jpg", 1000));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(queue.getItems().find((item) => item.id === id)?.status, "done");
+
+  queue.dismiss(id);
+  assert.equal(queue.getItems().some((item) => item.id === id), false);
+
+  const hydrated = createUploadQueue(eventId, async () => ({ mediaId: "unused" }));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(hydrated.getItems().some((item) => item.id === id), false);
+});

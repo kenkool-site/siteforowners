@@ -1,36 +1,25 @@
-// src/components/invitations/memories/GuestUploadView.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Camera, Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import { createUploadQueue, type QueueItem, type UploadQueue } from "@/lib/invitations/memories/upload-queue";
 
 const UNSUPPORTED_TYPES = new Set(["image/heic", "image/heif"]);
-
-// The upload queue (Task 3) only carries a thrown Error's .message through to
-// QueueItem.error — not custom properties — so the failure classification has to
-// travel as one of these three sentinel strings. GuestUploadView's render below
-// maps each back to the right copy and decides whether Retry is worth showing.
 const ERROR_QUOTA = "quota";
 const ERROR_WINDOW_CLOSED = "window_closed";
 const ERROR_GENERIC = "generic";
 const TERMINAL_UPLOAD_ERRORS = new Set([ERROR_QUOTA, ERROR_WINDOW_CLOSED]);
+const PREVIEW_LIFETIME_MS = 30_000;
 
-async function uploadOne(
-  eventId: string,
-  file: File,
-  onProgress: (percent: number) => void,
-): Promise<{ mediaId: string }> {
+async function uploadOne(eventId: string, file: File, onProgress: (percent: number) => void): Promise<{ mediaId: string }> {
   const initRes = await fetch(`/api/memories/events/${eventId}/upload/init`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ mediaKind: "photo", contentType: file.type, sizeBytes: file.size }),
   });
   if (!initRes.ok) {
-    // 429 (quota exceeded) and 404 (upload window closed) are terminal — retrying
-    // hits the same wall every time — so they get their own copy and no Retry
-    // button. Anything else might be a transient server hiccup, so it stays
-    // retryable under the generic message.
     if (initRes.status === 429) throw new Error(ERROR_QUOTA);
     if (initRes.status === 404) throw new Error(ERROR_WINDOW_CLOSED);
     throw new Error(ERROR_GENERIC);
@@ -45,10 +34,7 @@ async function uploadOne(
       if (event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100));
     });
     xhr.addEventListener("error", () => reject(new Error("upload failed")));
-    xhr.addEventListener("load", () => {
-      if (xhr.status >= 200 && xhr.status < 300) resolve();
-      else reject(new Error("upload failed"));
-    });
+    xhr.addEventListener("load", () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("upload failed")));
     xhr.send(file);
   });
 
@@ -61,10 +47,6 @@ async function uploadOne(
   return { mediaId };
 }
 
-// Maps a QueueItem's failed-status .error sentinel (set in uploadOne above) to the
-// i18n key whose copy should be shown for it. Anything unrecognized (a plain "upload
-// failed" / "upload completion failed" message from the XHR PUT or /upload/complete
-// steps, which aren't classified above) falls back to the original retryable "failed" copy.
 function failureMessageKey(error: string | undefined): "quotaError" | "windowClosedError" | "genericError" | "failed" {
   if (error === ERROR_QUOTA) return "quotaError";
   if (error === ERROR_WINDOW_CLOSED) return "windowClosedError";
@@ -72,21 +54,66 @@ function failureMessageKey(error: string | undefined): "quotaError" | "windowClo
   return "failed";
 }
 
-export function GuestUploadView({ eventId, accent }: { eventId: string; accent: string }) {
+export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: string; accent: string; onItemsChange: (items: GuestUploadPreview[]) => void }) {
   const t = useTranslations("invitations.public.memories.upload");
   const tLanding = useTranslations("invitations.public.memories.landing");
-  const [items, setItems] = useState<QueueItem[]>([]);
+  const [items, setItems] = useState<GuestUploadPreview[]>([]);
   const [rejectionError, setRejectionError] = useState<string | null>(null);
+  const [successCount, setSuccessCount] = useState(0);
   const queueRef = useRef<UploadQueue | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const previewsRef = useRef(new Map<string, string>());
+  const completedAtRef = useRef(new Map<string, number>());
+  const statusRef = useRef(new Map<string, QueueItem["status"]>());
+  const dismissTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const publishItems = useCallback((queueItems: QueueItem[]) => {
+    const next = queueItems.map((item) => ({ ...item, previewUrl: previewsRef.current.get(item.id), completedAt: completedAtRef.current.get(item.id) }));
+    setItems(next);
+    onItemsChange(next);
+  }, [onItemsChange]);
 
   useEffect(() => {
+    const dismissTimers = dismissTimersRef.current;
+    const previews = previewsRef.current;
     const queue = createUploadQueue(eventId, (file, onProgress) => uploadOne(eventId, file, onProgress));
     queueRef.current = queue;
-    return queue.subscribe(setItems);
-  }, [eventId]);
+    const unsubscribe = queue.subscribe((queueItems) => {
+      const liveIds = new Set(queueItems.map((item) => item.id));
+      for (const [id, url] of Array.from(previewsRef.current.entries())) {
+        if (!liveIds.has(id)) {
+          URL.revokeObjectURL(url);
+          previewsRef.current.delete(id);
+        }
+      }
+      for (const item of queueItems) {
+        const previous = statusRef.current.get(item.id);
+        if (item.status === "done" && !completedAtRef.current.has(item.id)) {
+          completedAtRef.current.set(item.id, Date.now());
+          if (previous && previous !== "done") {
+            setSuccessCount((count) => count + 1);
+            if (successTimerRef.current) clearTimeout(successTimerRef.current);
+            successTimerRef.current = setTimeout(() => setSuccessCount(0), 3_500);
+          }
+          dismissTimersRef.current.set(item.id, setTimeout(() => queue.dismiss(item.id), PREVIEW_LIFETIME_MS));
+        }
+        statusRef.current.set(item.id, item.status);
+      }
+      publishItems(queueItems);
+    });
+    return () => {
+      unsubscribe();
+      queueRef.current = null;
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      dismissTimers.forEach(clearTimeout);
+      dismissTimers.clear();
+      previews.forEach((url) => URL.revokeObjectURL(url));
+      previews.clear();
+    };
+  }, [eventId, publishItems]);
 
-  function handleFiles(fileList: FileList | null) {
+  async function handleFiles(fileList: FileList | null) {
     if (!fileList || !queueRef.current) return;
     setRejectionError(null);
     for (const file of Array.from(fileList)) {
@@ -94,60 +121,40 @@ export function GuestUploadView({ eventId, accent }: { eventId: string; accent: 
         setRejectionError(t("heicError"));
         continue;
       }
-      void queueRef.current.enqueue(file);
+      const id = await queueRef.current.enqueue(file);
+      previewsRef.current.set(id, URL.createObjectURL(file));
+      publishItems(queueRef.current.getItems());
     }
+    if (inputRef.current) inputRef.current.value = "";
   }
 
+  const active = items.filter((item) => item.status === "queued" || item.status === "uploading");
+  const failed = items.filter((item) => item.status === "failed");
+  const overallProgress = active.length ? Math.round(active.reduce((total, item) => total + item.progress, 0) / active.length) : 0;
+
   return (
-    <div className="flex flex-col gap-4 p-4">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/jpeg,image/png,image/webp,image/gif"
-        multiple
-        capture="environment"
-        className="hidden"
-        onChange={(event) => handleFiles(event.target.files)}
-      />
-      <button
-        type="button"
-        onClick={() => inputRef.current?.click()}
-        className="min-h-12 rounded-md px-4 py-3 text-sm font-semibold text-white"
-        style={{ backgroundColor: accent }}
-      >
-        {items.length > 0 ? t("addMore") : tLanding("addPhotos")}
-      </button>
-      {rejectionError && <p role="alert" className="text-sm text-red-700">{rejectionError}</p>}
-      <ul className="flex flex-col gap-3">
-        {items.map((item) => (
-          <li key={item.id} className="rounded-md border border-gray-200 p-3">
-            <p className="truncate text-sm font-medium">{item.fileName}</p>
-            {item.status === "queued" && <p className="text-sm text-gray-500">{t("queued")}</p>}
-            {item.status === "uploading" && (
-              <>
-                <p className="text-sm text-gray-500">{t("uploading", { percent: item.progress })}</p>
-                <progress value={item.progress} max={100} className="mt-1 block h-2 w-full" style={{ accentColor: accent }} />
-              </>
-            )}
-            {item.status === "done" && <p className="text-sm text-green-700">{t("done")}</p>}
-            {item.status === "failed" && (
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm text-red-700">{t(failureMessageKey(item.error))}</p>
-                {!TERMINAL_UPLOAD_ERRORS.has(item.error ?? "") && (
-                  <button
-                    type="button"
-                    onClick={() => queueRef.current?.retry(item.id)}
-                    className="min-h-8 rounded-md border px-3 text-sm font-semibold"
-                    style={{ borderColor: accent, color: accent }}
-                  >
-                    {t("retry")}
-                  </button>
-                )}
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <>
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="hidden" onChange={(event) => void handleFiles(event.target.files)} />
+
+      <div className="pointer-events-none fixed inset-x-4 bottom-[9.25rem] z-40 mx-auto flex max-w-xl flex-col items-center gap-2">
+        {rejectionError && <div role="alert" className="pointer-events-auto flex w-full items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-red-700 shadow-lg ring-1 ring-black/5"><span>{rejectionError}</span><button type="button" aria-label={t("dismiss")} onClick={() => setRejectionError(null)}><X className="size-4" /></button></div>}
+        {failed.slice(0, 1).map((item) => <div key={item.id} role="alert" className="pointer-events-auto flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-black/5">
+          <p className="min-w-0 flex-1 text-sm"><span className="block truncate font-medium">{item.fileName}</span><span className="text-red-700">{t(failureMessageKey(item.error))}</span></p>
+          {!TERMINAL_UPLOAD_ERRORS.has(item.error ?? "") && <button type="button" onClick={() => queueRef.current?.retry(item.id)} className="text-sm font-semibold" style={{ color: accent }}>{t("retry")}</button>}
+          <button type="button" aria-label={t("dismiss")} onClick={() => queueRef.current?.dismiss(item.id)}><X className="size-4" /></button>
+        </div>)}
+        {active.length > 0 && <div className="w-full rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-black/5">
+          <div className="flex items-center justify-between gap-4 text-sm font-medium"><span>{t("uploadingCount", { count: active.length })}</span><span>{overallProgress}%</span></div>
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full transition-[width]" style={{ width: `${overallProgress}%`, backgroundColor: accent }} /></div>
+        </div>}
+        {successCount > 0 && active.length === 0 && <div role="status" className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold shadow-lg ring-1 ring-black/5"><span className="grid size-6 place-items-center rounded-full text-white" style={{ backgroundColor: accent }}><Check className="size-4" /></span>{t("added", { count: successCount })}</div>}
+      </div>
+
+      <div className="fixed inset-x-4 bottom-[4.75rem] z-30 mx-auto max-w-xl">
+        <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-full px-6 py-3 text-base font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ backgroundColor: accent, outlineColor: accent }}>
+          <Camera className="size-5" />{tLanding("addPhotos")}
+        </button>
+      </div>
+    </>
   );
 }
