@@ -721,7 +721,7 @@
           "addName": "Add your name",
           "saveName": "Save",
           "navigationLabel": "Photo sharing",
-          "tabs": { "upload": "Add photos", "gallery": "Gallery", "moments": "Moments" }
+          "tabs": { "upload": "Add photos", "gallery": "Gallery", "moments": "Moments", "highlights": "AI Highlight" }
         },
         "upload": {
           "queued": "Waiting to upload",
@@ -760,6 +760,13 @@
           "empty": "No moments yet — check back soon.",
           "photoCount": "{count, plural, one {# photo} other {# photos}}",
           "back": "All moments"
+        },
+        "aiHighlight": {
+          "loading": "Finding highlights…",
+          "description": "Photos our AI grouped by what's happening in them.",
+          "empty": "No AI highlights yet — check back once more photos come in.",
+          "photoCount": "{count, plural, one {# photo} other {# photos}}",
+          "back": "All highlights"
         }
       }
     },

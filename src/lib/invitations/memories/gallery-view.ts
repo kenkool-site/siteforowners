@@ -20,19 +20,12 @@ function distanceToWindow(captured: number, startsAt: number, endsAt: number): n
 }
 
 export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]): MemoryMoment | null {
-  if (moments.length === 0) return null;
-
-  // An explicit override (AI-classified by content, or later a host's manual
-  // correction) always wins over the computed time-window default — this is
-  // exactly why memory_moment_media exists as an override table rather than
-  // the source of truth. Checked before the capturedAt guard below since an
-  // override doesn't depend on the photo having a usable timestamp at all.
-  if (media.momentId) {
-    const overridden = moments.find((moment) => moment.id === media.momentId);
-    if (overridden) return overridden;
-  }
-
-  if (!media.capturedAt) return null;
+  // Deliberately time-window only, even though media.momentId (an AI
+  // classification override) is available — the "Moments" tab is the host's
+  // own schedule-based view and must never silently disagree with it. AI's
+  // content-based grouping lives in its own separate "AI Highlight" tab
+  // (aiHighlightGroups, below) instead of overriding this one.
+  if (moments.length === 0 || !media.capturedAt) return null;
   const captured = Date.parse(media.capturedAt);
   if (!Number.isFinite(captured)) return null;
 
@@ -60,4 +53,26 @@ export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]
     }
   }
   return closest;
+}
+
+/**
+ * Groups only the photos AI actually classified by content (media.momentId,
+ * written by moment-classification.ts) into their matched Moment — a photo
+ * with no AI classification is simply absent here, never falling back to a
+ * time-window guess the way momentForMedia does. This is the "AI Highlight"
+ * tab's data source: a second, independent lens on the same photos, kept
+ * deliberately separate from the host's own schedule-based Moments tab.
+ */
+export function aiHighlightGroups(media: PublicMemoryMedia[], moments: MemoryMoment[]): Map<MemoryMoment, PublicMemoryMedia[]> {
+  const momentsById = new Map(moments.map((moment) => [moment.id, moment]));
+  const groups = new Map<MemoryMoment, PublicMemoryMedia[]>();
+  for (const item of media) {
+    if (!item.momentId) continue;
+    const moment = momentsById.get(item.momentId);
+    if (!moment) continue; // dangling override — the moment was deleted since classification ran
+    const existing = groups.get(moment);
+    if (existing) existing.push(item);
+    else groups.set(moment, [item]);
+  }
+  return groups;
 }

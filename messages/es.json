@@ -721,7 +721,7 @@
           "addName": "Agregar tu nombre",
           "saveName": "Guardar",
           "navigationLabel": "Fotos compartidas",
-          "tabs": { "upload": "Agregar fotos", "gallery": "Galería", "moments": "Momentos" }
+          "tabs": { "upload": "Agregar fotos", "gallery": "Galería", "moments": "Momentos", "highlights": "Destacados IA" }
         },
         "upload": {
           "queued": "Esperando para subir",
@@ -760,6 +760,13 @@
           "empty": "Aún no hay momentos — vuelve pronto.",
           "photoCount": "{count, plural, one {# foto} other {# fotos}}",
           "back": "Todos los momentos"
+        },
+        "aiHighlight": {
+          "loading": "Buscando destacados…",
+          "description": "Fotos que nuestra IA agrupó según lo que ocurre en ellas.",
+          "empty": "Aún no hay destacados de IA — vuelve pronto cuando lleguen más fotos.",
+          "photoCount": "{count, plural, one {# foto} other {# fotos}}",
+          "back": "Todos los destacados"
         }
       }
     },
