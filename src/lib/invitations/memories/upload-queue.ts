@@ -40,9 +40,14 @@ interface PersistedEntry {
   id: string;
   file: File;
   item: QueueItem;
-  // Enqueue timestamp, used only to restore enqueue order on hydration — IndexedDB's
-  // getAll() returns rows ordered by the "id" key (a random UUID), not insertion order.
+  // Enqueue timestamp, used to restore enqueue order on hydration — IndexedDB's getAll()
+  // returns rows ordered by the "id" key (a random UUID), not insertion order.
   createdAt: number;
+  // Monotonic per-instance tiebreaker for createdAt. Date.now() is millisecond-resolution,
+  // so multiple enqueue() calls made back-to-back with no await between them (the normal
+  // shape of a multi-file <input multiple> picker) can share the same createdAt — without
+  // this, ties fall back to getAll()'s random-UUID-key order and scramble enqueue order.
+  seq: number;
 }
 
 async function persistItem(db: IDBDatabase, entry: PersistedEntry): Promise<void> {
@@ -58,7 +63,7 @@ async function readAllItems(db: IDBDatabase): Promise<PersistedEntry[]> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, "readonly");
     const request = tx.objectStore(STORE_NAME).getAll();
-    request.onsuccess = () => resolve((request.result as PersistedEntry[] | undefined) ?? []);
+    request.onsuccess = () => resolve(request.result as PersistedEntry[]);
     request.onerror = () => reject(request.error);
   });
 }
@@ -67,9 +72,11 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
   const files = new Map<string, File>();
   const items: QueueItem[] = [];
   const createdAtById = new Map<string, number>();
+  const seqById = new Map<string, number>();
   const listeners = new Set<(items: QueueItem[]) => void>();
   let dbPromise: Promise<IDBDatabase> | null = null;
   let processing = false;
+  let nextSeq = 0;
 
   function getDb(): Promise<IDBDatabase> {
     if (!dbPromise) dbPromise = openDb(eventId);
@@ -106,15 +113,27 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       next.error = error instanceof Error ? error.message : "upload failed";
     }
     notify();
-    const db = await getDb();
-    await persistItem(db, {
-      id: next.id,
-      file: files.get(next.id)!,
-      item: { ...next },
-      createdAt: createdAtById.get(next.id) ?? Date.now(),
-    });
-    processing = false;
-    void processNext();
+    try {
+      const db = await getDb();
+      await persistItem(db, {
+        id: next.id,
+        file: files.get(next.id)!,
+        item: { ...next },
+        createdAt: createdAtById.get(next.id) ?? Date.now(),
+        seq: seqById.get(next.id) ?? 0,
+      });
+    } catch {
+      // Persisting the terminal state failed (storage quota exceeded, private-browsing
+      // IndexedDB restrictions, etc). In-memory state and subscribers already reflect the
+      // real outcome via notify() above, so the persisted row is briefly stale — an
+      // acceptable tradeoff for not leaving `processing` stuck true, which would otherwise
+      // permanently freeze the queue for the rest of the session (every later enqueue()/
+      // retry() would bail on the `if (processing) return;` guard with no way to recover
+      // short of a full page reload).
+    } finally {
+      processing = false;
+      void processNext();
+    }
   }
 
   // Hydration restores queue state from a previous page load (closed tab, refresh, dropped
@@ -126,7 +145,7 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
   void (async function hydrate() {
     const db = await getDb();
     const entries = await readAllItems(db);
-    entries.sort((a, b) => a.createdAt - b.createdAt);
+    entries.sort((a, b) => a.createdAt - b.createdAt || a.seq - b.seq);
     const restored: QueueItem[] = [];
     for (const entry of entries) {
       const item: QueueItem = { ...entry.item };
@@ -139,6 +158,7 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       }
       files.set(entry.id, entry.file);
       createdAtById.set(entry.id, entry.createdAt);
+      seqById.set(entry.id, entry.seq);
       restored.push(item);
     }
     if (restored.length > 0) {
@@ -160,11 +180,13 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
         progress: 0,
       };
       const createdAt = Date.now();
+      const seq = nextSeq++;
       files.set(id, file);
       createdAtById.set(id, createdAt);
+      seqById.set(id, seq);
       items.push(item);
       const db = await getDb();
-      await persistItem(db, { id, file, item: { ...item }, createdAt });
+      await persistItem(db, { id, file, item: { ...item }, createdAt, seq });
       notify();
       void processNext();
       return id;
