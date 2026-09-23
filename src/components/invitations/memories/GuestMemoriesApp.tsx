@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Images, Users } from "lucide-react";
+import { Images, Sparkles, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import { GuestUploadView } from "./GuestUploadView";
 import { GuestGalleryView } from "./GuestGalleryView";
 import { GuestMomentsView } from "./GuestMomentsView";
+import { GuestAiHighlightView } from "./GuestAiHighlightView";
 
-type Tab = "gallery" | "moments";
+type Tab = "gallery" | "moments" | "highlights";
 
 function rsvpCredentialFromUrl(): { rsvpId: string; editToken: string } | null {
   try {
@@ -111,15 +112,16 @@ export function GuestMemoriesApp({
         <main>
           {tab === "gallery" && <GuestGalleryView eventId={eventId} accent={accent} surface={surface} uploads={uploads} />}
           {tab === "moments" && <GuestMomentsView eventId={eventId} accent={accent} surface={surface} />}
+          {tab === "highlights" && <GuestAiHighlightView eventId={eventId} accent={accent} surface={surface} />}
         </main>
 
         {tab === "gallery" && <GuestUploadView eventId={eventId} accent={accent} onItemsChange={handleUploadsChange} />}
       </div>
 
       <nav aria-label={t("navigationLabel")} className="fixed inset-x-0 bottom-0 z-20 border-t bg-white/95 backdrop-blur" style={{ borderColor: `${accent}20` }}>
-        <div className="mx-auto grid h-[4.25rem] max-w-2xl grid-cols-2">
-          {(["gallery", "moments"] as const).map((value) => {
-            const Icon = value === "gallery" ? Images : Users;
+        <div className="mx-auto grid h-[4.25rem] max-w-2xl grid-cols-3">
+          {(["gallery", "moments", "highlights"] as const).map((value) => {
+            const Icon = value === "gallery" ? Images : value === "moments" ? Users : Sparkles;
             const active = tab === value;
             return <button key={value} type="button" onClick={() => setTab(value)} aria-current={active ? "page" : undefined} className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-semibold" style={{ color: active ? accent : `${text}88` }}>
               <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
