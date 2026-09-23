@@ -17,6 +17,7 @@ export type UploadOneFn = (file: File, onProgress: (percent: number) => void) =>
 export interface UploadQueue {
   enqueue(file: File): Promise<string>;
   retry(id: string): void;
+  dismiss(id: string): void;
   subscribe(listener: (items: QueueItem[]) => void): () => void;
   getItems(): QueueItem[];
 }
@@ -65,6 +66,15 @@ async function readAllItems(db: IDBDatabase): Promise<PersistedEntry[]> {
     const request = tx.objectStore(STORE_NAME).getAll();
     request.onsuccess = () => resolve(request.result as PersistedEntry[]);
     request.onerror = () => reject(request.error);
+  });
+}
+
+async function deleteItem(db: IDBDatabase, id: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
   });
 }
 
@@ -199,6 +209,16 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       item.progress = 0;
       notify();
       void processNext();
+    },
+    dismiss(id: string): void {
+      const index = items.findIndex((item) => item.id === id);
+      if (index < 0) return;
+      items.splice(index, 1);
+      files.delete(id);
+      createdAtById.delete(id);
+      seqById.delete(id);
+      notify();
+      void getDb().then((db) => deleteItem(db, id)).catch(() => undefined);
     },
     subscribe(listener: (items: QueueItem[]) => void): () => void {
       listeners.add(listener);

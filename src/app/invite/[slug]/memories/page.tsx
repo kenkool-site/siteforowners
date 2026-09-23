@@ -35,6 +35,7 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
     <InvitationPublicProvider locale={invitation.event.locale} timeZone="UTC">
       <GuestMemoriesApp
         eventId={invitation.event.id}
+        eventTitle={invitation.event.honoreeNames.trim() || invitation.event.title}
         accent={recipe.palette.accent}
         background={recipe.palette.background}
         text={recipe.palette.text}
