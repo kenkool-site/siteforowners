@@ -668,6 +668,27 @@
           "contact_conflict": "Ese correo y teléfono pertenecen a respuestas diferentes. Use un solo método de contacto o contacte al anfitrión.",
           "server_error": "No se pudo guardar su respuesta. Inténtelo de nuevo."
         }
+      },
+      "memories": {
+        "landing": {
+          "title": "Comparte tus fotos",
+          "addPhotos": "Agregar tus fotos",
+          "browseGallery": "Solo ver la galería",
+          "nameLabel": "Tu nombre (opcional, para que la pareja sepa a quién agradecer)",
+          "namePlaceholder": "Tu nombre"
+        },
+        "upload": {
+          "queued": "Esperando para subir",
+          "uploading": "Subiendo… {percent}%",
+          "done": "Subido",
+          "failed": "No se pudo subir — no se perdió nada, toca reintentar",
+          "retry": "Reintentar",
+          "addMore": "Agregar más fotos",
+          "heicError": "El formato de foto predeterminado del iPhone aún no es compatible — cambia tu cámara a \"Más compatible\" en Configuración, o comparte un JPEG.",
+          "quotaError": "Este evento alcanzó su límite de fotos.",
+          "windowClosedError": "La ventana para subir fotos de este evento ya cerró.",
+          "genericError": "Algo salió mal — inténtalo de nuevo."
+        }
       }
     },
     "validation": {

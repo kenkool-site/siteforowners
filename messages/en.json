@@ -668,6 +668,27 @@
           "contact_conflict": "That email and phone belong to different responses. Use one contact method or contact the host.",
           "server_error": "Your response could not be saved. Please try again."
         }
+      },
+      "memories": {
+        "landing": {
+          "title": "Share your photos",
+          "addPhotos": "Add your photos",
+          "browseGallery": "Just browse the gallery",
+          "nameLabel": "Your name (optional, so the couple knows who to thank)",
+          "namePlaceholder": "Your name"
+        },
+        "upload": {
+          "queued": "Waiting to upload",
+          "uploading": "Uploading… {percent}%",
+          "done": "Uploaded",
+          "failed": "Couldn't upload — nothing is lost, tap retry",
+          "retry": "Retry",
+          "addMore": "Add more photos",
+          "heicError": "iPhone's default photo format isn't supported yet — switch your camera to \"Most Compatible\" in Settings, or share a JPEG instead.",
+          "quotaError": "This event has reached its photo limit.",
+          "windowClosedError": "The photo-upload window for this event has closed.",
+          "genericError": "Something went wrong — please try again."
+        }
       }
     },
     "validation": {
