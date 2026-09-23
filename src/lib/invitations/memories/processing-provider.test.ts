@@ -6,6 +6,7 @@ test("derivative keys are deterministic, stage-prefixed for R2 notification filt
   const keys = deriveObjectKeys("event-1", "media-1");
   assert.equal(keys.display, "display/event-1/media-1.webp");
   assert.equal(keys.thumbnail, "thumbnails/event-1/media-1.webp");
+  assert.equal(keys.moderation, "moderation/event-1/media-1.jpg");
 });
 
 test("a redelivered event notification for the same media produces the same keys, not a duplicate", () => {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveModerationOutcome, RekognitionAIProvider } from "@/lib/invitations/memories/ai-provider";
+import { deriveObjectKeys } from "@/lib/invitations/memories/processing-provider";
 import { getEventMemoriesSettings, getMemoryMediaById, updateMemoryMediaModeration } from "@/lib/invitations/memories/repository";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 
@@ -19,7 +20,8 @@ export async function POST(request: NextRequest) {
   const storage = new R2StorageProvider();
   let outcome;
   try {
-    const downloadUrl = await storage.getSignedDownloadUrl(media.objectKeyDisplay, 60);
+    const moderationKey = deriveObjectKeys(media.eventId, media.id).moderation;
+    const downloadUrl = await storage.getSignedDownloadUrl(moderationKey, 60);
     const imageResponse = await fetch(downloadUrl);
     if (!imageResponse.ok) {
       throw new Error(`R2 download failed with status ${imageResponse.status}`);
