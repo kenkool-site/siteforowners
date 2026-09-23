@@ -2,7 +2,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
-import { getEventMemoriesSettings, getRsvpForEditCredential, updateEventMemoriesSettings } from "./repository";
+import {
+  getEventMemoriesSettings,
+  getRsvpForEditCredential,
+  listMemoryMoments,
+  updateEventMemoriesSettings,
+} from "./repository";
 
 // Repository functions hit a real Supabase instance via createAdminClient(),
 // exactly like notifications.test.ts does — this test only proves the pure,
@@ -57,4 +62,13 @@ test("getRsvpForEditCredential returns null for a mismatched event/rsvp pair", a
     "00000000-0000-0000-0000-000000000002",
   );
   assert.equal(row, null);
+});
+
+// Same real-DB convention as getRsvpForEditCredential above: a syntactically-valid
+// but non-existent event id reaches the actual .eq("event_id", ...) filter and
+// exercises the real "no matching rows" path, rather than short-circuiting on a
+// PostgREST uuid-parse error before the query's own semantics are ever tested.
+test("listMemoryMoments returns an empty array for an event with no moments", async () => {
+  const moments = await listMemoryMoments("00000000-0000-0000-0000-000000000005");
+  assert.deepEqual(moments, []);
 });

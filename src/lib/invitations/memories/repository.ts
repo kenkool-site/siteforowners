@@ -152,6 +152,31 @@ export async function getRsvpForEditCredential(
   };
 }
 
+export interface MemoryMoment {
+  id: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+  sortOrder: number;
+}
+
+export async function listMemoryMoments(eventId: string): Promise<MemoryMoment[]> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_moments")
+    .select("id,name,starts_at,ends_at,sort_order")
+    .eq("event_id", eventId)
+    .order("sort_order", { ascending: true });
+  if (error || !data) return [];
+  return data.map((row) => ({
+    id: row.id as string,
+    name: row.name as string,
+    startsAt: row.starts_at as string,
+    endsAt: row.ends_at as string,
+    sortOrder: row.sort_order as number,
+  }));
+}
+
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   // Only completed uploads count toward the quota. Counting every row regardless of
