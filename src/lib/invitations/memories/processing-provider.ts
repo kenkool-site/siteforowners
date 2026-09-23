@@ -7,9 +7,10 @@ export interface ProcessingProvider {
   process(original: Uint8Array): Promise<DerivativeResult>;
 }
 
-export function deriveObjectKeys(eventId: string, mediaId: string): { display: string; thumbnail: string } {
+export function deriveObjectKeys(eventId: string, mediaId: string): { display: string; thumbnail: string; moderation: string } {
   return {
     display: `display/${eventId}/${mediaId}.webp`,
     thumbnail: `thumbnails/${eventId}/${mediaId}.webp`,
+    moderation: `moderation/${eventId}/${mediaId}.jpg`,
   };
 }

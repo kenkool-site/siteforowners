@@ -43,7 +43,7 @@ async function handleOne(event: R2EventNotification, env: Env, ctx: ExecutionCon
   if (!original) return; // object already gone — nothing to do
 
   const bytes = new Uint8Array(await original.arrayBuffer());
-  const { displayBytes, thumbnailBytes } = await process(bytes);
+  const { displayBytes, thumbnailBytes, moderationBytes } = await process(bytes);
 
   // Key construction here MUST stay identical to `deriveObjectKeys` in
   // src/lib/invitations/memories/processing-provider.ts — the Worker can't import
@@ -53,8 +53,10 @@ async function handleOne(event: R2EventNotification, env: Env, ctx: ExecutionCon
   // a silent mismatch. If you change one, change the other.
   const displayKey = `display/${eventId}/${mediaId}.webp`;
   const thumbnailKey = `thumbnails/${eventId}/${mediaId}.webp`;
+  const moderationKey = `moderation/${eventId}/${mediaId}.jpg`;
   await env.MEMORIES_BUCKET.put(displayKey, displayBytes);
   await env.MEMORIES_BUCKET.put(thumbnailKey, thumbnailBytes);
+  await env.MEMORIES_BUCKET.put(moderationKey, moderationBytes);
 
   const res = await fetch(`${env.MEMORIES_APP_BASE_URL}/api/memories/processing-complete`, {
     method: "POST",

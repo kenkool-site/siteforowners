@@ -3,6 +3,7 @@ import { PhotonImage, resize, SamplingFilter } from "@cf-wasm/photon";
 export interface DerivativeResult {
   displayBytes: Uint8Array;
   thumbnailBytes: Uint8Array;
+  moderationBytes: Uint8Array;
 }
 
 const DISPLAY_MAX_DIMENSION = 1600;
@@ -17,6 +18,7 @@ export async function process(original: Uint8Array): Promise<DerivativeResult> {
       return {
         displayBytes: display.get_bytes_webp(),
         thumbnailBytes: thumbnail.get_bytes_webp(),
+        moderationBytes: display.get_bytes_jpeg(85),
       };
     } finally {
       display.free();
