@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listGalleryVisibleMedia, toPublicMemoryMedia } from "@/lib/invitations/memories/gallery";
-import { getEventMemoriesSettings, listMemoryMoments } from "@/lib/invitations/memories/repository";
+import { getEventMemoriesSettings, listMemoryMoments, listMomentOverridesForEvent } from "@/lib/invitations/memories/repository";
 
 export async function GET(_request: NextRequest, { params }: { params: { eventId: string } }) {
   try {
@@ -12,7 +12,11 @@ export async function GET(_request: NextRequest, { params }: { params: { eventId
       listGalleryVisibleMedia(params.eventId),
       listMemoryMoments(params.eventId),
     ]);
-    return NextResponse.json({ media: media.map(toPublicMemoryMedia), moments });
+    const overrides = await listMomentOverridesForEvent(moments.map((moment) => moment.id));
+    return NextResponse.json({
+      media: media.map((item) => toPublicMemoryMedia(item, overrides[item.id] ?? null)),
+      moments,
+    });
   } catch (error) {
     console.error("[memories/gallery] fetch failed", { error });
     return NextResponse.json({ error: "gallery fetch failed" }, { status: 500 });

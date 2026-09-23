@@ -207,6 +207,19 @@ export async function createMemoryMoment(
   };
 }
 
+export async function listMomentOverridesForEvent(momentIds: string[]): Promise<Record<string, string>> {
+  if (momentIds.length === 0) return {};
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_moment_media")
+    .select("media_id, moment_id")
+    .in("moment_id", momentIds);
+  if (error || !data) return {};
+  const overrides: Record<string, string> = {};
+  for (const row of data) overrides[row.media_id as string] = row.moment_id as string;
+  return overrides;
+}
+
 export async function setAiClassifiedMoment(mediaId: string, momentId: string): Promise<void> {
   const client = createAdminClient();
   // ignoreDuplicates: media_id is the table's sole primary key, so this never
