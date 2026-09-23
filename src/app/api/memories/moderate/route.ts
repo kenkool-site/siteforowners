@@ -1,7 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveModerationOutcome, RekognitionAIProvider } from "@/lib/invitations/memories/ai-provider";
+import { classifyMomentFromLabels } from "@/lib/invitations/memories/moment-classification";
 import { deriveObjectKeys } from "@/lib/invitations/memories/processing-provider";
-import { getEventMemoriesSettings, getMemoryMediaById, updateMemoryMediaModeration } from "@/lib/invitations/memories/repository";
+import {
+  getEventMemoriesSettings,
+  getMemoryMediaById,
+  listMemoryMoments,
+  setAiClassifiedMoment,
+  updateMemoryMediaModeration,
+} from "@/lib/invitations/memories/repository";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 
 export async function POST(request: NextRequest) {
@@ -18,7 +25,9 @@ export async function POST(request: NextRequest) {
   if (!settings) return NextResponse.json({ error: "event not found" }, { status: 404 });
 
   const storage = new R2StorageProvider();
+  const provider = new RekognitionAIProvider();
   let outcome;
+  let bytes: Uint8Array;
   try {
     const moderationKey = deriveObjectKeys(media.eventId, media.id).moderation;
     const downloadUrl = await storage.getSignedDownloadUrl(moderationKey, 60);
@@ -26,9 +35,8 @@ export async function POST(request: NextRequest) {
     if (!imageResponse.ok) {
       throw new Error(`R2 download failed with status ${imageResponse.status}`);
     }
-    const bytes = new Uint8Array(await imageResponse.arrayBuffer());
+    bytes = new Uint8Array(await imageResponse.arrayBuffer());
 
-    const provider = new RekognitionAIProvider();
     const result = await provider.moderateImage(bytes);
     outcome = resolveModerationOutcome(settings.memoriesMode, result);
   } catch (err) {
@@ -37,5 +45,23 @@ export async function POST(request: NextRequest) {
   }
 
   await updateMemoryMediaModeration(mediaId, outcome);
+
+  // Best-effort Moment classification — never lets a failure here affect the
+  // moderation outcome above, which has already been committed. Skipped for
+  // rejected/flagged content (no point classifying something that won't be
+  // shown) and for events with no Moments defined yet.
+  if (outcome.moderationStatus === "approved" || outcome.moderationStatus === "awaiting_host_review") {
+    try {
+      const moments = await listMemoryMoments(media.eventId);
+      if (moments.length > 0) {
+        const detectedLabels = await provider.detectLabels(bytes);
+        const match = classifyMomentFromLabels(detectedLabels, moments);
+        if (match) await setAiClassifiedMoment(mediaId, match.id);
+      }
+    } catch (err) {
+      console.error("[memories/moderate] moment classification failed (non-fatal)", { mediaId, error: err });
+    }
+  }
+
   return NextResponse.json({ ok: true, moderationStatus: outcome.moderationStatus });
 }

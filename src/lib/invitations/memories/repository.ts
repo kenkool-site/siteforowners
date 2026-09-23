@@ -207,6 +207,17 @@ export async function createMemoryMoment(
   };
 }
 
+export async function setAiClassifiedMoment(mediaId: string, momentId: string): Promise<void> {
+  const client = createAdminClient();
+  // ignoreDuplicates: media_id is the table's sole primary key, so this never
+  // overwrites a row that already exists — whether an earlier AI classification
+  // (idempotent under retry) or a host's manual override, which must always win.
+  const { error } = await client
+    .from("memory_moment_media")
+    .upsert({ media_id: mediaId, moment_id: momentId, source: "ai_classified" }, { onConflict: "media_id", ignoreDuplicates: true });
+  if (error) throw new Error(`failed to set AI-classified moment: ${error.message}`);
+}
+
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   // Only completed uploads count toward the quota. Counting every row regardless of
