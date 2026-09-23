@@ -191,7 +191,20 @@
         "selectPhoto": "Select photo from {name}",
         "downloadSelected": "Download selected",
         "downloadAll": "Download originals",
-        "actionError": "That change could not be completed. Refresh and try again."
+        "actionError": "That change could not be completed. Refresh and try again.",
+        "moments": {
+          "title": "Moments",
+          "description": "Define time windows so guests can browse photos by moment (e.g. Ceremony, Reception).",
+          "nameLabel": "Name",
+          "namePlaceholder": "e.g. Ceremony",
+          "startsAtLabel": "Starts",
+          "endsAtLabel": "Ends",
+          "add": "Add moment",
+          "adding": "Adding…",
+          "empty": "No moments yet.",
+          "error": "Could not create that moment — check the times and try again.",
+          "endsBeforeStarts": "End time must be after the start time."
+        }
       },
       "messageComposer": {
         "back": "Back to guest responses",
