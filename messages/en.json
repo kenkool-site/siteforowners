@@ -675,7 +675,8 @@
           "addPhotos": "Add your photos",
           "browseGallery": "Just browse the gallery",
           "nameLabel": "Your name (optional, so the couple knows who to thank)",
-          "namePlaceholder": "Your name"
+          "namePlaceholder": "Your name",
+          "tabs": { "upload": "Add photos", "gallery": "Gallery", "moments": "Moments" }
         },
         "upload": {
           "queued": "Waiting to upload",

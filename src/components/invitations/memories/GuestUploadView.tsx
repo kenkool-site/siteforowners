@@ -7,6 +7,15 @@ import { createUploadQueue, type QueueItem, type UploadQueue } from "@/lib/invit
 
 const UNSUPPORTED_TYPES = new Set(["image/heic", "image/heif"]);
 
+// The upload queue (Task 3) only carries a thrown Error's .message through to
+// QueueItem.error — not custom properties — so the failure classification has to
+// travel as one of these three sentinel strings. GuestUploadView's render below
+// maps each back to the right copy and decides whether Retry is worth showing.
+const ERROR_QUOTA = "quota";
+const ERROR_WINDOW_CLOSED = "window_closed";
+const ERROR_GENERIC = "generic";
+const TERMINAL_UPLOAD_ERRORS = new Set([ERROR_QUOTA, ERROR_WINDOW_CLOSED]);
+
 async function uploadOne(
   eventId: string,
   file: File,
@@ -18,8 +27,13 @@ async function uploadOne(
     body: JSON.stringify({ mediaKind: "photo", contentType: file.type, sizeBytes: file.size }),
   });
   if (!initRes.ok) {
-    const body = await initRes.json().catch(() => ({}));
-    throw new Error(body.error ?? "upload initialization failed");
+    // 429 (quota exceeded) and 404 (upload window closed) are terminal — retrying
+    // hits the same wall every time — so they get their own copy and no Retry
+    // button. Anything else might be a transient server hiccup, so it stays
+    // retryable under the generic message.
+    if (initRes.status === 429) throw new Error(ERROR_QUOTA);
+    if (initRes.status === 404) throw new Error(ERROR_WINDOW_CLOSED);
+    throw new Error(ERROR_GENERIC);
   }
   const { mediaId, ticket, uploadUrl } = await initRes.json();
 
@@ -47,8 +61,20 @@ async function uploadOne(
   return { mediaId };
 }
 
+// Maps a QueueItem's failed-status .error sentinel (set in uploadOne above) to the
+// i18n key whose copy should be shown for it. Anything unrecognized (a plain "upload
+// failed" / "upload completion failed" message from the XHR PUT or /upload/complete
+// steps, which aren't classified above) falls back to the original retryable "failed" copy.
+function failureMessageKey(error: string | undefined): "quotaError" | "windowClosedError" | "genericError" | "failed" {
+  if (error === ERROR_QUOTA) return "quotaError";
+  if (error === ERROR_WINDOW_CLOSED) return "windowClosedError";
+  if (error === ERROR_GENERIC) return "genericError";
+  return "failed";
+}
+
 export function GuestUploadView({ eventId, accent }: { eventId: string; accent: string }) {
   const t = useTranslations("invitations.public.memories.upload");
+  const tLanding = useTranslations("invitations.public.memories.landing");
   const [items, setItems] = useState<QueueItem[]>([]);
   const [rejectionError, setRejectionError] = useState<string | null>(null);
   const queueRef = useRef<UploadQueue | null>(null);
@@ -89,7 +115,7 @@ export function GuestUploadView({ eventId, accent }: { eventId: string; accent: 
         className="min-h-12 rounded-md px-4 py-3 text-sm font-semibold text-white"
         style={{ backgroundColor: accent }}
       >
-        {items.length > 0 ? t("addMore") : t("addMore")}
+        {items.length > 0 ? t("addMore") : tLanding("addPhotos")}
       </button>
       {rejectionError && <p role="alert" className="text-sm text-red-700">{rejectionError}</p>}
       <ul className="flex flex-col gap-3">
@@ -106,15 +132,17 @@ export function GuestUploadView({ eventId, accent }: { eventId: string; accent: 
             {item.status === "done" && <p className="text-sm text-green-700">{t("done")}</p>}
             {item.status === "failed" && (
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm text-red-700">{t("failed")}</p>
-                <button
-                  type="button"
-                  onClick={() => queueRef.current?.retry(item.id)}
-                  className="min-h-8 rounded-md border px-3 text-sm font-semibold"
-                  style={{ borderColor: accent, color: accent }}
-                >
-                  {t("retry")}
-                </button>
+                <p className="text-sm text-red-700">{t(failureMessageKey(item.error))}</p>
+                {!TERMINAL_UPLOAD_ERRORS.has(item.error ?? "") && (
+                  <button
+                    type="button"
+                    onClick={() => queueRef.current?.retry(item.id)}
+                    className="min-h-8 rounded-md border px-3 text-sm font-semibold"
+                    style={{ borderColor: accent, color: accent }}
+                  >
+                    {t("retry")}
+                  </button>
+                )}
               </div>
             )}
           </li>

@@ -37,24 +37,36 @@ export function GuestMemoriesApp({
   text: string;
 }) {
   const t = useTranslations("invitations.public.memories.landing");
+  const tUpload = useTranslations("invitations.public.memories.upload");
   const [tab, setTab] = useState<Tab>("upload");
   const [sessionReady, setSessionReady] = useState(false);
+  const [sessionError, setSessionError] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [greeting, setGreeting] = useState<string | null>(null);
 
   async function mintSession(name?: string) {
     const credential = rsvpCredentialFromUrl();
-    const res = await fetch(`/api/memories/events/${eventId}/session`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        rsvpId: credential?.rsvpId,
-        editToken: credential?.editToken,
-        guestName: name?.trim() || undefined,
-      }),
-    });
-    const data = (await res.json()) as { level: "anonymous" | "rsvp_guest"; guestName: string | null };
-    if (data.guestName) setGreeting(data.guestName);
+    try {
+      const res = await fetch(`/api/memories/events/${eventId}/session`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          rsvpId: credential?.rsvpId,
+          editToken: credential?.editToken,
+          guestName: name?.trim() || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(`session mint responded with status ${res.status}`);
+      const data = (await res.json()) as { level: "anonymous" | "rsvp_guest"; guestName: string | null };
+      if (data.guestName) setGreeting(data.guestName);
+      setSessionError(false);
+    } catch (error) {
+      // Uploads still work anonymously without this cookie (upload/init falls back to
+      // session?.level ?? "anonymous"), so a mint failure only loses RSVP-credential
+      // upgrade / name attribution — surfaced inline rather than blocking the page.
+      console.error("[memories] session mint failed", { error });
+      setSessionError(true);
+    }
   }
 
   useEffect(() => {
@@ -72,6 +84,11 @@ export function GuestMemoriesApp({
     <div style={{ backgroundColor: background, color: text }} className="min-h-screen pb-20">
       <header className="p-4">
         <h1 className="text-xl font-semibold">{t("title")}</h1>
+        {sessionError && (
+          <p role="alert" className="mt-2 text-sm text-red-700">
+            {tUpload("genericError")}
+          </p>
+        )}
         {!greeting && (
           <input
             type="text"
@@ -101,7 +118,7 @@ export function GuestMemoriesApp({
             className="min-h-14 flex-1 text-sm font-medium"
             style={{ color: tab === value ? accent : undefined }}
           >
-            {value}
+            {t(`tabs.${value}`)}
           </button>
         ))}
       </nav>

@@ -675,7 +675,8 @@
           "addPhotos": "Agregar tus fotos",
           "browseGallery": "Solo ver la galería",
           "nameLabel": "Tu nombre (opcional, para que la pareja sepa a quién agradecer)",
-          "namePlaceholder": "Tu nombre"
+          "namePlaceholder": "Tu nombre",
+          "tabs": { "upload": "Agregar fotos", "gallery": "Galería", "moments": "Momentos" }
         },
         "upload": {
           "queued": "Esperando para subir",
