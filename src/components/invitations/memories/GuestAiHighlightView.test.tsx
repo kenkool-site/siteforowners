@@ -179,7 +179,7 @@ test("a photo belonging to multiple groups is rendered inside every one of those
 
       // Go back and open the second group — the same photo must appear there too.
       await act(async () => {
-        click(dom, byText(dom, "button", "All highlights"));
+        click(dom, byText(dom, "button", "Back"));
         await flush();
       });
       await act(async () => {
@@ -209,7 +209,7 @@ test("clicking a group card selects it, shows its name/description and photos, a
       assert.match(text, /The big moment/);
       assert.ok(dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]'), "expected the group's photo in detail view");
 
-      const backButton = byText(dom, "button", "All highlights");
+      const backButton = byText(dom, "button", "Back");
       assert.ok(backButton, "expected a back control");
       await act(async () => {
         click(dom, backButton);
@@ -244,7 +244,7 @@ test("remembers the grid's scroll position and restores it on Back, instead of l
       });
       assert.deepEqual(scrollCalls.at(-1), [0, 0], "expected the detail view to open scrolled to its own top");
 
-      const backButton = byText(dom, "button", "All highlights");
+      const backButton = byText(dom, "button", "Back");
       await act(async () => {
         click(dom, backButton);
         await flush();
