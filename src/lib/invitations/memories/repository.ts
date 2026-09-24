@@ -635,14 +635,26 @@ export async function publishHighlightGeneration(eventId: string, generationId: 
 // Records a failed generation attempt with a short, machine-readable error
 // code. Deliberately never touches published_highlight_generation_id or
 // highlight_last_generated_media_count — a failed regeneration must never
-// clobber the generation guests are still seeing.
+// clobber the generation guests are still seeing. Scoped to
+// status = 'processing' so this can only ever transition a generation that is
+// genuinely still in-flight: if the publish RPC actually committed but the
+// caller saw a transport error (a real possible race), this must not flip an
+// already-published generation's status back to failed.
 export async function failHighlightGeneration(eventId: string, generationId: string, errorCode: string): Promise<void> {
   const client = createAdminClient();
-  const { error: generationError } = await client
+  const { data, error: generationError } = await client
     .from("memory_highlight_generations")
     .update({ status: "failed", error_code: errorCode })
-    .eq("id", generationId);
+    .eq("id", generationId)
+    .eq("status", "processing")
+    .select("id")
+    .maybeSingle();
   if (generationError) throw new Error(`failed to mark highlight generation failed: ${generationError.message}`);
+  // No row matched — the generation was no longer 'processing' (e.g. it had
+  // already published). Nothing to fail, and the event row must not be
+  // touched either (it may already correctly reflect a different, newer
+  // generation).
+  if (!data) return;
 
   const { error: eventError } = await client
     .from("invitation_events")
@@ -655,11 +667,64 @@ export async function failHighlightGeneration(eventId: string, generationId: str
   if (eventError) throw new Error(`failed to update event highlight failure state: ${eventError.message}`);
 }
 
+// Reclaims a generation stuck in 'processing' past a staleness threshold
+// (e.g. the worker that claimed it crashed mid-run — a Vercel function
+// timeout during the Anthropic call is a realistic cause) by marking it
+// failed with a TIMEOUT error code. Without this, Task 1's partial unique
+// index (one queued-or-processing generation per event) would permanently
+// block that event from ever queuing another generation. Scoped to
+// status = 'processing' AND created_at older than the cutoff in a single
+// atomic UPDATE — the same compare-and-swap shape as claimNextHighlightGeneration —
+// so a generation that is merely still legitimately running (or has already
+// resolved to published/failed) is left untouched.
+export async function reclaimStaleHighlightGeneration(
+  generationId: string,
+  staleAfterMs: number,
+): Promise<MemoryHighlightGeneration | null> {
+  const client = createAdminClient();
+  const cutoff = new Date(Date.now() - staleAfterMs).toISOString();
+  const { data, error } = await client
+    .from("memory_highlight_generations")
+    .update({ status: "failed", error_code: "TIMEOUT" })
+    .eq("id", generationId)
+    .eq("status", "processing")
+    .lt("created_at", cutoff)
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(`failed to reclaim stale highlight generation: ${error.message}`);
+  if (!data) return null;
+
+  const generation = mapHighlightGenerationRow(data);
+  const { error: eventError } = await client
+    .from("invitation_events")
+    .update({
+      highlight_generation_status: "failed",
+      highlight_generation_error: "TIMEOUT",
+      pending_highlight_generation_id: null,
+    })
+    .eq("id", generation.eventId);
+  if (eventError) throw new Error(`failed to update event after reclaiming stale highlight generation: ${eventError.message}`);
+
+  return generation;
+}
+
 // The guest-facing read model: the event's currently published generation's
 // visible groups and their media membership. Membership is scoped to the
 // published generation specifically (memory_highlight_media rows persist
 // across generations until their owning generation row is deleted), and
 // groups are scoped to is_visible so a host-hidden group never surfaces here.
+//
+// Source-aware eligibility, beyond is_visible: host_defined groups are
+// created and managed directly by the host through their own UI, independent
+// of any generation run, so a temporarily-empty one (e.g. a placeholder
+// gallery the host set up ahead of time) is still legitimately shown.
+// fallback/ai_generated groups only ever exist because SOME generation run
+// produced them — one with no membership row under the CURRENTLY PUBLISHED
+// generation specifically (not "any generation, ever") is a stale leftover
+// from a prior mode switch (e.g. an event crossing the dynamic floor and
+// moving from fallback to ai_generated groups) or from a run that created the
+// group but never went on to publish, and must not surface to guests as an
+// empty tab.
 export async function getPublishedMemoryHighlights(eventId: string): Promise<PublishedMemoryHighlights> {
   const client = createAdminClient();
   const { data: eventRow, error: eventError } = await client
@@ -698,8 +763,12 @@ export async function getPublishedMemoryHighlights(eventId: string): Promise<Pub
     if (list) list.push(row.media_id as string);
   }
 
+  const eligibleGroups = groups.filter(
+    (group) => group.source === "host_defined" || (mediaIdsByGroup.get(group.id)?.length ?? 0) > 0,
+  );
+
   return {
     generationId,
-    groups: groups.map((group) => ({ group, mediaIds: mediaIdsByGroup.get(group.id) ?? [] })),
+    groups: eligibleGroups.map((group) => ({ group, mediaIds: mediaIdsByGroup.get(group.id) ?? [] })),
   };
 }

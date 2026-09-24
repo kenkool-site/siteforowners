@@ -19,6 +19,7 @@ import {
   replaceHighlightGenerationMemberships,
   publishHighlightGeneration,
   failHighlightGeneration,
+  reclaimStaleHighlightGeneration,
   getPublishedMemoryHighlights,
 } from "./repository";
 
@@ -198,6 +199,24 @@ test("failHighlightGeneration records a short error code without touching the pu
   forbidsMomentsTables(source);
 });
 
+test("failHighlightGeneration only transitions a generation that is still processing", () => {
+  const source = failHighlightGeneration.toString();
+  // Guards against flipping an already-published generation's status back to
+  // failed on a transport-error race after the publish RPC actually
+  // committed — must scope the generation-row UPDATE to status = 'processing'.
+  assert.match(source, /processing/);
+});
+
+test("reclaimStaleHighlightGeneration atomically fails a generation stuck in processing past a staleness cutoff", () => {
+  const source = reclaimStaleHighlightGeneration.toString();
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /processing/);
+  assert.match(source, /created_at/);
+  assert.match(source, /TIMEOUT/);
+  assert.match(source, /pending_highlight_generation_id/);
+  forbidsMomentsTables(source);
+});
+
 test("getPublishedMemoryHighlights filters membership by the published generation and visible groups", () => {
   const source = getPublishedMemoryHighlights.toString();
   assert.match(source, /published_highlight_generation_id/);
@@ -205,4 +224,18 @@ test("getPublishedMemoryHighlights filters membership by the published generatio
   assert.match(source, /memory_highlight_media/);
   assert.match(source, /memory_highlight_groups/);
   forbidsMomentsTables(source);
+});
+
+test("getPublishedMemoryHighlights only surfaces fallback/ai_generated groups with membership in the published generation, but always surfaces host_defined groups", () => {
+  const source = getPublishedMemoryHighlights.toString();
+  // Source-aware eligibility: a host_defined group is host-managed and
+  // legitimately shown even when currently empty; a fallback/ai_generated
+  // group only exists because some generation run produced it, so one with
+  // no membership under the CURRENTLY PUBLISHED generation is a stale
+  // leftover (e.g. from a fallback-to-dynamic mode switch) that must not
+  // surface as an empty tab. This must be a source-aware filter, not an
+  // unconditional "hide if empty" rule that would also hide a legitimate
+  // empty host-defined placeholder gallery.
+  assert.match(source, /host_defined/);
+  assert.match(source, /source/);
 });
