@@ -27,6 +27,7 @@ export async function MemoriesReviewPageContent({ eventId, backHref }: { eventId
               initialMode={highlights.mode}
               initialGenerationStatus={highlights.generationStatus}
               initialLastGeneratedMediaCount={highlights.lastGeneratedMediaCount}
+              initialGenerationError={highlights.generationError}
               initialGroups={highlights.groups}
             />
           )}
