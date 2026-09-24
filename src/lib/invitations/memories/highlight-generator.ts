@@ -98,93 +98,63 @@ async function defaultGenerateText(request: { system: string; prompt: string }):
 // not denylisted - they describe who is *in* the photo for wayfinding
 // purposes, not a judgment about them; "Elderly Guests" or "Overweight
 // Guests" would be judgmental/segregating in a way "Children" is not.
-// ---------------------------------------------------------------------------
+//
 // Bilingual (English + Spanish) per this codebase's non-negotiable rule that
 // user-facing behavior supports both languages - a denylist that only catches
 // English category names is a real gap, not an English-only feature. Entries
 // below are written in their post-normalization (accent-stripped, lowercase)
 // form; see `normalizeForDenylist` - "religión" and "religion" collapse to
 // the same token once diacritics are stripped, so a single entry covers both.
+//
+// Two tiers, deliberately:
+//
+// 1. DENYLIST_WORDS - bare words with no legitimate use as a modifier of
+//    anything other than people (there is no innocent "Race Tea Ceremony" or
+//    "Fat Garden Portraits"). Matching anywhere in the text is always unsafe.
+//
+// 2. PEOPLE_ADJACENT_TERMS - demonyms/nationalities, religions, disability,
+//    and age-as-identity terms are NOT safe to bare-word-match, because they
+//    double as ordinary adjectives for real wedding traditions and objects:
+//    "Chinese Tea Ceremony", "Korean Paebaek Ceremony", "Mexican Folk Dance",
+//    "Fine China and Table Settings", "La Misa Católica" (Catholic Mass),
+//    "Senior Moments" are all legitimate, common category names that must
+//    survive. What makes a term unsafe is not the word alone but the word
+//    sitting next to a noun that refers to *people* ("Asian Guests",
+//    "Invitados Asiáticos", "Senior Guests") - so these are matched only via
+//    isPeopleAdjacentDenylistHit, which checks adjacency (either order, small
+//    window) to PEOPLE_NOUNS, never as a bare-word hit on their own.
+//    "black"/"white" (and Spanish "negro"/"blanco") use the same reasoning
+//    but as literal phrases in DENYLIST_PHRASES instead (avoids "Black Tie",
+//    "Black and White" decor theme).
+//
+// This cannot be an exhaustive list of every nationality/ethnicity/religion
+// on Earth - that is a known, disclosed residual limitation, not a claim of
+// completeness. The adjacency requirement is the real defense (it generalizes
+// to demonyms never explicitly listed here, as long as the model phrases them
+// as "<demonym> guests/family/..."); the word lists below are a backstop for
+// the most common cases, reinforced by the system prompt's own instruction to
+// the model never to name groups after personal traits.
 const DENYLIST_WORDS = new Set([
-  // race / ethnicity / nationality (English)
+  // race / ethnicity (English) - concept nouns, no innocent adjacent-noun
+  // use the way a nationality adjective has ("Chinese Tea Ceremony"), so
+  // these stay bare-word matched rather than adjacency-gated.
   "race",
   "racial",
   "races",
   "ethnicity",
   "ethnic",
-  "caucasian",
-  "hispanic",
-  "latino",
-  "latina",
-  "biracial",
-  "asian",
-  "african",
-  "arab",
-  "indian",
-  "chinese",
-  "korean",
-  "japanese",
-  "filipino",
-  "filipina",
-  "mexican",
-  // race / ethnicity / nationality (Spanish)
+  // race / ethnicity (Spanish)
   "raza",
   "etnia",
-  "asiatico",
-  "asiatica",
-  "africano",
-  "africana",
-  "arabe",
-  "indio",
-  "india",
-  "chino",
-  "china",
-  "coreano",
-  "coreana",
-  "japones",
-  "japonesa",
-  "mexicano",
-  "mexicana",
-  "hispano",
-  "hispana",
-  // religion (English)
-  "religion",
-  "religious",
-  "christian",
-  "christians",
-  "muslim",
-  "muslims",
-  "jewish",
-  "jew",
-  "jews",
-  "hindu",
-  "buddhist",
-  "atheist",
-  "atheists",
-  "catholic",
-  "catholics",
-  // religion (Spanish; "religion" above already matches normalized "religión")
-  "cristiano",
-  "cristiana",
-  "musulman",
-  "musulmana",
-  "judio",
-  "judia",
-  "budista",
-  "catolico",
-  "catolica",
-  "ateo",
-  "atea",
-  // gender / sexuality inference (English)
+  // gender / sexuality inference (English; "gay"/"straight" deliberately
+  // excluded from this bare list - see PEOPLE_ADJACENT_TERMS)
   "gender",
   "transgender",
   "cisgender",
   "nonbinary",
   "genderqueer",
-  "gay",
   "lesbian",
   "bisexual",
-  "straight",
   "queer",
   "heterosexual",
   "homosexual",
@@ -206,25 +176,12 @@ const DENYLIST_WORDS = new Set([
   // common as a surname (e.g. "The Delgado Family") to safely denylist)
   "gordo",
   "gorda",
+  "gordos",
+  "gordas",
   "obeso",
   "obesa",
-  // age-inference-as-a-category (English; role-based groups like "Children"
-  // are not denylisted - see note above)
-  "elderly",
-  "senior",
-  "geriatric",
-  // age-inference-as-a-category (Spanish)
-  "mayores",
-  "ancianos",
-  "ancianas",
-  // disability inference (English)
-  "disabled",
-  "disability",
-  "handicapped",
-  // disability inference (Spanish)
-  "discapacitado",
-  "discapacitada",
-  "discapacidad",
+  "obesos",
+  "obesas",
   // generically demeaning (English)
   "ugly",
   "stupid",
@@ -234,11 +191,221 @@ const DENYLIST_WORDS = new Set([
   // generically demeaning (Spanish)
   "feo",
   "fea",
+  "feos",
+  "feas",
   "estupido",
   "estupida",
+  "estupidos",
+  "estupidas",
   "tonto",
   "tonta",
+  "tontos",
+  "tontas",
 ]);
+
+// Terms that are unsafe *only* when adjacent to a people-referring noun -
+// see the tier-2 explanation above. Explicit singular/plural and
+// masculine/feminine Spanish inflections are enumerated rather than matched
+// by stem/prefix: a naive prefix check (e.g. "indi" to catch "indio"/"india")
+// risks matching unrelated Spanish words that happen to share a prefix
+// ("indice", "indignado"), which is worse than a slightly longer list.
+const PEOPLE_ADJACENT_TERMS = new Set([
+  // ethnicity / nationality (English)
+  "caucasian",
+  "hispanic",
+  "latino",
+  "latina",
+  "biracial",
+  "asian",
+  "african",
+  "arab",
+  "arabic",
+  "indian",
+  "chinese",
+  "korean",
+  "japanese",
+  "filipino",
+  "filipina",
+  "mexican",
+  "vietnamese",
+  "nigerian",
+  "dominican",
+  "haitian",
+  "israeli",
+  // ethnicity / nationality (Spanish)
+  "hispano",
+  "hispana",
+  "hispanos",
+  "hispanas",
+  "asiatico",
+  "asiatica",
+  "asiaticos",
+  "asiaticas",
+  "africano",
+  "africana",
+  "africanos",
+  "africanas",
+  "arabe",
+  "arabes",
+  "indio",
+  "india",
+  "indios",
+  "indias",
+  "chino",
+  "china",
+  "chinos",
+  "chinas",
+  "coreano",
+  "coreana",
+  "coreanos",
+  "coreanas",
+  "japones",
+  "japonesa",
+  "japoneses",
+  "japonesas",
+  "mexicano",
+  "mexicana",
+  "mexicanos",
+  "mexicanas",
+  "vietnamita",
+  "vietnamitas",
+  "nigeriano",
+  "nigeriana",
+  "nigerianos",
+  "nigerianas",
+  "dominicano",
+  "dominicana",
+  "dominicanos",
+  "dominicanas",
+  "haitiano",
+  "haitiana",
+  "haitianos",
+  "haitianas",
+  // "israeli" (English, above) is spelled identically to Spanish "israelí"
+  // once the accent is stripped, so one entry covers both languages'
+  // singular; only the Spanish plural needs its own entry.
+  "israelies",
+  // religion (English) - adjacency-gated, not bare-word, so real ceremony
+  // names like "Jewish Chuppah Ceremony" / "La Misa Católica" (below) survive.
+  // "religion"/"religious" also cover the accented Spanish "religión" once
+  // normalizeForDenylist strips its diacritic - one entry for both languages.
+  "religion",
+  "religious",
+  "christian",
+  "christians",
+  "muslim",
+  "muslims",
+  "jewish",
+  "jew",
+  "jews",
+  "hindu",
+  "buddhist",
+  "atheist",
+  "atheists",
+  "catholic",
+  "catholics",
+  // religion (Spanish)
+  "cristiano",
+  "cristiana",
+  "cristianos",
+  "cristianas",
+  "musulman",
+  "musulmana",
+  "musulmanes",
+  "musulmanas",
+  "judio",
+  "judia",
+  "judios",
+  "judias",
+  "budista",
+  "budistas",
+  "catolico",
+  "catolica",
+  "catolicos",
+  "catolicas",
+  "ateo",
+  "atea",
+  "ateos",
+  "ateas",
+  // disability inference (English)
+  "disabled",
+  "disability",
+  "handicapped",
+  // disability inference (Spanish)
+  "discapacitado",
+  "discapacitada",
+  "discapacitados",
+  "discapacitadas",
+  "discapacidad",
+  // age-inference-as-a-category (English; role-based groups like "Children"
+  // are not denylisted - see note above). "Senior Moments" (an idiom, not a
+  // photo grouping by age) must survive, hence adjacency-gated rather than
+  // bare-word.
+  "elderly",
+  "senior",
+  "geriatric",
+  // age-inference-as-a-category (Spanish)
+  "mayores",
+  "ancianos",
+  "ancianas",
+  // gender/sexuality: "gay"/"straight" specifically (not the rest of the
+  // gender/sexuality set above) - bare-word matching false-positives on
+  // "Straight from the Heart" and idioms like it. Note this does not fully
+  // resolve an analogous surname collision ("The Gay Family") since "family"
+  // must remain a people-noun trigger for other terms (e.g. "Black Family");
+  // that specific case is an accepted, disclosed residual limitation, not
+  // silently different from before - it was already blocked pre-fix too.
+  "gay",
+  "straight",
+]);
+
+// People-referring nouns (English + Spanish) that make an adjacent
+// PEOPLE_ADJACENT_TERMS hit unsafe. Checked in both orders - "Asian Guests"
+// (adjective before noun, standard English) and "Invitados Asiáticos" (noun
+// before adjective, standard Spanish) - within a small window so a single
+// connector word ("Guests with Disability" / "Invitados con Discapacidad")
+// doesn't defeat the check.
+const PEOPLE_NOUNS = new Set([
+  "guest",
+  "guests",
+  "attendee",
+  "attendees",
+  "family",
+  "families",
+  "people",
+  "familia",
+  "familias",
+  "invitado",
+  "invitados",
+  "invitada",
+  "invitadas",
+  "asistente",
+  "asistentes",
+  "persona",
+  "personas",
+]);
+
+// How many tokens apart an adjacent-term/people-noun pair may be and still
+// count as "adjacent" - 1 catches direct adjacency ("asian guests"), 2
+// tolerates one connector word in between ("guests with disability" /
+// "invitados con discapacidad" / "senior citizen guests").
+const PEOPLE_ADJACENCY_WINDOW = 2;
+
+function isPeopleAdjacentDenylistHit(tokens: string[]): boolean {
+  for (let i = 0; i < tokens.length; i++) {
+    const isTerm = PEOPLE_ADJACENT_TERMS.has(tokens[i]);
+    const isNoun = PEOPLE_NOUNS.has(tokens[i]);
+    if (!isTerm && !isNoun) continue;
+
+    for (let window = 1; window <= PEOPLE_ADJACENCY_WINDOW; window++) {
+      const neighbor = tokens[i + window];
+      if (!neighbor) continue;
+      if (isTerm && PEOPLE_NOUNS.has(neighbor)) return true;
+      if (isNoun && PEOPLE_ADJACENT_TERMS.has(neighbor)) return true;
+    }
+  }
+  return false;
+}
 
 // "black"/"white" (and Spanish "negro"/"blanco") must be phrases, not
 // standalone denylist words - as bare words they would false-positive on
@@ -251,10 +418,16 @@ const DENYLIST_PHRASES = [
   "body type",
   "body shape",
   "sexual orientation",
+  "orientacion sexual",
   "gender identity",
+  "identidad de genero",
   "skin color",
   "skin tone",
+  "color de piel",
+  "tono de piel",
   "people of color",
+  "gente de color",
+  "personas de color",
   "black guests",
   "white guests",
   "black attendees",
@@ -287,7 +460,9 @@ function containsDenylistedContent(...parts: Array<string | null>): boolean {
   if (DENYLIST_PHRASES.some((phrase) => spaced.includes(phrase))) return true;
 
   const tokens = spaced.split(" ").filter(Boolean);
-  return tokens.some((token) => DENYLIST_WORDS.has(token));
+  if (tokens.some((token) => DENYLIST_WORDS.has(token))) return true;
+
+  return isPeopleAdjacentDenylistHit(tokens);
 }
 
 // ---------------------------------------------------------------------------
@@ -357,20 +532,30 @@ function normalizeKey(value: string): string {
 }
 
 // Canonicalizes a semantic key so casing/punctuation drift from the model
-// ("Cake Cutting" vs "cake-cutting" vs "cake_cutting") always collapses to
-// the same literal string: lowercase, strip everything but alphanumerics and
-// whitespace/hyphens, collapse whitespace/hyphen runs to a single hyphen,
-// trim leading/trailing hyphens. This is the plan's "normalized semantic
-// keys" requirement - applied identically at the merge-lookup point and to
-// the final emitted value, so the key that goes into the merge Map is always
-// exactly the key that comes out (no separate normalization step for
-// comparison vs. output that could silently diverge).
+// ("Cake Cutting" vs "cake-cutting" vs "cake_cutting" vs "Cocina Piñón") all
+// collapse to the same literal string: decompose and strip diacritics first
+// (so accented input transliterates - "Piñón" -> "pinon" - rather than
+// having its accented letters silently deleted by the character-allowlist
+// step that follows), lowercase, strip everything but alphanumerics and
+// whitespace/hyphens/underscores, collapse whitespace/hyphen/underscore runs
+// to a single hyphen, trim leading/trailing hyphens. This is the plan's
+// "normalized semantic keys" requirement - applied identically at the
+// merge-lookup point and to the final emitted value for a *newly proposed*
+// key, so the key that goes into the merge Map is always exactly the key
+// that comes out (no separate normalization step for comparison vs. output
+// that could silently diverge). An existing group's own semantic key is
+// reused verbatim, never re-slugified, when a proposal strong-matches it -
+// see the call site - so an already-persisted key survives regeneration
+// exactly as stored even if it predates this function or uses a different
+// convention.
 function slugify(value: string): string {
   return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
     .trim()
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .replace(/[\s-]+/g, "-")
+    .replace(/[^a-z0-9\s_-]/g, "")
+    .replace(/[\s_-]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
 
@@ -488,10 +673,15 @@ export async function generateDynamicHighlights(
     const strongMatch = input.existingGroups.find(
       (group) => slugify(group.semanticKey) === semanticKeySlug || normalizeKey(group.name) === normalizeKey(name),
     );
-    // Canonicalized (slugified) either way - a strong-matched existing key is
-    // re-slugified too, so the merge-lookup key and the emitted value are
-    // always the exact same string regardless of which branch produced it.
-    const resolvedKey = strongMatch ? slugify(strongMatch.semanticKey) : semanticKeySlug;
+    // A strong-matched existing key is reused verbatim, NOT re-slugified -
+    // it is already a persisted row's exact identity (which may predate this
+    // function or use its own convention, e.g. "cake_cutting"), and
+    // re-slugifying it here (e.g. to "cakecutting", since slugify treats "_"
+    // as a separator to collapse rather than something to preserve) would
+    // produce a key that no longer equals the persisted row, defeating the
+    // entire point of preserving identity across regenerations. Only a
+    // brand-new key (no strong match) is slugified.
+    const resolvedKey = strongMatch ? strongMatch.semanticKey : semanticKeySlug;
     const resolvedName = strongMatch ? strongMatch.name : name;
 
     const existingProposal = merged.get(resolvedKey);
