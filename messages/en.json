@@ -203,7 +203,18 @@
           "adding": "Adding…",
           "empty": "No moments yet.",
           "error": "Could not create that moment — check the times and try again.",
-          "endsBeforeStarts": "End time must be after the start time."
+          "endsBeforeStarts": "End time must be after the start time.",
+          "nameRequired": "Name is required.",
+          "nameTooLong": "Name must be 80 characters or fewer.",
+          "edit": "Edit",
+          "editFor": "Edit {name}",
+          "save": "Save",
+          "cancel": "Cancel",
+          "delete": "Delete",
+          "deleteFor": "Delete {name}",
+          "deleteConfirm": "Delete this moment? Photos stay — they just won't be grouped under it anymore.",
+          "saveError": "Could not save that change — check the times and try again.",
+          "deleteError": "Could not delete that moment. Try again."
         },
         "highlights": {
           "title": "AI Highlights",

@@ -203,7 +203,18 @@
           "adding": "Agregando…",
           "empty": "Aún no hay momentos.",
           "error": "No se pudo crear ese momento — revisa los horarios e inténtalo de nuevo.",
-          "endsBeforeStarts": "La hora de fin debe ser posterior a la de inicio."
+          "endsBeforeStarts": "La hora de fin debe ser posterior a la de inicio.",
+          "nameRequired": "El nombre es obligatorio.",
+          "nameTooLong": "El nombre debe tener 80 caracteres o menos.",
+          "edit": "Editar",
+          "editFor": "Editar {name}",
+          "save": "Guardar",
+          "cancel": "Cancelar",
+          "delete": "Eliminar",
+          "deleteFor": "Eliminar {name}",
+          "deleteConfirm": "¿Eliminar este momento? Las fotos permanecen — solo dejarán de agruparse bajo él.",
+          "saveError": "No se pudo guardar ese cambio — revisa los horarios e inténtalo de nuevo.",
+          "deleteError": "No se pudo eliminar ese momento. Inténtalo de nuevo."
         },
         "highlights": {
           "title": "Destacados IA",

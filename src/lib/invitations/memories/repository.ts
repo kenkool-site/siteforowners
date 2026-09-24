@@ -217,6 +217,29 @@ export async function createMemoryMoment(
   };
 }
 
+export async function updateMemoryMoment(
+  eventId: string,
+  momentId: string,
+  updates: { name?: string; startsAt?: string; endsAt?: string; sortOrder?: number },
+): Promise<void> {
+  const client = createAdminClient();
+  const patch: Record<string, unknown> = {};
+  if (updates.name !== undefined) patch.name = updates.name;
+  if (updates.startsAt !== undefined) patch.starts_at = updates.startsAt;
+  if (updates.endsAt !== undefined) patch.ends_at = updates.endsAt;
+  if (updates.sortOrder !== undefined) patch.sort_order = updates.sortOrder;
+  const { error } = await client.from("memory_moments").update(patch).eq("id", momentId).eq("event_id", eventId);
+  if (error) throw new Error(`failed to update memory_moment: ${error.message}`);
+}
+
+// memory_moment_media rows for this moment are cleaned up automatically —
+// its moment_id column is ON DELETE CASCADE (056_invitation_memories_foundation.sql).
+export async function deleteMemoryMoment(eventId: string, momentId: string): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client.from("memory_moments").delete().eq("id", momentId).eq("event_id", eventId);
+  if (error) throw new Error(`failed to delete memory_moment: ${error.message}`);
+}
+
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   // Only completed uploads count toward the quota. Counting every row regardless of
