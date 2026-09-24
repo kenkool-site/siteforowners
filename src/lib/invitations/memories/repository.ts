@@ -217,30 +217,6 @@ export async function createMemoryMoment(
   };
 }
 
-export async function listMomentOverridesForEvent(momentIds: string[]): Promise<Record<string, string>> {
-  if (momentIds.length === 0) return {};
-  const client = createAdminClient();
-  const { data, error } = await client
-    .from("memory_moment_media")
-    .select("media_id, moment_id")
-    .in("moment_id", momentIds);
-  if (error || !data) return {};
-  const overrides: Record<string, string> = {};
-  for (const row of data) overrides[row.media_id as string] = row.moment_id as string;
-  return overrides;
-}
-
-export async function setAiClassifiedMoment(mediaId: string, momentId: string): Promise<void> {
-  const client = createAdminClient();
-  // ignoreDuplicates: media_id is the table's sole primary key, so this never
-  // overwrites a row that already exists — whether an earlier AI classification
-  // (idempotent under retry) or a host's manual override, which must always win.
-  const { error } = await client
-    .from("memory_moment_media")
-    .upsert({ media_id: mediaId, moment_id: momentId, source: "ai_classified" }, { onConflict: "media_id", ignoreDuplicates: true });
-  if (error) throw new Error(`failed to set AI-classified moment: ${error.message}`);
-}
-
 export async function countMemoryMediaForEvent(eventId: string): Promise<number> {
   const client = createAdminClient();
   // Only completed uploads count toward the quota. Counting every row regardless of
@@ -356,6 +332,14 @@ export async function upsertMemoryMediaDescriptor(input: {
 // input set any classifier (fallback, dynamic, or host-defined) operates on.
 // memory_media_descriptors has no event_id column of its own, so this scopes
 // via the owning memory_media row.
+//
+// processing_status = 'ready' matches gallery.ts's listGalleryVisibleMedia's
+// own eligibility filter exactly (see computeGalleryVisible). Without it, a
+// media item that failed processing (processing_status = 'processing_failed')
+// could still get a descriptor, count toward the dynamic-classification floor
+// and regeneration interval, and be grouped — while remaining permanently
+// invisible/unresolvable to guests, since the gallery/guest-highlights read
+// path never surfaces it.
 export async function listApprovedMemoryDescriptors(eventId: string): Promise<MemoryMediaDescriptor[]> {
   const client = createAdminClient();
   const { data: approvedMedia, error } = await client
@@ -363,7 +347,8 @@ export async function listApprovedMemoryDescriptors(eventId: string): Promise<Me
     .select("id,media_kind")
     .eq("event_id", eventId)
     .eq("moderation_status", "approved")
-    .eq("upload_status", "uploaded");
+    .eq("upload_status", "uploaded")
+    .eq("processing_status", "ready");
   if (error) throw new Error(`failed to list approved memory media for descriptors: ${error.message}`);
   if (!approvedMedia || approvedMedia.length === 0) return [];
 
@@ -595,6 +580,13 @@ export interface HighlightGenerationState {
   pendingGenerationId: string | null;
   generationStatus: EventHighlightGenerationStatus;
   lastGeneratedMediaCount: number;
+  // The short, machine-readable code failHighlightGeneration/
+  // reclaimStaleHighlightGeneration persist to invitation_events on failure
+  // (e.g. "EMPTY_OUTPUT", "TIMEOUT") — previously write-only: nothing read
+  // this column back, so the host UI could only ever show a generic "the
+  // last attempt failed" with no detail, even for a genuinely informative
+  // case like missing descriptors.
+  generationError: string | null;
 }
 
 // The event-level highlight settings/state shouldQueueHighlightGeneration's
@@ -604,7 +596,7 @@ export async function getHighlightGenerationState(eventId: string): Promise<High
   const { data, error } = await client
     .from("invitation_events")
     .select(
-      "highlight_mode,published_highlight_generation_id,pending_highlight_generation_id,highlight_generation_status,highlight_last_generated_media_count",
+      "highlight_mode,published_highlight_generation_id,pending_highlight_generation_id,highlight_generation_status,highlight_last_generated_media_count,highlight_generation_error",
     )
     .eq("id", eventId)
     .maybeSingle();
@@ -615,6 +607,7 @@ export async function getHighlightGenerationState(eventId: string): Promise<High
     pendingGenerationId: (data.pending_highlight_generation_id as string | null) ?? null,
     generationStatus: data.highlight_generation_status as EventHighlightGenerationStatus,
     lastGeneratedMediaCount: data.highlight_last_generated_media_count as number,
+    generationError: (data.highlight_generation_error as string | null) ?? null,
   };
 }
 
@@ -630,6 +623,7 @@ export interface HostHighlightsOverview {
   pendingGenerationId: string | null;
   publishedGenerationId: string | null;
   lastGeneratedMediaCount: number;
+  generationError: string | null;
   groups: Array<MemoryHighlightGroup & { mediaCount: number }>;
 }
 
@@ -643,6 +637,7 @@ export async function getHostHighlightsOverview(eventId: string): Promise<HostHi
     pendingGenerationId: state.pendingGenerationId,
     publishedGenerationId: state.publishedGenerationId,
     lastGeneratedMediaCount: state.lastGeneratedMediaCount,
+    generationError: state.generationError,
     groups,
   };
 }
@@ -845,23 +840,89 @@ export async function reclaimStaleHighlightGeneration(
   return generation;
 }
 
+// Pure eligibility decision, factored out of getPublishedMemoryHighlights so
+// it can be unit-tested directly with plain objects (no Supabase call, real
+// or fake, needed to prove this logic correct).
+//
+// Eligibility is keyed off the PUBLISHED GENERATION's own mode — not each
+// group's own source in isolation. The two are easy to conflate but are not
+// the same thing: a host can switch from host_defined mode back to automatic
+// mode, at which point a fresh fallback/automatic generation publishes while
+// the OLD host_defined group rows still exist (group definitions are never
+// deleted by a mode switch, only superseded). If eligibility looked at each
+// group's own `source` alone, those old host_defined groups would stay
+// unconditionally visible forever — including as permanent empty "0 photos"
+// cards, since they have no membership under the new generation at all —
+// because `source === "host_defined"` is true regardless of which
+// generation is actually published.
+//
+//   - When the published generation's mode is "host_defined": eligible
+//     groups are exactly the event's host_defined groups, empty ones
+//     included — a host-defined group is managed directly by the host
+//     through their own UI, independent of any generation run, so a
+//     temporarily-empty one (e.g. a placeholder gallery set up ahead of
+//     time) is still legitimately shown.
+//   - Otherwise (mode is "fallback" or "automatic"): eligible groups are
+//     only fallback/ai_generated groups with at least one member in THIS
+//     generation specifically. A fallback/ai_generated group only ever
+//     exists because some generation run produced it — one with no
+//     membership row under the currently published generation is a stale
+//     leftover (e.g. from a fallback-to-dynamic mode switch, or a run that
+//     created the group but never went on to publish) and must not surface
+//     to guests as an empty tab. host_defined groups are never eligible in
+//     this branch, however many members they might still carry from a prior
+//     stint in host_defined mode — the whole point of this fix.
+export function selectEligibleHighlightGroups(
+  generationMode: HighlightGenerationMode,
+  groups: MemoryHighlightGroup[],
+  mediaIdsByGroup: Map<string, string[]>,
+): MemoryHighlightGroup[] {
+  if (generationMode === "host_defined") {
+    return groups.filter((group) => group.source === "host_defined");
+  }
+  return groups.filter((group) => group.source !== "host_defined" && (mediaIdsByGroup.get(group.id)?.length ?? 0) > 0);
+}
+
+// Returns a generation from 'processing' back to 'queued' in place — same
+// row, same id, event's pending pointer untouched (it already points at this
+// generation) — for processHighlightGeneration's descriptor-readiness wait:
+// this generation's approved media isn't fully descriptor-backfilled yet, so
+// classification must wait rather than run against a partial/empty
+// descriptor set and terminally fail with EMPTY_HIGHLIGHT_OUTPUT. The next
+// cron tick reclaims this same queued row (listQueuedHighlightGenerations has
+// no staleness cutoff — see its own comment) and retries. Same
+// compare-and-swap shape as claimNextHighlightGeneration/
+// reclaimStaleHighlightGeneration: scoped to status = 'processing' so a
+// generation a concurrent caller already resolved (published/failed/reclaimed
+// as stale) is left untouched. Returns whether it actually requeued the row.
+export async function requeueHighlightGeneration(eventId: string, generationId: string): Promise<boolean> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_highlight_generations")
+    .update({ status: "queued" })
+    .eq("id", generationId)
+    .eq("status", "processing")
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`failed to requeue highlight generation: ${error.message}`);
+  if (!data) return false;
+
+  const { error: eventError } = await client
+    .from("invitation_events")
+    .update({ highlight_generation_status: "queued" })
+    .eq("id", eventId)
+    .eq("pending_highlight_generation_id", generationId);
+  if (eventError) throw new Error(`failed to update event highlight status after requeue: ${eventError.message}`);
+  return true;
+}
+
 // The guest-facing read model: the event's currently published generation's
 // visible groups and their media membership. Membership is scoped to the
 // published generation specifically (memory_highlight_media rows persist
 // across generations until their owning generation row is deleted), and
 // groups are scoped to is_visible so a host-hidden group never surfaces here.
-//
-// Source-aware eligibility, beyond is_visible: host_defined groups are
-// created and managed directly by the host through their own UI, independent
-// of any generation run, so a temporarily-empty one (e.g. a placeholder
-// gallery the host set up ahead of time) is still legitimately shown.
-// fallback/ai_generated groups only ever exist because SOME generation run
-// produced them — one with no membership row under the CURRENTLY PUBLISHED
-// generation specifically (not "any generation, ever") is a stale leftover
-// from a prior mode switch (e.g. an event crossing the dynamic floor and
-// moving from fallback to ai_generated groups) or from a run that created the
-// group but never went on to publish, and must not surface to guests as an
-// empty tab.
+// See selectEligibleHighlightGroups above for the mode-aware eligibility
+// rule beyond is_visible.
 export async function getPublishedMemoryHighlights(eventId: string): Promise<PublishedMemoryHighlights> {
   const client = createAdminClient();
   const { data: eventRow, error: eventError } = await client
@@ -873,6 +934,20 @@ export async function getPublishedMemoryHighlights(eventId: string): Promise<Pub
 
   const generationId = (eventRow?.published_highlight_generation_id as string | null) ?? null;
   if (!generationId) return { generationId: null, groups: [] };
+
+  // The published generation's own mode is the eligibility key (see
+  // selectEligibleHighlightGroups) — not each group's own source. Defaults
+  // to "automatic" only if the generation row is somehow missing (should
+  // never happen for a real published_highlight_generation_id, since that
+  // column is a foreign key into this same table), which is the safer
+  // fallback: it never lets a stale host_defined group leak.
+  const { data: generationRow, error: generationError } = await client
+    .from("memory_highlight_generations")
+    .select("mode")
+    .eq("id", generationId)
+    .maybeSingle();
+  if (generationError) throw new Error(`failed to load published highlight generation: ${generationError.message}`);
+  const generationMode = (generationRow?.mode as HighlightGenerationMode | undefined) ?? "automatic";
 
   const { data: groupRows, error: groupError } = await client
     .from("memory_highlight_groups")
@@ -900,9 +975,7 @@ export async function getPublishedMemoryHighlights(eventId: string): Promise<Pub
     if (list) list.push(row.media_id as string);
   }
 
-  const eligibleGroups = groups.filter(
-    (group) => group.source === "host_defined" || (mediaIdsByGroup.get(group.id)?.length ?? 0) > 0,
-  );
+  const eligibleGroups = selectEligibleHighlightGroups(generationMode, groups, mediaIdsByGroup);
 
   return {
     generationId,

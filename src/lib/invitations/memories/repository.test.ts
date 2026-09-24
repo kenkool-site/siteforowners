@@ -25,8 +25,11 @@ import {
   publishHighlightGeneration,
   failHighlightGeneration,
   reclaimStaleHighlightGeneration,
+  requeueHighlightGeneration,
   getPublishedMemoryHighlights,
+  selectEligibleHighlightGroups,
 } from "./repository";
+import type { MemoryHighlightGroup } from "./highlight-types";
 
 // Repository functions hit a real Supabase instance via createAdminClient(),
 // exactly like notifications.test.ts does — this test only proves the pure,
@@ -103,12 +106,18 @@ test("upsertMemoryMediaDescriptor upserts memory_media_descriptors keyed on medi
   forbidsMomentsTables(source);
 });
 
-test("listApprovedMemoryDescriptors scopes to the event's approved, uploaded media", () => {
+test("listApprovedMemoryDescriptors scopes to the event's approved, uploaded, and processing-ready media", () => {
   const source = listApprovedMemoryDescriptors.toString();
   assert.match(source, /memory_media_descriptors/);
   assert.match(source, /event_id/);
   assert.match(source, /moderation_status/);
   assert.match(source, /approved/);
+  // Fix 5: must agree with gallery.ts's listGalleryVisibleMedia (guest
+  // visibility) on processing_status, not just moderation/upload status —
+  // otherwise a processing_failed item can get a descriptor, inflate the
+  // approved count, and get grouped while staying invisible to guests.
+  assert.match(source, /processing_status/);
+  assert.match(source, /ready/);
   forbidsMomentsTables(source);
 });
 
@@ -201,12 +210,18 @@ test("getHighlightGenerationState reads invitation_events highlight columns scop
   assert.match(source, /pending_highlight_generation_id/);
   assert.match(source, /highlight_generation_status/);
   assert.match(source, /highlight_last_generated_media_count/);
+  // Fix 6: highlight_generation_error was write-only (failHighlightGeneration/
+  // reclaimStaleHighlightGeneration persist it, nothing read it back) — now
+  // selected and mapped onto the returned state as `generationError`.
+  assert.match(source, /highlight_generation_error/);
+  assert.match(source, /generationError/);
 });
 
-test("getHostHighlightsOverview composes generation state with host-defined groups+counts", () => {
+test("getHostHighlightsOverview composes generation state with host-defined groups+counts, including the generation error detail", () => {
   const source = getHostHighlightsOverview.toString();
   assert.match(source, /getHighlightGenerationState/);
   assert.match(source, /listHostDefinedHighlightGroupsWithCounts/);
+  assert.match(source, /generationError/);
 });
 
 test("queueHighlightGeneration inserts a queued generation and updates the event's pending pointer", () => {
@@ -287,25 +302,110 @@ test("reclaimStaleHighlightGeneration atomically fails a generation stuck in pro
   forbidsMomentsTables(source);
 });
 
-test("getPublishedMemoryHighlights filters membership by the published generation and visible groups", () => {
+// Fix 2: lets processHighlightGeneration's descriptor-readiness wait send a
+// claimed generation back to 'queued' in place, rather than terminally
+// failing it, when its approved media isn't fully descriptor-backfilled yet.
+test("requeueHighlightGeneration atomically returns a generation from processing back to queued", () => {
+  const source = requeueHighlightGeneration.toString();
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /queued/);
+  assert.match(source, /processing/);
+  // Must not create a new generation row or touch the published pointer —
+  // the same row/id is simply returned to queued.
+  assert.doesNotMatch(source, /\.insert\(/);
+  assert.doesNotMatch(source, /published_highlight_generation_id/);
+  forbidsMomentsTables(source);
+});
+
+test("getPublishedMemoryHighlights filters membership by the published generation and visible groups, keyed on the generation's own mode", () => {
   const source = getPublishedMemoryHighlights.toString();
   assert.match(source, /published_highlight_generation_id/);
   assert.match(source, /is_visible/);
   assert.match(source, /memory_highlight_media/);
   assert.match(source, /memory_highlight_groups/);
+  // Fix 1: eligibility must key off the PUBLISHED GENERATION's own mode, not
+  // each group's own source in isolation — see selectEligibleHighlightGroups.
+  // Asserting the delegation (rather than re-checking host_defined/source
+  // logic here, which now lives in that separately-tested pure function)
+  // also proves this function actually fetches the generation row's mode.
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /\bmode\b/);
+  assert.match(source, /selectEligibleHighlightGroups/);
   forbidsMomentsTables(source);
 });
 
-test("getPublishedMemoryHighlights only surfaces fallback/ai_generated groups with membership in the published generation, but always surfaces host_defined groups", () => {
-  const source = getPublishedMemoryHighlights.toString();
-  // Source-aware eligibility: a host_defined group is host-managed and
-  // legitimately shown even when currently empty; a fallback/ai_generated
-  // group only exists because some generation run produced it, so one with
-  // no membership under the CURRENTLY PUBLISHED generation is a stale
-  // leftover (e.g. from a fallback-to-dynamic mode switch) that must not
-  // surface as an empty tab. This must be a source-aware filter, not an
-  // unconditional "hide if empty" rule that would also hide a legitimate
-  // empty host-defined placeholder gallery.
-  assert.match(source, /host_defined/);
-  assert.match(source, /source/);
+// ---------------------------------------------------------------------------
+// selectEligibleHighlightGroups — Fix 1's actual behavioral proof. Extracted
+// as a pure function specifically so this can be tested with real inputs and
+// real assertions, not just a source-regex check (unlike the rest of this
+// file — see its header comment on why: createAdminClient() has no
+// injection seam and there's no live Supabase instance to hit here — this
+// function needs neither).
+// ---------------------------------------------------------------------------
+
+function highlightGroup(overrides: Partial<MemoryHighlightGroup> & { id: string; source: MemoryHighlightGroup["source"] }): MemoryHighlightGroup {
+  return {
+    eventId: "event-1",
+    name: "Untitled",
+    description: null,
+    semanticKey: overrides.id,
+    sortOrder: 0,
+    isVisible: true,
+    ...overrides,
+  };
+}
+
+test("selectEligibleHighlightGroups: automatic/fallback generation mode excludes host_defined groups and only includes fallback/ai_generated groups with membership in this generation", () => {
+  // Reproduces the reported bug scenario: a host previously published a
+  // host_defined generation with an empty group, then switched back to
+  // automatic and published a NEW fallback/automatic generation with real
+  // groups. The old host_defined group must not appear.
+  const groups = [
+    highlightGroup({ id: "old-host-group", source: "host_defined" }),
+    highlightGroup({ id: "ai-empty", source: "ai_generated" }),
+    highlightGroup({ id: "ai-full", source: "ai_generated" }),
+  ];
+  const mediaIdsByGroup = new Map<string, string[]>([
+    ["old-host-group", []],
+    ["ai-empty", []],
+    ["ai-full", ["m1", "m2"]],
+  ]);
+
+  const eligible = selectEligibleHighlightGroups("automatic", groups, mediaIdsByGroup);
+
+  assert.deepEqual(eligible.map((group) => group.id), ["ai-full"]);
+});
+
+test("selectEligibleHighlightGroups: host_defined generation mode includes all host_defined groups even when empty, and excludes stale fallback/ai_generated groups regardless of membership", () => {
+  const groups = [
+    highlightGroup({ id: "host-empty", source: "host_defined" }),
+    highlightGroup({ id: "host-full", source: "host_defined" }),
+    highlightGroup({ id: "stale-ai", source: "ai_generated" }),
+  ];
+  const mediaIdsByGroup = new Map<string, string[]>([
+    ["host-empty", []],
+    ["host-full", ["m1"]],
+    // A group left over from before this generation's own mode switch — it
+    // must not leak in just because it happens to still carry membership.
+    ["stale-ai", ["m2"]],
+  ]);
+
+  const eligible = selectEligibleHighlightGroups("host_defined", groups, mediaIdsByGroup);
+
+  assert.deepEqual(
+    eligible.map((group) => group.id).sort(),
+    ["host-empty", "host-full"],
+  );
+});
+
+test("selectEligibleHighlightGroups: fallback mode behaves the same as automatic mode (host_defined excluded, membership required)", () => {
+  const groups = [highlightGroup({ id: "host", source: "host_defined" }), highlightGroup({ id: "fallback-full", source: "fallback" })];
+  const mediaIdsByGroup = new Map<string, string[]>([
+    ["host", ["m1"]],
+    ["fallback-full", ["m1"]],
+  ]);
+
+  const eligible = selectEligibleHighlightGroups("fallback", groups, mediaIdsByGroup);
+
+  assert.deepEqual(eligible.map((group) => group.id), ["fallback-full"]);
 });
