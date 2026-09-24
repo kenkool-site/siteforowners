@@ -106,7 +106,11 @@ const FALLBACK_HIGHLIGHT_CATEGORIES: ReadonlyArray<{
     semanticKey: "group-photos",
     name: "Group Photos",
     description: "Posed and candid group shots.",
-    keywords: ["group photo", "crowd", "portrait", "family photo", "photo booth", "wedding party"],
+    // "portrait" deliberately excluded: Rekognition tags nearly every
+    // people-photo (solo, couple, or group) with this generic label, so it
+    // pulled plain solo/couple shots into a category meant for actual group
+    // shots. Confirmed against real production descriptors (2026-09-24).
+    keywords: ["group photo", "crowd", "family photo", "photo booth", "wedding party"],
   },
   {
     semanticKey: "children",

@@ -80,14 +80,22 @@ Use the **same value** you set for `MEMORIES_INTERNAL_SECRET` in Vercel
 (step 4) — the app verifies the Worker's calls to `/api/memories/moderate`
 and `/api/memories/processing-complete` against this shared secret.
 
-## 3. AWS Rekognition (moderation)
+## 3. AWS Rekognition (moderation + AI Highlight labeling)
 
-The code makes exactly one AWS call (`ai-provider.ts`: `DetectModerationLabelsCommand`),
-so the IAM user needs exactly one permission. `DetectModerationLabels` doesn't
-support resource-level scoping — per AWS's own service authorization
-reference, it operates on image bytes passed in the request rather than a
-stored resource ARN, so `Resource: "*"` is the only valid value, not an
-over-broad grant.
+The code makes two AWS calls against the same IAM user: `ai-provider.ts`'s
+`DetectModerationLabelsCommand` (moderation, Plan A) and `DetectLabelsCommand`
+(AI Highlight descriptor extraction — `detectLabels`, added by the AI
+Highlight Grouping plan). Neither supports resource-level scoping — per AWS's
+own service authorization reference, both operate on image bytes passed in
+the request rather than a stored resource ARN, so `Resource: "*"` is the only
+valid value for either, not an over-broad grant.
+
+**If this IAM user/policy was created before the AI Highlight Grouping
+feature shipped, it only has `DetectModerationLabels` — `DetectLabels` calls
+will fail with `AccessDeniedException` until the policy below is
+re-applied.** Symptom: highlight generations stay stuck at `queued` or churn
+without ever producing descriptors; cron/route logs show
+`AccessDeniedException: ... not authorized to perform: rekognition:DetectLabels`.
 
 Policy JSON: `docs/aws-rekognition-memories-policy.json`
 
@@ -98,20 +106,26 @@ Policy JSON: `docs/aws-rekognition-memories-policy.json`
     {
       "Sid": "InviteSpotMemoriesModeration",
       "Effect": "Allow",
-      "Action": "rekognition:DetectModerationLabels",
+      "Action": ["rekognition:DetectModerationLabels", "rekognition:DetectLabels"],
       "Resource": "*"
     }
   ]
 }
 ```
 
-**Console:** IAM → Users → Create user (e.g. `invitespot-memories-rekognition`)
-→ skip groups, attach permissions directly → Create policy → JSON tab →
-paste the above → name it `InviteSpotMemoriesModeration` → attach to the
-user → Security credentials tab → Create access key ("Application running
-outside AWS") → copy into `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
+**Console (new setup):** IAM → Users → Create user (e.g.
+`invitespot-memories-rekognition`) → skip groups, attach permissions directly
+→ Create policy → JSON tab → paste the above → name it
+`InviteSpotMemoriesModeration` → attach to the user → Security credentials
+tab → Create access key ("Application running outside AWS") → copy into
+`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
 
-**CLI:**
+**Console (adding `DetectLabels` to an existing policy):** IAM → Policies →
+find the policy attached to your existing Rekognition IAM user → Edit →
+JSON tab → replace with the two-action JSON above → Save changes. Takes
+effect immediately, no new access key needed.
+
+**CLI (new setup):**
 
 ```bash
 aws iam create-policy --policy-name InviteSpotMemoriesModeration \
@@ -122,8 +136,17 @@ aws iam attach-user-policy --user-name invitespot-memories-rekognition \
 aws iam create-access-key --user-name invitespot-memories-rekognition
 ```
 
+**CLI (adding `DetectLabels` to an existing policy):**
+
+```bash
+aws iam create-policy-version \
+  --policy-arn arn:aws:iam::<your-account-id>:policy/InviteSpotMemoriesModeration \
+  --policy-document file://docs/aws-rekognition-memories-policy.json \
+  --set-as-default
+```
+
 Don't reuse a broader existing AWS key for this — this credential should
-only ever be able to call `DetectModerationLabels`.
+only ever be able to call `DetectModerationLabels` and `DetectLabels`.
 
 ## 4. Environment variables — Vercel (Production)
 
