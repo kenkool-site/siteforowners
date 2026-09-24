@@ -19,6 +19,15 @@ function quietVirtualConsole(): VirtualConsole {
   return virtualConsole;
 }
 
+// jsdom implements neither requestAnimationFrame nor cancelAnimationFrame at
+// all (not even as a stub) — MediaLightbox's slide sequencing uses both, so
+// without this polyfill every Next/Previous click would throw. A plain
+// setTimeout shim is standard practice for this exact gap.
+function polyfillAnimationFrame(dom: JSDOM): void {
+  dom.window.requestAnimationFrame = ((callback: FrameRequestCallback) => dom.window.setTimeout(() => callback(Date.now()), 16)) as typeof dom.window.requestAnimationFrame;
+  dom.window.cancelAnimationFrame = ((id: number) => dom.window.clearTimeout(id)) as typeof dom.window.cancelAnimationFrame;
+}
+
 const GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLButtonElement", "Event", "navigator", "IS_REACT_ACT_ENVIRONMENT", "fetch"] as const;
 
 // Far enough in the past (well past groupMediaByTime's 18-hour "earlier"
@@ -53,6 +62,7 @@ async function withMountedGallery(media: PublicMemoryMedia[], callback: (ctx: { 
     url: "https://invite.example.test",
     virtualConsole: quietVirtualConsole(),
   });
+  polyfillAnimationFrame(dom);
   const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
 
   Object.assign(globalThis, {
@@ -123,19 +133,52 @@ test("next/previous navigate between photos and are bounded at the ends", async 
     assert.match(dom.window.document.body.textContent ?? "", /Photo 1 of 3/);
     assert.ok(!dom.window.document.querySelector('button[aria-label="Previous photo"]'), "no previous control on the first photo");
 
+    // Next/Previous now defer the actual index change until the exit
+    // animation finishes (see MediaLightbox.tsx's navigateWithSlide) — the
+    // photo lets its exit motion play out rather than popping instantly.
+    // Verify that deferral is real, not just tolerated by a generous flush.
     const nextButton = dom.window.document.querySelector('button[aria-label="Next photo"]');
     await act(async () => {
       click(dom, nextButton);
-      await flush();
+      await flush(20);
+    });
+    assert.match(dom.window.document.body.textContent ?? "", /Photo 1 of 3/, "expected the index change to still be deferred right after the click");
+
+    await act(async () => {
+      await flush(320);
     });
     assert.match(dom.window.document.body.textContent ?? "", /Photo 2 of 3/);
 
     await act(async () => {
       click(dom, dom.window.document.querySelector('button[aria-label="Next photo"]'));
-      await flush();
+      await flush(320);
     });
     assert.match(dom.window.document.body.textContent ?? "", /Photo 3 of 3/);
     assert.ok(!dom.window.document.querySelector('button[aria-label="Next photo"]'), "no next control on the last photo");
+  });
+});
+
+test("clicking Next twice in quick succession settles cleanly on the second photo", async () => {
+  await withMountedGallery([mediaItem("m1"), mediaItem("m2"), mediaItem("m3")], async ({ dom }) => {
+    const firstPhotoButton = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]')?.closest("button") ?? null;
+    await act(async () => {
+      click(dom, firstPhotoButton);
+      await flush();
+    });
+
+    // Both clicks land before the first one's deferred navigation commits, so
+    // both resolve to the same target (index hasn't advanced yet in either
+    // click's closure) — this exercises navigateWithSlide's own cancellation
+    // of a still-pending previous transition, guarding against two
+    // overlapping exit/re-enter animation chains corrupting each other's
+    // dragX/transition state and leaving the lightbox stuck or visibly wrong.
+    await act(async () => {
+      click(dom, dom.window.document.querySelector('button[aria-label="Next photo"]'));
+      await flush(20);
+      click(dom, dom.window.document.querySelector('button[aria-label="Next photo"]'));
+      await flush(320);
+    });
+    assert.match(dom.window.document.body.textContent ?? "", /Photo 2 of 3/);
   });
 });
 

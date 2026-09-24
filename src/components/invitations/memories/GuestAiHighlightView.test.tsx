@@ -20,6 +20,15 @@ function quietVirtualConsole(): VirtualConsole {
   return virtualConsole;
 }
 
+// jsdom implements neither requestAnimationFrame nor cancelAnimationFrame at
+// all (not even as a stub) — MediaLightbox's slide sequencing uses both, so
+// without this polyfill every Next/Previous click would throw. A plain
+// setTimeout shim is standard practice for this exact gap.
+function polyfillAnimationFrame(dom: JSDOM): void {
+  dom.window.requestAnimationFrame = ((callback: FrameRequestCallback) => dom.window.setTimeout(() => callback(Date.now()), 16)) as typeof dom.window.requestAnimationFrame;
+  dom.window.cancelAnimationFrame = ((id: number) => dom.window.clearTimeout(id)) as typeof dom.window.cancelAnimationFrame;
+}
+
 const GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLButtonElement", "Event", "navigator", "IS_REACT_ACT_ENVIRONMENT", "fetch"] as const;
 
 function highlightGroup(overrides: Partial<GuestHighlightGroup> & { id: string }): GuestHighlightGroup {
@@ -71,6 +80,7 @@ async function withMountedComponent(
   callback: (ctx: { dom: JSDOM; calls: FetchCall[] }) => Promise<void>,
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test", virtualConsole: quietVirtualConsole() });
+  polyfillAnimationFrame(dom);
   const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const calls: FetchCall[] = [];
   const trackingFetch = async (input: RequestInfo | URL) => {
@@ -277,11 +287,15 @@ test("tapping a photo in a category opens it fullscreen, supports next/previous,
       assert.ok(dom.window.document.querySelector('[role="dialog"]'), "expected the lightbox to open");
       assert.match(dom.window.document.body.textContent ?? "", /Photo 1 of 2/);
 
+      // Next/Previous now defer the actual index change until the exit
+      // animation finishes (see MediaLightbox.tsx's navigateWithSlide), so
+      // the flush here must outlast that settle duration, not just a
+      // microtask tick.
       const nextButton = dom.window.document.querySelector('button[aria-label="Next photo"]');
       assert.ok(nextButton, "expected a next-photo control since there is a second photo");
       await act(async () => {
         click(dom, nextButton);
-        await flush();
+        await flush(320);
       });
       assert.match(dom.window.document.body.textContent ?? "", /Photo 2 of 2/);
       assert.ok(!dom.window.document.querySelector('button[aria-label="Next photo"]'), "no next control on the last photo");
