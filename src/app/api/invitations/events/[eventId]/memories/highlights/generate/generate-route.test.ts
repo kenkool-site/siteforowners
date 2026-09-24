@@ -91,6 +91,7 @@ test("resolveHighlightGenerationRequest: a duplicate request (already queued/pro
     pendingGenerationId: "gen-already-pending",
     generationStatus: "processing",
     lastGeneratedMediaCount: 42,
+    generationError: null,
   };
   const result = await resolveHighlightGenerationRequest(EVENT_ID, {
     // force: true can never queue a second generation on top of one already

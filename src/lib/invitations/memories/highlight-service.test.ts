@@ -93,6 +93,15 @@ function neverCalled<TFn extends (...args: never[]) => unknown>(label: string): 
 function baseProcessDependencies() {
   return {
     claimNextHighlightGeneration: neverCalled<ProcessDep<"claimNextHighlightGeneration">>("claimNextHighlightGeneration"),
+    // Descriptor-readiness wait: every existing scenario below has a
+    // complete descriptor set already, so the default backfill is a no-op
+    // (0 backfilled) and the default missing-descriptor check reports
+    // nothing missing — proceeding straight through to classification exactly
+    // as these tests expect. requeueHighlightGeneration stays neverCalled by
+    // default since none of these scenarios should ever reach it.
+    backfillMissingMemoryDescriptors: spy<ProcessDep<"backfillMissingMemoryDescriptors">>(async () => 0),
+    listApprovedMediaMissingDescriptors: spy<ProcessDep<"listApprovedMediaMissingDescriptors">>(async () => []),
+    requeueHighlightGeneration: neverCalled<ProcessDep<"requeueHighlightGeneration">>("requeueHighlightGeneration"),
     listApprovedMemoryDescriptors: neverCalled<ProcessDep<"listApprovedMemoryDescriptors">>("listApprovedMemoryDescriptors"),
     listMemoryHighlightGroups: neverCalled<ProcessDep<"listMemoryHighlightGroups">>("listMemoryHighlightGroups"),
     createMemoryHighlightGroup: neverCalled<ProcessDep<"createMemoryHighlightGroup">>("createMemoryHighlightGroup"),
@@ -509,6 +518,68 @@ test("a thrown provider error fails the generation without publishing, so the pr
   assert.equal(failCall[1], "gen-6");
 });
 
+test("a generation claimed with missing descriptors is re-queued rather than terminally failed with EMPTY_HIGHLIGHT_OUTPUT", async () => {
+  const base = baseProcessDependencies();
+  const claim = spy<ProcessDep<"claimNextHighlightGeneration">>(async () => generation({ id: "gen-missing", mode: "fallback" }));
+  // Simulates a pre-existing/legacy event: zero descriptors exist yet, so
+  // the per-event catch-up backfill runs but at least one approved item is
+  // still missing a descriptor afterward (e.g. more were missing than the
+  // bounded catch-up limit, or this specific item's extraction failed).
+  const backfill = spy<ProcessDep<"backfillMissingMemoryDescriptors">>(async () => 0);
+  const listMissing = spy<ProcessDep<"listApprovedMediaMissingDescriptors">>(async () => [
+    { mediaId: "m1", eventId: "event-1", mediaKind: "photo" as const, objectKeyDisplay: null },
+  ]);
+  const requeue = spy<ProcessDep<"requeueHighlightGeneration">>(async () => true);
+
+  await processHighlightGeneration(
+    "gen-missing",
+    toDeps({
+      ...base,
+      claimNextHighlightGeneration: claim,
+      backfillMissingMemoryDescriptors: backfill,
+      listApprovedMediaMissingDescriptors: listMissing,
+      requeueHighlightGeneration: requeue,
+    }),
+  );
+
+  assert.equal(backfill.calls.length, 1);
+  assert.equal(backfill.calls[0]?.[0], "event-1");
+  assert.equal(listMissing.calls.length, 1);
+  assert.equal(requeue.calls.length, 1);
+  assert.deepEqual(requeue.calls[0], ["event-1", "gen-missing"]);
+  // The whole point: never runs the classifier or fails the generation just
+  // because descriptors aren't ready yet.
+  assert.equal(base.listApprovedMemoryDescriptors.calls.length, 0);
+  assert.equal(base.classifyFallbackHighlights.calls.length, 0);
+  assert.equal(base.generateDynamicHighlights.calls.length, 0);
+  assert.equal(base.failHighlightGeneration.calls.length, 0);
+  assert.equal(base.publishHighlightGeneration.calls.length, 0);
+});
+
+test("host-defined mode also waits for descriptors to be ready before classifying", async () => {
+  const base = baseProcessDependencies();
+  const claim = spy<ProcessDep<"claimNextHighlightGeneration">>(async () => generation({ id: "gen-host-missing", mode: "host_defined" }));
+  const listMissing = spy<ProcessDep<"listApprovedMediaMissingDescriptors">>(async () => [
+    { mediaId: "m1", eventId: "event-1", mediaKind: "photo" as const, objectKeyDisplay: null },
+  ]);
+  const requeue = spy<ProcessDep<"requeueHighlightGeneration">>(async () => true);
+
+  await processHighlightGeneration(
+    "gen-host-missing",
+    toDeps({
+      ...base,
+      claimNextHighlightGeneration: claim,
+      listApprovedMediaMissingDescriptors: listMissing,
+      requeueHighlightGeneration: requeue,
+    }),
+  );
+
+  assert.equal(requeue.calls.length, 1);
+  assert.equal(base.listMemoryHighlightGroups.calls.length, 0);
+  assert.equal(base.generateHostDefinedAssignments.calls.length, 0);
+  assert.equal(base.classifyIntoHostGroups.calls.length, 0);
+});
+
 test("processing an already-claimed generation (e.g. already published) again is a no-op", async () => {
   const base = baseProcessDependencies();
   const claim = spy<ProcessDep<"claimNextHighlightGeneration">>(async () => null); // simulates: status is no longer 'queued'
@@ -538,6 +609,7 @@ function highlightState(overrides: Partial<HighlightGenerationState> = {}): High
     pendingGenerationId: null,
     generationStatus: "idle",
     lastGeneratedMediaCount: 0,
+    generationError: null,
     ...overrides,
   };
 }

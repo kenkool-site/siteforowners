@@ -36,7 +36,7 @@
 // processHighlightGeneration promptly rather than queuing further work first.
 import type { DetectedLabel } from "@/lib/invitations/memories/ai-provider";
 import { RekognitionAIProvider } from "@/lib/invitations/memories/ai-provider";
-import { processHighlightGeneration } from "@/lib/invitations/memories/highlight-service";
+import { processHighlightGeneration, requestHighlightGeneration } from "@/lib/invitations/memories/highlight-service";
 import type { MemoryHighlightGeneration } from "@/lib/invitations/memories/highlight-types";
 import { deriveObjectKeys } from "@/lib/invitations/memories/processing-provider";
 import {
@@ -65,6 +65,7 @@ export interface MemoriesHighlightsCronDependencies {
   listApprovedMediaMissingDescriptorsAcrossEvents?: typeof listApprovedMediaMissingDescriptorsAcrossEvents;
   upsertMemoryMediaDescriptor?: typeof upsertMemoryMediaDescriptor;
   detectLabels?: (media: MemoryMediaSummary) => Promise<DetectedLabel[]>;
+  requestHighlightGeneration?: typeof requestHighlightGeneration;
 }
 
 export interface MemoriesHighlightsCronResult {
@@ -103,6 +104,7 @@ export async function runMemoriesHighlightsCron(
     dependencies.listApprovedMediaMissingDescriptorsAcrossEvents ?? listApprovedMediaMissingDescriptorsAcrossEvents;
   const upsertDescriptor = dependencies.upsertMemoryMediaDescriptor ?? upsertMemoryMediaDescriptor;
   const detectLabels = dependencies.detectLabels ?? detectLabelsFromModerationDerivative;
+  const requestGeneration = dependencies.requestHighlightGeneration ?? requestHighlightGeneration;
 
   let processed = 0;
   let failed = 0;
@@ -127,6 +129,7 @@ export async function runMemoriesHighlightsCron(
 
   let backfilled = 0;
   let backfillFailed = 0;
+  const backfilledEventIds = new Set<string>();
   try {
     const missing: MemoryMediaSummary[] = (await listMissingDescriptors(MAX_BACKFILL_PER_RUN)).slice(0, MAX_BACKFILL_PER_RUN);
     for (const item of missing) {
@@ -134,6 +137,7 @@ export async function runMemoriesHighlightsCron(
         const labels = await detectLabels(item);
         await upsertDescriptor({ mediaId: item.mediaId, labels });
         backfilled += 1;
+        backfilledEventIds.add(item.eventId);
       } catch (err) {
         backfillFailed += 1;
         console.error("[cron/memories-highlights] descriptor backfill failed for media (non-fatal)", {
@@ -148,6 +152,26 @@ export async function runMemoriesHighlightsCron(
     // results already computed above, so this is logged and swallowed rather
     // than thrown.
     console.error("[cron/memories-highlights] descriptor backfill listing failed (non-fatal)", { error: err });
+  }
+
+  // Nothing else re-queues a generation once backfill finally catches up for
+  // an event that never got one actively re-queued by
+  // processHighlightGeneration's own descriptor-readiness wait (e.g. no host
+  // ever clicked Generate again after an earlier attempt, or this is the
+  // very first time this event crosses having any descriptors at all) — a
+  // host would otherwise have to notice and manually click Generate/
+  // Regenerate. force: false, matching every other opportunistic call site
+  // (moderation routes, mode switch): only actually queues when the normal
+  // policy says there's enough new material, and never queues on top of an
+  // already-pending generation. Best-effort per event, same as the backfill
+  // loop above — a queueing hiccup here must never affect this run's other
+  // results.
+  for (const eventId of Array.from(backfilledEventIds)) {
+    try {
+      await requestGeneration(eventId, false);
+    } catch (err) {
+      console.error("[cron/memories-highlights] failed to request generation after backfill (non-fatal)", { eventId, error: err });
+    }
   }
 
   return { processed, failed, backfilled, backfillFailed };

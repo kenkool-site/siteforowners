@@ -44,6 +44,7 @@ function noopDependencies(): MemoriesHighlightsCronDependencies {
     listApprovedMediaMissingDescriptorsAcrossEvents: async () => [],
     upsertMemoryMediaDescriptor: async () => {},
     detectLabels: async () => [],
+    requestHighlightGeneration: async () => null,
   };
 }
 
@@ -210,4 +211,67 @@ test("one backfill failure does not stop the others, and is tracked separately f
   assert.equal(result.backfilled, 2);
   assert.equal(result.backfillFailed, 1);
   assert.equal(result.failed, 0, "backfill failures must never be counted as generation failures");
+});
+
+// ---------------------------------------------------------------------------
+// Fix 2(b): nothing else re-queues a generation once backfill catches up for
+// an event that has no host actively re-clicking Generate — the cron's own
+// backfill pass must request one itself.
+// ---------------------------------------------------------------------------
+
+test("requests a fresh generation for each event that had at least one descriptor backfilled this run", async () => {
+  const items = [
+    media({ mediaId: "media-1", eventId: "event-a" }),
+    media({ mediaId: "media-2", eventId: "event-a" }),
+    media({ mediaId: "media-3", eventId: "event-b" }),
+  ];
+  const requestedFor: string[] = [];
+  const result = await runMemoriesHighlightsCron({
+    ...noopDependencies(),
+    listApprovedMediaMissingDescriptorsAcrossEvents: async () => items,
+    detectLabels: async () => [],
+    requestHighlightGeneration: async (eventId: string) => {
+      requestedFor.push(eventId);
+      return null;
+    },
+  });
+
+  assert.deepEqual(requestedFor.sort(), ["event-a", "event-b"], "each distinct backfilled event is requested exactly once");
+  assert.equal(result.backfilled, 3);
+});
+
+test("a failed descriptor backfill for an item does not request a generation for that item's event on its own", async () => {
+  const items = [media({ mediaId: "media-1", eventId: "event-only-failure" })];
+  const requestedFor: string[] = [];
+  await runMemoriesHighlightsCron({
+    ...noopDependencies(),
+    listApprovedMediaMissingDescriptorsAcrossEvents: async () => items,
+    detectLabels: async () => {
+      throw new Error("rekognition failed");
+    },
+    requestHighlightGeneration: async (eventId: string) => {
+      requestedFor.push(eventId);
+      return null;
+    },
+  });
+
+  assert.deepEqual(requestedFor, [], "an event with zero successful backfills this run must not be requested");
+});
+
+test("one event's failed generation request does not stop another event's request from being attempted", async () => {
+  const items = [media({ mediaId: "media-1", eventId: "event-fails" }), media({ mediaId: "media-2", eventId: "event-succeeds" })];
+  const requestedFor: string[] = [];
+  const result = await runMemoriesHighlightsCron({
+    ...noopDependencies(),
+    listApprovedMediaMissingDescriptorsAcrossEvents: async () => items,
+    detectLabels: async () => [],
+    requestHighlightGeneration: async (eventId: string) => {
+      requestedFor.push(eventId);
+      if (eventId === "event-fails") throw new Error("boom");
+      return null;
+    },
+  });
+
+  assert.deepEqual(requestedFor.sort(), ["event-fails", "event-succeeds"]);
+  assert.equal(result.backfilled, 2, "a downstream generation-request failure must not affect the already-computed backfill count");
 });

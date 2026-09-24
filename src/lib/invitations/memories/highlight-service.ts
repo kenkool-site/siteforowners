@@ -26,6 +26,14 @@ import { R2StorageProvider } from "./storage-provider";
 // is an accepted judgment call rather than a shared constant.
 const DYNAMIC_CLASSIFICATION_FLOOR = 8;
 
+// Bounds the per-event, per-attempt descriptor catch-up processHighlightGeneration
+// runs before giving up and re-queueing (see the descriptor-readiness wait
+// below). Higher than the cron's own MAX_BACKFILL_PER_RUN (5, platform-wide)
+// since this one is scoped to a single event actually being processed right
+// now, but still bounded so one generation attempt can't turn into an
+// unbounded Rekognition batch job.
+const GENERATION_DESCRIPTOR_BACKFILL_LIMIT = 20;
+
 // How long a generation may sit in 'processing' before it's considered stuck
 // (e.g. the worker that claimed it crashed mid-run — a Vercel function
 // timeout during the single Anthropic call this involves is a realistic
@@ -130,6 +138,12 @@ export interface BackfillMissingDescriptorsDependencies {
 // descriptor. Best-effort per item — one failure logs and moves on rather
 // than aborting the whole batch, since a partial backfill is strictly better
 // than none and the same item will simply be picked up again next run.
+// Called from processHighlightGeneration's descriptor-readiness wait (a
+// bounded, per-event catch-up attempt made before giving up and re-queueing)
+// — its first real caller; the cron's own platform-wide backfill pass
+// (memories-highlights-cron.ts) still runs independently and doesn't call
+// this function, since it needs to discover work across ALL events rather
+// than one event already in hand.
 export async function backfillMissingMemoryDescriptors(
   eventId: string,
   limit: number,
@@ -175,6 +189,9 @@ async function defaultDetectLabelsForMedia(media: MemoryMediaSummary): Promise<D
 
 export interface ProcessHighlightGenerationDependencies {
   claimNextHighlightGeneration?: (generationId: string) => Promise<MemoryHighlightGeneration | null>;
+  backfillMissingMemoryDescriptors?: (eventId: string, limit: number) => Promise<number>;
+  listApprovedMediaMissingDescriptors?: typeof repository.listApprovedMediaMissingDescriptors;
+  requeueHighlightGeneration?: typeof repository.requeueHighlightGeneration;
   listApprovedMemoryDescriptors?: typeof repository.listApprovedMemoryDescriptors;
   listMemoryHighlightGroups?: typeof repository.listMemoryHighlightGroups;
   createMemoryHighlightGroup?: typeof repository.createMemoryHighlightGroup;
@@ -273,6 +290,9 @@ export async function processHighlightGeneration(
   dependencies: ProcessHighlightGenerationDependencies = {},
 ): Promise<void> {
   const claim = dependencies.claimNextHighlightGeneration ?? repository.claimNextHighlightGeneration;
+  const backfillDescriptors = dependencies.backfillMissingMemoryDescriptors ?? backfillMissingMemoryDescriptors;
+  const listMissingDescriptors = dependencies.listApprovedMediaMissingDescriptors ?? repository.listApprovedMediaMissingDescriptors;
+  const requeue = dependencies.requeueHighlightGeneration ?? repository.requeueHighlightGeneration;
   const listDescriptors = dependencies.listApprovedMemoryDescriptors ?? repository.listApprovedMemoryDescriptors;
   const listGroups = dependencies.listMemoryHighlightGroups ?? repository.listMemoryHighlightGroups;
   const createGroup = dependencies.createMemoryHighlightGroup ?? repository.createMemoryHighlightGroup;
@@ -293,6 +313,30 @@ export async function processHighlightGeneration(
   if (!generation) return;
 
   try {
+    // Descriptor-readiness wait (spec's Generation lifecycle step 3: "wait
+    // until the generation's required descriptor jobs reach a terminal
+    // state before attempting classification"). A pre-existing event with
+    // zero (or partial) memory_media_descriptors rows would otherwise run
+    // the classifier against an empty/incomplete input and terminally fail
+    // with EMPTY_HIGHLIGHT_OUTPUT — even though the real cause is just
+    // "descriptor backfill hasn't caught up yet", which the cron's own
+    // platform-wide backfill pass (bounded to a handful of items per run) is
+    // actively working through in the background. Make a bounded, per-event
+    // catch-up attempt right now (this event's own approved media doesn't
+    // have to wait solely on that shared platform-wide pool — see
+    // backfillMissingMemoryDescriptors's own doc comment; this is its first
+    // real caller), then re-queue the SAME generation rather than failing it
+    // if anything is still missing afterward. The next cron tick reclaims
+    // this same queued row (listQueuedHighlightGenerations has no staleness
+    // cutoff) and retries, converging over a few ticks as backfill catches
+    // up.
+    await backfillDescriptors(generation.eventId, GENERATION_DESCRIPTOR_BACKFILL_LIMIT);
+    const stillMissingDescriptors = await listMissingDescriptors(generation.eventId, 1);
+    if (stillMissingDescriptors.length > 0) {
+      await requeue(generation.eventId, generation.id);
+      return;
+    }
+
     const descriptors = await listDescriptors(generation.eventId);
     const assignments: ResolvedAssignment[] = [];
     const deferredGroupUpdates: DeferredGroupUpdate[] = [];
