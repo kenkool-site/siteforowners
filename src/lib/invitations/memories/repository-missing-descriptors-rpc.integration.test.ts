@@ -113,7 +113,8 @@ test("listApprovedMediaMissingDescriptorsAcrossEvents's SQL still finds undescri
          object_key_display text,
          uploaded_at timestamptz not null default now(),
          upload_status text not null default 'pending',
-         moderation_status text not null default 'pending'
+         moderation_status text not null default 'pending',
+         processing_status text not null default 'ready'
        );`,
     );
     psql(
@@ -185,6 +186,24 @@ test("listApprovedMediaMissingDescriptorsAcrossEvents's SQL still finds undescri
     );
     const afterFullyDescribed = psql(port, "select count(*) from public.list_approved_media_missing_descriptors_across_events(5);");
     assert.equal(afterFullyDescribed, "0");
+
+    // Fix 5: a media item that is approved, uploaded, and undescribed but
+    // failed processing (processing_status <> 'ready') must never be
+    // returned — it would never be resolvable/visible to a guest anyway (see
+    // gallery.ts's listGalleryVisibleMedia, which requires processing_status
+    // = 'ready'), so backfilling it a descriptor and letting it get grouped
+    // would be pure waste.
+    const processingFailedId = psql(
+      port,
+      `insert into public.memory_media (event_id, media_kind, uploaded_at, upload_status, moderation_status, processing_status)
+       values (gen_random_uuid(), 'photo', now(), 'uploaded', 'approved', 'processing_failed')
+       returning id;`,
+    );
+    const foundAfterProcessingFailedInsert = psql(
+      port,
+      `select 1 from public.list_approved_media_missing_descriptors_across_events(1000) where media_id = '${processingFailedId}';`,
+    );
+    assert.equal(foundAfterProcessingFailedInsert, "", "a processing_failed media item must be excluded even though it is undescribed");
   } finally {
     spawnSync("docker", ["stop", CONTAINER_NAME], { stdio: "ignore" });
   }
