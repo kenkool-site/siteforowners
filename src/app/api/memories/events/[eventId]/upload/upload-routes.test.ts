@@ -123,3 +123,73 @@ test("upload/init enforces the upload window", () => {
   assert.match(source, /isUploadWindowOpen/);
   assert.match(source, /isUploadWindowOpen\(settings\.startsAt\)/);
 });
+
+// Real handler-invoking tests for video upload support, now that the init
+// route module can actually be imported under tsx --test (see this file's own
+// header comment above — that was the blocker; it's fixed, and this is the
+// follow-up it flagged as not yet written). mediaKind/contentType/sizeBytes
+// validation all happens before any database call in the route, so those
+// checks are fully deterministic here. Anything past that point
+// (getEventMemoriesSettings et al.) reaches createAdminClient() with no
+// Supabase credentials configured in this environment, so a request that
+// clears validation surfaces as 500, not 200 — same pattern as
+// highlights-route.test.ts's "reaches the database call" tests.
+const EVENT_ID = "event-1";
+const INIT_URL = `http://localhost:3000/api/memories/events/${EVENT_ID}/upload/init`;
+
+function sameOriginInitRequest(body: unknown): NextRequest {
+  return new NextRequest(new URL(INIT_URL), {
+    method: "POST",
+    headers: { origin: "http://localhost:3000", host: "localhost:3000", "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+test("POST accepts mediaKind video with an accepted content type", async () => {
+  const { POST } = await import("./init/route");
+  const request = sameOriginInitRequest({ mediaKind: "video", contentType: "video/mp4", sizeBytes: 1_000_000 });
+  const response = await POST(request, { params: { eventId: EVENT_ID } });
+  assert.notEqual(response.status, 400);
+});
+
+test("POST rejects an unsupported video content type with 400", async () => {
+  const { POST } = await import("./init/route");
+  // AVI — never in ALLOWED_CONTENT_TYPES, so this 400s before any database call.
+  const request = sameOriginInitRequest({ mediaKind: "video", contentType: "video/x-msvideo", sizeBytes: 1_000_000 });
+  const response = await POST(request, { params: { eventId: EVENT_ID } });
+  assert.equal(response.status, 400);
+});
+
+for (const contentType of ["video/mp4", "video/webm", "video/quicktime"]) {
+  test(`POST accepts video content type ${contentType}`, async () => {
+    const { POST } = await import("./init/route");
+    const request = sameOriginInitRequest({ mediaKind: "video", contentType, sizeBytes: 1_000_000 });
+    const response = await POST(request, { params: { eventId: EVENT_ID } });
+    assert.notEqual(response.status, 400);
+  });
+}
+
+// KNOWN LIMITATION: unlike highlights-route.test.ts's founder/admin_session
+// guard (which never touches the database, giving that file a real DB-free
+// path to a genuine response body), the guest-facing upload/init flow has no
+// such branch — every request here reaches getEventMemoriesSettings() and
+// 500s with no response body worth asserting on, so "POST response includes
+// posterUploadUrl for a video, and omits it for a photo" cannot be exercised
+// end-to-end in this harness. Seeding a real "event-1" row would get a
+// genuine 200, but this repo's Supabase project backs a real live client (see
+// repository.test.ts's and repository-missing-descriptors-rpc.integration.
+// test.ts's own header comments on why tests here don't write to it), so
+// that's not a safe way to get one either. This asserts the same contract
+// structurally instead, matching "upload/init enforces the upload window"
+// just above.
+test("upload/init computes posterUploadUrl only for video, and includes it conditionally in both response branches", () => {
+  const source = readFileSync(new URL("./init/route.ts", import.meta.url), "utf8");
+  assert.match(source, /objectKeyForVideoPoster\(eventId, mediaId\)/);
+  assert.match(source, /mediaKind === "video"\s*\n?\s*\?/);
+  const conditionalSpreadCount = (source.match(/\.\.\.\(posterUploadUrl \? \{ posterUploadUrl \} : \{\}\)/g) ?? []).length;
+  assert.equal(
+    conditionalSpreadCount,
+    2,
+    "expected posterUploadUrl to be conditionally spread into both the fixture-mode and real-R2 response bodies",
+  );
+});
