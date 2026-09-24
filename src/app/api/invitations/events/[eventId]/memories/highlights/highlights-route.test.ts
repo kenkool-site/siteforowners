@@ -75,6 +75,17 @@ test("PATCH rejects a cross-origin request with 403", async () => {
   assert.equal(response.status, 403);
 });
 
+test("DELETE rejects a cross-origin request with 403", async () => {
+  const { DELETE } = await import("./route");
+  const request = new NextRequest(new URL(BASE_URL), {
+    method: "DELETE",
+    headers: { origin: "http://attacker.example", host: "localhost:3000", "content-type": "application/json" },
+    body: JSON.stringify({ id: "group-1" }),
+  });
+  const response = await DELETE(request, { params: { eventId: EVENT_ID } });
+  assert.equal(response.status, 403);
+});
+
 test("DELETE rejects an unauthenticated same-origin request with 401", async () => {
   const { DELETE } = await import("./route");
   delete process.env.ADMIN_PASSWORD;
