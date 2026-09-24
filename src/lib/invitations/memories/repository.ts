@@ -391,6 +391,7 @@ export async function listApprovedMediaMissingDescriptors(eventId: string, limit
     .eq("event_id", eventId)
     .eq("moderation_status", "approved")
     .eq("upload_status", "uploaded")
+    .eq("processing_status", "ready")
     .order("uploaded_at", { ascending: true });
   if (error) throw new Error(`failed to list approved memory media: ${error.message}`);
   if (!approvedMedia || approvedMedia.length === 0) return [];

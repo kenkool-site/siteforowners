@@ -16,6 +16,7 @@ import type { HighlightAssignment, HighlightProposal } from "./highlight-classif
 import { generateDynamicHighlights, generateHostDefinedAssignments } from "./highlight-generator";
 import type { GenerateDynamicHighlightsInput, GenerateHostDefinedAssignmentsInput } from "./highlight-generator";
 import type { HighlightGenerationMode, MemoryHighlightGeneration, MemoryHighlightGroup } from "./highlight-types";
+import { deriveObjectKeys } from "./processing-provider";
 import * as repository from "./repository";
 import type { HighlightGenerationState, MemoryMediaSummary } from "./repository";
 import { R2StorageProvider } from "./storage-provider";
@@ -172,11 +173,19 @@ export async function backfillMissingMemoryDescriptors(
 // highlight-generator.ts's own lazy-Anthropic-client pattern, so importing
 // this module — or running its tests, which always inject detectLabels —
 // never requires AWS/R2 env vars and never touches the network.
+//
+// Reads the moderation derivative (a JPEG produced specifically for
+// Rekognition calls — see deriveObjectKeys) rather than the display
+// derivative (a .webp meant for the gallery UI): Rekognition's DetectLabels
+// only accepts JPEG/PNG and rejects WebP with InvalidImageFormatException.
+// Mirrors memories-highlights-cron.ts's own detectLabelsFromModerationDerivative,
+// which reaches the same conclusion for the platform-wide backfill pass.
 async function defaultDetectLabelsForMedia(media: MemoryMediaSummary): Promise<DetectedLabel[]> {
   if (!media.objectKeyDisplay) return [];
   const storage = new R2StorageProvider();
   const provider = new RekognitionAIProvider();
-  const downloadUrl = await storage.getSignedDownloadUrl(media.objectKeyDisplay, 60);
+  const moderationKey = deriveObjectKeys(media.eventId, media.mediaId).moderation;
+  const downloadUrl = await storage.getSignedDownloadUrl(moderationKey, 60);
   const imageResponse = await fetch(downloadUrl);
   if (!imageResponse.ok) throw new Error(`R2 download failed with status ${imageResponse.status}`);
   const bytes = new Uint8Array(await imageResponse.arrayBuffer());

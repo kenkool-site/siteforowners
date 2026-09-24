@@ -121,11 +121,18 @@ test("listApprovedMemoryDescriptors scopes to the event's approved, uploaded, an
   forbidsMomentsTables(source);
 });
 
-test("listApprovedMediaMissingDescriptors scopes to the event and excludes media that already has a descriptor", () => {
+test("listApprovedMediaMissingDescriptors scopes to the event, excludes already-described media, and agrees with listApprovedMemoryDescriptors on processing_status", () => {
   const source = listApprovedMediaMissingDescriptors.toString();
   assert.match(source, /memory_media_descriptors/);
   assert.match(source, /event_id/);
   assert.match(source, /moderation_status/);
+  // Fix 2 re-review: this is the gate processHighlightGeneration's
+  // descriptor-readiness wait uses — without processing_status='ready' here
+  // too, a processing_failed item (excluded from listApprovedMemoryDescriptors
+  // and from guest visibility) would be reported as "missing a descriptor"
+  // forever, since it can never actually acquire one.
+  assert.match(source, /processing_status/);
+  assert.match(source, /ready/);
   forbidsMomentsTables(source);
 });
 
