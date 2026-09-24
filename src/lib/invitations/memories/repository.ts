@@ -2,6 +2,16 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { MediaKind, MemoriesGuestLevel, MemoryMedia } from "./types";
 import { allowedModerationStatuses, buildMemoriesEventSummary, moderationStatusForFilter, type HostModerationAction, type HostReviewFilter, type MemoriesEventSummary } from "./host";
+import type {
+  HighlightGenerationMode,
+  HighlightGenerationStatus,
+  HighlightGroupSource,
+  HighlightMode,
+  MemoryHighlightGeneration,
+  MemoryHighlightGroup,
+  MemoryMediaDescriptor,
+  PublishedMemoryHighlights,
+} from "./highlight-types";
 
 export function mapRow(row: Record<string, unknown>): MemoryMedia {
   return {
@@ -277,4 +287,419 @@ export async function moderateMemoryMediaForHost(eventId: string, action: HostMo
     .select("id");
   if (error) throw new Error(`failed to moderate Memories media: ${error.message}`);
   return (data ?? []).map((row) => row.id as string);
+}
+
+// ---------------------------------------------------------------------------
+// AI Highlight grouping — independent of memory_moments/memory_moment_media.
+// These methods only ever touch the four tables added by
+// 058_memory_highlight_grouping.sql plus invitation_events' highlight_*
+// columns. Never import or query memory_moments/memory_moment_media here.
+// ---------------------------------------------------------------------------
+
+// Versions the label-extraction approach that produced a descriptor row, in
+// case a future extraction method needs to distinguish/re-backfill old rows.
+// Not currently branched on anywhere; recorded for that future need.
+const DESCRIPTOR_VERSION = "rekognition-v1";
+
+function mapHighlightGroupRow(row: Record<string, unknown>): MemoryHighlightGroup {
+  return {
+    id: row.id as string,
+    eventId: row.event_id as string,
+    name: row.name as string,
+    description: (row.description as string | null) ?? null,
+    semanticKey: row.semantic_key as string,
+    source: row.source as HighlightGroupSource,
+    sortOrder: row.sort_order as number,
+    isVisible: row.is_visible as boolean,
+  };
+}
+
+function mapHighlightGenerationRow(row: Record<string, unknown>): MemoryHighlightGeneration {
+  return {
+    id: row.id as string,
+    eventId: row.event_id as string,
+    mode: row.mode as HighlightGenerationMode,
+    status: row.status as HighlightGenerationStatus,
+    mediaCount: row.media_count as number,
+    errorCode: (row.error_code as string | null) ?? null,
+    createdAt: row.created_at as string,
+    publishedAt: (row.published_at as string | null) ?? null,
+  };
+}
+
+// Upserts the reusable AI descriptor for one media item (labels extracted
+// once, consumed by every future re-grouping run). Idempotent: re-running
+// extraction for the same media item overwrites its prior descriptor rather
+// than erroring or duplicating.
+export async function upsertMemoryMediaDescriptor(input: {
+  mediaId: string;
+  labels: Array<{ name: string; confidence: number }>;
+  embedding?: number[] | null;
+  transcriptCues?: string[] | null;
+}): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client.from("memory_media_descriptors").upsert(
+    {
+      media_id: input.mediaId,
+      descriptor_version: DESCRIPTOR_VERSION,
+      labels: input.labels,
+      embedding: input.embedding ?? null,
+      transcript_cues: input.transcriptCues ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "media_id" },
+  );
+  if (error) throw new Error(`failed to upsert memory_media_descriptor: ${error.message}`);
+}
+
+// Descriptors for every approved, uploaded media item in an event — the
+// input set any classifier (fallback, dynamic, or host-defined) operates on.
+// memory_media_descriptors has no event_id column of its own, so this scopes
+// via the owning memory_media row.
+export async function listApprovedMemoryDescriptors(eventId: string): Promise<MemoryMediaDescriptor[]> {
+  const client = createAdminClient();
+  const { data: approvedMedia, error } = await client
+    .from("memory_media")
+    .select("id,media_kind")
+    .eq("event_id", eventId)
+    .eq("moderation_status", "approved")
+    .eq("upload_status", "uploaded");
+  if (error) throw new Error(`failed to list approved memory media for descriptors: ${error.message}`);
+  if (!approvedMedia || approvedMedia.length === 0) return [];
+
+  const mediaKindById = new Map<string, MediaKind>();
+  for (const row of approvedMedia) mediaKindById.set(row.id as string, row.media_kind as MediaKind);
+
+  const { data: descriptorRows, error: descriptorError } = await client
+    .from("memory_media_descriptors")
+    .select("media_id,labels,embedding,transcript_cues")
+    .in("media_id", Array.from(mediaKindById.keys()));
+  if (descriptorError) throw new Error(`failed to list memory_media_descriptors: ${descriptorError.message}`);
+
+  return (descriptorRows ?? []).map((row) => {
+    const mediaId = row.media_id as string;
+    return {
+      mediaId,
+      mediaKind: mediaKindById.get(mediaId) ?? "photo",
+      labels: (row.labels as Array<{ name: string; confidence: number }>) ?? [],
+      embedding: (row.embedding as number[] | undefined) ?? undefined,
+      transcriptCues: (row.transcript_cues as string[] | undefined) ?? undefined,
+    };
+  });
+}
+
+export interface MemoryMediaSummary {
+  mediaId: string;
+  eventId: string;
+  mediaKind: MediaKind;
+  objectKeyDisplay: string | null;
+}
+
+// Approved, uploaded media that has no descriptor row yet — the backlog
+// backfillMissingMemoryDescriptors works through (e.g. media approved before
+// this feature existed, or a prior extraction attempt that failed).
+export async function listApprovedMediaMissingDescriptors(eventId: string, limit: number): Promise<MemoryMediaSummary[]> {
+  const client = createAdminClient();
+  const { data: approvedMedia, error } = await client
+    .from("memory_media")
+    .select("id,event_id,media_kind,object_key_display")
+    .eq("event_id", eventId)
+    .eq("moderation_status", "approved")
+    .eq("upload_status", "uploaded")
+    .order("uploaded_at", { ascending: true });
+  if (error) throw new Error(`failed to list approved memory media: ${error.message}`);
+  if (!approvedMedia || approvedMedia.length === 0) return [];
+
+  const mediaIds = approvedMedia.map((row) => row.id as string);
+  const { data: descriptorRows, error: descriptorError } = await client
+    .from("memory_media_descriptors")
+    .select("media_id")
+    .in("media_id", mediaIds);
+  if (descriptorError) throw new Error(`failed to list memory_media_descriptors: ${descriptorError.message}`);
+
+  const describedIds = new Set((descriptorRows ?? []).map((row) => row.media_id as string));
+  return approvedMedia
+    .filter((row) => !describedIds.has(row.id as string))
+    .slice(0, limit)
+    .map((row) => ({
+      mediaId: row.id as string,
+      eventId: row.event_id as string,
+      mediaKind: row.media_kind as MediaKind,
+      objectKeyDisplay: (row.object_key_display as string | null) ?? null,
+    }));
+}
+
+// Lists highlight group definitions for an event, optionally narrowed to one
+// source (fallback/ai_generated/host_defined) — callers doing a
+// semantic-key-keyed upsert always narrow by source, since
+// (event_id, source, semantic_key) is the table's real uniqueness boundary.
+export async function listMemoryHighlightGroups(eventId: string, source?: HighlightGroupSource): Promise<MemoryHighlightGroup[]> {
+  const client = createAdminClient();
+  let query = client.from("memory_highlight_groups").select("*").eq("event_id", eventId);
+  if (source) query = query.eq("source", source);
+  const { data, error } = await query.order("sort_order", { ascending: true });
+  if (error) throw new Error(`failed to list memory_highlight_groups: ${error.message}`);
+  return (data ?? []).map(mapHighlightGroupRow);
+}
+
+export async function createMemoryHighlightGroup(
+  eventId: string,
+  input: {
+    name: string;
+    description: string | null;
+    semanticKey: string;
+    source: HighlightGroupSource;
+    sortOrder?: number;
+    isVisible?: boolean;
+  },
+): Promise<MemoryHighlightGroup> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_highlight_groups")
+    .insert({
+      event_id: eventId,
+      name: input.name,
+      description: input.description,
+      semantic_key: input.semanticKey,
+      source: input.source,
+      sort_order: input.sortOrder ?? 0,
+      is_visible: input.isVisible ?? true,
+    })
+    .select("*")
+    .single();
+  if (error || !data) throw new Error(`failed to create memory_highlight_group: ${error?.message}`);
+  return mapHighlightGroupRow(data);
+}
+
+// Patches only the provided fields. sortOrder/isVisible are intentionally
+// separate, narrow updates from name/description — callers that only want to
+// refresh AI-authored copy (regeneration) must not accidentally also touch
+// host-controlled ordering/visibility state by passing those keys.
+export async function updateMemoryHighlightGroup(
+  eventId: string,
+  groupId: string,
+  updates: { name?: string; description?: string | null; sortOrder?: number; isVisible?: boolean },
+): Promise<void> {
+  const client = createAdminClient();
+  const patch: Record<string, unknown> = {};
+  if (updates.name !== undefined) patch.name = updates.name;
+  if (updates.description !== undefined) patch.description = updates.description;
+  if (updates.sortOrder !== undefined) patch.sort_order = updates.sortOrder;
+  if (updates.isVisible !== undefined) patch.is_visible = updates.isVisible;
+  const { error } = await client.from("memory_highlight_groups").update(patch).eq("id", groupId).eq("event_id", eventId);
+  if (error) throw new Error(`failed to update memory_highlight_group: ${error.message}`);
+}
+
+export async function deleteMemoryHighlightGroup(eventId: string, groupId: string): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client.from("memory_highlight_groups").delete().eq("id", groupId).eq("event_id", eventId);
+  if (error) throw new Error(`failed to delete memory_highlight_group: ${error.message}`);
+}
+
+// invitation_events' highlight_generation_status has no 'published' value —
+// a generation reaching 'published' resets the event's own status column
+// back to 'idle' (see the publish RPC), so this event-level enum is
+// deliberately narrower than HighlightGenerationStatus (which describes one
+// generation row's own lifecycle, published included).
+export type EventHighlightGenerationStatus = "idle" | "queued" | "processing" | "failed";
+
+export interface HighlightGenerationState {
+  highlightMode: HighlightMode;
+  publishedGenerationId: string | null;
+  pendingGenerationId: string | null;
+  generationStatus: EventHighlightGenerationStatus;
+  lastGeneratedMediaCount: number;
+}
+
+// The event-level highlight settings/state shouldQueueHighlightGeneration's
+// policy inputs are built from.
+export async function getHighlightGenerationState(eventId: string): Promise<HighlightGenerationState | null> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("invitation_events")
+    .select(
+      "highlight_mode,published_highlight_generation_id,pending_highlight_generation_id,highlight_generation_status,highlight_last_generated_media_count",
+    )
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    highlightMode: data.highlight_mode as HighlightMode,
+    publishedGenerationId: (data.published_highlight_generation_id as string | null) ?? null,
+    pendingGenerationId: (data.pending_highlight_generation_id as string | null) ?? null,
+    generationStatus: data.highlight_generation_status as EventHighlightGenerationStatus,
+    lastGeneratedMediaCount: data.highlight_last_generated_media_count as number,
+  };
+}
+
+// Inserts a new queued generation and points the event at it. If a
+// queued/processing generation already exists for this event, the
+// memory_highlight_generations_one_pending_idx unique index rejects the
+// insert (surfaced here as a thrown error) — callers are expected to check
+// HighlightGenerationState.pendingGenerationId first via
+// shouldQueueHighlightGeneration's hasPendingGeneration input, so this should
+// only ever fire on a genuine race between two concurrent callers.
+export async function queueHighlightGeneration(eventId: string, mode: HighlightGenerationMode): Promise<MemoryHighlightGeneration> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_highlight_generations")
+    .insert({ event_id: eventId, mode, status: "queued", media_count: 0 })
+    .select("*")
+    .single();
+  if (error || !data) throw new Error(`failed to queue highlight generation: ${error?.message}`);
+
+  const generation = mapHighlightGenerationRow(data);
+
+  const { error: eventError } = await client
+    .from("invitation_events")
+    .update({
+      pending_highlight_generation_id: generation.id,
+      highlight_generation_status: "queued",
+      highlight_generation_error: null,
+    })
+    .eq("id", eventId);
+  if (eventError) throw new Error(`failed to update event pending highlight pointer: ${eventError.message}`);
+
+  return generation;
+}
+
+// Atomically claims one specific queued generation for processing: a single
+// UPDATE ... WHERE status = 'queued' is Postgres's own compare-and-swap, so
+// two concurrent callers (or the same generationId processed twice) can never
+// both receive a non-null row back — the second finds 0 rows matched and gets
+// null. This is what makes repeated processing of an already-claimed
+// generation (already processing, already published, already failed) a safe
+// no-op at the repository layer, before any classifier work is attempted.
+export async function claimNextHighlightGeneration(generationId: string): Promise<MemoryHighlightGeneration | null> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_highlight_generations")
+    .update({ status: "processing" })
+    .eq("id", generationId)
+    .eq("status", "queued")
+    .select("*")
+    .maybeSingle();
+  if (error) throw new Error(`failed to claim highlight generation: ${error.message}`);
+  if (!data) return null;
+
+  const generation = mapHighlightGenerationRow(data);
+  const { error: eventError } = await client
+    .from("invitation_events")
+    .update({ highlight_generation_status: "processing" })
+    .eq("id", generation.eventId)
+    .eq("pending_highlight_generation_id", generation.id);
+  if (eventError) throw new Error(`failed to mark event highlight generation processing: ${eventError.message}`);
+
+  return generation;
+}
+
+// Replaces the full membership set for one generation: clears whatever rows
+// already exist for it (a no-op on a fresh generationId, but makes a retried
+// partial write idempotent) and inserts the new set. ignoreDuplicates guards
+// against the input itself containing a repeated (group, media) pair.
+export async function replaceHighlightGenerationMemberships(
+  generationId: string,
+  memberships: Array<{ groupId: string; mediaId: string }>,
+): Promise<void> {
+  const client = createAdminClient();
+  const { error: deleteError } = await client.from("memory_highlight_media").delete().eq("generation_id", generationId);
+  if (deleteError) throw new Error(`failed to clear memory_highlight_media for generation: ${deleteError.message}`);
+  if (memberships.length === 0) return;
+
+  const { error: insertError } = await client.from("memory_highlight_media").upsert(
+    memberships.map((membership) => ({
+      generation_id: generationId,
+      group_id: membership.groupId,
+      media_id: membership.mediaId,
+    })),
+    { onConflict: "generation_id,group_id,media_id", ignoreDuplicates: true },
+  );
+  if (insertError) throw new Error(`failed to insert memory_highlight_media rows: ${insertError.message}`);
+}
+
+// The only way a generation is ever marked published — a single SQL RPC
+// (058_memory_highlight_grouping.sql) that verifies the generation belongs to
+// the event and is still processing, then atomically publishes it and
+// updates the event's published pointer/count/status/pending-clear in one
+// statement. Never hand-roll separate UPDATEs to simulate this.
+export async function publishHighlightGeneration(eventId: string, generationId: string, mediaCount: number): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client.rpc("publish_memory_highlight_generation", {
+    p_event_id: eventId,
+    p_generation_id: generationId,
+    p_media_count: mediaCount,
+  });
+  if (error) throw new Error(`failed to publish highlight generation: ${error.message}`);
+}
+
+// Records a failed generation attempt with a short, machine-readable error
+// code. Deliberately never touches published_highlight_generation_id or
+// highlight_last_generated_media_count — a failed regeneration must never
+// clobber the generation guests are still seeing.
+export async function failHighlightGeneration(eventId: string, generationId: string, errorCode: string): Promise<void> {
+  const client = createAdminClient();
+  const { error: generationError } = await client
+    .from("memory_highlight_generations")
+    .update({ status: "failed", error_code: errorCode })
+    .eq("id", generationId);
+  if (generationError) throw new Error(`failed to mark highlight generation failed: ${generationError.message}`);
+
+  const { error: eventError } = await client
+    .from("invitation_events")
+    .update({
+      highlight_generation_status: "failed",
+      highlight_generation_error: errorCode,
+      pending_highlight_generation_id: null,
+    })
+    .eq("id", eventId);
+  if (eventError) throw new Error(`failed to update event highlight failure state: ${eventError.message}`);
+}
+
+// The guest-facing read model: the event's currently published generation's
+// visible groups and their media membership. Membership is scoped to the
+// published generation specifically (memory_highlight_media rows persist
+// across generations until their owning generation row is deleted), and
+// groups are scoped to is_visible so a host-hidden group never surfaces here.
+export async function getPublishedMemoryHighlights(eventId: string): Promise<PublishedMemoryHighlights> {
+  const client = createAdminClient();
+  const { data: eventRow, error: eventError } = await client
+    .from("invitation_events")
+    .select("published_highlight_generation_id")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (eventError) throw new Error(`failed to load event for published highlights: ${eventError.message}`);
+
+  const generationId = (eventRow?.published_highlight_generation_id as string | null) ?? null;
+  if (!generationId) return { generationId: null, groups: [] };
+
+  const { data: groupRows, error: groupError } = await client
+    .from("memory_highlight_groups")
+    .select("*")
+    .eq("event_id", eventId)
+    .eq("is_visible", true)
+    .order("sort_order", { ascending: true });
+  if (groupError) throw new Error(`failed to list memory_highlight_groups: ${groupError.message}`);
+
+  const groups = (groupRows ?? []).map(mapHighlightGroupRow);
+  if (groups.length === 0) return { generationId, groups: [] };
+
+  const groupIds = groups.map((group) => group.id);
+  const { data: membershipRows, error: membershipError } = await client
+    .from("memory_highlight_media")
+    .select("group_id,media_id")
+    .eq("generation_id", generationId)
+    .in("group_id", groupIds);
+  if (membershipError) throw new Error(`failed to list memory_highlight_media: ${membershipError.message}`);
+
+  const mediaIdsByGroup = new Map<string, string[]>();
+  for (const group of groups) mediaIdsByGroup.set(group.id, []);
+  for (const row of membershipRows ?? []) {
+    const list = mediaIdsByGroup.get(row.group_id as string);
+    if (list) list.push(row.media_id as string);
+  }
+
+  return {
+    generationId,
+    groups: groups.map((group) => ({ group, mediaIds: mediaIdsByGroup.get(group.id) ?? [] })),
+  };
 }

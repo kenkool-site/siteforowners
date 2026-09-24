@@ -6,6 +6,20 @@ import {
   createMemoryMoment,
   getEventMemoriesSettings,
   updateEventMemoriesSettings,
+  upsertMemoryMediaDescriptor,
+  listApprovedMemoryDescriptors,
+  listApprovedMediaMissingDescriptors,
+  listMemoryHighlightGroups,
+  createMemoryHighlightGroup,
+  updateMemoryHighlightGroup,
+  deleteMemoryHighlightGroup,
+  getHighlightGenerationState,
+  queueHighlightGeneration,
+  claimNextHighlightGeneration,
+  replaceHighlightGenerationMemberships,
+  publishHighlightGeneration,
+  failHighlightGeneration,
+  getPublishedMemoryHighlights,
 } from "./repository";
 
 // Repository functions hit a real Supabase instance via createAdminClient(),
@@ -56,3 +70,139 @@ test("createMemoryMoment inserts into memory_moments scoped to the event", () =>
 // return a genuine "no matching row" null, which is what this function's whole
 // purpose — stopping an RSVP credential from event A upgrading a session on event
 // B — depends on.
+
+// ---------------------------------------------------------------------------
+// AI Highlight repository contract tests
+//
+// Following this file's own established convention above: createAdminClient()
+// has no injection seam and there is no local Supabase instance to hit in this
+// test environment, so these assert on exact table/RPC names and event/source
+// scoping in the function source, rather than executing real queries. Full
+// behavior is exercised by route-level integration tests (a known follow-up).
+// Every assertion here also independently confirms these methods never read
+// or write memory_moments/memory_moment_media, per the plan's global
+// constraint that AI Highlight code is fully independent of Moments.
+// ---------------------------------------------------------------------------
+
+function forbidsMomentsTables(source: string): void {
+  assert.doesNotMatch(source, /memory_moments/);
+  assert.doesNotMatch(source, /memory_moment_media/);
+}
+
+test("upsertMemoryMediaDescriptor upserts memory_media_descriptors keyed on media_id", () => {
+  const source = upsertMemoryMediaDescriptor.toString();
+  assert.match(source, /memory_media_descriptors/);
+  assert.match(source, /media_id/);
+  assert.match(source, /onConflict/);
+  forbidsMomentsTables(source);
+});
+
+test("listApprovedMemoryDescriptors scopes to the event's approved, uploaded media", () => {
+  const source = listApprovedMemoryDescriptors.toString();
+  assert.match(source, /memory_media_descriptors/);
+  assert.match(source, /event_id/);
+  assert.match(source, /moderation_status/);
+  assert.match(source, /approved/);
+  forbidsMomentsTables(source);
+});
+
+test("listApprovedMediaMissingDescriptors scopes to the event and excludes media that already has a descriptor", () => {
+  const source = listApprovedMediaMissingDescriptors.toString();
+  assert.match(source, /memory_media_descriptors/);
+  assert.match(source, /event_id/);
+  assert.match(source, /moderation_status/);
+  forbidsMomentsTables(source);
+});
+
+test("listMemoryHighlightGroups scopes memory_highlight_groups by event", () => {
+  const source = listMemoryHighlightGroups.toString();
+  assert.match(source, /memory_highlight_groups/);
+  assert.match(source, /event_id/);
+  forbidsMomentsTables(source);
+});
+
+test("createMemoryHighlightGroup inserts into memory_highlight_groups scoped to the event", () => {
+  const source = createMemoryHighlightGroup.toString();
+  assert.match(source, /memory_highlight_groups/);
+  assert.match(source, /event_id/);
+  assert.match(source, /semantic_key/);
+  forbidsMomentsTables(source);
+});
+
+test("updateMemoryHighlightGroup patches only provided fields and stays scoped to the event and group id", () => {
+  const source = updateMemoryHighlightGroup.toString();
+  assert.match(source, /memory_highlight_groups/);
+  assert.match(source, /event_id/);
+  forbidsMomentsTables(source);
+});
+
+test("deleteMemoryHighlightGroup deletes from memory_highlight_groups scoped to the event and group id", () => {
+  const source = deleteMemoryHighlightGroup.toString();
+  assert.match(source, /memory_highlight_groups/);
+  assert.match(source, /event_id/);
+  forbidsMomentsTables(source);
+});
+
+test("getHighlightGenerationState reads invitation_events highlight columns scoped by id", () => {
+  const source = getHighlightGenerationState.toString();
+  assert.match(source, /highlight_mode/);
+  assert.match(source, /published_highlight_generation_id/);
+  assert.match(source, /pending_highlight_generation_id/);
+  assert.match(source, /highlight_generation_status/);
+  assert.match(source, /highlight_last_generated_media_count/);
+});
+
+test("queueHighlightGeneration inserts a queued generation and updates the event's pending pointer", () => {
+  const source = queueHighlightGeneration.toString();
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /queued/);
+  assert.match(source, /pending_highlight_generation_id/);
+  forbidsMomentsTables(source);
+});
+
+test("claimNextHighlightGeneration atomically transitions a generation from queued to processing", () => {
+  const source = claimNextHighlightGeneration.toString();
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /processing/);
+  assert.match(source, /queued/);
+  forbidsMomentsTables(source);
+});
+
+test("replaceHighlightGenerationMemberships replaces memory_highlight_media scoped to one generation", () => {
+  const source = replaceHighlightGenerationMemberships.toString();
+  assert.match(source, /memory_highlight_media/);
+  assert.match(source, /generation_id/);
+  forbidsMomentsTables(source);
+});
+
+test("publishHighlightGeneration calls the atomic publish RPC rather than hand-rolled updates", () => {
+  const source = publishHighlightGeneration.toString();
+  assert.match(source, /publish_memory_highlight_generation/);
+  assert.match(source, /p_event_id/);
+  assert.match(source, /p_generation_id/);
+  assert.match(source, /p_media_count/);
+  // The RPC is the only mutation this function performs — no separate
+  // hand-rolled UPDATE statements simulating what it does atomically.
+  assert.doesNotMatch(source, /\.update\(/);
+});
+
+test("failHighlightGeneration records a short error code without touching the published pointer", () => {
+  const source = failHighlightGeneration.toString();
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /error_code/);
+  assert.match(source, /pending_highlight_generation_id/);
+  // The whole point of this function: a failed regeneration must never
+  // clobber the generation guests are still seeing.
+  assert.doesNotMatch(source, /published_highlight_generation_id/);
+  assert.doesNotMatch(source, /highlight_last_generated_media_count/);
+  forbidsMomentsTables(source);
+});
+
+test("getPublishedMemoryHighlights filters membership by the published generation and visible groups", () => {
+  const source = getPublishedMemoryHighlights.toString();
+  assert.match(source, /published_highlight_generation_id/);
+  assert.match(source, /is_visible/);
+  assert.match(source, /memory_highlight_media/);
+  assert.match(source, /memory_highlight_groups/);
+  forbidsMomentsTables(source);
+});
