@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createMemoriesUploadTicket, verifyMemoriesUploadTicket } from "./upload-tickets";
+import { createMemoriesUploadTicket, verifyMemoriesUploadTicket, objectKeyForVideoPoster } from "./upload-tickets";
 
 const secret = "x".repeat(32);
 
@@ -45,4 +45,13 @@ test("an unknown content type falls back to the media kind's default extension",
   assert.equal(photo.objectKey, "originals/event-1/media-5.jpg");
   const video = createMemoriesUploadTicket("event-1", "media-6", "video", "application/octet-stream", secret);
   assert.equal(video.objectKey, "originals/event-1/media-6.mp4");
+});
+
+test("objectKeyForVideoPoster derives a deterministic .jpg key from event and media ids", () => {
+  const key = objectKeyForVideoPoster("event-1", "media-1");
+  assert.equal(key, "originals/event-1/media-1-poster.jpg");
+});
+
+test("objectKeyForVideoPoster is stable across repeated calls with the same ids", () => {
+  assert.equal(objectKeyForVideoPoster("event-2", "media-2"), objectKeyForVideoPoster("event-2", "media-2"));
 });

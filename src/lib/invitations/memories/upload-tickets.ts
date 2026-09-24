@@ -45,6 +45,13 @@ export function objectKeyForOriginal(
   return `originals/${eventId}/${mediaId}.${extensionFor(mediaKind, contentType)}`;
 }
 
+// A video's poster is a plain JPEG derived from the same ids, independent of
+// the video's own container/codec — always ".jpg" regardless of whether the
+// clip itself is .mp4/.webm/.mov.
+export function objectKeyForVideoPoster(eventId: string, mediaId: string): string {
+  return `originals/${eventId}/${mediaId}-poster.jpg`;
+}
+
 export function createMemoriesUploadTicket(
   eventId: string,
   mediaId: string,
