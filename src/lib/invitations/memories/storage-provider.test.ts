@@ -51,7 +51,7 @@ test("objectExists returns true when HeadObjectCommand succeeds", async () => {
     },
   } as unknown as S3Client;
 
-  const provider = new R2StorageProvider(mockClient);
+  const provider = new R2StorageProvider(mockClient, "test-bucket");
   const exists = await provider.objectExists("originals/event-1/media-1-poster.jpg");
   assert.equal(exists, true);
 });
@@ -65,7 +65,7 @@ test("objectExists returns false when the object is missing (404)", async () => 
     },
   } as unknown as S3Client;
 
-  const provider = new R2StorageProvider(mockClient);
+  const provider = new R2StorageProvider(mockClient, "test-bucket");
   const exists = await provider.objectExists("originals/event-1/media-1-poster.jpg");
   assert.equal(exists, false);
 });
@@ -79,6 +79,6 @@ test("objectExists rethrows a non-404 error", async () => {
     },
   } as unknown as S3Client;
 
-  const provider = new R2StorageProvider(mockClient);
+  const provider = new R2StorageProvider(mockClient, "test-bucket");
   await assert.rejects(() => provider.objectExists("originals/event-1/media-1-poster.jpg"));
 });

@@ -12,15 +12,12 @@ export class R2StorageProvider implements StorageProvider {
   private readonly client: S3Client;
   private readonly bucket: string;
 
-  constructor(client?: S3Client) {
+  constructor(client?: S3Client, bucket?: string) {
+    this.bucket = bucket ?? requireEnv("R2_BUCKET_MEMORIES");
     if (client) {
       this.client = client;
-      // For tests, bucket name is only used with the real client's send method
-      // so we can use a placeholder when injecting a mock client
-      this.bucket = "test-bucket";
     } else {
       const accountId = requireEnv("R2_ACCOUNT_ID");
-      this.bucket = requireEnv("R2_BUCKET_MEMORIES");
       this.client = new S3Client({
         region: "auto",
         endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
