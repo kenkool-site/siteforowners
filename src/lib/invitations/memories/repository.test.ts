@@ -120,12 +120,27 @@ test("listApprovedMediaMissingDescriptors scopes to the event and excludes media
 // The cron worker's cross-event counterpart: it needs to discover a backlog
 // across ALL events (it doesn't know event ids up front the way a per-event
 // caller does), so unlike every other query in this file it must NOT scope by
-// event_id.
-test("listApprovedMediaMissingDescriptorsAcrossEvents excludes media that already has a descriptor without scoping to one event", () => {
+// event_id. Unlike every other function here, this one delegates the actual
+// query to a SQL RPC (059_memory_highlight_missing_descriptors_rpc.sql)
+// rather than a fetch-then-filter-in-JS shape — see that migration file, and
+// repository-missing-descriptors-rpc.integration.test.ts, for why: an
+// earlier fetch-then-filter version of this function had a real bug where
+// capping the initial scan permanently hid genuinely-missing rows once the
+// scan window filled up with already-described ones. This test can only
+// confirm the TS wrapper delegates to that RPC correctly (see
+// repository.test.ts's own header comment on why nothing here executes real
+// SQL) — the integration test is what actually proves the anti-join finds a
+// row outside a naive fixed-size scan window.
+test("listApprovedMediaMissingDescriptorsAcrossEvents delegates the missing-descriptor filter to the SQL RPC, not a capped pre-filter scan", () => {
   const source = listApprovedMediaMissingDescriptorsAcrossEvents.toString();
-  assert.match(source, /memory_media_descriptors/);
-  assert.match(source, /moderation_status/);
-  assert.doesNotMatch(source, /\.eq\("event_id"/);
+  assert.match(source, /\.rpc\(/);
+  assert.match(source, /list_approved_media_missing_descriptors_across_events/);
+  assert.match(source, /p_limit/);
+  // Guards against regressing back to the old buggy shape: no JS-side
+  // pre-filter cap on a raw candidate scan before diffing against
+  // descriptors.
+  assert.doesNotMatch(source, /BACKFILL_SCAN_CAP/);
+  assert.doesNotMatch(source, /\.from\("memory_media"\)/);
   forbidsMomentsTables(source);
 });
 

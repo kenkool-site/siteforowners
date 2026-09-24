@@ -432,42 +432,35 @@ export async function listApprovedMediaMissingDescriptors(eventId: string, limit
 // The cron worker's periodic backfill pass doesn't know event ids up front
 // the way every other caller in this file does — it has to discover the
 // backlog across every event itself — so this is the one query here that
-// deliberately does NOT scope by event_id. The initial approved-media scan is
-// capped at BACKFILL_SCAN_CAP rows (oldest upload first) before diffing
-// against memory_media_descriptors, so this stays a bounded query even as the
-// total number of approved photos across all events grows, rather than
-// scanning every approved photo this deployment has ever stored.
-const BACKFILL_SCAN_CAP = 200;
-
+// deliberately does NOT scope by event_id.
+//
+// This calls a SQL RPC (059_memory_highlight_missing_descriptors_rpc.sql)
+// instead of the fetch-then-filter-in-JS shape every other function in this
+// file uses. That shape was tried here first and had a real bug: capping the
+// initial "approved media" fetch at N rows (oldest upload first) and only
+// filtering out already-described ones AFTER that fetch means any row past
+// the Nth-oldest is never even considered once the oldest N are all
+// described — which, since descriptors are attached synchronously at
+// approval for almost every path already, is the normal steady state once
+// total approved media crosses N. The query would then return [] forever,
+// even with plenty of genuinely undescribed newer rows. Doing the "missing
+// descriptor" test as a LEFT JOIN ... WHERE IS NULL in SQL, with LIMIT
+// applied to that already-filtered result, has no such window to fall
+// outside of. See the migration file for a fuller writeup, and
+// listApprovedMediaMissingDescriptors just below for the per-event sibling
+// this replaced shape was (unsuccessfully) modeled on — that one gets away
+// with capping nothing because one event's approved-media count is itself
+// bounded (MAX_MEDIA_PER_EVENT), a bound that doesn't exist across events.
 export async function listApprovedMediaMissingDescriptorsAcrossEvents(limit: number): Promise<MemoryMediaSummary[]> {
   const client = createAdminClient();
-  const { data: approvedMedia, error } = await client
-    .from("memory_media")
-    .select("id,event_id,media_kind,object_key_display")
-    .eq("moderation_status", "approved")
-    .eq("upload_status", "uploaded")
-    .order("uploaded_at", { ascending: true })
-    .limit(BACKFILL_SCAN_CAP);
-  if (error) throw new Error(`failed to list approved memory media: ${error.message}`);
-  if (!approvedMedia || approvedMedia.length === 0) return [];
-
-  const mediaIds = approvedMedia.map((row) => row.id as string);
-  const { data: descriptorRows, error: descriptorError } = await client
-    .from("memory_media_descriptors")
-    .select("media_id")
-    .in("media_id", mediaIds);
-  if (descriptorError) throw new Error(`failed to list memory_media_descriptors: ${descriptorError.message}`);
-
-  const describedIds = new Set((descriptorRows ?? []).map((row) => row.media_id as string));
-  return approvedMedia
-    .filter((row) => !describedIds.has(row.id as string))
-    .slice(0, limit)
-    .map((row) => ({
-      mediaId: row.id as string,
-      eventId: row.event_id as string,
-      mediaKind: row.media_kind as MediaKind,
-      objectKeyDisplay: (row.object_key_display as string | null) ?? null,
-    }));
+  const { data, error } = await client.rpc("list_approved_media_missing_descriptors_across_events", { p_limit: limit });
+  if (error) throw new Error(`failed to list approved memory media missing descriptors across events: ${error.message}`);
+  return (data ?? []).map((row: Record<string, unknown>) => ({
+    mediaId: row.media_id as string,
+    eventId: row.event_id as string,
+    mediaKind: row.media_kind as MediaKind,
+    objectKeyDisplay: (row.object_key_display as string | null) ?? null,
+  }));
 }
 
 // Lists highlight group definitions for an event, optionally narrowed to one
