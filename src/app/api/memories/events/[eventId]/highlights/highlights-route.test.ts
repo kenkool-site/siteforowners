@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { NextRequest } from "next/server";
-import { GET, getGuestHighlightsForEvent } from "./route";
-import type { GuestHighlightsDependencies } from "./route";
+import { GET } from "./route";
+import { getGuestHighlightsForEvent } from "./guest-highlights";
+import type { GuestHighlightsDependencies } from "./guest-highlights";
 import type { MemoryHighlightGroup, PublishedMemoryHighlights } from "@/lib/invitations/memories/highlight-types";
 import type { MemoryMedia } from "@/lib/invitations/memories/types";
 
@@ -73,6 +74,10 @@ function noopDependencies(): GuestHighlightsDependencies {
 test("highlights route module loads under tsx --test", async () => {
   const mod = await import("./route");
   assert.equal(typeof mod.GET, "function");
+});
+
+test("guest-highlights module loads under tsx --test", async () => {
+  const mod = await import("./guest-highlights");
   assert.equal(typeof mod.getGuestHighlightsForEvent, "function");
 });
 

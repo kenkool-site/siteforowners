@@ -2,8 +2,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NextRequest } from "next/server";
-import { GET, runMemoriesHighlightsCron } from "./route";
-import type { MemoriesHighlightsCronDependencies } from "./route";
+import { GET } from "./route";
+import { runMemoriesHighlightsCron } from "./memories-highlights-cron";
+import type { MemoriesHighlightsCronDependencies } from "./memories-highlights-cron";
 import type { MemoryHighlightGeneration } from "@/lib/invitations/memories/highlight-types";
 import type { MemoryMediaSummary } from "@/lib/invitations/memories/repository";
 
