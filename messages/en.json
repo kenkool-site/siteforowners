@@ -814,7 +814,11 @@
           "description": "Photos our AI grouped by what's happening in them.",
           "empty": "No AI highlights yet — check back once more photos come in.",
           "photoCount": "{count, plural, one {# photo} other {# photos}}",
-          "back": "All highlights"
+          "back": "All highlights",
+          "close": "Close",
+          "previous": "Previous photo",
+          "next": "Next photo",
+          "viewerLabel": "Photo {current} of {total}"
         }
       }
     },

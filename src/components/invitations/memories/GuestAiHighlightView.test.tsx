@@ -2,11 +2,23 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import React, { act } from "react";
 import { NextIntlClientProvider } from "next-intl";
-import { JSDOM } from "jsdom";
+import { JSDOM, VirtualConsole } from "jsdom";
 import enMessages from "../../../../messages/en.json";
 import type { GuestAiHighlightViewProps, GuestHighlightGroup } from "./GuestAiHighlightView";
 
 Object.assign(globalThis, { React });
+
+// The component now calls window.scrollTo for scroll-position restoration
+// (see GuestAiHighlightView.tsx). jsdom has no real layout engine, so it
+// stubs scrollTo as "not implemented" and reports it as a jsdomError purely
+// for feature-detection purposes — omitJSDOMErrors is jsdom's own documented
+// way to silence exactly this class of expected noise without swallowing
+// real console output.
+function quietVirtualConsole(): VirtualConsole {
+  const virtualConsole = new VirtualConsole();
+  virtualConsole.sendTo(console, { omitJSDOMErrors: true });
+  return virtualConsole;
+}
 
 const GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLButtonElement", "Event", "navigator", "IS_REACT_ACT_ENVIRONMENT", "fetch"] as const;
 
@@ -58,7 +70,7 @@ async function withMountedComponent(
   fetchImpl: (url: string) => Promise<Response>,
   callback: (ctx: { dom: JSDOM; calls: FetchCall[] }) => Promise<void>,
 ) {
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test" });
+  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test", virtualConsole: quietVirtualConsole() });
   const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const calls: FetchCall[] = [];
   const trackingFetch = async (input: RequestInfo | URL) => {
@@ -210,6 +222,80 @@ test("clicking a group card selects it, shows its name/description and photos, a
   );
 });
 
+test("remembers the grid's scroll position and restores it on Back, instead of landing at the top", async () => {
+  await withMountedComponent(
+    baseProps(),
+    async () => jsonResponse({ groups: [highlightGroup({ id: "g1", name: "Cake Cutting", media: [mediaItem("m1")] })] }),
+    async ({ dom }) => {
+      const scrollCalls: Array<[number, number]> = [];
+      dom.window.scrollTo = ((x: number, y: number) => {
+        scrollCalls.push([x, y]);
+      }) as typeof dom.window.scrollTo;
+      // scrollY is typed read-only in lib.dom.d.ts, but jsdom itself defines
+      // it as a plain writable property (there is no real layout engine
+      // backing it) — Object.defineProperty sidesteps the type-level
+      // restriction without an `any` cast.
+      Object.defineProperty(dom.window, "scrollY", { value: 400, configurable: true });
+
+      const card = byText(dom, "p", "Cake Cutting")?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, card);
+        await flush();
+      });
+      assert.deepEqual(scrollCalls.at(-1), [0, 0], "expected the detail view to open scrolled to its own top");
+
+      const backButton = byText(dom, "button", "All highlights");
+      await act(async () => {
+        click(dom, backButton);
+        await flush();
+      });
+      assert.deepEqual(scrollCalls.at(-1), [0, 400], "expected Back to restore the grid's prior scroll position, not reset to 0");
+    },
+  );
+});
+
+test("tapping a photo in a category opens it fullscreen, supports next/previous, and closes", async () => {
+  await withMountedComponent(
+    baseProps(),
+    async () =>
+      jsonResponse({
+        groups: [highlightGroup({ id: "g1", name: "Cake Cutting", media: [mediaItem("m1"), mediaItem("m2")] })],
+      }),
+    async ({ dom }) => {
+      const card = byText(dom, "p", "Cake Cutting")?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, card);
+        await flush();
+      });
+
+      const firstPhotoButton = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]')?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, firstPhotoButton);
+        await flush();
+      });
+
+      assert.ok(dom.window.document.querySelector('[role="dialog"]'), "expected the lightbox to open");
+      assert.match(dom.window.document.body.textContent ?? "", /Photo 1 of 2/);
+
+      const nextButton = dom.window.document.querySelector('button[aria-label="Next photo"]');
+      assert.ok(nextButton, "expected a next-photo control since there is a second photo");
+      await act(async () => {
+        click(dom, nextButton);
+        await flush();
+      });
+      assert.match(dom.window.document.body.textContent ?? "", /Photo 2 of 2/);
+      assert.ok(!dom.window.document.querySelector('button[aria-label="Next photo"]'), "no next control on the last photo");
+
+      const closeButton = dom.window.document.querySelector('button[aria-label="Close"]');
+      await act(async () => {
+        click(dom, closeButton);
+        await flush();
+      });
+      assert.ok(!dom.window.document.querySelector('[role="dialog"]'), "expected the lightbox to close");
+    },
+  );
+});
+
 test("shows the empty state when there are no published groups", async () => {
   await withMountedComponent(baseProps(), async () => jsonResponse({ groups: [] }), async ({ dom }) => {
     const text = dom.window.document.body.textContent ?? "";
@@ -222,7 +308,7 @@ test("shows a loading state before the fetch resolves", async () => {
   const pending = new Promise<Response>((resolve) => {
     resolveFetch = resolve;
   });
-  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test" });
+  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test", virtualConsole: quietVirtualConsole() });
   const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   Object.assign(globalThis, {
     window: dom.window,
