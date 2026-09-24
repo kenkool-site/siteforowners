@@ -4,6 +4,8 @@ import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
 import {
   createMemoryMoment,
+  updateMemoryMoment,
+  deleteMemoryMoment,
   getEventMemoriesSettings,
   updateEventMemoriesSettings,
   upsertMemoryMediaDescriptor,
@@ -68,6 +70,24 @@ test("createMemoryMoment inserts into memory_moments scoped to the event", () =>
   assert.match(source, /event_id/);
   assert.match(source, /starts_at/);
   assert.match(source, /ends_at/);
+});
+
+test("updateMemoryMoment patches memory_moments scoped to both the moment id and the event", () => {
+  assert.equal(typeof updateMemoryMoment, "function");
+  const source = updateMemoryMoment.toString();
+  assert.match(source, /memory_moments/);
+  // Double-scoped like updateMemoryHighlightGroup's own .eq("id", ...).eq("event_id", ...)
+  // pattern — a cross-event moment id must not be mutable via this call.
+  assert.match(source, /\.eq\(\s*"id"/);
+  assert.match(source, /\.eq\(\s*"event_id"/);
+});
+
+test("deleteMemoryMoment removes from memory_moments scoped to both the moment id and the event", () => {
+  assert.equal(typeof deleteMemoryMoment, "function");
+  const source = deleteMemoryMoment.toString();
+  assert.match(source, /memory_moments/);
+  assert.match(source, /\.eq\(\s*"id"/);
+  assert.match(source, /\.eq\(\s*"event_id"/);
 });
 
 // invitation_rsvps.id/event_id are both `uuid` columns. Non-UUID literals like
