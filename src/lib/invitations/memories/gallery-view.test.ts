@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { aiHighlightGroups, groupMediaByTime, momentForMedia } from "./gallery-view";
+import { groupMediaByTime, momentForMedia } from "./gallery-view";
 import type { PublicMemoryMedia } from "./gallery";
 
 const item: PublicMemoryMedia = {
   id: "media-1", mediaKind: "photo", uploaderDisplayName: "Jamie",
   objectKeyDisplay: "display.webp", objectKeyThumbnail: "thumb.webp",
   capturedAt: "2026-09-22T20:00:00Z", uploadedAt: "2026-09-22T20:01:00Z",
-  momentId: null,
 };
 
 test("gallery groups recent evening, afternoon, and earlier media", () => {
@@ -71,42 +70,4 @@ test("a tie between two equidistant moments keeps the earlier sortOrder", () => 
 
 test("no moments defined yet returns null, not a crash", () => {
   assert.equal(momentForMedia(item, []), null);
-});
-
-test("momentForMedia ignores an AI override entirely — the Moments tab is time-only", () => {
-  // item's capturedAt (20:00) falls inside "on-time"; momentId points elsewhere,
-  // but the regular Moments tab must never disagree with the host's own schedule.
-  const classified = { ...item, momentId: "content-matched" };
-  const found = momentForMedia(classified, [
-    { id: "on-time", name: "On Time", startsAt: "2026-09-22T19:00:00Z", endsAt: "2026-09-22T21:00:00Z", sortOrder: 1 },
-    { id: "content-matched", name: "Content Matched", startsAt: "2026-09-23T00:00:00Z", endsAt: "2026-09-23T01:00:00Z", sortOrder: 2 },
-  ]);
-  assert.equal(found?.id, "on-time");
-});
-
-test("aiHighlightGroups only includes photos AI actually classified", () => {
-  const classified = { ...item, id: "classified-1", momentId: "cake" };
-  const unclassified = { ...item, id: "unclassified-1", momentId: null };
-  const moments = [{ id: "cake", name: "Cake Cutting", startsAt: "2026-09-22T20:00:00Z", endsAt: "2026-09-22T20:30:00Z", sortOrder: 1 }];
-  const groups = aiHighlightGroups([classified, unclassified], moments);
-  assert.equal(groups.size, 1);
-  const [[moment, items]] = Array.from(groups);
-  assert.equal(moment.id, "cake");
-  assert.deepEqual(items.map((row: PublicMemoryMedia) => row.id), ["classified-1"]);
-});
-
-test("aiHighlightGroups groups multiple photos classified into the same moment together", () => {
-  const first = { ...item, id: "a", momentId: "dance" };
-  const second = { ...item, id: "b", momentId: "dance" };
-  const moments = [{ id: "dance", name: "Dance Floor", startsAt: "2026-09-22T21:00:00Z", endsAt: "2026-09-22T23:00:00Z", sortOrder: 1 }];
-  const groups = aiHighlightGroups([first, second], moments);
-  assert.equal(groups.size, 1);
-  const [[, items]] = Array.from(groups);
-  assert.deepEqual(items.map((row: PublicMemoryMedia) => row.id).sort(), ["a", "b"]);
-});
-
-test("aiHighlightGroups drops a dangling override pointing at a deleted moment", () => {
-  const dangling = { ...item, momentId: "deleted-moment" };
-  const groups = aiHighlightGroups([dangling], []);
-  assert.equal(groups.size, 0);
 });

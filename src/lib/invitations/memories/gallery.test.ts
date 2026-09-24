@@ -1,6 +1,8 @@
 // src/lib/invitations/memories/gallery.test.ts
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
 import { computeGalleryVisible, toPublicMemoryMedia } from "./gallery";
 import type { MemoryMedia } from "./types";
 
@@ -54,11 +56,60 @@ test("public gallery projection excludes original keys, RSVP ids, and moderation
     objectKeyThumbnail: "thumbnails/event-1/media-1.webp",
     capturedAt: null,
     uploadedAt: "2026-09-21T00:00:00Z",
-    momentId: null,
   });
 });
 
-test("public gallery projection carries a moment override when one is passed", () => {
-  const projected = toPublicMemoryMedia(baseMedia({}), "moment-1");
-  assert.equal(projected.momentId, "moment-1");
+// Separation regression guard for Task 8: the old, one-shot AI-to-Moment
+// classifier (matched Rekognition labels against a host-named Moment's own
+// name) is fully superseded by the independent, multi-group AI Highlight
+// system (highlight-types.ts / highlight-service.ts / GuestAiHighlightView).
+// This walks the production Memories source (test files excluded, since
+// negative-assertion tests like this one and moderate-route.test.ts
+// legitimately contain these strings) and fails if anything still imports
+// the deleted moment-classification module or calls setAiClassifiedMoment —
+// the function that used to write an AI-derived row into memory_moment_media.
+// setAiClassifiedMoment itself (along with listMomentOverridesForEvent) was
+// deleted from repository.ts by the final-review consolidated fix wave: both
+// had zero callers anywhere in the codebase (Task 8 removed the call sites
+// but left the dead definitions behind) and setAiClassifiedMoment wrote to
+// memory_moment_media, which this plan's Global Constraints explicitly
+// forbid AI Highlight code from touching — a landmine for a future
+// contributor who might wire it back in. No file needs a "calls" exemption
+// anymore.
+const PRODUCTION_ROOTS = [
+  "src/lib/invitations/memories",
+  "src/components/invitations/memories",
+  "src/app/api/memories",
+  "src/app/api/invitations/events",
+];
+
+function collectProductionSourceFiles(root: string): string[] {
+  const absoluteRoot = path.join(process.cwd(), root);
+  const files: string[] = [];
+  const stack = [absoluteRoot];
+  while (stack.length > 0) {
+    const dir = stack.pop()!;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      if (/\.test\.(ts|tsx)$/.test(entry.name)) continue;
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+test("no production source imports the deleted moment-classification module or references setAiClassifiedMoment/listMomentOverridesForEvent", () => {
+  for (const root of PRODUCTION_ROOTS) {
+    for (const file of collectProductionSourceFiles(root)) {
+      const source = readFileSync(file, "utf8");
+      assert.doesNotMatch(source, /moment-classification/, `${file} still references the deleted moment-classification module`);
+      assert.doesNotMatch(source, /setAiClassifiedMoment/, `${file} still references the deleted setAiClassifiedMoment`);
+      assert.doesNotMatch(source, /listMomentOverridesForEvent/, `${file} still references the deleted listMomentOverridesForEvent`);
+    }
+  }
 });
