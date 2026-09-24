@@ -9,12 +9,14 @@ import {
   upsertMemoryMediaDescriptor,
   listApprovedMemoryDescriptors,
   listApprovedMediaMissingDescriptors,
+  listApprovedMediaMissingDescriptorsAcrossEvents,
   listMemoryHighlightGroups,
   createMemoryHighlightGroup,
   updateMemoryHighlightGroup,
   deleteMemoryHighlightGroup,
   getHighlightGenerationState,
   queueHighlightGeneration,
+  listQueuedHighlightGenerations,
   claimNextHighlightGeneration,
   replaceHighlightGenerationMemberships,
   publishHighlightGeneration,
@@ -115,6 +117,18 @@ test("listApprovedMediaMissingDescriptors scopes to the event and excludes media
   forbidsMomentsTables(source);
 });
 
+// The cron worker's cross-event counterpart: it needs to discover a backlog
+// across ALL events (it doesn't know event ids up front the way a per-event
+// caller does), so unlike every other query in this file it must NOT scope by
+// event_id.
+test("listApprovedMediaMissingDescriptorsAcrossEvents excludes media that already has a descriptor without scoping to one event", () => {
+  const source = listApprovedMediaMissingDescriptorsAcrossEvents.toString();
+  assert.match(source, /memory_media_descriptors/);
+  assert.match(source, /moderation_status/);
+  assert.doesNotMatch(source, /\.eq\("event_id"/);
+  forbidsMomentsTables(source);
+});
+
 test("listMemoryHighlightGroups scopes memory_highlight_groups by event", () => {
   const source = listMemoryHighlightGroups.toString();
   assert.match(source, /memory_highlight_groups/);
@@ -158,6 +172,20 @@ test("queueHighlightGeneration inserts a queued generation and updates the event
   assert.match(source, /memory_highlight_generations/);
   assert.match(source, /queued/);
   assert.match(source, /pending_highlight_generation_id/);
+  forbidsMomentsTables(source);
+});
+
+// The cron worker's discovery step: claimNextHighlightGeneration/
+// processHighlightGeneration both require a specific generationId already in
+// hand — neither one discovers work on its own — so something has to list
+// candidate ids across events first.
+test("listQueuedHighlightGenerations lists queued generations across events, oldest first, bounded by limit", () => {
+  const source = listQueuedHighlightGenerations.toString();
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /queued/);
+  assert.match(source, /created_at/);
+  assert.match(source, /limit/i);
+  assert.doesNotMatch(source, /\.eq\("event_id"/);
   forbidsMomentsTables(source);
 });
 

@@ -429,6 +429,47 @@ export async function listApprovedMediaMissingDescriptors(eventId: string, limit
     }));
 }
 
+// The cron worker's periodic backfill pass doesn't know event ids up front
+// the way every other caller in this file does — it has to discover the
+// backlog across every event itself — so this is the one query here that
+// deliberately does NOT scope by event_id. The initial approved-media scan is
+// capped at BACKFILL_SCAN_CAP rows (oldest upload first) before diffing
+// against memory_media_descriptors, so this stays a bounded query even as the
+// total number of approved photos across all events grows, rather than
+// scanning every approved photo this deployment has ever stored.
+const BACKFILL_SCAN_CAP = 200;
+
+export async function listApprovedMediaMissingDescriptorsAcrossEvents(limit: number): Promise<MemoryMediaSummary[]> {
+  const client = createAdminClient();
+  const { data: approvedMedia, error } = await client
+    .from("memory_media")
+    .select("id,event_id,media_kind,object_key_display")
+    .eq("moderation_status", "approved")
+    .eq("upload_status", "uploaded")
+    .order("uploaded_at", { ascending: true })
+    .limit(BACKFILL_SCAN_CAP);
+  if (error) throw new Error(`failed to list approved memory media: ${error.message}`);
+  if (!approvedMedia || approvedMedia.length === 0) return [];
+
+  const mediaIds = approvedMedia.map((row) => row.id as string);
+  const { data: descriptorRows, error: descriptorError } = await client
+    .from("memory_media_descriptors")
+    .select("media_id")
+    .in("media_id", mediaIds);
+  if (descriptorError) throw new Error(`failed to list memory_media_descriptors: ${descriptorError.message}`);
+
+  const describedIds = new Set((descriptorRows ?? []).map((row) => row.media_id as string));
+  return approvedMedia
+    .filter((row) => !describedIds.has(row.id as string))
+    .slice(0, limit)
+    .map((row) => ({
+      mediaId: row.id as string,
+      eventId: row.event_id as string,
+      mediaKind: row.media_kind as MediaKind,
+      objectKeyDisplay: (row.object_key_display as string | null) ?? null,
+    }));
+}
+
 // Lists highlight group definitions for an event, optionally narrowed to one
 // source (fallback/ai_generated/host_defined) — callers doing a
 // semantic-key-keyed upsert always narrow by source, since
@@ -561,6 +602,28 @@ export async function queueHighlightGeneration(eventId: string, mode: HighlightG
   if (eventError) throw new Error(`failed to update event pending highlight pointer: ${eventError.message}`);
 
   return generation;
+}
+
+// Up to `limit` generations still waiting to be processed, across ALL events
+// — the cross-event discovery step the cron worker needs before it can call
+// claimNextHighlightGeneration/processHighlightGeneration on a specific row
+// (both take a generationId already in hand; neither one discovers work on
+// its own). Ordered oldest-first and NOT filtered by any staleness cutoff —
+// unlike reclaimStaleHighlightGeneration's 'processing' reclaim, a 'queued'
+// row is never something to wait out: every run should consider it, so a row
+// left queued because a prior invocation crashed before ever calling
+// processHighlightGeneration on it is picked up on the very next run rather
+// than needing its own separate reclaim path.
+export async function listQueuedHighlightGenerations(limit: number): Promise<MemoryHighlightGeneration[]> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_highlight_generations")
+    .select("*")
+    .eq("status", "queued")
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) throw new Error(`failed to list queued highlight generations: ${error.message}`);
+  return (data ?? []).map(mapHighlightGenerationRow);
 }
 
 // Atomically claims one specific queued generation for processing: a single
