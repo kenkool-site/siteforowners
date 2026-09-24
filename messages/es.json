@@ -814,7 +814,11 @@
           "description": "Fotos que nuestra IA agrupó según lo que ocurre en ellas.",
           "empty": "Aún no hay destacados de IA — vuelve pronto cuando lleguen más fotos.",
           "photoCount": "{count, plural, one {# foto} other {# fotos}}",
-          "back": "Todos los destacados"
+          "back": "Todos los destacados",
+          "close": "Cerrar",
+          "previous": "Foto anterior",
+          "next": "Foto siguiente",
+          "viewerLabel": "Foto {current} de {total}"
         }
       }
     },
