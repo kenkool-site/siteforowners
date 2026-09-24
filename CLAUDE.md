@@ -60,6 +60,11 @@ The founder builds/maintains everything. Clients never touch code.
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`
 - Branch per feature: `feat/salon-demo`, `feat/dashboard-shell`
 
+## Next.js Route Handler Files (`route.ts`)
+A Next.js App Router `route.ts` file may ONLY export HTTP method handlers (`GET`, `POST`, etc.) plus a small set of framework config constants (`dynamic`, `revalidate`, ...). Any other named export — e.g. a helper exported just so a test can inject a fake dependency — fails Next's typed-routes build check at `npm run build` time with an error like `"X is not a valid Route export field"`. **`tsc --noEmit` does NOT catch this** — only a real production build regenerates `.next/types` and re-checks against it, so a fresh checkout's typecheck is a false green.
+- **Fix pattern:** extract the extra logic into a sibling non-`route.ts` file (e.g. `route.ts` + `my-route-logic.ts`) and have `route.ts` import and call it, keeping only handler/config exports in `route.ts` itself.
+- This has caused real build breakage in this codebase more than once. Always run `npm run build` (not just `tsc --noEmit`) before treating any `route.ts` change as done.
+
 ## Key Data
 - `brooklyn_hairstylists.csv` — 100 scraped Brooklyn leads (51 hot prospects)
 - Prospects have: name, address, phone, rating, review_count, website_type, all_links
