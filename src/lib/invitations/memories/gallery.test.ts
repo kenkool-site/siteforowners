@@ -68,10 +68,14 @@ test("public gallery projection excludes original keys, RSVP ids, and moderation
 // legitimately contain these strings) and fails if anything still imports
 // the deleted moment-classification module or calls setAiClassifiedMoment —
 // the function that used to write an AI-derived row into memory_moment_media.
-// setAiClassifiedMoment's *definition* legitimately remains in repository.ts
-// for a possible future host manual-override feature, so that file is
-// exempted from the "calls" check (it is not exempted from the "imports
-// moment-classification" check, which it has never matched anyway).
+// setAiClassifiedMoment itself (along with listMomentOverridesForEvent) was
+// deleted from repository.ts by the final-review consolidated fix wave: both
+// had zero callers anywhere in the codebase (Task 8 removed the call sites
+// but left the dead definitions behind) and setAiClassifiedMoment wrote to
+// memory_moment_media, which this plan's Global Constraints explicitly
+// forbid AI Highlight code from touching — a landmine for a future
+// contributor who might wire it back in. No file needs a "calls" exemption
+// anymore.
 const PRODUCTION_ROOTS = [
   "src/lib/invitations/memories",
   "src/components/invitations/memories",
@@ -99,14 +103,13 @@ function collectProductionSourceFiles(root: string): string[] {
   return files;
 }
 
-test("no production source imports the deleted moment-classification module or calls setAiClassifiedMoment", () => {
+test("no production source imports the deleted moment-classification module or references setAiClassifiedMoment/listMomentOverridesForEvent", () => {
   for (const root of PRODUCTION_ROOTS) {
     for (const file of collectProductionSourceFiles(root)) {
       const source = readFileSync(file, "utf8");
       assert.doesNotMatch(source, /moment-classification/, `${file} still references the deleted moment-classification module`);
-      if (path.basename(file) !== "repository.ts") {
-        assert.doesNotMatch(source, /setAiClassifiedMoment\s*\(/, `${file} still calls setAiClassifiedMoment`);
-      }
+      assert.doesNotMatch(source, /setAiClassifiedMoment/, `${file} still references the deleted setAiClassifiedMoment`);
+      assert.doesNotMatch(source, /listMomentOverridesForEvent/, `${file} still references the deleted listMomentOverridesForEvent`);
     }
   }
 });
