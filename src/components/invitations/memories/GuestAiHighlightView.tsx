@@ -82,29 +82,40 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
   if (groups.length === 0) return <p className="p-8 text-center text-sm" style={{ color: accent }}>{t("empty")}</p>;
 
   return (
-    <div className="grid grid-cols-1 gap-4 p-4 sm:grid-cols-2">
-      <p className="col-span-full text-sm" style={{ color: accent }}>
+    <div className="p-4">
+      <p className="mb-5 text-sm" style={{ color: accent }}>
         {t("description")}
       </p>
-      {groups.map((group) => (
-        <button
-          key={group.id}
-          type="button"
-          onClick={() => setSelected(group.id)}
-          className="overflow-hidden rounded-2xl text-left shadow-sm"
-          style={{ backgroundColor: surface }}
-        >
-          {group.media[0] && (
-            <img src={`/api/memories/media/${group.media[0].id}/thumbnail`} alt="" className="h-40 w-full object-cover" />
-          )}
-          <div className="p-4">
-            <p className="text-lg font-semibold">{group.name}</p>
-            <p className="mt-1 text-sm" style={{ color: accent }}>
-              {t("photoCount", { count: group.media.length })}
-            </p>
-          </div>
-        </button>
-      ))}
+      <div className="columns-1 gap-4 sm:columns-2">
+        {groups.map((group) => (
+          <button
+            key={group.id}
+            type="button"
+            onClick={() => setSelected(group.id)}
+            className="mb-4 block w-full break-inside-avoid overflow-hidden rounded-2xl text-left shadow-md ring-1 ring-black/5 transition-transform active:scale-[0.98]"
+            style={{ backgroundColor: surface }}
+          >
+            {group.media[0] && (
+              // h-auto (no forced height/object-cover) so the full photo shows,
+              // matching this module's own uncropped masonry convention
+              // (GuestGalleryView.tsx's "earlier" section) rather than the
+              // fixed-height crop this replaced.
+              <img
+                src={`/api/memories/media/${group.media[0].id}/thumbnail`}
+                alt=""
+                className="h-auto w-full"
+                loading="lazy"
+              />
+            )}
+            <div className="p-4">
+              <p className="text-lg font-semibold leading-snug">{group.name}</p>
+              <p className="mt-1 text-xs font-medium uppercase tracking-wide opacity-70" style={{ color: accent }}>
+                {t("photoCount", { count: group.media.length })}
+              </p>
+            </div>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
