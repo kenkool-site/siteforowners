@@ -220,6 +220,21 @@ test("a failed generation offers Retry, and clicking it re-triggers generation",
   );
 });
 
+test("a failed generation with a recorded error code shows the error detail instead of the generic failure message", async () => {
+  const { OwnerHighlightsManager } = await import("./OwnerHighlightsManager");
+  const html = renderStatic(
+    baseProps({ initialGenerationStatus: "failed", initialGenerationError: "EMPTY_OUTPUT" }),
+    OwnerHighlightsManager,
+  );
+  assert.match(html, /EMPTY_OUTPUT/);
+});
+
+test("a failed generation with no recorded error code falls back to the generic failure message", async () => {
+  const { OwnerHighlightsManager } = await import("./OwnerHighlightsManager");
+  const html = renderStatic(baseProps({ initialGenerationStatus: "failed", initialGenerationError: null }), OwnerHighlightsManager);
+  assert.match(html, /The last attempt failed\./);
+});
+
 test("selecting the host-defined mode sends PATCH set_mode and reveals group management", async () => {
   await withMountedComponent(
     baseProps({ initialMode: "automatic" }),
@@ -253,13 +268,17 @@ test("selecting the host-defined mode sends PATCH set_mode and reveals group man
   );
 });
 
-test("adding a group sends name and optional description, then appends it to the list", async () => {
+test("adding a group sends name and optional description, then appends it to the list, and triggers the same generation request the Regenerate button uses", async () => {
   await withMountedComponent(
     baseProps({ initialMode: "host_defined", initialGroups: [] }),
-    async () =>
-      jsonResponse({
+    async (url) => {
+      if (url.endsWith("/highlights/generate")) {
+        return jsonResponse({ generation: { id: "gen-after-add", status: "queued", mediaCount: 0 } }, 202);
+      }
+      return jsonResponse({
         group: { id: "group-new", eventId: "event-1", name: "Toasts", description: "Speeches from the wedding party", semanticKey: "k9", source: "host_defined", sortOrder: 0, isVisible: true, mediaCount: 0 },
-      }),
+      });
+    },
     async ({ dom, calls }) => {
       const nameInput = dom.window.document.querySelector('input[placeholder="e.g. First Dance"]');
       const descriptionInput = dom.window.document.querySelector('input[placeholder="A short note about this group"]');
@@ -284,6 +303,17 @@ test("adding a group sends name and optional description, then appends it to the
       assert.equal((createCall!.body as { name: string }).name, "Toasts");
       assert.equal((createCall!.body as { description: string }).description, "Speeches from the wedding party");
       assert.match(dom.window.document.body.textContent ?? "", /Toasts/);
+
+      // Fix 3: switching to host-defined mode force-queues a generation
+      // before any group exists, so that first attempt has nothing to
+      // classify. Adding the FIRST group must trigger a fresh
+      // generate/regenerate request — the same one the Generate/Regenerate
+      // button issues — rather than leaving the host to separately notice
+      // nothing happened.
+      const generateCall = calls.find((c) => c.url.endsWith("/highlights/generate"));
+      assert.ok(generateCall, "expected adding a group to also POST to the generate endpoint");
+      assert.equal(generateCall!.method, "POST");
+      assert.match(dom.window.document.body.textContent ?? "", /Queued/);
     },
   );
 });

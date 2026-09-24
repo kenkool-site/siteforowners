@@ -74,6 +74,11 @@ function getAnthropicClient(): Anthropic {
 async function defaultGenerateText(request: { system: string; prompt: string }): Promise<string> {
   const message = await getAnthropicClient().messages.create({
     model: MODEL,
+    // Known, currently-unaddressed scaling ceiling (not fixed here): 4096
+    // output tokens bounds the JSON response to roughly 250-290
+    // UUID-per-membership assignments. Events with approved-media counts far
+    // beyond typical wedding scale (50-200 photos) may see truncated,
+    // incomplete grouping output or an outright JSON-parse failure.
     max_tokens: 4096,
     system: request.system,
     messages: [{ role: "user", content: request.prompt }],
@@ -803,6 +808,13 @@ export async function generateHostDefinedAssignments(
   input: GenerateHostDefinedAssignmentsInput,
   dependencies: HighlightGeneratorDependencies = {},
 ): Promise<HighlightAssignment[]> {
+  // A host switching to host_defined mode force-queues a generation before
+  // any group exists yet (the group editor only appears once mode is
+  // already host_defined) — with zero groups there is nothing to assign
+  // media into, so calling out to Anthropic here would be a guaranteed-empty
+  // response burning a real API call every time. Skip it entirely.
+  if (input.groups.length === 0) return [];
+
   const generateText = dependencies.generateText ?? defaultGenerateText;
   const knownMediaIds = new Set(input.descriptors.map((descriptor) => descriptor.mediaId));
   const knownGroupIds = new Set(input.groups.map((group) => group.id));

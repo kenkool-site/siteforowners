@@ -11,6 +11,7 @@ interface HighlightsOverviewResponse {
   mode: HighlightMode;
   generationStatus: EventHighlightGenerationStatus;
   lastGeneratedMediaCount: number;
+  generationError: string | null;
   groups: HostHighlightGroup[];
 }
 
@@ -19,6 +20,10 @@ export interface OwnerHighlightsManagerProps {
   initialMode: HighlightMode;
   initialGenerationStatus: EventHighlightGenerationStatus;
   initialLastGeneratedMediaCount: number;
+  // The short, machine-readable code the last failed generation recorded
+  // (e.g. "EMPTY_OUTPUT"), if any — surfaced alongside statusFailed so the
+  // host gets more than a generic "the last attempt failed" message.
+  initialGenerationError?: string | null;
   initialGroups: HostHighlightGroup[];
   // Test seam only: production always uses the real 3s cadence the plan
   // specifies (see DEFAULT_POLL_INTERVAL_MS); tests inject a much shorter
@@ -35,6 +40,7 @@ export function OwnerHighlightsManager({
   initialMode,
   initialGenerationStatus,
   initialLastGeneratedMediaCount,
+  initialGenerationError = null,
   initialGroups,
   pollIntervalMs = DEFAULT_POLL_INTERVAL_MS,
 }: OwnerHighlightsManagerProps) {
@@ -44,6 +50,7 @@ export function OwnerHighlightsManager({
   const [mode, setMode] = useState<HighlightMode>(initialMode);
   const [generationStatus, setGenerationStatus] = useState<EventHighlightGenerationStatus>(initialGenerationStatus);
   const [lastGeneratedMediaCount, setLastGeneratedMediaCount] = useState(initialLastGeneratedMediaCount);
+  const [lastGenerationError, setLastGenerationError] = useState<string | null>(initialGenerationError ?? null);
   const [groups, setGroups] = useState<HostHighlightGroup[]>(initialGroups);
 
   const [busyMode, setBusyMode] = useState(false);
@@ -72,6 +79,7 @@ export function OwnerHighlightsManager({
       setMode(data.mode);
       setGenerationStatus(data.generationStatus);
       setLastGeneratedMediaCount(data.lastGeneratedMediaCount);
+      setLastGenerationError(data.generationError ?? null);
       setGroups(data.groups);
     } catch {
       // ignored — see comment above.
@@ -159,6 +167,14 @@ export function OwnerHighlightsManager({
       setGroups((previous) => [...previous, created]);
       setName("");
       setDescription("");
+      // Switching to host-defined mode force-queues a generation before any
+      // group exists (the group editor only appears once mode is already
+      // host_defined), so that first attempt has nothing to classify and
+      // fails without ever prompting the host to try again. Trigger the same
+      // request the Generate/Regenerate button issues the moment the FIRST
+      // group actually exists, so the host doesn't have to separately notice
+      // nothing happened and manually click it themselves.
+      await handleGenerate();
     } catch {
       setFormError(t("error"));
     } finally {
@@ -272,7 +288,9 @@ export function OwnerHighlightsManager({
       : generationStatus === "processing"
         ? t("statusProcessing")
         : generationStatus === "failed"
-          ? t("statusFailed")
+          ? lastGenerationError
+            ? t("statusFailedWithCode", { errorCode: lastGenerationError })
+            : t("statusFailed")
           : lastGeneratedMediaCount > 0
             ? t("statusPublished", { count: lastGeneratedMediaCount })
             : t("statusIdle");

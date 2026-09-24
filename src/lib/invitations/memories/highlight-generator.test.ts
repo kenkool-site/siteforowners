@@ -683,6 +683,22 @@ test("generateHostDefinedAssignments includes each host group's name and descrip
   assert.ok(capturedPrompt.includes("First Dance"));
 });
 
+test("generateHostDefinedAssignments returns immediately with no groups and never calls generateText (skips the guaranteed-empty Anthropic call)", async () => {
+  let called = false;
+  const assignments = await generateHostDefinedAssignments(
+    { descriptors, groups: [] },
+    {
+      generateText: async () => {
+        called = true;
+        return JSON.stringify({ assignments: [] });
+      },
+    },
+  );
+
+  assert.deepEqual(assignments, []);
+  assert.equal(called, false, "generateText must never be invoked when there are zero host-defined groups");
+});
+
 test("generateHostDefinedAssignments accepts only known group and media ids and permits multiple groups per photo", async () => {
   const groups: MemoryHighlightGroup[] = [
     hostGroup({ id: "g1", name: "Golden Hour", semanticKey: "golden-hour" }),
