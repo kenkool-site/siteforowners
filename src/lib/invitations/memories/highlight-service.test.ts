@@ -103,6 +103,7 @@ function baseProcessDependencies() {
     publishHighlightGeneration: neverCalled<ProcessDep<"publishHighlightGeneration">>("publishHighlightGeneration"),
     failHighlightGeneration: neverCalled<ProcessDep<"failHighlightGeneration">>("failHighlightGeneration"),
     classifyFallbackHighlights: neverCalled<ProcessDep<"classifyFallbackHighlights">>("classifyFallbackHighlights"),
+    classifyIntoHostGroups: neverCalled<ProcessDep<"classifyIntoHostGroups">>("classifyIntoHostGroups"),
     generateDynamicHighlights: neverCalled<ProcessDep<"generateDynamicHighlights">>("generateDynamicHighlights"),
     generateHostDefinedAssignments: neverCalled<ProcessDep<"generateHostDefinedAssignments">>("generateHostDefinedAssignments"),
   };
@@ -195,6 +196,48 @@ test("eight or more descriptors selects Anthropic dynamic generation, not the fa
   assert.equal(base.failHighlightGeneration.calls.length, 0);
 });
 
+test("the media count passed to publish is the approved descriptor count, not the grouped/deduped assignment count", async () => {
+  // Item 3 regression: requestHighlightGeneration compares the NEXT call's
+  // approvedCount against this stored value to decide whether enough new
+  // media has accumulated (REGENERATION_INTERVAL). If publish were given the
+  // grouped-media count instead, a large gap between "approved" and "what
+  // the model actually grouped" would defeat that cost/rate-limit guard.
+  const base = baseProcessDependencies();
+  const descriptors = Array.from({ length: 8 }, (_, index) => descriptor(`m${index + 1}`));
+  const claim = spy<ProcessDep<"claimNextHighlightGeneration">>(async () => generation({ id: "gen-count", mode: "automatic" }));
+  const listDescriptors = spy<ProcessDep<"listApprovedMemoryDescriptors">>(async () => descriptors);
+  const listGroups = spy<ProcessDep<"listMemoryHighlightGroups">>(async () => []);
+  const createGroup = spy<ProcessDep<"createMemoryHighlightGroup">>(async (_eventId, input) =>
+    group({ id: "g-count", semanticKey: input.semanticKey, name: input.name, description: input.description, source: input.source }),
+  );
+  const replaceMemberships = spy<ProcessDep<"replaceHighlightGenerationMemberships">>(async () => {});
+  const publish = spy<ProcessDep<"publishHighlightGeneration">>(async () => {});
+  // Only 3 of the 8 approved descriptors end up grouped — the model didn't
+  // find a home for the other 5.
+  const generateDynamic = spy<ProcessDep<"generateDynamicHighlights">>(async (): Promise<HighlightProposal[]> => [
+    { semanticKey: "cake", name: "Cake", description: null, source: "ai_generated", mediaIds: ["m1", "m2", "m3"] },
+  ]);
+
+  await processHighlightGeneration(
+    "gen-count",
+    toDeps({
+      ...base,
+      claimNextHighlightGeneration: claim,
+      listApprovedMemoryDescriptors: listDescriptors,
+      listMemoryHighlightGroups: listGroups,
+      createMemoryHighlightGroup: createGroup,
+      replaceHighlightGenerationMemberships: replaceMemberships,
+      publishHighlightGeneration: publish,
+      generateDynamicHighlights: generateDynamic,
+    }),
+  );
+
+  assert.equal(publish.calls.length, 1);
+  const publishCall = publish.calls[0];
+  assert.ok(publishCall);
+  assert.equal(publishCall[2], 8); // descriptors.length, not the 3 distinct grouped media ids
+});
+
 test("host-defined mode always uses host assignment generation and never falls back to fallback or dynamic classification", async () => {
   const base = baseProcessDependencies();
   const hostGroups = [group({ id: "hg1", semanticKey: "ceremony", source: "host_defined", name: "Ceremony" })];
@@ -205,6 +248,8 @@ test("host-defined mode always uses host assignment generation and never falls b
   const listGroups = spy<ProcessDep<"listMemoryHighlightGroups">>(async (_eventId, source) => (source === "host_defined" ? hostGroups : []));
   const replaceMemberships = spy<ProcessDep<"replaceHighlightGenerationMemberships">>(async () => {});
   const publish = spy<ProcessDep<"publishHighlightGeneration">>(async () => {});
+  // No exact match this round — proves the AI path alone is enough to publish.
+  const classifyExact = spy<ProcessDep<"classifyIntoHostGroups">>((): HighlightAssignment[] => []);
   const generateHostDefined = spy<ProcessDep<"generateHostDefinedAssignments">>(
     async (): Promise<HighlightAssignment[]> => [{ groupId: "hg1", mediaId: "m1" }],
   );
@@ -218,15 +263,61 @@ test("host-defined mode always uses host assignment generation and never falls b
       listMemoryHighlightGroups: listGroups,
       replaceHighlightGenerationMemberships: replaceMemberships,
       publishHighlightGeneration: publish,
+      classifyIntoHostGroups: classifyExact,
       generateHostDefinedAssignments: generateHostDefined,
     }),
   );
 
+  assert.equal(classifyExact.calls.length, 1); // Task 2's exact-match pre-filter has a real caller
   assert.equal(generateHostDefined.calls.length, 1);
   assert.equal(base.classifyFallbackHighlights.calls.length, 0);
   assert.equal(base.generateDynamicHighlights.calls.length, 0);
   assert.equal(base.createMemoryHighlightGroup.calls.length, 0); // host groups pre-exist; the service never creates them
   assert.equal(publish.calls.length, 1);
+});
+
+test("host-defined mode merges Task 2's exact-match pre-filter output with the AI's, deduping overlapping (group, media) pairs", async () => {
+  const base = baseProcessDependencies();
+  const hostGroups = [
+    group({ id: "hg1", semanticKey: "ceremony", source: "host_defined", name: "Ceremony" }),
+    group({ id: "hg2", semanticKey: "reception", source: "host_defined", name: "Reception" }),
+  ];
+  const claim = spy<ProcessDep<"claimNextHighlightGeneration">>(async () => generation({ id: "gen-3b", mode: "host_defined" }));
+  const listDescriptors = spy<ProcessDep<"listApprovedMemoryDescriptors">>(async () => [descriptor("m1"), descriptor("m2")]);
+  const listGroups = spy<ProcessDep<"listMemoryHighlightGroups">>(async () => hostGroups);
+  const replaceMemberships = spy<ProcessDep<"replaceHighlightGenerationMemberships">>(async () => {});
+  const publish = spy<ProcessDep<"publishHighlightGeneration">>(async () => {});
+  // The exact-match pass confidently resolves m1 into hg1. The AI pass
+  // redundantly also proposes m1→hg1 (should collapse to one row) AND
+  // independently proposes m2→hg2 (the exact pass never saw this one).
+  const classifyExact = spy<ProcessDep<"classifyIntoHostGroups">>((): HighlightAssignment[] => [{ groupId: "hg1", mediaId: "m1" }]);
+  const generateHostDefined = spy<ProcessDep<"generateHostDefinedAssignments">>(async (): Promise<HighlightAssignment[]> => [
+    { groupId: "hg1", mediaId: "m1" },
+    { groupId: "hg2", mediaId: "m2" },
+  ]);
+
+  await processHighlightGeneration(
+    "gen-3b",
+    toDeps({
+      ...base,
+      claimNextHighlightGeneration: claim,
+      listApprovedMemoryDescriptors: listDescriptors,
+      listMemoryHighlightGroups: listGroups,
+      replaceHighlightGenerationMemberships: replaceMemberships,
+      publishHighlightGeneration: publish,
+      classifyIntoHostGroups: classifyExact,
+      generateHostDefinedAssignments: generateHostDefined,
+    }),
+  );
+
+  assert.equal(replaceMemberships.calls.length, 1);
+  const membershipsCall = replaceMemberships.calls[0];
+  assert.ok(membershipsCall);
+  const [, memberships] = membershipsCall;
+  // 2 distinct pairs, not 3 — the duplicate m1→hg1 from both sources collapsed.
+  assert.equal(memberships.length, 2);
+  assert.ok(memberships.some((m) => m.groupId === "hg1" && m.mediaId === "m1"));
+  assert.ok(memberships.some((m) => m.groupId === "hg2" && m.mediaId === "m2"));
 });
 
 test("one media item assigned into multiple groups produces multiple membership rows", async () => {
@@ -268,6 +359,87 @@ test("one media item assigned into multiple groups produces multiple membership 
   assert.equal(memberships.filter((m) => m.mediaId === "m1").length, 2);
   assert.equal(new Set(memberships.map((m) => m.groupId)).size, 2);
   assert.equal(publish.calls.length, 1);
+});
+
+test("an existing group's name/description are only refreshed after publish succeeds, and only after membership is written", async () => {
+  // Item 2 regression: refreshing an existing group's copy before the run is
+  // known to succeed would let a failed run's unpublished wording leak onto
+  // an already guest-visible group. Assert both that the update happens, and
+  // that it happens strictly after replaceMemberships/publish, using a
+  // shared call-order tracker.
+  const base = baseProcessDependencies();
+  const callOrder: string[] = [];
+  const existingGroups = [group({ id: "existing-cake", semanticKey: "cake", name: "Old Cake", description: "Old desc", source: "fallback" })];
+  const claim = spy<ProcessDep<"claimNextHighlightGeneration">>(async () => generation({ id: "gen-defer", mode: "fallback" }));
+  const listDescriptors = spy<ProcessDep<"listApprovedMemoryDescriptors">>(async () => [descriptor("m1")]);
+  const listGroups = spy<ProcessDep<"listMemoryHighlightGroups">>(async () => existingGroups);
+  const updateGroup = spy<ProcessDep<"updateMemoryHighlightGroup">>(async () => {
+    callOrder.push("updateGroup");
+  });
+  const replaceMemberships = spy<ProcessDep<"replaceHighlightGenerationMemberships">>(async () => {
+    callOrder.push("replaceMemberships");
+  });
+  const publish = spy<ProcessDep<"publishHighlightGeneration">>(async () => {
+    callOrder.push("publish");
+  });
+  const classifyFallback = spy<ProcessDep<"classifyFallbackHighlights">>((): HighlightProposal[] => [
+    { semanticKey: "cake", name: "New Cake", description: "New desc", source: "fallback", mediaIds: ["m1"] },
+  ]);
+
+  await processHighlightGeneration(
+    "gen-defer",
+    toDeps({
+      ...base,
+      claimNextHighlightGeneration: claim,
+      listApprovedMemoryDescriptors: listDescriptors,
+      listMemoryHighlightGroups: listGroups,
+      updateMemoryHighlightGroup: updateGroup,
+      replaceHighlightGenerationMemberships: replaceMemberships,
+      publishHighlightGeneration: publish,
+      classifyFallbackHighlights: classifyFallback,
+    }),
+  );
+
+  assert.equal(updateGroup.calls.length, 1);
+  assert.deepEqual(callOrder, ["replaceMemberships", "publish", "updateGroup"]);
+  const updateCall = updateGroup.calls[0];
+  assert.ok(updateCall);
+  assert.equal(updateCall[1], "existing-cake");
+  assert.deepEqual(updateCall[2], { name: "New Cake", description: "New desc" });
+});
+
+test("a failure after group resolution never updates an existing group's name/description", async () => {
+  // The other half of item 2: if replaceMemberships or publish throws, the
+  // existing group's copy must be left exactly as it was — never touched.
+  const base = baseProcessDependencies();
+  const existingGroups = [group({ id: "existing-cake", semanticKey: "cake", name: "Old Cake", description: "Old desc", source: "fallback" })];
+  const claim = spy<ProcessDep<"claimNextHighlightGeneration">>(async () => generation({ id: "gen-defer-fail", mode: "fallback" }));
+  const listDescriptors = spy<ProcessDep<"listApprovedMemoryDescriptors">>(async () => [descriptor("m1")]);
+  const listGroups = spy<ProcessDep<"listMemoryHighlightGroups">>(async () => existingGroups);
+  const replaceMemberships = spy<ProcessDep<"replaceHighlightGenerationMemberships">>(async () => {
+    throw new Error("DB write failed");
+  });
+  const fail = spy<ProcessDep<"failHighlightGeneration">>(async () => {});
+  const classifyFallback = spy<ProcessDep<"classifyFallbackHighlights">>((): HighlightProposal[] => [
+    { semanticKey: "cake", name: "New Cake", description: "New desc", source: "fallback", mediaIds: ["m1"] },
+  ]);
+
+  await processHighlightGeneration(
+    "gen-defer-fail",
+    toDeps({
+      ...base,
+      claimNextHighlightGeneration: claim,
+      listApprovedMemoryDescriptors: listDescriptors,
+      listMemoryHighlightGroups: listGroups,
+      replaceHighlightGenerationMemberships: replaceMemberships,
+      failHighlightGeneration: fail,
+      classifyFallbackHighlights: classifyFallback,
+    }),
+  );
+
+  assert.equal(base.updateMemoryHighlightGroup.calls.length, 0); // never called — base's copy is neverCalled, would throw if reached
+  assert.equal(base.publishHighlightGeneration.calls.length, 0);
+  assert.equal(fail.calls.length, 1);
 });
 
 test("invalid or empty classifier output fails the generation and never publishes", async () => {
@@ -387,22 +559,57 @@ test("requestHighlightGeneration queues a fallback-mode generation when under th
   assert.equal(queue.calls[0]?.[1], "fallback");
 });
 
-test("requestHighlightGeneration never queues a second generation while one is already pending, even when forced", async () => {
+test("requestHighlightGeneration never queues a second generation while one is already pending (not yet stale), even when forced", async () => {
   const getState = spy<RequestDep<"getHighlightGenerationState">>(async () =>
     highlightState({ generationStatus: "processing", pendingGenerationId: "gen-existing" }),
   );
   const listDescriptors = neverCalled<RequestDep<"listApprovedMemoryDescriptors">>("listApprovedMemoryDescriptors");
   const queue = neverCalled<RequestDep<"queueHighlightGeneration">>("queueHighlightGeneration");
+  // Not yet past the staleness threshold — still legitimately in-flight.
+  const reclaimStale = spy<RequestDep<"reclaimStaleHighlightGeneration">>(async () => null);
 
   const deps: RequestHighlightGenerationDependencies = {
     getHighlightGenerationState: getState.fn,
     listApprovedMemoryDescriptors: listDescriptors.fn,
     queueHighlightGeneration: queue.fn,
+    reclaimStaleHighlightGeneration: reclaimStale.fn,
   };
   const result = await requestHighlightGeneration("event-1", true, deps);
 
   assert.equal(result, null);
+  assert.equal(reclaimStale.calls.length, 1);
   assert.equal(queue.calls.length, 0);
+});
+
+test("requestHighlightGeneration reclaims a stale stuck-processing generation and queues a fresh attempt", async () => {
+  // Item 4: a generation that died mid-run (e.g. a function timeout) must not
+  // permanently block the event from ever queuing again.
+  let callCount = 0;
+  const getState = spy<RequestDep<"getHighlightGenerationState">>(async () => {
+    callCount += 1;
+    // First read: still shows the stuck generation. After a successful
+    // reclaim, the event row has been reset — second read shows idle.
+    return callCount === 1
+      ? highlightState({ generationStatus: "processing", pendingGenerationId: "gen-stuck" })
+      : highlightState({ generationStatus: "idle" });
+  });
+  const listDescriptors = spy<RequestDep<"listApprovedMemoryDescriptors">>(async () => [descriptor("m1")]);
+  const queue = spy<RequestDep<"queueHighlightGeneration">>(async (eventId, mode) => generation({ id: "gen-fresh", eventId, mode }));
+  const reclaimStale = spy<RequestDep<"reclaimStaleHighlightGeneration">>(async () => generation({ id: "gen-stuck", mode: "fallback", status: "failed" }));
+
+  const deps: RequestHighlightGenerationDependencies = {
+    getHighlightGenerationState: getState.fn,
+    listApprovedMemoryDescriptors: listDescriptors.fn,
+    queueHighlightGeneration: queue.fn,
+    reclaimStaleHighlightGeneration: reclaimStale.fn,
+  };
+  const result = await requestHighlightGeneration("event-1", false, deps);
+
+  assert.equal(reclaimStale.calls.length, 1);
+  assert.equal(reclaimStale.calls[0]?.[0], "gen-stuck");
+  assert.equal(getState.calls.length, 2); // state re-read after a successful reclaim
+  assert.ok(result);
+  assert.equal(queue.calls.length, 1);
 });
 
 test("requestHighlightGeneration force bypasses the 'not enough new media yet' policy check", async () => {
@@ -423,6 +630,59 @@ test("requestHighlightGeneration force bypasses the 'not enough new media yet' p
 
   assert.ok(result);
   assert.equal(queue.calls.length, 1);
+});
+
+test("requestHighlightGeneration selects fallback mode at exactly 7 approved descriptors (just under the dynamic floor)", async () => {
+  const getState = spy<RequestDep<"getHighlightGenerationState">>(async () => highlightState());
+  const listDescriptors = spy<RequestDep<"listApprovedMemoryDescriptors">>(
+    async () => Array.from({ length: 7 }, (_, index) => descriptor(`m${index + 1}`)),
+  );
+  const queue = spy<RequestDep<"queueHighlightGeneration">>(async (eventId, mode) => generation({ id: "gen-7", eventId, mode }));
+
+  const deps: RequestHighlightGenerationDependencies = {
+    getHighlightGenerationState: getState.fn,
+    listApprovedMemoryDescriptors: listDescriptors.fn,
+    queueHighlightGeneration: queue.fn,
+  };
+  await requestHighlightGeneration("event-1", false, deps);
+
+  assert.equal(queue.calls[0]?.[1], "fallback");
+});
+
+test("requestHighlightGeneration selects automatic (dynamic) mode at exactly 8 approved descriptors (the dynamic floor)", async () => {
+  const getState = spy<RequestDep<"getHighlightGenerationState">>(async () => highlightState());
+  const listDescriptors = spy<RequestDep<"listApprovedMemoryDescriptors">>(
+    async () => Array.from({ length: 8 }, (_, index) => descriptor(`m${index + 1}`)),
+  );
+  const queue = spy<RequestDep<"queueHighlightGeneration">>(async (eventId, mode) => generation({ id: "gen-8", eventId, mode }));
+
+  const deps: RequestHighlightGenerationDependencies = {
+    getHighlightGenerationState: getState.fn,
+    listApprovedMemoryDescriptors: listDescriptors.fn,
+    queueHighlightGeneration: queue.fn,
+  };
+  await requestHighlightGeneration("event-1", false, deps);
+
+  assert.equal(queue.calls[0]?.[1], "automatic");
+});
+
+test("requestHighlightGeneration selects host_defined mode whenever the event's highlightMode is host_defined, regardless of descriptor count", async () => {
+  const getState = spy<RequestDep<"getHighlightGenerationState">>(async () => highlightState({ highlightMode: "host_defined" }));
+  // Deliberately at/above the dynamic floor — proves the event's highlightMode
+  // wins over the count-based fallback/automatic split.
+  const listDescriptors = spy<RequestDep<"listApprovedMemoryDescriptors">>(
+    async () => Array.from({ length: 20 }, (_, index) => descriptor(`m${index + 1}`)),
+  );
+  const queue = spy<RequestDep<"queueHighlightGeneration">>(async (eventId, mode) => generation({ id: "gen-host", eventId, mode }));
+
+  const deps: RequestHighlightGenerationDependencies = {
+    getHighlightGenerationState: getState.fn,
+    listApprovedMemoryDescriptors: listDescriptors.fn,
+    queueHighlightGeneration: queue.fn,
+  };
+  await requestHighlightGeneration("event-1", false, deps);
+
+  assert.equal(queue.calls[0]?.[1], "host_defined");
 });
 
 // ---------------------------------------------------------------------------
