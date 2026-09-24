@@ -409,6 +409,108 @@ test("generateDynamicHighlights keeps legitimate nationality/religion/age-refere
   );
 });
 
+test("generateDynamicHighlights drops the bare noun 'Religion'/'Religión' with no adjacency required, but still allows the adjective 'Religious'/'Religiosa'", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            // The bare noun has no innocent standalone use as a group name -
+            // unlike "Catholic"/"Religious", there is no "Religion Ceremony"
+            // idiom, so this is bare-word matched with no adjacency needed.
+            { semanticKey: "faith-en", name: "Religion", description: null, mediaIds: ["m1"] },
+            { semanticKey: "faith-es", name: "Religión", description: null, mediaIds: ["m2"] },
+            // The adjective form stays adjacency-gated and must still survive.
+            { semanticKey: "religious-ceremony", name: "Religious Ceremony", description: null, mediaIds: ["m3"] },
+            { semanticKey: "ceremonia-religiosa", name: "Ceremonia Religiosa", description: null, mediaIds: ["m4"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m5"] },
+            { semanticKey: "decorations", name: "Decorations", description: null, mediaIds: ["m6"] },
+          ],
+        }),
+    },
+  );
+
+  assert.equal(proposals.length, 4);
+  assert.ok(!proposals.some((group) => group.name === "Religion" || group.name === "Religión"));
+  assert.ok(proposals.some((group) => group.name === "Religious Ceremony"));
+  assert.ok(proposals.some((group) => group.name === "Ceremonia Religiosa"));
+});
+
+test("generateDynamicHighlights checks semanticKey, name, and description independently - a term at the end of one field is never treated as adjacent to a term at the start of another", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            { semanticKey: "cake-cutting", name: "Cake Cutting", description: null, mediaIds: ["m1"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m2"] },
+            // These 4 are the review's exact cross-field reproductions - each
+            // combination of fields, joined naively, would create a
+            // "<word> <demographic/people-noun>" collision across the field
+            // boundary that has nothing to do with the real content.
+            {
+              semanticKey: "family-portraits",
+              name: "Family Portraits",
+              description: "Chinese tea ceremony and multigenerational groupings",
+              mediaIds: ["m3"],
+            },
+            {
+              semanticKey: "guest-arrivals",
+              name: "Guest Arrivals",
+              description: "Korean hanbok and welcome drinks",
+              mediaIds: ["m4"],
+            },
+            {
+              semanticKey: "los-invitados",
+              name: "Los Invitados",
+              description: "Misa católica y recepción",
+              mediaIds: ["m5"],
+            },
+            { semanticKey: "guest-book", name: "Catholic Mass", description: null, mediaIds: ["m6"] },
+          ],
+        }),
+    },
+  );
+
+  assert.equal(proposals.length, 6);
+  assert.deepEqual(
+    proposals.map((group) => group.name).sort(),
+    ["Cake Cutting", "Catholic Mass", "Dancing", "Family Portraits", "Guest Arrivals", "Los Invitados"],
+  );
+});
+
+test("generateDynamicHighlights succeeds end-to-end on an ordinary Korean-wedding payload that previously threw due to the cross-field bug", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            { semanticKey: "ceremony", name: "Ceremony", description: "The wedding ceremony", mediaIds: ["m1"] },
+            { semanticKey: "reception", name: "Reception", description: "Dinner and toasts", mediaIds: ["m2"] },
+            {
+              semanticKey: "dance-floor",
+              name: "Dance Floor",
+              description: "First dance and open dancing",
+              mediaIds: ["m3"],
+            },
+            {
+              semanticKey: "guest-portraits",
+              name: "Guest Portraits",
+              description: "Korean hanbok and family groupings",
+              mediaIds: ["m4"],
+            },
+          ],
+        }),
+    },
+  );
+
+  assert.equal(proposals.length, 4);
+  assert.ok(proposals.some((group) => group.name === "Guest Portraits"));
+});
+
 test("generateDynamicHighlights drops Spanish equivalents of the existing English denylisted phrases (orientacion sexual, color de piel)", async () => {
   const proposals = await generateDynamicHighlights(
     { descriptors, existingGroups: [] },

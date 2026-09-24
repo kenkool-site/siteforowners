@@ -127,13 +127,25 @@ async function defaultGenerateText(request: { system: string; prompt: string }):
 //    but as literal phrases in DENYLIST_PHRASES instead (avoids "Black Tie",
 //    "Black and White" decor theme).
 //
-// This cannot be an exhaustive list of every nationality/ethnicity/religion
-// on Earth - that is a known, disclosed residual limitation, not a claim of
-// completeness. The adjacency requirement is the real defense (it generalizes
-// to demonyms never explicitly listed here, as long as the model phrases them
-// as "<demonym> guests/family/..."); the word lists below are a backstop for
-// the most common cases, reinforced by the system prompt's own instruction to
-// the model never to name groups after personal traits.
+// This is a best-effort backstop against the most common cases, not a
+// complete classifier - it will not catch every unlisted demonym/religion/
+// nationality, especially outside the several dozen enumerated here, in
+// either language. The system prompt (see DYNAMIC_SYSTEM_PROMPT below) is
+// the primary defense, instructing the model itself never to name groups
+// after a personal trait; this denylist is a deterministic backstop for the
+// highest-likelihood cases, not a claim that code-level string matching
+// alone achieves exhaustive coverage of every nationality/ethnicity/religion
+// on Earth across two languages - that would be an unbounded problem for a
+// hand-rolled matcher, and is a knowingly accepted, disclosed limitation
+// rather than something this module keeps chasing. The adjacency requirement
+// (below) is what generalizes best beyond the literal words enumerated here:
+// it catches demonyms never explicitly listed, as long as the model phrases
+// them as "<demonym> guests/family/...".
+//
+// Each of semanticKey/name/description is also checked independently by
+// containsDenylistedContent - never concatenated into one string first. A
+// term at the end of one field must never register as "adjacent" to a term
+// at the start of another just because they were joined before tokenizing.
 const DENYLIST_WORDS = new Set([
   // race / ethnicity (English) - concept nouns, no innocent adjacent-noun
   // use the way a nationality adjective has ("Chinese Tea Ceremony"), so
@@ -146,6 +158,12 @@ const DENYLIST_WORDS = new Set([
   // race / ethnicity (Spanish)
   "raza",
   "etnia",
+  // religion (English + Spanish, via normalization) - the bare NOUN "Religion"
+  // has no innocent standalone use as a photo-gallery-group name the way the
+  // ADJECTIVE "Catholic"/"Religious" does ("Catholic Mass", "Religious
+  // Ceremony" are legitimate). "religious"/"religioso"/"religiosa" (the
+  // adjective) stay adjacency-gated in PEOPLE_ADJACENT_TERMS below.
+  "religion",
   // gender / sexuality inference (English; "gay"/"straight" deliberately
   // excluded from this bare list - see PEOPLE_ADJACENT_TERMS)
   "gender",
@@ -285,11 +303,10 @@ const PEOPLE_ADJACENT_TERMS = new Set([
   // once the accent is stripped, so one entry covers both languages'
   // singular; only the Spanish plural needs its own entry.
   "israelies",
-  // religion (English) - adjacency-gated, not bare-word, so real ceremony
-  // names like "Jewish Chuppah Ceremony" / "La Misa Católica" (below) survive.
-  // "religion"/"religious" also cover the accented Spanish "religión" once
-  // normalizeForDenylist strips its diacritic - one entry for both languages.
-  "religion",
+  // religion (English) - adjacency-gated ADJECTIVE, not bare-word, so real
+  // ceremony names like "Jewish Chuppah Ceremony" / "Religious Ceremony" /
+  // "La Misa Católica" (below) survive. The bare NOUN "religion" is in
+  // DENYLIST_WORDS above instead - it has no equivalent innocent use.
   "religious",
   "christian",
   "christians",
@@ -304,7 +321,13 @@ const PEOPLE_ADJACENT_TERMS = new Set([
   "atheists",
   "catholic",
   "catholics",
-  // religion (Spanish)
+  // religion (Spanish) - adjective forms only ("religioso"/"religiosa"); the
+  // bare noun "religión" normalizes to "religion" and is bare-word matched
+  // above instead, same reasoning as the English noun/adjective split.
+  "religioso",
+  "religiosa",
+  "religiosos",
+  "religiosas",
   "cristiano",
   "cristiana",
   "cristianos",
@@ -451,18 +474,33 @@ function normalizeForDenylist(value: string): string {
     .toLowerCase();
 }
 
-function containsDenylistedContent(...parts: Array<string | null>): boolean {
-  const normalized = normalizeForDenylist(parts.filter((part): part is string => Boolean(part)).join(" "));
+// Checks ONE field's text for denylisted content. Each of semanticKey/name/
+// description is checked independently - never concatenated with another
+// field first. Concatenating fields before tokenizing let the *last* word of
+// one field register as "adjacent" to the *first* word of the next (e.g.
+// name "Guest Arrivals" + description "Korean hanbok and welcome drinks"
+// joining into "...arrivals korean hanbok..." with no real relationship
+// between "arrivals" and "korean"), which both the phrase check and the
+// people-adjacency check are boundary-sensitive to in exactly this way - a
+// term in one field must never be treated as adjacent to a term in a
+// different field just because they were joined into one string first.
+function fieldHasDenylistedContent(rawField: string): boolean {
+  const normalized = normalizeForDenylist(rawField);
   // Collapse everything but letters into single spaces so hyphenated or
   // punctuated forms ("black-guests") are checked identically to spaced
   // ones ("black guests"), for both the phrase and word-token checks below.
   const spaced = normalized.replace(/[^a-z]+/g, " ").trim();
+  if (!spaced) return false;
   if (DENYLIST_PHRASES.some((phrase) => spaced.includes(phrase))) return true;
 
   const tokens = spaced.split(" ").filter(Boolean);
   if (tokens.some((token) => DENYLIST_WORDS.has(token))) return true;
 
   return isPeopleAdjacentDenylistHit(tokens);
+}
+
+function containsDenylistedContent(...parts: Array<string | null>): boolean {
+  return parts.some((part) => (part ? fieldHasDenylistedContent(part) : false));
 }
 
 // ---------------------------------------------------------------------------
