@@ -99,8 +99,14 @@ async function defaultGenerateText(request: { system: string; prompt: string }):
 // purposes, not a judgment about them; "Elderly Guests" or "Overweight
 // Guests" would be judgmental/segregating in a way "Children" is not.
 // ---------------------------------------------------------------------------
+// Bilingual (English + Spanish) per this codebase's non-negotiable rule that
+// user-facing behavior supports both languages - a denylist that only catches
+// English category names is a real gap, not an English-only feature. Entries
+// below are written in their post-normalization (accent-stripped, lowercase)
+// form; see `normalizeForDenylist` - "religión" and "religion" collapse to
+// the same token once diacritics are stripped, so a single entry covers both.
 const DENYLIST_WORDS = new Set([
-  // race / ethnicity
+  // race / ethnicity / nationality (English)
   "race",
   "racial",
   "races",
@@ -111,7 +117,37 @@ const DENYLIST_WORDS = new Set([
   "latino",
   "latina",
   "biracial",
-  // religion
+  "asian",
+  "african",
+  "arab",
+  "indian",
+  "chinese",
+  "korean",
+  "japanese",
+  "filipino",
+  "filipina",
+  "mexican",
+  // race / ethnicity / nationality (Spanish)
+  "raza",
+  "etnia",
+  "asiatico",
+  "asiatica",
+  "africano",
+  "africana",
+  "arabe",
+  "indio",
+  "india",
+  "chino",
+  "china",
+  "coreano",
+  "coreana",
+  "japones",
+  "japonesa",
+  "mexicano",
+  "mexicana",
+  "hispano",
+  "hispana",
+  // religion (English)
   "religion",
   "religious",
   "christian",
@@ -127,7 +163,19 @@ const DENYLIST_WORDS = new Set([
   "atheists",
   "catholic",
   "catholics",
-  // gender / sexuality inference
+  // religion (Spanish; "religion" above already matches normalized "religión")
+  "cristiano",
+  "cristiana",
+  "musulman",
+  "musulmana",
+  "judio",
+  "judia",
+  "budista",
+  "catolico",
+  "catolica",
+  "ateo",
+  "atea",
+  // gender / sexuality inference (English)
   "gender",
   "transgender",
   "cisgender",
@@ -142,29 +190,60 @@ const DENYLIST_WORDS = new Set([
   "homosexual",
   "sexuality",
   "lgbtq",
-  // body-shaming
+  // gender / sexuality inference (Spanish)
+  "genero",
+  "transgenero",
+  "lesbiana",
+  "sexualidad",
+  // body-shaming (English)
   "fat",
   "obese",
   "overweight",
   "skinny",
   "chubby",
   "underweight",
-  // age-inference-as-a-category (role-based groups like "Children" are not
-  // denylisted - see note above)
+  // body-shaming (Spanish; "delgado"/"delgada" deliberately excluded - too
+  // common as a surname (e.g. "The Delgado Family") to safely denylist)
+  "gordo",
+  "gorda",
+  "obeso",
+  "obesa",
+  // age-inference-as-a-category (English; role-based groups like "Children"
+  // are not denylisted - see note above)
   "elderly",
+  "senior",
   "geriatric",
-  // disability inference
+  // age-inference-as-a-category (Spanish)
+  "mayores",
+  "ancianos",
+  "ancianas",
+  // disability inference (English)
   "disabled",
   "disability",
   "handicapped",
-  // generically demeaning
+  // disability inference (Spanish)
+  "discapacitado",
+  "discapacitada",
+  "discapacidad",
+  // generically demeaning (English)
   "ugly",
   "stupid",
   "dumb",
   "loser",
   "creepy",
+  // generically demeaning (Spanish)
+  "feo",
+  "fea",
+  "estupido",
+  "estupida",
+  "tonto",
+  "tonta",
 ]);
 
+// "black"/"white" (and Spanish "negro"/"blanco") must be phrases, not
+// standalone denylist words - as bare words they would false-positive on
+// legitimate wedding-photo category names like "Black Tie" or a "Black and
+// White" decor theme. Scoped narrowly to guest/attendee/family combinations.
 const DENYLIST_PHRASES = [
   "old people",
   "young people",
@@ -176,16 +255,38 @@ const DENYLIST_PHRASES = [
   "skin color",
   "skin tone",
   "people of color",
+  "black guests",
+  "white guests",
+  "black attendees",
+  "white attendees",
+  "black family",
+  "white family",
+  "invitados negros",
+  "invitados blancos",
+  "familia negra",
+  "familia blanca",
 ];
 
-function containsDenylistedContent(...parts: Array<string | null>): boolean {
-  const text = parts
-    .filter((part): part is string => Boolean(part))
-    .join(" ")
+// Strips diacritics (NFD-decompose, then drop the combining marks) so
+// "Religión" normalizes to "religion" the same as its unaccented English
+// cognate, instead of a naive `.toLowerCase()` alone silently splitting it
+// into unrelated tokens at the accented character.
+function normalizeForDenylist(value: string): string {
+  return value
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
-  if (DENYLIST_PHRASES.some((phrase) => text.includes(phrase))) return true;
+}
 
-  const tokens = text.split(/[^a-z]+/).filter(Boolean);
+function containsDenylistedContent(...parts: Array<string | null>): boolean {
+  const normalized = normalizeForDenylist(parts.filter((part): part is string => Boolean(part)).join(" "));
+  // Collapse everything but letters into single spaces so hyphenated or
+  // punctuated forms ("black-guests") are checked identically to spaced
+  // ones ("black guests"), for both the phrase and word-token checks below.
+  const spaced = normalized.replace(/[^a-z]+/g, " ").trim();
+  if (DENYLIST_PHRASES.some((phrase) => spaced.includes(phrase))) return true;
+
+  const tokens = spaced.split(" ").filter(Boolean);
   return tokens.some((token) => DENYLIST_WORDS.has(token));
 }
 
@@ -253,6 +354,24 @@ function parseJsonResponse(text: string): unknown {
 
 function normalizeKey(value: string): string {
   return value.trim().toLowerCase();
+}
+
+// Canonicalizes a semantic key so casing/punctuation drift from the model
+// ("Cake Cutting" vs "cake-cutting" vs "cake_cutting") always collapses to
+// the same literal string: lowercase, strip everything but alphanumerics and
+// whitespace/hyphens, collapse whitespace/hyphen runs to a single hyphen,
+// trim leading/trailing hyphens. This is the plan's "normalized semantic
+// keys" requirement - applied identically at the merge-lookup point and to
+// the final emitted value, so the key that goes into the merge Map is always
+// exactly the key that comes out (no separate normalization step for
+// comparison vs. output that could silently diverge).
+function slugify(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/[\s-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
 }
 
 function clip(value: string, maxLength: number): string {
@@ -325,18 +444,20 @@ export async function generateDynamicHighlights(
     throw new Error("AI response missing a 'groups' array");
   }
 
-  // Keyed by normalized semantic key so duplicate/near-duplicate groups the
-  // model returns under the same key merge instead of colliding later at
-  // the (event_id, source, semantic_key) uniqueness boundary.
+  // Keyed by slugified (canonicalized) semantic key so duplicate/near-
+  // duplicate groups the model returns under casing/punctuation variants of
+  // the same key ("Cake Cutting" vs "cake-cutting") merge instead of
+  // colliding later at the (event_id, source, semantic_key) uniqueness
+  // boundary.
   const merged = new Map<string, HighlightProposal>();
 
   for (const raw of parsed.groups as RawDynamicGroup[]) {
     if (!raw || typeof raw !== "object") continue;
     if (typeof raw.semanticKey !== "string" || typeof raw.name !== "string") continue;
 
-    const semanticKey = clip(raw.semanticKey, MAX_SEMANTIC_KEY_LENGTH);
+    const semanticKeySlug = slugify(clip(raw.semanticKey, MAX_SEMANTIC_KEY_LENGTH));
     const name = clip(raw.name, MAX_NAME_LENGTH);
-    if (!semanticKey || !name) continue;
+    if (!semanticKeySlug || !name) continue;
 
     const description =
       typeof raw.description === "string" && raw.description.trim().length > 0
@@ -345,7 +466,7 @@ export async function generateDynamicHighlights(
 
     // Sensitive/identity-inference category names are excluded outright -
     // never partially sanitized or renamed, just dropped.
-    if (containsDenylistedContent(semanticKey, name, description)) continue;
+    if (containsDenylistedContent(semanticKeySlug, name, description)) continue;
 
     const rawMediaIds = Array.isArray(raw.mediaIds) ? raw.mediaIds : [];
     const mediaIds = Array.from(
@@ -356,23 +477,24 @@ export async function generateDynamicHighlights(
     // Strong-match preservation: existing groups carry no membership here,
     // so the only evidence available to compare a freshly proposed group
     // against an already-persisted one is textual. Treat an exact match
-    // (after trim/lowercase normalization) of either the semantic key or
-    // the display name as "the same group" - covers both the case where
-    // the model keeps the key but rewords the name, and the case where it
-    // keeps the name but drifts the key format. When matched, the
-    // persisted group's key and name win over whatever the model returned
-    // this round, so a host-renamed group's label - and the persisted row
-    // Task 4 will reuse by semantic key - survive regeneration untouched.
+    // (after slugifying the key, and trim/lowercase-normalizing the name) of
+    // either the semantic key or the display name as "the same group" -
+    // covers both the case where the model keeps the key but rewords the
+    // name, and the case where it keeps the name but drifts the key format.
+    // When matched, the persisted group's key and name win over whatever the
+    // model returned this round, so a host-renamed group's label - and the
+    // persisted row Task 4 will reuse by semantic key - survive regeneration
+    // untouched.
     const strongMatch = input.existingGroups.find(
-      (group) =>
-        normalizeKey(group.semanticKey) === normalizeKey(semanticKey) ||
-        normalizeKey(group.name) === normalizeKey(name),
+      (group) => slugify(group.semanticKey) === semanticKeySlug || normalizeKey(group.name) === normalizeKey(name),
     );
-    const resolvedKey = strongMatch ? strongMatch.semanticKey : semanticKey;
+    // Canonicalized (slugified) either way - a strong-matched existing key is
+    // re-slugified too, so the merge-lookup key and the emitted value are
+    // always the exact same string regardless of which branch produced it.
+    const resolvedKey = strongMatch ? slugify(strongMatch.semanticKey) : semanticKeySlug;
     const resolvedName = strongMatch ? strongMatch.name : name;
 
-    const mergeKey = normalizeKey(resolvedKey);
-    const existingProposal = merged.get(mergeKey);
+    const existingProposal = merged.get(resolvedKey);
     if (existingProposal) {
       for (const mediaId of mediaIds) {
         if (!existingProposal.mediaIds.includes(mediaId)) existingProposal.mediaIds.push(mediaId);
@@ -380,7 +502,7 @@ export async function generateDynamicHighlights(
       continue;
     }
 
-    merged.set(mergeKey, {
+    merged.set(resolvedKey, {
       semanticKey: resolvedKey,
       name: resolvedName,
       description,
@@ -389,7 +511,27 @@ export async function generateDynamicHighlights(
     });
   }
 
-  const proposals = Array.from(merged.values());
+  // Second pass: two surviving groups can still carry different semantic
+  // keys yet an identical (or whitespace/casing-only different) display
+  // name - e.g. {key:"cake", name:"Cake"} and {key:"the-cake", name:"Cake"}
+  // on a first-ever generation, where there is no existing-groups list to
+  // snap either of them against. The plan requires "4-8 distinct" groups;
+  // two identically-labeled guest-facing tabs is not distinct, so merge on
+  // normalized name too, keeping whichever entry was encountered first.
+  const byName = new Map<string, HighlightProposal>();
+  for (const proposal of Array.from(merged.values())) {
+    const nameKey = normalizeKey(proposal.name);
+    const existingByName = byName.get(nameKey);
+    if (existingByName) {
+      for (const mediaId of proposal.mediaIds) {
+        if (!existingByName.mediaIds.includes(mediaId)) existingByName.mediaIds.push(mediaId);
+      }
+      continue;
+    }
+    byName.set(nameKey, proposal);
+  }
+
+  const proposals = Array.from(byName.values());
   if (proposals.length < MIN_DYNAMIC_GROUPS || proposals.length > MAX_DYNAMIC_GROUPS) {
     throw new Error(
       `AI response produced ${proposals.length} valid group(s); expected between ${MIN_DYNAMIC_GROUPS} and ${MAX_DYNAMIC_GROUPS}`,

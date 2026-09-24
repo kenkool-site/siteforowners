@@ -12,6 +12,10 @@ function descriptor(overrides: Partial<MemoryMediaDescriptor> & { mediaId: strin
   };
 }
 
+function normalizeForTest(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 function hostGroup(overrides: Partial<MemoryHighlightGroup> & { id: string }): MemoryHighlightGroup {
   return {
     eventId: "event-1",
@@ -129,6 +133,46 @@ test("generateDynamicHighlights rejects when the AI response contains no parsabl
       { descriptors, existingGroups: [] },
       { generateText: async () => "I'm sorry, I can't help with that." },
     ),
+    /JSON/,
+  );
+});
+
+test("generateDynamicHighlights rejects when fewer than 4 valid groups survive", async () => {
+  await assert.rejects(
+    generateDynamicHighlights(
+      { descriptors, existingGroups: [] },
+      {
+        generateText: async () =>
+          JSON.stringify({
+            groups: [
+              { semanticKey: "cake-cutting", name: "Cake Cutting", description: null, mediaIds: ["m1"] },
+              { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m2"] },
+              { semanticKey: "decorations", name: "Decorations", description: null, mediaIds: ["m3"] },
+            ],
+          }),
+      },
+    ),
+    /valid group/,
+  );
+});
+
+test("generateDynamicHighlights rejects when more than 8 valid groups are returned", async () => {
+  await assert.rejects(
+    generateDynamicHighlights(
+      { descriptors, existingGroups: [] },
+      {
+        generateText: async () =>
+          JSON.stringify({
+            groups: Array.from({ length: 9 }, (_, i) => ({
+              semanticKey: `group-${i}`,
+              name: `Group ${i}`,
+              description: null,
+              mediaIds: ["m1"],
+            })),
+          }),
+      },
+    ),
+    /valid group/,
   );
 });
 
@@ -161,6 +205,144 @@ test("generateDynamicHighlights preserves an existing group's semantic key and h
   const cakeGroup = proposals.find((group) => group.semanticKey === "cake-cutting");
   assert.ok(cakeGroup);
   assert.equal(cakeGroup!.name, "The Big Cake Moment");
+});
+
+test("generateDynamicHighlights drops English ethnicity/nationality and age category names beyond the original short list", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            { semanticKey: "cake-cutting", name: "Cake Cutting", description: null, mediaIds: ["m1"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m2"] },
+            { semanticKey: "decorations", name: "Decorations", description: null, mediaIds: ["m3"] },
+            { semanticKey: "gifts", name: "Gifts", description: null, mediaIds: ["m4"] },
+            { semanticKey: "asian-guests", name: "Asian Guests", description: null, mediaIds: ["m5"] },
+            { semanticKey: "senior-guests", name: "Senior Guests", description: null, mediaIds: ["m6"] },
+          ],
+        }),
+    },
+  );
+
+  assert.equal(proposals.length, 4);
+  assert.ok(!proposals.some((group) => /asian|senior/i.test(group.name)));
+});
+
+test("generateDynamicHighlights drops black/white guest-grouping phrases but keeps legitimate 'Black Tie' and 'Black and White' names", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            { semanticKey: "cake-cutting", name: "Cake Cutting", description: null, mediaIds: ["m1"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m2"] },
+            { semanticKey: "black-tie", name: "Black Tie", description: null, mediaIds: ["m3"] },
+            { semanticKey: "black-and-white", name: "Black and White", description: null, mediaIds: ["m4"] },
+            { semanticKey: "black-guests", name: "Black Guests", description: null, mediaIds: ["m5"] },
+          ],
+        }),
+    },
+  );
+
+  assert.equal(proposals.length, 4);
+  assert.ok(!proposals.some((group) => group.name === "Black Guests"));
+  assert.ok(proposals.some((group) => group.name === "Black Tie"));
+  assert.ok(proposals.some((group) => group.name === "Black and White"));
+});
+
+test("generateDynamicHighlights drops Spanish-language denylisted category names (raza, mayores, discapacidad)", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            { semanticKey: "cake-cutting", name: "Cake Cutting", description: null, mediaIds: ["m1"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m2"] },
+            { semanticKey: "decorations", name: "Decorations", description: null, mediaIds: ["m3"] },
+            { semanticKey: "gifts", name: "Gifts", description: null, mediaIds: ["m4"] },
+            { semanticKey: "raza", name: "Invitados por Raza", description: null, mediaIds: ["m5"] },
+            { semanticKey: "mayores", name: "Fotos de los Mayores", description: null, mediaIds: ["m6"] },
+            { semanticKey: "discapacidad", name: "Invitados con Discapacidad", description: null, mediaIds: ["m7"] },
+          ],
+        }),
+    },
+  );
+
+  assert.equal(proposals.length, 4);
+  assert.ok(!proposals.some((group) => /raza|mayores|discapacidad/i.test(group.name)));
+});
+
+test("generateDynamicHighlights drops an accented Spanish denylisted term after Unicode normalization (Religión)", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            { semanticKey: "cake-cutting", name: "Cake Cutting", description: null, mediaIds: ["m1"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m2"] },
+            { semanticKey: "decorations", name: "Decorations", description: null, mediaIds: ["m3"] },
+            { semanticKey: "gifts", name: "Gifts", description: null, mediaIds: ["m4"] },
+            { semanticKey: "religion-guests", name: "Religión", description: "Fotos por religión", mediaIds: ["m5"] },
+          ],
+        }),
+    },
+  );
+
+  assert.equal(proposals.length, 4);
+  assert.ok(!proposals.some((group) => group.name === "Religión"));
+});
+
+test("generateDynamicHighlights canonicalizes semantic keys so casing/punctuation variants of the same key merge under one slug", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            // Different display names on purpose - if these merge, it must
+            // be because their semantic keys slugify to the same value
+            // ("cake-cutting"), not because of the name-distinctness pass.
+            { semanticKey: "Cake Cutting!!", name: "Cake Time", description: null, mediaIds: ["m1"] },
+            { semanticKey: "cake-cutting", name: "Cake O'Clock", description: null, mediaIds: ["m2"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m3"] },
+            { semanticKey: "decorations", name: "Decorations", description: null, mediaIds: ["m4"] },
+            { semanticKey: "gifts", name: "Gifts", description: null, mediaIds: ["m5"] },
+          ],
+        }),
+    },
+  );
+
+  const cakeGroups = proposals.filter((group) => group.semanticKey === "cake-cutting");
+  assert.equal(cakeGroups.length, 1);
+  assert.deepEqual(cakeGroups[0].mediaIds.sort(), ["m1", "m2"]);
+  assert.equal(proposals.length, 4);
+});
+
+test("generateDynamicHighlights merges two groups with different semantic keys but the same normalized display name", async () => {
+  const proposals = await generateDynamicHighlights(
+    { descriptors, existingGroups: [] },
+    {
+      generateText: async () =>
+        JSON.stringify({
+          groups: [
+            { semanticKey: "cake", name: "Cake", description: null, mediaIds: ["m1"] },
+            { semanticKey: "the-cake", name: "  cake  ", description: null, mediaIds: ["m2"] },
+            { semanticKey: "dancing", name: "Dancing", description: null, mediaIds: ["m3"] },
+            { semanticKey: "decorations", name: "Decorations", description: null, mediaIds: ["m4"] },
+            { semanticKey: "gifts", name: "Gifts", description: null, mediaIds: ["m5"] },
+          ],
+        }),
+    },
+  );
+
+  const cakeGroups = proposals.filter((group) => normalizeForTest(group.name) === "cake");
+  assert.equal(cakeGroups.length, 1);
+  assert.deepEqual(cakeGroups[0].mediaIds.sort(), ["m1", "m2"]);
+  assert.equal(proposals.length, 4);
 });
 
 test("generateHostDefinedAssignments includes each host group's name and description in the prompt sent to the model", async () => {
