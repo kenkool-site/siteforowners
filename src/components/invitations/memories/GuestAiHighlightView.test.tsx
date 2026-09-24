@@ -33,7 +33,6 @@ function mediaItem(id: string): GuestHighlightGroup["media"][number] {
     objectKeyThumbnail: `thumb/${id}.webp`,
     capturedAt: "2026-09-22T20:00:00Z",
     uploadedAt: "2026-09-22T20:01:00Z",
-    momentId: null,
   };
 }
 

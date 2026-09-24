@@ -20,11 +20,10 @@ function distanceToWindow(captured: number, startsAt: number, endsAt: number): n
 }
 
 export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]): MemoryMoment | null {
-  // Deliberately time-window only, even though media.momentId (an AI
-  // classification override) is available — the "Moments" tab is the host's
-  // own schedule-based view and must never silently disagree with it. AI's
-  // content-based grouping lives in its own separate "AI Highlight" tab
-  // (the independent, multi-group system in highlight-types.ts/repository.ts)
+  // Deliberately time-window only — the "Moments" tab is the host's own
+  // schedule-based view and must never silently disagree with it. AI's
+  // content-based grouping lives in its own separate "AI Highlight" tab (the
+  // independent, multi-group system in highlight-types.ts/repository.ts)
   // instead of overriding this one.
   if (moments.length === 0 || !media.capturedAt) return null;
   const captured = Date.parse(media.capturedAt);

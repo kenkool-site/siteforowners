@@ -7,7 +7,6 @@ const item: PublicMemoryMedia = {
   id: "media-1", mediaKind: "photo", uploaderDisplayName: "Jamie",
   objectKeyDisplay: "display.webp", objectKeyThumbnail: "thumb.webp",
   capturedAt: "2026-09-22T20:00:00Z", uploadedAt: "2026-09-22T20:01:00Z",
-  momentId: null,
 };
 
 test("gallery groups recent evening, afternoon, and earlier media", () => {
@@ -71,15 +70,4 @@ test("a tie between two equidistant moments keeps the earlier sortOrder", () => 
 
 test("no moments defined yet returns null, not a crash", () => {
   assert.equal(momentForMedia(item, []), null);
-});
-
-test("momentForMedia ignores an AI override entirely — the Moments tab is time-only", () => {
-  // item's capturedAt (20:00) falls inside "on-time"; momentId points elsewhere,
-  // but the regular Moments tab must never disagree with the host's own schedule.
-  const classified = { ...item, momentId: "content-matched" };
-  const found = momentForMedia(classified, [
-    { id: "on-time", name: "On Time", startsAt: "2026-09-22T19:00:00Z", endsAt: "2026-09-22T21:00:00Z", sortOrder: 1 },
-    { id: "content-matched", name: "Content Matched", startsAt: "2026-09-23T00:00:00Z", endsAt: "2026-09-23T01:00:00Z", sortOrder: 2 },
-  ]);
-  assert.equal(found?.id, "on-time");
 });

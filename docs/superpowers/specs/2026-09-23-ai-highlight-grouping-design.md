@@ -251,11 +251,51 @@ The existing complete Memories suite, TypeScript validation, and production buil
 
 ## Rollout
 
-1. Apply the additive migration.
+Delivered across eight tasks, each merged after independent review:
+
+1. Apply the additive migrations — `058_memory_highlight_grouping.sql` (the four new tables: `memory_media_descriptors`, `memory_highlight_groups`, `memory_highlight_generations`, `memory_highlight_media`, plus event-level mode/state columns) and `059_memory_highlight_missing_descriptors_rpc.sql` (a follow-up fix for the cross-event descriptor-backfill query, which had stopped finding work once the platform's oldest 200 approved media rows were all already described — replaced with a real `LEFT JOIN ... WHERE IS NULL` RPC, `list_approved_media_missing_descriptors_across_events`, plus a supporting partial index).
 2. Deploy descriptor persistence and generation APIs without changing the guest UI.
-3. Enable automatic descriptors for new uploads.
+3. Enable automatic descriptors for new uploads (descriptor extraction now runs synchronously at moderation approval, alongside the moderation route's existing Rekognition call).
 4. Deploy host controls and the explicit existing-event generation action.
 5. Switch AI Highlight guest reads to published highlight generations.
-6. Validate production generation on one test event before enabling it broadly.
+6. Validate production generation on one test event before enabling it broadly (see the smoke test below).
+7. Remove the old, superseded AI-to-Moment classifier (`moment-classification.ts`) and the guest-only `momentId` override projection once the above is verified in production. **Done** — the classifier and its override-loading call site are deleted; `memory_moment_media` itself is intentionally left in the database, unused by any code path, in case a future host manual-override feature wants it.
 
-No existing Moment data is deleted or repurposed. The old AI-to-Moment classifier can be removed only after the new guest and processing paths are verified in production.
+No existing Moment data is deleted or repurposed; timestamp-based Moments (`memory_moments`) are untouched throughout.
+
+### Required environment variables
+
+- `ANTHROPIC_API_KEY` — the generator (`highlight-generator.ts`) calls the project's existing Anthropic SDK to name and assign semantic groups from stored descriptors. Without it, generation processing fails per-item (logged, non-fatal to the cron batch) and the previous published generation is retained.
+- `AWS_REGION` — passed to the Rekognition client (`ai-provider.ts`) used for descriptor extraction; defaults to `us-east-1` if unset.
+- `CRON_SECRET` — Bearer-token auth for `/api/cron/memories-highlights`, following the same convention as the project's other cron routes (`memories-dlq-drain`, `send-reminders`, `send-review-requests`).
+
+### Cron schedule
+
+`vercel.json` registers:
+
+```json
+{ "path": "/api/cron/memories-highlights", "schedule": "*/5 * * * *" }
+```
+
+Every five minutes, the route runs two bounded passes in one invocation: (1) claim and process up to 3 queued highlight generations (`listQueuedHighlightGenerations` → `processHighlightGeneration`), then (2) backfill descriptors for up to 5 approved-but-undescribed media items platform-wide, for media that predates this feature or whose synchronous extraction previously failed.
+
+### Host-triggered generation procedure
+
+For an existing event, a host uses the **Generate AI Highlights** / **Regenerate** control in the Memories admin panel (`OwnerHighlightsManager.tsx`), which calls:
+
+```
+POST /api/invitations/events/[eventId]/memories/highlights/generate
+```
+
+This queues a highlight generation (or reports the one already pending) via `resolveHighlightGenerationRequest`; the cron worker above picks it up on its next run (within 5 minutes) and publishes atomically on success, preserving the prior published generation on failure. New uploads after this feature shipped get descriptors automatically at moderation approval and need no manual backfill.
+
+### Production smoke test
+
+Run once against a real (non-seed) event before considering the rollout complete:
+
+1. Create or choose an event with several approved photos spanning at least two distinct subjects (e.g. cake and dancing).
+2. As the host, click **Generate AI Highlights**.
+3. Wait for the generation to reach published status (progress/last-published status shown in the host panel; typically within one 5-minute cron tick).
+4. As a guest, open the AI Highlight tab and verify at least one photo appears in more than one semantic group.
+5. Open the Moments tab and confirm it still groups purely by timestamp (unaffected by the AI Highlight generation above).
+6. As the host, switch to host-defined groups (create at least one) and verify the automatic/fallback groups disappear from the guest AI Highlight tab, replaced by the host-defined group(s).

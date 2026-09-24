@@ -6,9 +6,9 @@ import type { MemoryMedia } from "./types";
 export type PublicMemoryMedia = Pick<
   MemoryMedia,
   "id" | "mediaKind" | "uploaderDisplayName" | "objectKeyDisplay" | "objectKeyThumbnail" | "capturedAt" | "uploadedAt"
-> & { momentId: string | null };
+>;
 
-export function toPublicMemoryMedia(media: MemoryMedia, momentId: string | null = null): PublicMemoryMedia {
+export function toPublicMemoryMedia(media: MemoryMedia): PublicMemoryMedia {
   return {
     id: media.id,
     mediaKind: media.mediaKind,
@@ -17,7 +17,6 @@ export function toPublicMemoryMedia(media: MemoryMedia, momentId: string | null 
     objectKeyThumbnail: media.objectKeyThumbnail,
     capturedAt: media.capturedAt,
     uploadedAt: media.uploadedAt,
-    momentId,
   };
 }
 

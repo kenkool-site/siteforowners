@@ -1,6 +1,8 @@
 // src/lib/invitations/memories/gallery.test.ts
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
 import { computeGalleryVisible, toPublicMemoryMedia } from "./gallery";
 import type { MemoryMedia } from "./types";
 
@@ -54,11 +56,57 @@ test("public gallery projection excludes original keys, RSVP ids, and moderation
     objectKeyThumbnail: "thumbnails/event-1/media-1.webp",
     capturedAt: null,
     uploadedAt: "2026-09-21T00:00:00Z",
-    momentId: null,
   });
 });
 
-test("public gallery projection carries a moment override when one is passed", () => {
-  const projected = toPublicMemoryMedia(baseMedia({}), "moment-1");
-  assert.equal(projected.momentId, "moment-1");
+// Separation regression guard for Task 8: the old, one-shot AI-to-Moment
+// classifier (matched Rekognition labels against a host-named Moment's own
+// name) is fully superseded by the independent, multi-group AI Highlight
+// system (highlight-types.ts / highlight-service.ts / GuestAiHighlightView).
+// This walks the production Memories source (test files excluded, since
+// negative-assertion tests like this one and moderate-route.test.ts
+// legitimately contain these strings) and fails if anything still imports
+// the deleted moment-classification module or calls setAiClassifiedMoment —
+// the function that used to write an AI-derived row into memory_moment_media.
+// setAiClassifiedMoment's *definition* legitimately remains in repository.ts
+// for a possible future host manual-override feature, so that file is
+// exempted from the "calls" check (it is not exempted from the "imports
+// moment-classification" check, which it has never matched anyway).
+const PRODUCTION_ROOTS = [
+  "src/lib/invitations/memories",
+  "src/components/invitations/memories",
+  "src/app/api/memories",
+  "src/app/api/invitations/events",
+];
+
+function collectProductionSourceFiles(root: string): string[] {
+  const absoluteRoot = path.join(process.cwd(), root);
+  const files: string[] = [];
+  const stack = [absoluteRoot];
+  while (stack.length > 0) {
+    const dir = stack.pop()!;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(fullPath);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+      if (/\.test\.(ts|tsx)$/.test(entry.name)) continue;
+      files.push(fullPath);
+    }
+  }
+  return files;
+}
+
+test("no production source imports the deleted moment-classification module or calls setAiClassifiedMoment", () => {
+  for (const root of PRODUCTION_ROOTS) {
+    for (const file of collectProductionSourceFiles(root)) {
+      const source = readFileSync(file, "utf8");
+      assert.doesNotMatch(source, /moment-classification/, `${file} still references the deleted moment-classification module`);
+      if (path.basename(file) !== "repository.ts") {
+        assert.doesNotMatch(source, /setAiClassifiedMoment\s*\(/, `${file} still calls setAiClassifiedMoment`);
+      }
+    }
+  }
 });
