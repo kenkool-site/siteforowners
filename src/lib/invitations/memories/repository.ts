@@ -530,6 +530,58 @@ export async function deleteMemoryHighlightGroup(eventId: string, groupId: strin
   if (error) throw new Error(`failed to delete memory_highlight_group: ${error.message}`);
 }
 
+// Task 6 addition (host-facing mode toggle): the one write Task 4 never
+// needed, since its own callers only ever READ highlight_mode (via
+// getHighlightGenerationState) to decide which classifier to run. Mirrors
+// updateEventMemoriesSettings's shape one column over.
+export async function updateEventHighlightMode(eventId: string, mode: HighlightMode): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client.from("invitation_events").update({ highlight_mode: mode }).eq("id", eventId);
+  if (error) throw new Error(`failed to update event highlight mode: ${error.message}`);
+}
+
+// Task 6 addition: the host-facing groups list, unlike
+// getPublishedMemoryHighlights, must show ALL of the host's own group
+// definitions regardless of the currently published generation (a group the
+// host just created, or one left over from a prior stint in host_defined
+// mode, must still be visible/manageable) and is never filtered by
+// is_visible (the host is the one toggling that flag, so a hidden group must
+// still appear here). Each group is annotated with how many media items are
+// currently assigned to it under the event's published generation — 0 for a
+// brand-new group, or for any group when nothing has published yet.
+export async function listHostDefinedHighlightGroupsWithCounts(
+  eventId: string,
+): Promise<Array<MemoryHighlightGroup & { mediaCount: number }>> {
+  const groups = await listMemoryHighlightGroups(eventId, "host_defined");
+  if (groups.length === 0) return [];
+
+  const client = createAdminClient();
+  const { data: eventRow, error: eventError } = await client
+    .from("invitation_events")
+    .select("published_highlight_generation_id")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (eventError) throw new Error(`failed to load event for highlight group counts: ${eventError.message}`);
+
+  const generationId = (eventRow?.published_highlight_generation_id as string | null) ?? null;
+  if (!generationId) return groups.map((group) => ({ ...group, mediaCount: 0 }));
+
+  const groupIds = groups.map((group) => group.id);
+  const { data: membershipRows, error: membershipError } = await client
+    .from("memory_highlight_media")
+    .select("group_id")
+    .eq("generation_id", generationId)
+    .in("group_id", groupIds);
+  if (membershipError) throw new Error(`failed to count memory_highlight_media: ${membershipError.message}`);
+
+  const counts = new Map<string, number>();
+  for (const row of membershipRows ?? []) {
+    const groupId = row.group_id as string;
+    counts.set(groupId, (counts.get(groupId) ?? 0) + 1);
+  }
+  return groups.map((group) => ({ ...group, mediaCount: counts.get(group.id) ?? 0 }));
+}
+
 // invitation_events' highlight_generation_status has no 'published' value —
 // a generation reaching 'published' resets the event's own status column
 // back to 'idle' (see the publish RPC), so this event-level enum is
@@ -563,6 +615,35 @@ export async function getHighlightGenerationState(eventId: string): Promise<High
     pendingGenerationId: (data.pending_highlight_generation_id as string | null) ?? null,
     generationStatus: data.highlight_generation_status as EventHighlightGenerationStatus,
     lastGeneratedMediaCount: data.highlight_last_generated_media_count as number,
+  };
+}
+
+// Task 6 addition: the single read the host Highlights management route
+// needs — composes getHighlightGenerationState (mode/settings/generation
+// status) with listHostDefinedHighlightGroupsWithCounts (groups + counts) so
+// both the route handler and the Memories page's server-rendered initial
+// props load from one place rather than duplicating this composition. Returns
+// null exactly when getHighlightGenerationState does (event not found).
+export interface HostHighlightsOverview {
+  mode: HighlightMode;
+  generationStatus: EventHighlightGenerationStatus;
+  pendingGenerationId: string | null;
+  publishedGenerationId: string | null;
+  lastGeneratedMediaCount: number;
+  groups: Array<MemoryHighlightGroup & { mediaCount: number }>;
+}
+
+export async function getHostHighlightsOverview(eventId: string): Promise<HostHighlightsOverview | null> {
+  const state = await getHighlightGenerationState(eventId);
+  if (!state) return null;
+  const groups = await listHostDefinedHighlightGroupsWithCounts(eventId);
+  return {
+    mode: state.highlightMode,
+    generationStatus: state.generationStatus,
+    pendingGenerationId: state.pendingGenerationId,
+    publishedGenerationId: state.publishedGenerationId,
+    lastGeneratedMediaCount: state.lastGeneratedMediaCount,
+    groups,
   };
 }
 

@@ -14,7 +14,10 @@ import {
   createMemoryHighlightGroup,
   updateMemoryHighlightGroup,
   deleteMemoryHighlightGroup,
+  updateEventHighlightMode,
+  listHostDefinedHighlightGroupsWithCounts,
   getHighlightGenerationState,
+  getHostHighlightsOverview,
   queueHighlightGeneration,
   listQueuedHighlightGenerations,
   claimNextHighlightGeneration,
@@ -173,6 +176,24 @@ test("deleteMemoryHighlightGroup deletes from memory_highlight_groups scoped to 
   forbidsMomentsTables(source);
 });
 
+test("updateEventHighlightMode writes invitation_events.highlight_mode scoped by id", () => {
+  const source = updateEventHighlightMode.toString();
+  assert.match(source, /invitation_events/);
+  assert.match(source, /highlight_mode/);
+  assert.match(source, /event_id|\.eq\("id"/);
+});
+
+test("listHostDefinedHighlightGroupsWithCounts lists host_defined groups unfiltered by visibility, annotated with published-generation counts", () => {
+  const source = listHostDefinedHighlightGroupsWithCounts.toString();
+  assert.match(source, /host_defined/);
+  assert.match(source, /published_highlight_generation_id/);
+  assert.match(source, /memory_highlight_media/);
+  // Unlike getPublishedMemoryHighlights, this must never filter by
+  // is_visible — the host managing groups needs to see hidden ones too.
+  assert.doesNotMatch(source, /is_visible/);
+  forbidsMomentsTables(source);
+});
+
 test("getHighlightGenerationState reads invitation_events highlight columns scoped by id", () => {
   const source = getHighlightGenerationState.toString();
   assert.match(source, /highlight_mode/);
@@ -180,6 +201,12 @@ test("getHighlightGenerationState reads invitation_events highlight columns scop
   assert.match(source, /pending_highlight_generation_id/);
   assert.match(source, /highlight_generation_status/);
   assert.match(source, /highlight_last_generated_media_count/);
+});
+
+test("getHostHighlightsOverview composes generation state with host-defined groups+counts", () => {
+  const source = getHostHighlightsOverview.toString();
+  assert.match(source, /getHighlightGenerationState/);
+  assert.match(source, /listHostDefinedHighlightGroupsWithCounts/);
 });
 
 test("queueHighlightGeneration inserts a queued generation and updates the event's pending pointer", () => {
