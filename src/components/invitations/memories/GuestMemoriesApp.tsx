@@ -120,7 +120,7 @@ export function GuestMemoriesApp({
 
       <nav aria-label={t("navigationLabel")} className="fixed inset-x-0 bottom-0 z-20 border-t bg-white/95 backdrop-blur" style={{ borderColor: `${accent}20` }}>
         <div className="mx-auto grid h-[4.25rem] max-w-2xl grid-cols-3">
-          {(["gallery", "moments", "highlights"] as const).map((value) => {
+          {(["gallery", "highlights", "moments"] as const).map((value) => {
             const Icon = value === "gallery" ? Images : value === "moments" ? Users : Sparkles;
             const active = tab === value;
             return <button key={value} type="button" onClick={() => setTab(value)} aria-current={active ? "page" : undefined} className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-semibold" style={{ color: active ? accent : `${text}88` }}>
