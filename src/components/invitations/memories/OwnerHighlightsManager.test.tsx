@@ -100,10 +100,9 @@ async function withMountedComponent(
     await callback({ dom, calls });
     // Let any still-settling fetch/json promise chains from the callback
     // finish before unmounting, so their state updates land inside this
-    // act() rather than as a stray post-unmount warning — mirrors
-    // GuestMemoriesApp.interaction.test.tsx's own real-timer flush.
+    // act() rather than as a stray post-unmount warning.
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await flush();
     });
   } finally {
     await act(async () => root.unmount());
@@ -118,6 +117,19 @@ function jsonResponse(body: unknown, status = 200): Response {
 function click(dom: JSDOM, element: Element | null) {
   assert.ok(element, "expected element to exist before clicking");
   (element as HTMLElement).dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+}
+
+// A real (short) timer wait, not a fixed count of `await Promise.resolve()`
+// ticks — a counted number of microtask ticks isn't reliably enough to drain
+// a multi-hop async chain (e.g. handleModeChange's PATCH -> await refresh()
+// -> a second GET -> .json() -> further setState calls), so some updates
+// land after a narrower act() scope has already closed and get flagged as
+// "not wrapped in act(...)". A real timer lets the whole event loop turn
+// over, draining any number of hops regardless of exactly how many — this
+// mirrors GuestMemoriesApp.interaction.test.tsx's own proven, zero-warning
+// flush pattern.
+function flush(ms = 20): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function setValue(dom: JSDOM, element: Element | null, value: string) {
@@ -181,8 +193,7 @@ test("clicking Generate calls POST .../highlights/generate and reflects the queu
       const button = byText(dom, "button", "Generate highlights");
       await act(async () => {
         click(dom, button);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       });
       const generateCall = calls.find((c) => c.url.endsWith("/highlights/generate"));
       assert.ok(generateCall, "expected a POST to the generate endpoint");
@@ -201,8 +212,7 @@ test("a failed generation offers Retry, and clicking it re-triggers generation",
       assert.ok(retryButton, "expected a Retry control when the last generation failed");
       await act(async () => {
         click(dom, retryButton);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       });
       const generateCall = calls.find((c) => c.url.endsWith("/highlights/generate"));
       assert.ok(generateCall, "Retry must call the same generate endpoint");
@@ -230,9 +240,10 @@ test("selecting the host-defined mode sends PATCH set_mode and reveals group man
         // click event alone leaves .checked untouched, so React sees no
         // value change and never calls the handler.
         hostDefinedRadio!.click();
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
+        // handleModeChange is a two-hop chain (PATCH set_mode, then
+        // await refresh()'s own GET + .json()) — a real wait drains both
+        // hops reliably, unlike a fixed count of microtask ticks.
+        await flush();
       });
       const patchCall = calls.find((c) => c.method === "PATCH");
       assert.ok(patchCall, "expected a PATCH request");
@@ -252,13 +263,21 @@ test("adding a group sends name and optional description, then appends it to the
     async ({ dom, calls }) => {
       const nameInput = dom.window.document.querySelector('input[placeholder="e.g. First Dance"]');
       const descriptionInput = dom.window.document.querySelector('input[placeholder="A short note about this group"]');
-      setValue(dom, nameInput, "Toasts");
-      setValue(dom, descriptionInput, "Speeches from the wedding party");
+      // Typing fires a real "input" event, which triggers the controlled
+      // input's onChange (a setState call) — that must be wrapped in act()
+      // just like a click, or React flags it as an unwrapped update. This
+      // was the actual root cause of this file's stray act() warnings (not
+      // a fetch-timing gap): traced by tagging console.error output with a
+      // per-mount id and confirming exactly which withMountedComponent
+      // invocation each warning fired inside.
+      await act(async () => {
+        setValue(dom, nameInput, "Toasts");
+        setValue(dom, descriptionInput, "Speeches from the wedding party");
+      });
       const addButton = byText(dom, "button", "Add group");
       await act(async () => {
         click(dom, addButton);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       });
       const createCall = calls.find((c) => c.method === "POST" && c.url.endsWith("/highlights"));
       assert.ok(createCall, "expected a POST create call");
@@ -293,12 +312,15 @@ test("renaming a group sends PATCH update_group with the new name", async () => 
         click(dom, renameButton);
       });
       const nameInput = dom.window.document.querySelector('input[maxlength="80"]');
-      setValue(dom, nameInput, "First Dance (Reception)");
+      // See the comment on the "adding a group" test above: typing must be
+      // wrapped in act() too, not just the click.
+      await act(async () => {
+        setValue(dom, nameInput, "First Dance (Reception)");
+      });
       const saveButton = byText(dom, "button", "Save");
       await act(async () => {
         click(dom, saveButton);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       });
       const patchCall = calls.find((c) => c.method === "PATCH");
       assert.ok(patchCall, "expected a PATCH update_group call");
@@ -317,8 +339,7 @@ test("toggling visibility sends PATCH update_group with isVisible flipped", asyn
       assert.ok(hideButton, "expected a Hide control for a currently-visible group");
       await act(async () => {
         click(dom, hideButton);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       });
       const patchCall = calls.find((c) => c.method === "PATCH");
       assert.ok(patchCall);
@@ -338,8 +359,7 @@ test("reordering moves a group down then back up, sending sortOrder swaps both t
       const moveDownButton = dom.window.document.querySelector('[aria-label="Move First Dance down"]');
       await act(async () => {
         click(dom, moveDownButton);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       });
       const sortOrderCalls = calls.filter((c) => c.method === "PATCH").map((c) => c.body as { id: string; sortOrder: number });
       assert.equal(sortOrderCalls.length, 2);
@@ -357,8 +377,7 @@ test("deleting a group confirms, then sends DELETE and removes it from the list"
       const deleteButton = dom.window.document.querySelector('[aria-label="Delete First Dance"]');
       await act(async () => {
         click(dom, deleteButton);
-        await Promise.resolve();
-        await Promise.resolve();
+        await flush();
       });
       const deleteCall = calls.find((c) => c.method === "DELETE");
       assert.ok(deleteCall, "expected a DELETE call");
@@ -382,14 +401,14 @@ test("polls status every pollIntervalMs while queued/processing, and stops once 
     },
     async ({ dom }) => {
       await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 40));
+        await flush(40);
       });
       assert.ok(getCalls >= 1, "expected at least one poll while processing");
       const countAfterFirstWindow = getCalls;
       assert.match(dom.window.document.body.textContent ?? "", /9 photos/);
 
       await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 40));
+        await flush(40);
       });
       assert.equal(getCalls, countAfterFirstWindow, "polling must stop once status is idle");
     },
