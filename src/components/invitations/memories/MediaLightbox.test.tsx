@@ -123,6 +123,11 @@ test("a video item renders a <video controls> element with the display URL, not 
     assert.ok(videoEl, "expected a <video> element for a video item");
     assert.equal(videoEl!.getAttribute("src"), "/api/memories/media/m1/display");
     assert.ok(videoEl!.hasAttribute("controls"));
+    // The feature's global constraint: video must never autoplay — the guest
+    // taps the native controls to start playback. Asserted here so a future
+    // edit (e.g. copy-pasting from a different video component) that adds
+    // `autoPlay` gets caught instead of silently regressing.
+    assert.equal(videoEl!.hasAttribute("autoplay"), false, "expected no autoplay attribute on the video element");
     assert.ok(!dom.window.document.querySelector("img"), "expected no <img> for a video item");
   });
 });
@@ -174,6 +179,42 @@ test("swipe navigation still advances the index when moving from a photo to a vi
       assert.ok(videoEl, "expected the video element to be showing at index 1 after the swipe");
       assert.equal(videoEl!.getAttribute("src"), "/api/memories/media/m2/display");
       assert.ok(!dom.window.document.querySelector("img"), "expected no <img> once swiped onto the video item");
+    },
+  );
+});
+
+test("swipe navigation advances when the gesture starts on the <video> element itself", async () => {
+  await withMountedLightbox(
+    [mediaItem("m1", { mediaKind: "video" }), mediaItem("m2", { mediaKind: "photo" })],
+    0,
+    async ({ dom }) => {
+      const videoEl = dom.window.document.querySelector('video[src="/api/memories/media/m1/display"]');
+      assert.ok(videoEl, "expected the first (video) item to render initially");
+
+      // Same leftward drag past SWIPE_THRESHOLD_PX as the photo->video swipe
+      // test above, but this time the pointer sequence targets the <video>
+      // element itself, since it's the currently displayed item — the same
+      // onPointerDown/Move/Up handlers are wired to both <img> and <video>,
+      // but until now no test dispatched pointer events at a real <video>
+      // DOM node. Each dispatch keeps its own act() call for the same reason
+      // as above: "pointermove" is a React continuous-priority event, so
+      // batching all three into one act() leaves handlePointerUp reading a
+      // stale dragX.
+      await act(async () => {
+        videoEl!.dispatchEvent(pointerEvent(dom, "pointerdown", 300));
+      });
+      await act(async () => {
+        videoEl!.dispatchEvent(pointerEvent(dom, "pointermove", 200));
+      });
+      await act(async () => {
+        videoEl!.dispatchEvent(pointerEvent(dom, "pointerup", 200));
+        await flush(320);
+      });
+
+      const imgEl = dom.window.document.querySelector("img");
+      assert.ok(imgEl, "expected the photo element to be showing at index 1 after swiping away from the video");
+      assert.equal(imgEl!.getAttribute("src"), "/api/memories/media/m2/display");
+      assert.ok(!dom.window.document.querySelector("video"), "expected no <video> once swiped off the video item");
     },
   );
 });
