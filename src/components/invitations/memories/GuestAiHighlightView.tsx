@@ -96,7 +96,7 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
               onClick={() => setLightboxIndex(index)}
               className="relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl"
             >
-              <img src={`/api/memories/media/${item.id}/display`} alt="" className="h-auto w-full" loading="lazy" />
+              <img src={`/api/memories/media/${item.id}/${item.mediaKind === "video" ? "thumbnail" : "display"}`} alt="" className="h-auto w-full" loading="lazy" />
               {item.mediaKind === "video" && (
                 <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
                   <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white">

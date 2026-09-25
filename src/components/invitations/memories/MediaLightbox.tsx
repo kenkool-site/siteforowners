@@ -208,6 +208,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
       {item.mediaKind === "video" ? (
         <video
           src={`/api/memories/media/${item.id}/display`}
+          poster={`/api/memories/media/${item.id}/thumbnail`}
           controls
           onClick={(event) => event.stopPropagation()}
           onPointerDown={handlePointerDown}

@@ -33,7 +33,7 @@ export function GuestMomentsView({ eventId, accent, surface }: { eventId: string
       <button type="button" onClick={() => setSelected(null)} className="min-h-11 text-sm font-semibold underline underline-offset-4" style={{ color: accent }}>{t("back")}</button>
       <h2 className="text-2xl font-semibold">{selectedMoment.name}</h2>
       <div className="columns-2 gap-2 sm:columns-3">{selectedMedia.map((item) => <div key={item.id} className="relative mb-2 break-inside-avoid">
-        <img src={`/api/memories/media/${item.id}/display`} alt="" className="h-auto w-full rounded-xl" loading="lazy" />
+        <img src={`/api/memories/media/${item.id}/${item.mediaKind === "video" ? "thumbnail" : "display"}`} alt="" className="h-auto w-full rounded-xl" loading="lazy" />
         {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
           <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
         </span>}

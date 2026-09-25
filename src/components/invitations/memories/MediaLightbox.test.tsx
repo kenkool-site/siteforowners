@@ -122,6 +122,11 @@ test("a video item renders a <video controls> element with the display URL, not 
     const videoEl = dom.window.document.querySelector("video");
     assert.ok(videoEl, "expected a <video> element for a video item");
     assert.equal(videoEl!.getAttribute("src"), "/api/memories/media/m1/display");
+    // A real poster image is guaranteed to exist by the time a video is
+    // guest-visible (upload/complete/route.ts won't mark a video ready
+    // without one) — without this attribute the guest sees a blank/black
+    // frame before tapping play.
+    assert.equal(videoEl!.getAttribute("poster"), "/api/memories/media/m1/thumbnail");
     assert.ok(videoEl!.hasAttribute("controls"));
     // The feature's global constraint: video must never autoplay — the guest
     // taps the native controls to start playback. Asserted here so a future

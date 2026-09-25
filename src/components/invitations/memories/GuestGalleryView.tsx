@@ -105,7 +105,7 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
       <div className="columns-2 gap-2 sm:columns-3">
         {olderFlat.map((item, index) => <figure key={item.id} className="mb-2 break-inside-avoid overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
           <button type="button" onClick={() => setLightboxIndex(recentVisible.length + index)} className="relative block w-full">
-            <img src={`/api/memories/media/${item.id}/display`} alt={item.uploaderDisplayName ? t("photoBy", { name: item.uploaderDisplayName }) : t("photoAlt")} className="h-auto w-full" loading="lazy" />
+            <img src={`/api/memories/media/${item.id}/${item.mediaKind === "video" ? "thumbnail" : "display"}`} alt={item.uploaderDisplayName ? t("photoBy", { name: item.uploaderDisplayName }) : t("photoAlt")} className="h-auto w-full" loading="lazy" />
             {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
               <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
             </span>}

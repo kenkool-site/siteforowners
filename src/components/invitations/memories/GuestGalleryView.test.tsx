@@ -185,7 +185,11 @@ test("clicking Next twice in quick succession settles cleanly on the second phot
 test("a video item's thumbnail shows a play-badge overlay; a photo item's does not", async () => {
   await withMountedGallery([mediaItem("m1", { mediaKind: "photo" }), mediaItem("m2", { mediaKind: "video" })], async ({ dom }) => {
     const photoImg = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]');
-    const videoImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/display"]');
+    // A video's own file lives at /display (it's the raw clip, not decodable
+    // as an image) — the "Earlier Today" grid must point a video's <img> at
+    // /thumbnail instead, matching the story-strip's own already-correct
+    // kind-aware selection just above.
+    const videoImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/thumbnail"]');
     assert.ok(photoImg, "expected the photo thumbnail to render");
     assert.ok(videoImg, "expected the video thumbnail to render");
 

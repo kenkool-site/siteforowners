@@ -111,7 +111,11 @@ test("a video item's thumbnail shows a play-badge overlay; a photo item's does n
       });
 
       const photoImg = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]');
-      const videoImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/display"]');
+      // A video's own file lives at /display (it's the raw clip, not
+      // decodable as an image) — the moment's detail grid must point a
+      // video's <img> at /thumbnail instead, matching the cover tile's own
+      // already-correct kind-aware selection below.
+      const videoImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/thumbnail"]');
       assert.ok(photoImg, "expected the photo to render in the moment's detail view");
       assert.ok(videoImg, "expected the video to render in the moment's detail view");
 
