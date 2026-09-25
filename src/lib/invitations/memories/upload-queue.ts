@@ -12,10 +12,14 @@ export interface QueueItem {
   mediaId?: string;
 }
 
-export type UploadOneFn = (file: File, onProgress: (percent: number) => void) => Promise<{ mediaId: string }>;
+// posterFile is present only for a video item (the client-captured poster
+// JPEG); undefined for a photo. Both files travel and retry together as one
+// unit — see the video-support design spec's rationale for not modeling this
+// as two separate queue items.
+export type UploadOneFn = (file: File, posterFile: File | undefined, onProgress: (percent: number) => void) => Promise<{ mediaId: string }>;
 
 export interface UploadQueue {
-  enqueue(file: File): Promise<string>;
+  enqueue(file: File, posterFile?: File): Promise<string>;
   retry(id: string): void;
   dismiss(id: string): void;
   subscribe(listener: (items: QueueItem[]) => void): () => void;
@@ -40,14 +44,9 @@ function openDb(eventId: string): Promise<IDBDatabase> {
 interface PersistedEntry {
   id: string;
   file: File;
+  posterFile?: File;
   item: QueueItem;
-  // Enqueue timestamp, used to restore enqueue order on hydration — IndexedDB's getAll()
-  // returns rows ordered by the "id" key (a random UUID), not insertion order.
   createdAt: number;
-  // Monotonic per-instance tiebreaker for createdAt. Date.now() is millisecond-resolution,
-  // so multiple enqueue() calls made back-to-back with no await between them (the normal
-  // shape of a multi-file <input multiple> picker) can share the same createdAt — without
-  // this, ties fall back to getAll()'s random-UUID-key order and scramble enqueue order.
   seq: number;
 }
 
@@ -79,7 +78,9 @@ async function deleteItem(db: IDBDatabase, id: string): Promise<void> {
 }
 
 export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): UploadQueue {
-  const files = new Map<string, File>();
+  // Bundled into one map (not two parallel maps keyed by id) so a file and its
+  // optional poster can never drift out of sync with each other.
+  const filesById = new Map<string, { file: File; posterFile?: File }>();
   const items: QueueItem[] = [];
   const createdAtById = new Map<string, number>();
   const seqById = new Map<string, number>();
@@ -110,8 +111,8 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     next.status = "uploading";
     notify();
     try {
-      const file = files.get(next.id)!;
-      const result = await uploadOne(file, (percent) => {
+      const { file, posterFile } = filesById.get(next.id)!;
+      const result = await uploadOne(file, posterFile, (percent) => {
         next.progress = percent;
         notify();
       });
@@ -125,9 +126,11 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     notify();
     try {
       const db = await getDb();
+      const entry = filesById.get(next.id)!;
       await persistItem(db, {
         id: next.id,
-        file: files.get(next.id)!,
+        file: entry.file,
+        posterFile: entry.posterFile,
         item: { ...next },
         createdAt: createdAtById.get(next.id) ?? Date.now(),
         seq: seqById.get(next.id) ?? 0,
@@ -137,21 +140,13 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       // IndexedDB restrictions, etc). In-memory state and subscribers already reflect the
       // real outcome via notify() above, so the persisted row is briefly stale — an
       // acceptable tradeoff for not leaving `processing` stuck true, which would otherwise
-      // permanently freeze the queue for the rest of the session (every later enqueue()/
-      // retry() would bail on the `if (processing) return;` guard with no way to recover
-      // short of a full page reload).
+      // permanently freeze the queue for the rest of the session.
     } finally {
       processing = false;
       void processNext();
     }
   }
 
-  // Hydration restores queue state from a previous page load (closed tab, refresh, dropped
-  // connection). It's deliberately fire-and-forget: createUploadQueue() returns synchronously
-  // to match the UploadQueue interface Task 4 consumes (not a Promise<UploadQueue>), so a
-  // caller that calls getItems() synchronously right after construction, before this resolves,
-  // may still see an empty array. Real consumers use subscribe(), which does receive the
-  // restored state once hydration completes and calls notify().
   void (async function hydrate() {
     const db = await getDb();
     const entries = await readAllItems(db);
@@ -160,13 +155,11 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     for (const entry of entries) {
       const item: QueueItem = { ...entry.item };
       if (item.status === "queued" || item.status === "uploading") {
-        // A mid-flight upload from a previous page load is gone — there's no partial-upload
-        // resume, so the whole file goes back to the front of the line to upload again.
         item.status = "queued";
         item.progress = 0;
         item.error = undefined;
       }
-      files.set(entry.id, entry.file);
+      filesById.set(entry.id, { file: entry.file, posterFile: entry.posterFile });
       createdAtById.set(entry.id, entry.createdAt);
       seqById.set(entry.id, entry.seq);
       restored.push(item);
@@ -179,7 +172,7 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
   })();
 
   return {
-    async enqueue(file: File): Promise<string> {
+    async enqueue(file: File, posterFile?: File): Promise<string> {
       const id = crypto.randomUUID();
       const item: QueueItem = {
         id,
@@ -191,12 +184,12 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       };
       const createdAt = Date.now();
       const seq = nextSeq++;
-      files.set(id, file);
+      filesById.set(id, { file, posterFile });
       createdAtById.set(id, createdAt);
       seqById.set(id, seq);
       items.push(item);
       const db = await getDb();
-      await persistItem(db, { id, file, item: { ...item }, createdAt, seq });
+      await persistItem(db, { id, file, posterFile, item: { ...item }, createdAt, seq });
       notify();
       void processNext();
       return id;
@@ -214,7 +207,7 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) return;
       items.splice(index, 1);
-      files.delete(id);
+      filesById.delete(id);
       createdAtById.delete(id);
       seqById.delete(id);
       notify();
