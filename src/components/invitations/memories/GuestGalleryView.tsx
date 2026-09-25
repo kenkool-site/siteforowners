@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { visibleOptimisticUploads, type GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
@@ -89,8 +90,11 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
           </div>
         </figure>)}
         {recentVisible.map((item, index) => <figure key={item.id} className="aspect-[4/5] w-[38%] min-w-[8.5rem] max-w-[11rem] shrink-0 snap-start overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
-          <button type="button" onClick={() => setLightboxIndex(index)} className="block size-full">
+          <button type="button" onClick={() => setLightboxIndex(index)} className="relative block size-full">
             <img src={`/api/memories/media/${item.id}/thumbnail`} alt={item.uploaderDisplayName ? t("photoBy", { name: item.uploaderDisplayName }) : t("photoAlt")} className="size-full object-cover" />
+            {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+              <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
+            </span>}
           </button>
         </figure>)}
       </div>
@@ -100,8 +104,11 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
       <div className="mb-3 flex items-center gap-3"><h2 id="earlier-heading" className="shrink-0 text-lg font-semibold" style={{ color: accent }}>{t("earlierToday")}</h2><span className="h-px flex-1 opacity-15" style={{ backgroundColor: accent }} /></div>
       <div className="columns-2 gap-2 sm:columns-3">
         {olderFlat.map((item, index) => <figure key={item.id} className="mb-2 break-inside-avoid overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
-          <button type="button" onClick={() => setLightboxIndex(recentVisible.length + index)} className="block w-full">
+          <button type="button" onClick={() => setLightboxIndex(recentVisible.length + index)} className="relative block w-full">
             <img src={`/api/memories/media/${item.id}/display`} alt={item.uploaderDisplayName ? t("photoBy", { name: item.uploaderDisplayName }) : t("photoAlt")} className="h-auto w-full" loading="lazy" />
+            {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+              <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
+            </span>}
           </button>
         </figure>)}
       </div>

@@ -182,6 +182,20 @@ test("clicking Next twice in quick succession settles cleanly on the second phot
   });
 });
 
+test("a video item's thumbnail shows a play-badge overlay; a photo item's does not", async () => {
+  await withMountedGallery([mediaItem("m1", { mediaKind: "photo" }), mediaItem("m2", { mediaKind: "video" })], async ({ dom }) => {
+    const photoImg = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]');
+    const videoImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/display"]');
+    assert.ok(photoImg, "expected the photo thumbnail to render");
+    assert.ok(videoImg, "expected the video thumbnail to render");
+
+    const photoFigure = photoImg!.closest("figure");
+    const videoFigure = videoImg!.closest("figure");
+    assert.ok(!photoFigure?.querySelector('[data-play-badge="true"]'), "photo thumbnail must not show a play badge");
+    assert.ok(videoFigure?.querySelector('[data-play-badge="true"]'), "video thumbnail must show a play badge");
+  });
+});
+
 test("closing the lightbox returns to the gallery grid", async () => {
   await withMountedGallery([mediaItem("m1")], async ({ dom }) => {
     const photoButton = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]')?.closest("button") ?? null;
