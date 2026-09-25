@@ -63,6 +63,18 @@ export function resolveNearbyTap(
   return null;
 }
 
+// Compact "Sep 24, 6:15 PM"-style label for a photo/video's capture time.
+// Uses the environment's default locale (no explicit locale argument), matching
+// this codebase's existing bare toLocaleDateString()/toLocaleString() convention
+// (see OwnerMomentsManager.tsx) rather than introducing next-intl's useFormatter
+// as a new pattern for a single label.
+export function formatCapturedAt(capturedAt: string): string {
+  const date = new Date(capturedAt);
+  const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${day}, ${time}`;
+}
+
 function exitDistance(): number {
   return (typeof window !== "undefined" ? window.innerWidth : FALLBACK_EXIT_DISTANCE_PX) + 100;
 }
@@ -81,6 +93,10 @@ type NavigationTarget = { kind: "list"; index: number } | { kind: "detour"; medi
 // viewed.
 export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightboxProps) {
   const t = useTranslations("invitations.public.memories.lightbox");
+  // Reuses the gallery namespace's existing "Photo shared by {name}" copy —
+  // today only rendered as alt text on gallery thumbnails — rather than
+  // duplicating an equivalent string under the lightbox namespace.
+  const tGallery = useTranslations("invitations.public.memories.gallery");
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   // True only for the single instant "jump to the opposite edge" reposition
@@ -171,6 +187,13 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
   }, [activeIndex, activeMedia.length, onClose, detour]);
 
   if (!item) return null;
+
+  const capturedLabel = item.capturedAt ? formatCapturedAt(item.capturedAt) : null;
+  const itemMetaLabel = capturedLabel
+    ? item.uploaderDisplayName
+      ? `${tGallery("photoBy", { name: item.uploaderDisplayName })} · ${capturedLabel}`
+      : capturedLabel
+    : null;
 
   // Drives every non-drag transition: the current photo exits fully
   // off-screen in `exitSign`'s direction (continuing whatever motion — a
@@ -369,6 +392,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
             </div>
           </div>
         )}
+        {itemMetaLabel && <p className="mb-1 text-center text-xs text-white/70">{itemMetaLabel}</p>}
         <p className="text-center text-xs font-medium text-white/80">
           {detour
             ? t("nearbyDetourLabel", { current: activeIndex + 1, total: activeMedia.length })

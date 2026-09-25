@@ -387,3 +387,36 @@ test("tapping a nearby thumbnail outside the current list starts a detour, with 
     },
   );
 });
+
+test("shows who shared the photo and when, for a named uploader", async () => {
+  const capturedAt = "2026-09-24T22:08:00.000Z";
+  await withMountedLightbox([mediaItem("m1", { uploaderDisplayName: "Priya", capturedAt })], 0, async ({ dom }) => {
+    await flush();
+    const date = new Date(capturedAt);
+    const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const text = dom.window.document.body.textContent ?? "";
+    assert.match(text, new RegExp(`Photo shared by Priya · ${day}, ${time}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+});
+
+test("shows just the date, with no uploader phrasing, when the upload is anonymous", async () => {
+  const capturedAt = "2026-09-24T22:08:00.000Z";
+  await withMountedLightbox([mediaItem("m1", { uploaderDisplayName: null, capturedAt })], 0, async ({ dom }) => {
+    await flush();
+    const date = new Date(capturedAt);
+    const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const text = dom.window.document.body.textContent ?? "";
+    assert.doesNotMatch(text, /Photo shared by/);
+    assert.match(text, new RegExp(`${day}, ${time}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+});
+
+test("shows no metadata line at all when capturedAt is null", async () => {
+  await withMountedLightbox([mediaItem("m1", { capturedAt: null })], 0, async ({ dom }) => {
+    await flush();
+    const text = dom.window.document.body.textContent ?? "";
+    assert.doesNotMatch(text, /Photo shared by/);
+  });
+});
