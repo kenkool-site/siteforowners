@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Play } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import type { MemoryHighlightGroup } from "@/lib/invitations/memories/highlight-types";
@@ -94,9 +94,16 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
               key={item.id}
               type="button"
               onClick={() => setLightboxIndex(index)}
-              className="mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl"
+              className="relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl"
             >
-              <img src={`/api/memories/media/${item.id}/display`} alt="" className="h-auto w-full" loading="lazy" />
+              <img src={`/api/memories/media/${item.id}/${item.mediaKind === "video" ? "thumbnail" : "display"}`} alt="" className="h-auto w-full" loading="lazy" />
+              {item.mediaKind === "video" && (
+                <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+                  <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white">
+                    <Play className="size-4 fill-current" />
+                  </span>
+                </span>
+              )}
             </button>
           ))}
         </div>
@@ -129,7 +136,16 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
               // full-width uncropped tiles made a single category fill the
               // whole screen. The full, uncropped photo is always one tap away
               // inside the group's own detail view (and now the lightbox).
-              <img src={`/api/memories/media/${group.media[0].id}/thumbnail`} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
+              <div className="relative">
+                <img src={`/api/memories/media/${group.media[0].id}/thumbnail`} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
+                {group.media[0].mediaKind === "video" && (
+                  <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+                    <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white">
+                      <Play className="size-4 fill-current" />
+                    </span>
+                  </span>
+                )}
+              </div>
             )}
             <div className="p-2.5">
               <p className="text-sm font-semibold leading-snug">{group.name}</p>

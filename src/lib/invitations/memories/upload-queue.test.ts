@@ -1,4 +1,8 @@
 // src/lib/invitations/memories/upload-queue.test.ts
+/* eslint-disable @typescript-eslint/no-unused-vars -- test doubles intentionally leave unused
+   (file, posterFile, onProgress) params underscore-prefixed per call site; this file predates
+   the upload() signature widening to a two-file (posterFile) form and was never re-checked with
+   a real `npm run build` (only `tsc --noEmit`, which this lint rule isn't caught by). */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import "fake-indexeddb/auto";
@@ -9,7 +13,7 @@ function fakeFile(name: string, bytes: number, type = "image/jpeg"): File {
 }
 
 test("enqueue adds a queued item and starts uploading it", async () => {
-  const queue = createUploadQueue("event-1", async (_file, onProgress) => {
+  const queue = createUploadQueue("event-1", async (_file, _posterFile, onProgress) => {
     onProgress(50);
     onProgress(100);
     return { mediaId: "media-1" };
@@ -25,7 +29,7 @@ test("enqueue adds a queued item and starts uploading it", async () => {
 
 test("a failed upload marks the item failed and does not auto-retry", async () => {
   let attempts = 0;
-  const queue = createUploadQueue("event-2", async () => {
+  const queue = createUploadQueue("event-2", async (_file, _posterFile, _onProgress) => {
     attempts += 1;
     throw new Error("network error");
   });
@@ -38,7 +42,7 @@ test("a failed upload marks the item failed and does not auto-retry", async () =
 
 test("retry re-attempts a failed item", async () => {
   let attempts = 0;
-  const queue = createUploadQueue("event-3", async () => {
+  const queue = createUploadQueue("event-3", async (_file, _posterFile, _onProgress) => {
     attempts += 1;
     if (attempts === 1) throw new Error("network error");
     return { mediaId: "media-3" };
@@ -54,7 +58,7 @@ test("retry re-attempts a failed item", async () => {
 
 test("a second enqueue while one item is uploading stays queued, not uploading", async () => {
   let resolveFirst!: () => void;
-  const queue = createUploadQueue("event-4", () => {
+  const queue = createUploadQueue("event-4", (_file, _posterFile, _onProgress) => {
     return new Promise((resolve) => {
       resolveFirst = () => resolve({ mediaId: "media-4a" });
     });
@@ -67,7 +71,7 @@ test("a second enqueue while one item is uploading stays queued, not uploading",
 });
 
 test("subscribe notifies listeners on every state change", async () => {
-  const queue = createUploadQueue("event-5", async () => ({ mediaId: "media-5" }));
+  const queue = createUploadQueue("event-5", async (_file, _posterFile, _onProgress) => ({ mediaId: "media-5" }));
   const snapshots: number[] = [];
   const unsubscribe = queue.subscribe((items) => snapshots.push(items.length));
   await queue.enqueue(fakeFile("f.jpg", 1000));
@@ -78,7 +82,7 @@ test("subscribe notifies listeners on every state change", async () => {
 
 test("a new queue instance for the same event hydrates a previously failed item, and retry() on it genuinely re-uploads", async () => {
   const eventId = "event-6";
-  const queue1 = createUploadQueue(eventId, async () => {
+  const queue1 = createUploadQueue(eventId, async (_file, _posterFile, _onProgress) => {
     throw new Error("network error");
   });
   const id = await queue1.enqueue(fakeFile("g.jpg", 1000));
@@ -90,7 +94,7 @@ test("a new queue instance for the same event hydrates a previously failed item,
   // for the same event — it should resume exactly where the previous instance left off by
   // reading what was persisted to IndexedDB, not start from an empty queue.
   let retriedFile: File | undefined;
-  const queue2 = createUploadQueue(eventId, async (file) => {
+  const queue2 = createUploadQueue(eventId, async (file, _posterFile, _onProgress) => {
     retriedFile = file;
     return { mediaId: "media-6-retry" };
   });
@@ -120,7 +124,7 @@ test("same-tick batch enqueues hydrate in original enqueue order despite millise
   const eventId = "event-7";
   // Everything fails so the array order set at hydration time is never disturbed further —
   // isolates the ordering fix from any processing/race behavior.
-  const queue1 = createUploadQueue(eventId, async () => {
+  const queue1 = createUploadQueue(eventId, async (_file, _posterFile, _onProgress) => {
     throw new Error("network error");
   });
   // Deliberately no `await` between these — this is the normal shape of a multi-file
@@ -137,7 +141,7 @@ test("same-tick batch enqueues hydrate in original enqueue order despite millise
     assert.equal(queue1.getItems().find((i) => i.id === id)!.status, "failed");
   }
 
-  const queue2 = createUploadQueue(eventId, async () => ({ mediaId: "unused" }));
+  const queue2 = createUploadQueue(eventId, async (_file, _posterFile, _onProgress) => ({ mediaId: "unused" }));
   await new Promise((resolve) => setTimeout(resolve, 50));
   const hydratedIds = queue2.getItems().map((i) => i.id);
   assert.deepEqual(hydratedIds, ids);
@@ -145,7 +149,7 @@ test("same-tick batch enqueues hydrate in original enqueue order despite millise
 
 test("dismiss removes a completed upload from the visible and persisted queue", async () => {
   const eventId = "event-8";
-  const queue = createUploadQueue(eventId, async () => ({ mediaId: "media-8" }));
+  const queue = createUploadQueue(eventId, async (_file, _posterFile, _onProgress) => ({ mediaId: "media-8" }));
   const id = await queue.enqueue(fakeFile("finished.jpg", 1000));
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(queue.getItems().find((item) => item.id === id)?.status, "done");
@@ -153,7 +157,75 @@ test("dismiss removes a completed upload from the visible and persisted queue", 
   queue.dismiss(id);
   assert.equal(queue.getItems().some((item) => item.id === id), false);
 
-  const hydrated = createUploadQueue(eventId, async () => ({ mediaId: "unused" }));
+  const hydrated = createUploadQueue(eventId, async (_file, _posterFile, _onProgress) => ({ mediaId: "unused" }));
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(hydrated.getItems().some((item) => item.id === id), false);
+});
+
+test("enqueue accepts an optional posterFile and passes both files to uploadOne together", async () => {
+  let receivedFile: File | undefined;
+  let receivedPoster: File | undefined;
+  const queue = createUploadQueue("event-video-1", async (file, posterFile, onProgress) => {
+    receivedFile = file;
+    receivedPoster = posterFile;
+    onProgress(100);
+    return { mediaId: "media-video-1" };
+  });
+  const poster = fakeFile("poster.jpg", 500, "image/jpeg");
+  const id = await queue.enqueue(fakeFile("clip.mp4", 5000, "video/mp4"), poster);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const item = queue.getItems().find((i) => i.id === id);
+  assert.equal(item!.status, "done");
+  assert.equal(receivedFile!.name, "clip.mp4");
+  assert.equal(receivedPoster!.name, "poster.jpg");
+});
+
+test("a photo enqueue (no posterFile) still passes undefined for posterFile, not a missing argument crash", async () => {
+  let receivedPoster: File | undefined | "not called" = "not called";
+  const queue = createUploadQueue("event-video-2", async (_file, posterFile, onProgress) => {
+    receivedPoster = posterFile;
+    onProgress(100);
+    return { mediaId: "media-photo-1" };
+  });
+  await queue.enqueue(fakeFile("a.jpg", 1000));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(receivedPoster, undefined);
+});
+
+test("a failed video upload retries both the clip and its poster together", async () => {
+  let attempts = 0;
+  let lastPosterName: string | undefined;
+  const queue = createUploadQueue("event-video-3", async (_file, posterFile, _onProgress) => {
+    attempts += 1;
+    lastPosterName = posterFile?.name;
+    if (attempts === 1) throw new Error("network error");
+    return { mediaId: "media-video-3" };
+  });
+  const id = await queue.enqueue(fakeFile("clip.mp4", 5000, "video/mp4"), fakeFile("poster.jpg", 500, "image/jpeg"));
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  queue.retry(id);
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const item = queue.getItems().find((i) => i.id === id);
+  assert.equal(item!.status, "done");
+  assert.equal(attempts, 2);
+  assert.equal(lastPosterName, "poster.jpg");
+});
+
+test("a video upload's poster survives a hydration round-trip (page reload) alongside the clip", async () => {
+  const eventId = "event-video-4";
+  const queue1 = createUploadQueue(eventId, async () => {
+    throw new Error("network error");
+  });
+  const id = await queue1.enqueue(fakeFile("clip.mp4", 5000, "video/mp4"), fakeFile("poster.jpg", 500, "image/jpeg"));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  let hydratedPosterSize: number | undefined;
+  const queue2 = createUploadQueue(eventId, async (_file, posterFile) => {
+    hydratedPosterSize = posterFile?.size;
+    return { mediaId: "media-video-4-retry" };
+  });
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  queue2.retry(id);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(hydratedPosterSize, 500);
 });

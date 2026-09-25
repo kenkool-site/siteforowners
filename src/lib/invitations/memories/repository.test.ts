@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
 import {
+  markVideoMemoryMediaReady,
   createMemoryMoment,
   updateMemoryMoment,
   deleteMemoryMoment,
@@ -61,6 +62,34 @@ test("updateEventMemoriesSettings patches only the memories fields provided", ()
   const source = updateEventMemoriesSettings.toString();
   assert.match(source, /memories_enabled/);
   assert.match(source, /memories_mode/);
+});
+
+// Video's counterpart to markMemoryMediaUploaded — matching this file's own
+// established convention (see the header comment above): createAdminClient()
+// has no injection seam, so this asserts on the function source rather than
+// invoking it against a real database.
+test("markVideoMemoryMediaReady sets display/thumbnail keys and processing_status without creating a processing job", () => {
+  assert.equal(typeof markVideoMemoryMediaReady, "function");
+  const source = markVideoMemoryMediaReady.toString();
+  assert.match(source, /memory_media/);
+  assert.match(source, /object_key_display/);
+  assert.match(source, /object_key_thumbnail/);
+  assert.match(source, /processing_status/);
+  assert.match(source, /'ready'|"ready"/);
+  // Video never enters the photon-rs derivative pipeline — this function must
+  // not queue a memory_processing_jobs row the way markMemoryMediaUploaded does.
+  assert.doesNotMatch(source, /memory_processing_jobs/);
+  // Idempotency guard: this function is the SOLE writer of object_key_thumbnail
+  // for a video row, so it must guard on that column rather than on
+  // upload_status (markMemoryMediaUploaded's convention). upload_status is also
+  // independently flipped by processing-complete/route.ts's self-heal path
+  // (triggered by the R2 Worker's own event notification, unordered with
+  // respect to this call) — guarding on upload_status='pending' would let that
+  // race silently no-op this write and leave object_key_display/
+  // object_key_thumbnail permanently null. See repository.ts for the full
+  // writeup.
+  assert.match(source, /object_key_thumbnail[\s\S]*null|null[\s\S]*object_key_thumbnail/);
+  assert.doesNotMatch(source, /upload_status[\s\S]*pending|pending[\s\S]*upload_status/);
 });
 
 test("createMemoryMoment inserts into memory_moments scoped to the event", () => {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveSwipeNavigation } from "./MediaLightbox";
+import { resolveNearbyTap, resolveSwipeNavigation } from "./MediaLightbox";
+import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 
 // resolveSwipeNavigation is pure and DOM-free by design specifically so it
 // can be tested directly — jsdom has no Touch or PointerEvent constructors,
@@ -42,4 +43,43 @@ test("navigation is scoped only to the list passed in — a category's own media
 test("exactly at the threshold counts as a swipe", () => {
   assert.equal(resolveSwipeNavigation(-50, 0, 5), 1);
   assert.equal(resolveSwipeNavigation(50, 1, 5), 0);
+});
+
+function mediaItem(id: string, overrides: Partial<PublicMemoryMedia> = {}): PublicMemoryMedia {
+  return {
+    id,
+    mediaKind: "photo",
+    uploaderDisplayName: null,
+    objectKeyDisplay: `display/${id}.webp`,
+    objectKeyThumbnail: `thumb/${id}.webp`,
+    capturedAt: "2026-09-24T22:08:00.000Z",
+    uploadedAt: "2026-09-24T22:08:00.000Z",
+    ...overrides,
+  };
+}
+
+test("resolveNearbyTap: a tapped id already in the current list resolves to list mode at its index", () => {
+  const currentMedia = [mediaItem("a"), mediaItem("b"), mediaItem("c")];
+  const result = resolveNearbyTap(currentMedia, "b", [mediaItem("b"), mediaItem("z")]);
+  assert.deepEqual(result, { mode: "list", index: 1 });
+});
+
+test("resolveNearbyTap: a tapped id outside the current list resolves to detour mode using the supplied cluster", () => {
+  const currentMedia = [mediaItem("a"), mediaItem("b")];
+  const cluster = [mediaItem("a"), mediaItem("z")];
+  const result = resolveNearbyTap(currentMedia, "z", cluster);
+  assert.deepEqual(result, { mode: "detour", media: cluster, index: 1 });
+});
+
+test("resolveNearbyTap: prefers the current list over the cluster when a tapped id happens to be in both", () => {
+  const currentMedia = [mediaItem("a"), mediaItem("b")];
+  const cluster = [mediaItem("b"), mediaItem("z")];
+  const result = resolveNearbyTap(currentMedia, "b", cluster);
+  assert.deepEqual(result, { mode: "list", index: 1 });
+});
+
+test("resolveNearbyTap: returns null when the tapped id is in neither the current list nor the cluster", () => {
+  const currentMedia = [mediaItem("a")];
+  const result = resolveNearbyTap(currentMedia, "ghost", [mediaItem("z")]);
+  assert.equal(result, null);
 });

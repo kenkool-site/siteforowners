@@ -45,6 +45,23 @@ export function objectKeyForOriginal(
   return `originals/${eventId}/${mediaId}.${extensionFor(mediaKind, contentType)}`;
 }
 
+// A video's poster is a plain JPEG derived from the same ids, independent of
+// the video's own container/codec — always ".jpg" regardless of whether the
+// clip itself is .mp4/.webm/.mov.
+//
+// Deliberately NOT under originals/ — that prefix is exactly what the R2 event
+// notification watches (see workers/memories-processing/src/index.ts), and
+// .jpg is a supported image extension there. A poster key under originals/
+// would get picked up and processed as if it were a real media original: the
+// Worker would run photon-rs on it, then POST to /api/memories/processing-complete
+// with a "media id" of `${mediaId}-poster`, which isn't a real UUID matching any
+// memory_media row — a guaranteed Postgres error, retried and dead-lettered on
+// every single video upload. posters/ is outside that watched prefix, so the
+// Worker never sees these objects at all.
+export function objectKeyForVideoPoster(eventId: string, mediaId: string): string {
+  return `posters/${eventId}/${mediaId}.jpg`;
+}
+
 export function createMemoriesUploadTicket(
   eventId: string,
   mediaId: string,

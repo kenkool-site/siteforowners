@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 
@@ -40,15 +40,45 @@ export function resolveSwipeNavigation(deltaX: number, index: number, total: num
   return index > 0 ? index - 1 : null; // swiped right -> previous
 }
 
+// Pure decision for tapping a thumbnail in the "Every Perspective" nearby
+// strip: is the tapped item already part of the list the lightbox is
+// currently paging through (the common case — Gallery and AI Highlights
+// almost always already loaded the tapped item's own list), or does it live
+// outside that list (only possible from inside an AI Highlights category,
+// whose list is scoped to that category's members)? In the second case the
+// caller starts a "detour" — nearbyCluster must already include the anchor
+// item the guest detoured from, so the detour is browsable back to where it
+// started; assembling that cluster is the caller's job, not this function's.
+export function resolveNearbyTap(
+  currentMedia: PublicMemoryMedia[],
+  tappedId: string,
+  nearbyCluster: PublicMemoryMedia[],
+): { mode: "list"; index: number } | { mode: "detour"; media: PublicMemoryMedia[]; index: number } | null {
+  const listIndex = currentMedia.findIndex((item) => item.id === tappedId);
+  if (listIndex !== -1) return { mode: "list", index: listIndex };
+
+  const detourIndex = nearbyCluster.findIndex((item) => item.id === tappedId);
+  if (detourIndex !== -1) return { mode: "detour", media: nearbyCluster, index: detourIndex };
+
+  return null;
+}
+
 function exitDistance(): number {
   return (typeof window !== "undefined" ? window.innerWidth : FALLBACK_EXIT_DISTANCE_PX) + 100;
 }
 
-// Shared full-screen photo viewer for every guest-facing photo grid (Gallery,
+// Where navigateWithSlide is headed: either the next index within whatever
+// list currently governs the lightbox (the original `media` prop, or an
+// active detour's own cluster), or a brand-new detour cluster to switch into.
+type NavigationTarget = { kind: "list"; index: number } | { kind: "detour"; media: PublicMemoryMedia[]; index: number };
+
+// Shared full-screen photo/video viewer for every guest-facing photo grid (Gallery,
 // AI Highlights, and any future one) — a photo is represented by a cropped
 // thumbnail in its grid, but tapping it always shows the full, uncropped
 // image (object-contain) here, with keyboard, on-screen prev/next, and
-// touch/pointer swipe support.
+// touch/pointer swipe support. Also shows "Every Perspective": other
+// gallery-visible media captured around the same instant as the item being
+// viewed.
 export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightboxProps) {
   const t = useTranslations("invitations.public.memories.lightbox");
   const [dragX, setDragX] = useState(0);
@@ -57,12 +87,25 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
   // between a photo exiting one side and the next one sliding in from the
   // other — never a real drag, but it needs the same "no transition" style.
   const [suppressTransition, setSuppressTransition] = useState(false);
+  // Non-null while the guest has tapped a nearby-strip thumbnail that lives
+  // outside the original `media` prop (only possible from inside an AI
+  // Highlights category). While set, this — not the media/index props —
+  // governs what's displayed and how prev/next/swipe behave. There is no
+  // "return to the original list" interaction; closing the lightbox always
+  // exits entirely, from either mode, matching how far a guest can already
+  // wander via ordinary swipe/prev-next.
+  const [detour, setDetour] = useState<{ media: PublicMemoryMedia[]; index: number } | null>(null);
   const dragStartX = useRef<number | null>(null);
   // number, not NodeJS.Timeout — this is always window.setTimeout (browser),
   // but bare ReturnType<typeof window.setTimeout> resolves ambiguously in a
   // mixed Node+DOM tsconfig, so the type is spelled out explicitly.
   const pendingTimeouts = useRef<number[]>([]);
   const pendingFrames = useRef<number[]>([]);
+  // "Every Perspective": the other gallery-visible media captured within
+  // NEARBY_WINDOW_MS of the currently-displayed item, keyed by that item's
+  // id so navigating back and forth doesn't refetch what's already known.
+  const nearbyCache = useRef<Map<string, PublicMemoryMedia[]>>(new Map());
+  const [nearby, setNearby] = useState<PublicMemoryMedia[]>([]);
 
   useEffect(() => {
     return () => {
@@ -71,30 +114,74 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     };
   }, []);
 
+  const activeMedia = detour ? detour.media : media;
+  const activeIndex = detour ? detour.index : index;
+  const item = activeMedia[activeIndex];
+
+  useEffect(() => {
+    if (!item) return;
+    let cancelled = false;
+    const cached = nearbyCache.current.get(item.id);
+    if (cached) {
+      setNearby(cached);
+      return;
+    }
+    setNearby([]);
+    void fetch(`/api/memories/media/${item.id}/nearby`)
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`nearby ${response.status}`);
+        return response.json() as Promise<{ media: PublicMemoryMedia[] }>;
+      })
+      .then((payload) => {
+        // The route (Task 2) always resolves this shape, but a resolved
+        // response isn't proof of it at runtime — nothing upstream validates
+        // the parsed JSON against the type assertion above. Guard rather than
+        // trust it, so a malformed/unexpected body degrades to "no nearby
+        // matches" instead of leaving `nearby` non-array and crashing the
+        // `nearby.length` read below.
+        const nearbyMedia = Array.isArray(payload?.media) ? payload.media : [];
+        nearbyCache.current.set(item.id, nearbyMedia);
+        if (!cancelled) setNearby(nearbyMedia);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // item.id is the only input that should trigger a refetch — item itself
+    // is a fresh object identity every render even when unchanged.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id]);
+
+  function stepTarget(nextIndex: number): NavigationTarget {
+    return detour ? { kind: "detour", media: detour.media, index: nextIndex } : { kind: "list", index: nextIndex };
+  }
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
-      else if (event.key === "ArrowLeft" && index > 0) navigateWithSlide(index - 1, 1);
-      else if (event.key === "ArrowRight" && index < media.length - 1) navigateWithSlide(index + 1, -1);
+      else if (event.key === "ArrowLeft" && activeIndex > 0) navigateWithSlide(stepTarget(activeIndex - 1), 1);
+      else if (event.key === "ArrowRight" && activeIndex < activeMedia.length - 1) navigateWithSlide(stepTarget(activeIndex + 1), -1);
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-    // navigateWithSlide is intentionally omitted — it closes over state that
-    // changes every render, and re-subscribing this listener each render is
-    // cheap and already how this effect behaved before.
+    // navigateWithSlide/stepTarget are intentionally omitted — they close
+    // over state that changes every render, and re-subscribing this listener
+    // each render is cheap and already how this effect behaved before.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, media.length, onClose]);
+  }, [activeIndex, activeMedia.length, onClose, detour]);
 
-  const item = media[index];
   if (!item) return null;
 
   // Drives every non-drag transition: the current photo exits fully
   // off-screen in `exitSign`'s direction (continuing whatever motion — a
   // swipe's own direction, or a button/keyboard tap's implied direction),
   // then swaps content and jumps instantly to the opposite edge, then slides
-  // that in to center. One <img> element, three chained visual states,
-  // rather than a two-panel carousel.
-  function navigateWithSlide(nextIndex: number, exitSign: -1 | 1) {
+  // that in to center. One <img>/<video> element, three chained visual
+  // states, rather than a two-panel carousel. `target` decides what the swap
+  // actually does: advance within the current list (calling the parent's
+  // onNavigate), advance within an already-active detour (local state only),
+  // or start a brand-new detour.
+  function navigateWithSlide(target: NavigationTarget, exitSign: -1 | 1) {
     pendingTimeouts.current.forEach((id) => window.clearTimeout(id));
     pendingFrames.current.forEach((id) => window.cancelAnimationFrame(id));
     pendingTimeouts.current = [];
@@ -106,7 +193,13 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     setDragX(exitSign * distance);
 
     const swapTimeout = window.setTimeout(() => {
-      onNavigate(nextIndex);
+      if (target.kind === "detour") {
+        setDetour({ media: target.media, index: target.index });
+      } else if (detour) {
+        setDetour({ media: detour.media, index: target.index });
+      } else {
+        onNavigate(target.index);
+      }
       setSuppressTransition(true);
       setDragX(-exitSign * distance);
 
@@ -126,7 +219,19 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     pendingTimeouts.current.push(swapTimeout);
   }
 
-  function handlePointerDown(event: ReactPointerEvent<HTMLImageElement>) {
+  function handleNearbyTap(tappedId: string) {
+    const cluster = [item, ...nearby];
+    const result = resolveNearbyTap(activeMedia, tappedId, cluster);
+    if (!result) return;
+    if (result.mode === "list") navigateWithSlide({ kind: "list", index: result.index }, result.index > activeIndex ? -1 : 1);
+    else navigateWithSlide({ kind: "detour", media: result.media, index: result.index }, -1);
+  }
+
+  // HTMLImageElement | HTMLVideoElement, not just HTMLImageElement — these
+  // three handlers are now shared verbatim between the <img> and <video>
+  // branches below, and TS's PointerEvent<T> is invariant enough in T that a
+  // handler typed for one element only isn't assignable to the other's prop.
+  function handlePointerDown(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
     // A new gesture starting mid-settle (fast repeated swipes) must not let
     // the previous swipe's deferred steps land in the middle of this one.
     pendingTimeouts.current.forEach((id) => window.clearTimeout(id));
@@ -140,15 +245,15 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
-  function handlePointerMove(event: ReactPointerEvent<HTMLImageElement>) {
+  function handlePointerMove(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
     if (dragStartX.current === null) return;
     setDragX(event.clientX - dragStartX.current);
   }
 
-  function handlePointerUp(event: ReactPointerEvent<HTMLImageElement>) {
+  function handlePointerUp(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
     if (dragStartX.current === null) return;
     const releasedAt = dragX;
-    const nextIndex = resolveSwipeNavigation(releasedAt, index, media.length);
+    const nextIndex = resolveSwipeNavigation(releasedAt, activeIndex, activeMedia.length);
     dragStartX.current = null;
     event.currentTarget.releasePointerCapture?.(event.pointerId);
 
@@ -160,7 +265,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
       return;
     }
 
-    navigateWithSlide(nextIndex, releasedAt < 0 ? -1 : 1);
+    navigateWithSlide(stepTarget(nextIndex), releasedAt < 0 ? -1 : 1);
   }
 
   return (
@@ -174,12 +279,12 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
         <X className="size-6" />
       </button>
 
-      {index > 0 && (
+      {activeIndex > 0 && (
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            navigateWithSlide(index - 1, 1);
+            navigateWithSlide(stepTarget(activeIndex - 1), 1);
           }}
           aria-label={t("previous")}
           className="absolute left-2 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white"
@@ -187,12 +292,12 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
           <ChevronLeft className="size-6" />
         </button>
       )}
-      {index < media.length - 1 && (
+      {activeIndex < activeMedia.length - 1 && (
         <button
           type="button"
           onClick={(event) => {
             event.stopPropagation();
-            navigateWithSlide(index + 1, -1);
+            navigateWithSlide(stepTarget(activeIndex + 1), -1);
           }}
           aria-label={t("next")}
           className="absolute right-2 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white"
@@ -201,21 +306,75 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
         </button>
       )}
 
-      <img
-        src={`/api/memories/media/${item.id}/display`}
-        alt=""
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
-        className="max-h-full max-w-full touch-pan-y select-none object-contain"
-      />
+      {item.mediaKind === "video" ? (
+        <video
+          src={`/api/memories/media/${item.id}/display`}
+          poster={`/api/memories/media/${item.id}/thumbnail`}
+          controls
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
+          className="max-h-full max-w-full touch-pan-y object-contain"
+        />
+      ) : (
+        <img
+          src={`/api/memories/media/${item.id}/display`}
+          alt=""
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
+          className="max-h-full max-w-full touch-pan-y select-none object-contain"
+        />
+      )}
 
-      <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs font-medium text-white/80">
-        {t("viewerLabel", { current: index + 1, total: media.length })}
-      </p>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-8">
+        {!isDragging && !suppressTransition && item.mediaKind !== "video" && nearby.length > 0 && (
+          <div className="pointer-events-auto mb-2.5" onClick={(event) => event.stopPropagation()}>
+            <p className="mb-2 text-[11px] font-semibold tracking-wide text-white/90">{t("nearbyCount", { count: nearby.length })}</p>
+            <div className="flex gap-2 overflow-x-auto">
+              {nearby.map((match) => (
+                <button
+                  key={match.id}
+                  type="button"
+                  onClick={() => handleNearbyTap(match.id)}
+                  aria-label={match.uploaderDisplayName ?? t("nearbyThumbnailLabel")}
+                  className="flex-none text-center"
+                >
+                  <span className="relative block">
+                    <img
+                      src={`/api/memories/media/${match.id}/thumbnail`}
+                      alt=""
+                      className="size-[52px] rounded-xl border border-white/40 object-cover"
+                      loading="lazy"
+                    />
+                    {match.mediaKind === "video" && (
+                      <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+                        <span className="grid size-[22px] place-items-center rounded-full bg-black/55 text-white">
+                          <Play className="size-2.5 fill-current" />
+                        </span>
+                      </span>
+                    )}
+                  </span>
+                  {match.uploaderDisplayName && (
+                    <span className="mt-0.5 block max-w-[52px] truncate text-[9px] text-white/75">{match.uploaderDisplayName}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        <p className="text-center text-xs font-medium text-white/80">
+          {detour
+            ? t("nearbyDetourLabel", { current: activeIndex + 1, total: activeMedia.length })
+            : t("viewerLabel", { current: activeIndex + 1, total: activeMedia.length })}
+        </p>
+      </div>
     </div>
   );
 }

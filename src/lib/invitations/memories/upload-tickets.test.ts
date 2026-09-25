@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createMemoriesUploadTicket, verifyMemoriesUploadTicket } from "./upload-tickets";
+import { createMemoriesUploadTicket, verifyMemoriesUploadTicket, objectKeyForVideoPoster } from "./upload-tickets";
 
 const secret = "x".repeat(32);
 
@@ -45,4 +45,18 @@ test("an unknown content type falls back to the media kind's default extension",
   assert.equal(photo.objectKey, "originals/event-1/media-5.jpg");
   const video = createMemoriesUploadTicket("event-1", "media-6", "video", "application/octet-stream", secret);
   assert.equal(video.objectKey, "originals/event-1/media-6.mp4");
+});
+
+test("objectKeyForVideoPoster derives a deterministic .jpg key from event and media ids, outside originals/", () => {
+  const key = objectKeyForVideoPoster("event-1", "media-1");
+  // Must NOT live under originals/ — that's the exact prefix the processing
+  // Worker's R2 event notification watches, and .jpg is a supported image
+  // extension there, so an originals/-prefixed poster key would get picked up
+  // and processed as a real media original (and dead-letter on the resulting
+  // invalid mediaId). See upload-tickets.ts for the full writeup.
+  assert.equal(key, "posters/event-1/media-1.jpg");
+});
+
+test("objectKeyForVideoPoster is stable across repeated calls with the same ids", () => {
+  assert.equal(objectKeyForVideoPoster("event-2", "media-2"), objectKeyForVideoPoster("event-2", "media-2"));
 });

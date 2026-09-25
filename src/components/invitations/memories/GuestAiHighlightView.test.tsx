@@ -45,7 +45,7 @@ function highlightGroup(overrides: Partial<GuestHighlightGroup> & { id: string }
   };
 }
 
-function mediaItem(id: string): GuestHighlightGroup["media"][number] {
+function mediaItem(id: string, overrides: Partial<GuestHighlightGroup["media"][number]> = {}): GuestHighlightGroup["media"][number] {
   return {
     id,
     mediaKind: "photo",
@@ -54,6 +54,7 @@ function mediaItem(id: string): GuestHighlightGroup["media"][number] {
     objectKeyThumbnail: `thumb/${id}.webp`,
     capturedAt: "2026-09-22T20:00:00Z",
     uploadedAt: "2026-09-22T20:01:00Z",
+    ...overrides,
   };
 }
 
@@ -306,6 +307,70 @@ test("tapping a photo in a category opens it fullscreen, supports next/previous,
         await flush();
       });
       assert.ok(!dom.window.document.querySelector('[role="dialog"]'), "expected the lightbox to close");
+    },
+  );
+});
+
+test("a video item's thumbnail shows a play-badge overlay; a photo item's does not", async () => {
+  await withMountedComponent(
+    baseProps(),
+    async () =>
+      jsonResponse({
+        groups: [
+          highlightGroup({
+            id: "g1",
+            name: "Cake Cutting",
+            media: [mediaItem("m1", { mediaKind: "photo" }), mediaItem("m2", { mediaKind: "video" })],
+          }),
+        ],
+      }),
+    async ({ dom }) => {
+      // The grid's cover tile always shows media[0] (the photo here) — assert
+      // the play-badge distinction inside the group's detail view instead,
+      // where both items render side by side.
+      const card = byText(dom, "p", "Cake Cutting")?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, card);
+        await flush();
+      });
+
+      const photoImg = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]');
+      // A video's own file lives at /display (it's the raw clip, not
+      // decodable as an image) — the group's detail grid must point a
+      // video's <img> at /thumbnail instead, matching the group cover tile's
+      // own already-correct kind-aware selection tested below.
+      const videoImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/thumbnail"]');
+      assert.ok(photoImg, "expected the photo to render in the detail view");
+      assert.ok(videoImg, "expected the video to render in the detail view");
+
+      const photoButton = photoImg!.closest("button");
+      const videoButton = videoImg!.closest("button");
+      assert.ok(!photoButton?.querySelector('[data-play-badge="true"]'), "photo tile must not show a play badge");
+      assert.ok(videoButton?.querySelector('[data-play-badge="true"]'), "video tile must show a play badge");
+    },
+  );
+});
+
+test("a video group's cover tile shows a play-badge overlay when its first photo is a video", async () => {
+  await withMountedComponent(
+    baseProps(),
+    async () =>
+      jsonResponse({
+        groups: [
+          highlightGroup({ id: "g1", name: "First Dance", media: [mediaItem("m1", { mediaKind: "video" })] }),
+          highlightGroup({ id: "g2", name: "Cake Cutting", media: [mediaItem("m2", { mediaKind: "photo" })] }),
+        ],
+      }),
+    async ({ dom }) => {
+      const videoCoverImg = dom.window.document.querySelector('img[src="/api/memories/media/m1/thumbnail"]');
+      const photoCoverImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/thumbnail"]');
+      assert.ok(videoCoverImg, "expected the video group's cover thumbnail to render");
+      assert.ok(photoCoverImg, "expected the photo group's cover thumbnail to render");
+
+      const videoCoverWrapper = videoCoverImg!.parentElement;
+      const photoCoverWrapper = photoCoverImg!.parentElement;
+      assert.ok(videoCoverWrapper?.querySelector('[data-play-badge="true"]'), "video group cover must show a play badge");
+      assert.ok(!photoCoverWrapper?.querySelector('[data-play-badge="true"]'), "photo group cover must not show a play badge");
     },
   );
 });

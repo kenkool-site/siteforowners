@@ -780,7 +780,7 @@
           "addName": "Agregar tu nombre",
           "saveName": "Guardar",
           "navigationLabel": "Fotos compartidas",
-          "tabs": { "upload": "Agregar fotos", "gallery": "Galería", "moments": "Momentos", "highlights": "Destacados IA" }
+          "tabs": { "upload": "Agregar fotos", "gallery": "Galería", "moments": "Momentos", "highlights": "Destacados" }
         },
         "upload": {
           "queued": "Esperando para subir",
@@ -789,20 +789,21 @@
           "failed": "No se pudo subir — no se perdió nada, toca reintentar",
           "retry": "Reintentar",
           "dismiss": "Cerrar",
-          "uploadingCount": "{count, plural, one {Subiendo # foto} other {Subiendo # fotos}}",
-          "added": "{count, plural, one {# foto agregada} other {# fotos agregadas}}",
-          "addMore": "Agregar más fotos",
+          "uploadingCount": "{count, plural, one {Subiendo # elemento} other {Subiendo # elementos}}",
+          "added": "{count, plural, one {# elemento agregado} other {# elementos agregados}}",
+          "addMore": "Agregar más fotos o videos",
           "heicError": "El formato de foto predeterminado del iPhone aún no es compatible — cambia tu cámara a \"Más compatible\" en Configuración, o comparte un JPEG.",
-          "quotaError": "Este evento alcanzó su límite de fotos.",
-          "windowClosedError": "La ventana para subir fotos de este evento ya cerró.",
+          "videoTooLongError": "Los videos pueden durar hasta 60 segundos — recorta tu clip e inténtalo de nuevo.",
+          "quotaError": "Este evento alcanzó su límite de contenido.",
+          "windowClosedError": "La ventana para subir contenido de este evento ya cerró.",
           "genericError": "Algo salió mal — inténtalo de nuevo."
         },
         "gallery": {
           "loading": "Cargando fotos…",
           "error": "No se pudo cargar la galería. Inténtalo de nuevo pronto.",
-          "empty": "Aún no hay fotos — ¡sé el primero en compartir una!",
-          "newPhotos": "{count} fotos nuevas justo ahora",
-          "recentLabel": "Fotos compartidas recientemente",
+          "empty": "Aún no hay recuerdos — ¡sé el primero en compartir uno!",
+          "newPhotos": "{count} recuerdos nuevos justo ahora",
+          "recentLabel": "Recuerdos compartidos recientemente",
           "justAdded": "Recién agregadas",
           "live": "En vivo",
           "earlierToday": "Más temprano hoy",
@@ -817,8 +818,8 @@
         "moments": {
           "loading": "Cargando momentos…",
           "empty": "Aún no hay momentos — vuelve pronto.",
-          "photoCount": "{count, plural, one {# foto} other {# fotos}}",
-          "back": "Todos los momentos"
+          "photoCount": "{count, plural, one {# elemento} other {# elementos}}",
+          "back": "Atrás"
         },
         "aiHighlight": {
           "loading": "Buscando destacados…",
@@ -831,7 +832,10 @@
           "close": "Cerrar",
           "previous": "Foto anterior",
           "next": "Foto siguiente",
-          "viewerLabel": "Foto {current} de {total}"
+          "viewerLabel": "Foto {current} de {total}",
+          "nearbyCount": "{count, plural, one {# persona más capturó este momento} other {# personas más capturaron este momento}}",
+          "nearbyDetourLabel": "Viendo un momento cercano · {current} de {total}",
+          "nearbyThumbnailLabel": "Ver foto relacionada"
         }
       }
     },

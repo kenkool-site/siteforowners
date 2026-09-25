@@ -81,6 +81,36 @@ export async function markMemoryMediaUploaded(mediaId: string): Promise<void> {
   if (jobError) throw new Error(`failed to queue memory_processing_jobs row: ${jobError.message}`);
 }
 
+// Video's counterpart to markMemoryMediaUploaded — but video never enters the
+// photon-rs processing Worker pipeline (no transcoding, see the video-support
+// design spec), so this sets the derivative columns directly instead of
+// queuing a memory_processing_jobs row. object_key_display is set to the
+// video's own original (playing the actual clip *is* "display" for video);
+// object_key_thumbnail is set to the client-captured poster.
+export async function markVideoMemoryMediaReady(mediaId: string, objectKeyOriginal: string, posterObjectKey: string): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client
+    .from("memory_media")
+    .update({
+      upload_status: "uploaded",
+      object_key_display: objectKeyOriginal,
+      object_key_thumbnail: posterObjectKey,
+      processing_status: "ready",
+    })
+    .eq("id", mediaId)
+    // Guard on object_key_thumbnail (the column this function actually owns), not
+    // upload_status. processing-complete/route.ts's self-heal path also flips
+    // upload_status to 'uploaded' independently, triggered by the R2 Worker's own
+    // event notification (which can batch for up to 30s) — if that self-heal wins
+    // the race and runs before this call, an upload_status='pending' guard would
+    // match 0 rows and silently no-op, leaving object_key_display/object_key_thumbnail
+    // permanently null even though the guest's /complete call returns 200. The write
+    // is value-idempotent by construction (same mediaId always derives the same
+    // target values), so guarding on "not yet set" is safe and closes that race.
+    .is("object_key_thumbnail", null);
+  if (error) throw new Error(`failed to mark video memory_media ready: ${error.message}`);
+}
+
 export async function getMemoryMediaById(mediaId: string): Promise<MemoryMedia | null> {
   const client = createAdminClient();
   const { data, error } = await client.from("memory_media").select("*").eq("id", mediaId).maybeSingle();

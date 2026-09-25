@@ -71,7 +71,15 @@ async function withMountedGallery(media: PublicMemoryMedia[], callback: (ctx: { 
     HTMLElement: dom.window.HTMLElement,
     HTMLButtonElement: dom.window.HTMLButtonElement,
     Event: dom.window.Event,
-    fetch: async () => jsonResponse({ media }),
+    // MediaLightbox (mounted by this file's tests once a photo is tapped)
+    // fetches /api/memories/media/[id]/nearby on its own — without a
+    // URL-aware stub, that fetch would resolve to this same gallery-shaped
+    // `{ media }` payload (which includes the anchor item itself) and render
+    // an unintended "Every Perspective" strip, the same latent-collision
+    // shape GuestAiHighlightView.test.tsx hit earlier in this plan. Matches
+    // the URL-aware pattern MediaLightbox.test.tsx and
+    // GuestMemoriesApp.interaction.test.tsx already use.
+    fetch: async (input: RequestInfo | URL) => (String(input).endsWith("/nearby") ? jsonResponse({ media: [] }) : jsonResponse({ media })),
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
@@ -179,6 +187,24 @@ test("clicking Next twice in quick succession settles cleanly on the second phot
       await flush(320);
     });
     assert.match(dom.window.document.body.textContent ?? "", /Photo 2 of 3/);
+  });
+});
+
+test("a video item's thumbnail shows a play-badge overlay; a photo item's does not", async () => {
+  await withMountedGallery([mediaItem("m1", { mediaKind: "photo" }), mediaItem("m2", { mediaKind: "video" })], async ({ dom }) => {
+    const photoImg = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]');
+    // A video's own file lives at /display (it's the raw clip, not decodable
+    // as an image) — the "Earlier Today" grid must point a video's <img> at
+    // /thumbnail instead, matching the story-strip's own already-correct
+    // kind-aware selection just above.
+    const videoImg = dom.window.document.querySelector('img[src="/api/memories/media/m2/thumbnail"]');
+    assert.ok(photoImg, "expected the photo thumbnail to render");
+    assert.ok(videoImg, "expected the video thumbnail to render");
+
+    const photoFigure = photoImg!.closest("figure");
+    const videoFigure = videoImg!.closest("figure");
+    assert.ok(!photoFigure?.querySelector('[data-play-badge="true"]'), "photo thumbnail must not show a play badge");
+    assert.ok(videoFigure?.querySelector('[data-play-badge="true"]'), "video thumbnail must show a play badge");
   });
 });
 

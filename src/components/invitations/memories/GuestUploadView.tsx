@@ -7,36 +7,131 @@ import type { GuestUploadPreview } from "@/lib/invitations/memories/guest-galler
 import { createUploadQueue, type QueueItem, type UploadQueue } from "@/lib/invitations/memories/upload-queue";
 
 const UNSUPPORTED_TYPES = new Set(["image/heic", "image/heif"]);
+const VIDEO_CONTENT_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
+const MAX_VIDEO_DURATION_SECONDS = 60;
 const ERROR_QUOTA = "quota";
 const ERROR_WINDOW_CLOSED = "window_closed";
 const ERROR_GENERIC = "generic";
 const TERMINAL_UPLOAD_ERRORS = new Set([ERROR_QUOTA, ERROR_WINDOW_CLOSED]);
 const PREVIEW_LIFETIME_MS = 30_000;
 
-async function uploadOne(eventId: string, file: File, onProgress: (percent: number) => void): Promise<{ mediaId: string }> {
+function isVideoFile(file: File): boolean {
+  return VIDEO_CONTENT_TYPES.has(file.type);
+}
+
+// Pure and unit-testable in isolation from the real (unmockable-in-jsdom)
+// video-duration-reading step below.
+function exceedsMaxVideoDuration(durationSeconds: number): boolean {
+  return durationSeconds > MAX_VIDEO_DURATION_SECONDS;
+}
+
+// Reads a video File's duration by loading it into a detached <video> element.
+// Not unit-testable under jsdom (no real media decoding) — verified manually
+// per the video-support design spec's Testing section.
+function readVideoDurationSeconds(file: File): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(video.src);
+      resolve(video.duration);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(video.src);
+      reject(new Error("could not read video duration"));
+    };
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+// Longest-side cap for a captured poster frame. Without this, a 4K phone
+// video produces a multi-megabyte JPEG — needlessly large for every guest to
+// download as a grid thumbnail, and risky as the Rekognition moderation
+// input: a high-entropy full-resolution frame can exceed Rekognition's 5MB
+// Image.Bytes hard limit, which throws and leaves the row stuck moderating
+// forever. 1600px is generous headroom for a crisp thumbnail/lightbox poster
+// while keeping the JPEG comfortably small.
+const MAX_POSTER_DIMENSION_PX = 1600;
+
+// Captures a frame from a video File as a JPEG File, for use as the poster.
+// Same jsdom limitation as above — canvas drawImage/toBlob needs a real
+// browser. Verified manually.
+function capturePosterFrame(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadeddata = () => {
+      // Scale down to MAX_POSTER_DIMENSION_PX on the longest side, preserving
+      // aspect ratio — never upscale a video already smaller than the cap.
+      const scale = Math.min(1, MAX_POSTER_DIMENSION_PX / Math.max(video.videoWidth, video.videoHeight));
+      const scaledWidth = Math.round(video.videoWidth * scale);
+      const scaledHeight = Math.round(video.videoHeight * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        URL.revokeObjectURL(video.src);
+        reject(new Error("could not get canvas context"));
+        return;
+      }
+      // The 5-argument overload draws (and resamples) into the scaled
+      // destination size — using the native-size overload here would still
+      // write full-resolution pixel data into a canvas whose *declared*
+      // dimensions merely look smaller.
+      ctx.drawImage(video, 0, 0, scaledWidth, scaledHeight);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(video.src);
+        if (!blob) {
+          reject(new Error("could not capture poster frame"));
+          return;
+        }
+        resolve(new File([blob], "poster.jpg", { type: "image/jpeg" }));
+      }, "image/jpeg", 0.85);
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(video.src);
+      reject(new Error("could not load video for poster capture"));
+    };
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+async function uploadOne(eventId: string, file: File, posterFile: File | undefined, onProgress: (percent: number) => void): Promise<{ mediaId: string }> {
+  const mediaKind = isVideoFile(file) ? "video" : "photo";
   const initRes = await fetch(`/api/memories/events/${eventId}/upload/init`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ mediaKind: "photo", contentType: file.type, sizeBytes: file.size }),
+    body: JSON.stringify({ mediaKind, contentType: file.type, sizeBytes: file.size }),
   });
   if (!initRes.ok) {
     if (initRes.status === 429) throw new Error(ERROR_QUOTA);
     if (initRes.status === 404) throw new Error(ERROR_WINDOW_CLOSED);
     throw new Error(ERROR_GENERIC);
   }
-  const { mediaId, ticket, uploadUrl } = await initRes.json();
+  const { mediaId, ticket, uploadUrl, posterUploadUrl } = await initRes.json();
 
-  await new Promise<void>((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    xhr.open("PUT", uploadUrl);
-    xhr.setRequestHeader("content-type", file.type);
-    xhr.upload.addEventListener("progress", (event) => {
-      if (event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100));
+  async function putFile(url: string, body: File, trackProgress: boolean): Promise<void> {
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", url);
+      xhr.setRequestHeader("content-type", body.type);
+      if (trackProgress) {
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100));
+        });
+      }
+      xhr.addEventListener("error", () => reject(new Error("upload failed")));
+      xhr.addEventListener("load", () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("upload failed")));
+      xhr.send(body);
     });
-    xhr.addEventListener("error", () => reject(new Error("upload failed")));
-    xhr.addEventListener("load", () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("upload failed")));
-    xhr.send(file);
-  });
+  }
+
+  await putFile(uploadUrl, file, true);
+  if (mediaKind === "video" && posterFile && posterUploadUrl) {
+    await putFile(posterUploadUrl, posterFile, false);
+  }
 
   const completeRes = await fetch(`/api/memories/events/${eventId}/upload/complete`, {
     method: "POST",
@@ -60,6 +155,11 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
   const [items, setItems] = useState<GuestUploadPreview[]>([]);
   const [rejectionError, setRejectionError] = useState<string | null>(null);
   const [successCount, setSuccessCount] = useState(0);
+  // Collapses the CTA to an icon-only button once the guest scrolls past the
+  // header, so it stops competing visually with the bottom tab bar directly
+  // beneath it. Full pill only while near the top, where there's no nav
+  // crowding yet.
+  const [scrolled, setScrolled] = useState(false);
   const queueRef = useRef<UploadQueue | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const previewsRef = useRef(new Map<string, string>());
@@ -77,7 +177,7 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
   useEffect(() => {
     const dismissTimers = dismissTimersRef.current;
     const previews = previewsRef.current;
-    const queue = createUploadQueue(eventId, (file, onProgress) => uploadOne(eventId, file, onProgress));
+    const queue = createUploadQueue(eventId, (file, posterFile, onProgress) => uploadOne(eventId, file, posterFile, onProgress));
     queueRef.current = queue;
     const unsubscribe = queue.subscribe((queueItems) => {
       const liveIds = new Set(queueItems.map((item) => item.id));
@@ -113,12 +213,37 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
     };
   }, [eventId, publishItems]);
 
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 80);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || !queueRef.current) return;
     setRejectionError(null);
     for (const file of Array.from(fileList)) {
       if (UNSUPPORTED_TYPES.has(file.type)) {
         setRejectionError(t("heicError"));
+        continue;
+      }
+      if (isVideoFile(file)) {
+        try {
+          const duration = await readVideoDurationSeconds(file);
+          if (exceedsMaxVideoDuration(duration)) {
+            setRejectionError(t("videoTooLongError"));
+            continue;
+          }
+          const poster = await capturePosterFrame(file);
+          const id = await queueRef.current.enqueue(file, poster);
+          previewsRef.current.set(id, URL.createObjectURL(file));
+          publishItems(queueRef.current.getItems());
+        } catch {
+          setRejectionError(t("genericError"));
+        }
         continue;
       }
       const id = await queueRef.current.enqueue(file);
@@ -134,7 +259,7 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
 
   return (
     <>
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" multiple className="hidden" onChange={(event) => void handleFiles(event.target.files)} />
+      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple className="hidden" onChange={(event) => void handleFiles(event.target.files)} />
 
       <div className="pointer-events-none fixed inset-x-4 bottom-[9.25rem] z-40 mx-auto flex max-w-xl flex-col items-center gap-2">
         {rejectionError && <div role="alert" className="pointer-events-auto flex w-full items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-red-700 shadow-lg ring-1 ring-black/5"><span>{rejectionError}</span><button type="button" aria-label={t("dismiss")} onClick={() => setRejectionError(null)}><X className="size-4" /></button></div>}
@@ -150,9 +275,16 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
         {successCount > 0 && active.length === 0 && <div role="status" className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold shadow-lg ring-1 ring-black/5"><span className="grid size-6 place-items-center rounded-full text-white" style={{ backgroundColor: accent }}><Check className="size-4" /></span>{t("added", { count: successCount })}</div>}
       </div>
 
-      <div className="fixed inset-x-4 bottom-[4.75rem] z-30 mx-auto max-w-xl">
-        <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-full px-6 py-3 text-base font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ backgroundColor: accent, outlineColor: accent }}>
-          <Camera className="size-5" />{tLanding("addPhotos")}
+      <div className={`fixed inset-x-4 bottom-[4.75rem] z-30 mx-auto flex max-w-xl ${scrolled ? "justify-end" : ""}`}>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          aria-label={scrolled ? tLanding("addPhotos") : undefined}
+          className={`flex min-h-14 items-center justify-center gap-3 rounded-full text-base font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.16)] transition-[width,padding] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${scrolled ? "w-14 px-0" : "w-full px-6 py-3"}`}
+          style={{ backgroundColor: accent, outlineColor: accent }}
+        >
+          <Camera className="size-5" />
+          {!scrolled && tLanding("addPhotos")}
         </button>
       </div>
     </>

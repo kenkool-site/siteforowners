@@ -1,27 +1,32 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 export interface StorageProvider {
   createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number, contentLength?: number): Promise<string>;
   getSignedDownloadUrl(objectKey: string, expiresInSeconds: number): Promise<string>;
   deleteObject(objectKey: string): Promise<void>;
+  objectExists(objectKey: string): Promise<boolean>;
 }
 
 export class R2StorageProvider implements StorageProvider {
   private readonly client: S3Client;
   private readonly bucket: string;
 
-  constructor() {
-    const accountId = requireEnv("R2_ACCOUNT_ID");
-    this.bucket = requireEnv("R2_BUCKET_MEMORIES");
-    this.client = new S3Client({
-      region: "auto",
-      endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
-      credentials: {
-        accessKeyId: requireEnv("R2_ACCESS_KEY_ID"),
-        secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY"),
-      },
-    });
+  constructor(client?: S3Client, bucket?: string) {
+    this.bucket = bucket ?? requireEnv("R2_BUCKET_MEMORIES");
+    if (client) {
+      this.client = client;
+    } else {
+      const accountId = requireEnv("R2_ACCOUNT_ID");
+      this.client = new S3Client({
+        region: "auto",
+        endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+        credentials: {
+          accessKeyId: requireEnv("R2_ACCESS_KEY_ID"),
+          secretAccessKey: requireEnv("R2_SECRET_ACCESS_KEY"),
+        },
+      });
+    }
   }
 
   async createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number, contentLength?: number): Promise<string> {
@@ -40,6 +45,17 @@ export class R2StorageProvider implements StorageProvider {
 
   async deleteObject(objectKey: string): Promise<void> {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: objectKey }));
+  }
+
+  async objectExists(objectKey: string): Promise<boolean> {
+    try {
+      await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: objectKey }));
+      return true;
+    } catch (error) {
+      const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+      if (status === 404) return false;
+      throw error;
+    }
   }
 }
 

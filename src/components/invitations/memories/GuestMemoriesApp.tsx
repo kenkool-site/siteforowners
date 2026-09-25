@@ -80,13 +80,18 @@ export function GuestMemoriesApp({
 
   const displayName = greeting || guestName.trim();
   const initial = displayName ? Array.from(displayName)[0]?.toUpperCase() : "+";
+  // Only Gallery keeps the generic landing copy — it's the tab a guest lands
+  // on first. Moments/Highlights swap the heading to their own tab label so
+  // the header reflects where the guest actually is, instead of a static
+  // title that never changes across tabs.
+  const headerTitle = tab === "gallery" ? t("title") : t(`tabs.${tab}`);
 
   return (
     <div style={{ backgroundColor: background, color: text }} className="min-h-screen pb-20">
       <div className="mx-auto min-h-screen max-w-2xl">
         <header className="flex items-start justify-between gap-4 px-5 pb-5 pt-6 sm:px-7">
           <div className="min-w-0">
-            <h1 className="font-serif text-[2.15rem] font-semibold leading-[0.95] tracking-[-0.035em] sm:text-5xl">{t("title")}</h1>
+            <h1 className="font-serif text-[2.15rem] font-semibold leading-[0.95] tracking-[-0.035em] sm:text-5xl">{headerTitle}</h1>
             <p className="mt-2 truncate font-serif text-xl sm:text-2xl" style={{ color: accent }}>{eventTitle}</p>
           </div>
           {!editingName && (
