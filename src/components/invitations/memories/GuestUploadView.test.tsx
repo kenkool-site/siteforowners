@@ -37,10 +37,10 @@ function polyfillObjectUrl(dom: JSDOM): void {
 // document.createElement("video"/"canvas") so those two (unexported, real)
 // functions run their real logic against a fake element instead of a real
 // one, "mocking" them at the DOM boundary.
-function installVideoCanvasStubs(dom: JSDOM, durationSeconds: number): void {
+function installVideoCanvasStubs(dom: JSDOM, durationSeconds: number, options: { failPosterCapture?: boolean } = {}): void {
   const doc = dom.window.document;
   const originalCreateElement = doc.createElement.bind(doc);
-  doc.createElement = ((tagName: string, options?: ElementCreationOptions) => {
+  doc.createElement = ((tagName: string, createOptions?: ElementCreationOptions) => {
     if (tagName === "video") {
       let onloadedmetadata: (() => void) | null = null;
       let onloadeddata: (() => void) | null = null;
@@ -65,17 +65,21 @@ function installVideoCanvasStubs(dom: JSDOM, durationSeconds: number): void {
       return fakeVideo as unknown as HTMLVideoElement;
     }
     if (tagName === "canvas") {
+      // options.failPosterCapture reproduces a real browser condition
+      // capturePosterFrame's own code already checks for and rejects on
+      // (getContext("2d") returning null) — used to test the poster-capture
+      // failure path without inventing a new kind of fake.
       const fakeCanvas = {
         width: 0,
         height: 0,
-        getContext: () => ({ drawImage: () => undefined }),
+        getContext: () => (options.failPosterCapture ? null : { drawImage: () => undefined }),
         toBlob: (callback: (blob: Blob | null) => void) => {
           callback(new dom.window.Blob([new Uint8Array([1, 2, 3])], { type: "image/jpeg" }) as unknown as Blob);
         },
       };
       return fakeCanvas as unknown as HTMLCanvasElement;
     }
-    return originalCreateElement(tagName, options);
+    return originalCreateElement(tagName, createOptions);
   }) as typeof doc.createElement;
 }
 
@@ -121,12 +125,13 @@ async function withMountedUploadView(
     fetchImpl: (url: string, body: Record<string, unknown> | undefined) => Promise<Response>;
     XHRClass: typeof XMLHttpRequest;
     durationSeconds?: number;
+    failPosterCapture?: boolean;
   },
   run: (ctx: { dom: JSDOM; fetchCalls: FetchCall[]; xhrCalls: Array<{ method: string; url: string }>; getLatestItems: () => GuestUploadPreview[] }) => Promise<void>,
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test" });
   polyfillObjectUrl(dom);
-  if (opts.durationSeconds !== undefined) installVideoCanvasStubs(dom, opts.durationSeconds);
+  if (opts.durationSeconds !== undefined) installVideoCanvasStubs(dom, opts.durationSeconds, { failPosterCapture: opts.failPosterCapture });
   const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const fetchCalls: FetchCall[] = [];
   Object.assign(globalThis, {
@@ -281,6 +286,39 @@ test("a picked photo file is still enqueued with mediaKind photo and no poster, 
       assert.equal(items.length, 1);
       assert.equal(items[0].status, "done");
       assert.equal(items[0].mediaId, "media-p1");
+    },
+  );
+});
+
+test("a video whose poster frame capture fails is never enqueued and shows the generic error", async () => {
+  const { XHRClass } = createRecordingXHRClass();
+  await withMountedUploadView(
+    {
+      eventId: "event-video-poster-fail",
+      durationSeconds: 10,
+      failPosterCapture: true,
+      XHRClass,
+      fetchImpl: async (url) => {
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    },
+    async ({ dom, fetchCalls, getLatestItems }) => {
+      const video = new dom.window.File([new Uint8Array([1, 2, 3])], "clip.mp4", { type: "video/mp4" });
+      await act(async () => {
+        pickFiles(dom, [video]);
+        dom.window.document.querySelector('input[type="file"]')!.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+        await flush();
+      });
+
+      // capturePosterFrame rejects (no canvas context) inside handleFiles's
+      // try block, before queueRef.current.enqueue is ever reached — so no
+      // upload/init call and no queued item, same as the other pre-queue
+      // rejections (HEIC, duration) above.
+      assert.equal(fetchCalls.length, 0, "expected no network call when poster capture fails");
+      assert.deepEqual(getLatestItems(), [], "expected the video to never be enqueued");
+
+      const alertText = dom.window.document.querySelector('[role="alert"]')?.textContent ?? "";
+      assert.match(alertText, /Something went wrong — please try again/);
     },
   );
 });
