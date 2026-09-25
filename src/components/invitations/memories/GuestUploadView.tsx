@@ -44,6 +44,15 @@ function readVideoDurationSeconds(file: File): Promise<number> {
   });
 }
 
+// Longest-side cap for a captured poster frame. Without this, a 4K phone
+// video produces a multi-megabyte JPEG — needlessly large for every guest to
+// download as a grid thumbnail, and risky as the Rekognition moderation
+// input: a high-entropy full-resolution frame can exceed Rekognition's 5MB
+// Image.Bytes hard limit, which throws and leaves the row stuck moderating
+// forever. 1600px is generous headroom for a crisp thumbnail/lightbox poster
+// while keeping the JPEG comfortably small.
+const MAX_POSTER_DIMENSION_PX = 1600;
+
 // Captures a frame from a video File as a JPEG File, for use as the poster.
 // Same jsdom limitation as above — canvas drawImage/toBlob needs a real
 // browser. Verified manually.
@@ -53,16 +62,25 @@ function capturePosterFrame(file: File): Promise<File> {
     video.preload = "metadata";
     video.muted = true;
     video.onloadeddata = () => {
+      // Scale down to MAX_POSTER_DIMENSION_PX on the longest side, preserving
+      // aspect ratio — never upscale a video already smaller than the cap.
+      const scale = Math.min(1, MAX_POSTER_DIMENSION_PX / Math.max(video.videoWidth, video.videoHeight));
+      const scaledWidth = Math.round(video.videoWidth * scale);
+      const scaledHeight = Math.round(video.videoHeight * scale);
       const canvas = document.createElement("canvas");
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      canvas.width = scaledWidth;
+      canvas.height = scaledHeight;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
         URL.revokeObjectURL(video.src);
         reject(new Error("could not get canvas context"));
         return;
       }
-      ctx.drawImage(video, 0, 0);
+      // The 5-argument overload draws (and resamples) into the scaled
+      // destination size — using the native-size overload here would still
+      // write full-resolution pixel data into a canvas whose *declared*
+      // dimensions merely look smaller.
+      ctx.drawImage(video, 0, 0, scaledWidth, scaledHeight);
       canvas.toBlob((blob) => {
         URL.revokeObjectURL(video.src);
         if (!blob) {

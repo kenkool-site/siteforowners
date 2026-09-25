@@ -38,6 +38,14 @@ const ALLOWED_CONTENT_TYPES = new Set([
 ]);
 const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — matches this module's existing video cap in direct-media.ts
 const MAX_MEDIA_PER_EVENT = 2000;
+// Server-enforced ceiling for the poster JPEG's presigned upload. The client
+// now caps the captured poster frame at 1600px on its longest side (see
+// GuestUploadView.tsx's capturePosterFrame/MAX_POSTER_DIMENSION_PX), which
+// should never produce more than a few hundred KB at reasonable JPEG
+// quality — 2MB is generous headroom above that while still being a real,
+// enforced limit, matching the main upload's own contentLength enforcement
+// below.
+const MAX_POSTER_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 export async function POST(request: NextRequest, { params }: { params: { eventId: string } }) {
   if (!isSameOrigin(request)) {
@@ -128,7 +136,12 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     // client can upload that frame as a plain JPEG alongside the video itself.
     const posterUploadUrl =
       mediaKind === "video"
-        ? await storage.createPresignedUploadUrl(objectKeyForVideoPoster(eventId, mediaId), "image/jpeg", 15 * 60)
+        ? await storage.createPresignedUploadUrl(
+            objectKeyForVideoPoster(eventId, mediaId),
+            "image/jpeg",
+            15 * 60,
+            MAX_POSTER_UPLOAD_BYTES,
+          )
         : undefined;
 
     return NextResponse.json({ mediaId, ticket, uploadUrl, ...(posterUploadUrl ? { posterUploadUrl } : {}) });
