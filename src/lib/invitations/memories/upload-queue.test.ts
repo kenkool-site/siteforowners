@@ -1,4 +1,8 @@
 // src/lib/invitations/memories/upload-queue.test.ts
+/* eslint-disable @typescript-eslint/no-unused-vars -- test doubles intentionally leave unused
+   (file, posterFile, onProgress) params underscore-prefixed per call site; this file predates
+   the upload() signature widening to a two-file (posterFile) form and was never re-checked with
+   a real `npm run build` (only `tsc --noEmit`, which this lint rule isn't caught by). */
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import "fake-indexeddb/auto";
