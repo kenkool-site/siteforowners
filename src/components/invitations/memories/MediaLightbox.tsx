@@ -40,6 +40,29 @@ export function resolveSwipeNavigation(deltaX: number, index: number, total: num
   return index > 0 ? index - 1 : null; // swiped right -> previous
 }
 
+// Pure decision for tapping a thumbnail in the "Every Perspective" nearby
+// strip: is the tapped item already part of the list the lightbox is
+// currently paging through (the common case — Gallery and AI Highlights
+// almost always already loaded the tapped item's own list), or does it live
+// outside that list (only possible from inside an AI Highlights category,
+// whose list is scoped to that category's members)? In the second case the
+// caller starts a "detour" — nearbyCluster must already include the anchor
+// item the guest detoured from, so the detour is browsable back to where it
+// started; assembling that cluster is the caller's job, not this function's.
+export function resolveNearbyTap(
+  currentMedia: PublicMemoryMedia[],
+  tappedId: string,
+  nearbyCluster: PublicMemoryMedia[],
+): { mode: "list"; index: number } | { mode: "detour"; media: PublicMemoryMedia[]; index: number } | null {
+  const listIndex = currentMedia.findIndex((item) => item.id === tappedId);
+  if (listIndex !== -1) return { mode: "list", index: listIndex };
+
+  const detourIndex = nearbyCluster.findIndex((item) => item.id === tappedId);
+  if (detourIndex !== -1) return { mode: "detour", media: nearbyCluster, index: detourIndex };
+
+  return null;
+}
+
 function exitDistance(): number {
   return (typeof window !== "undefined" ? window.innerWidth : FALLBACK_EXIT_DISTANCE_PX) + 100;
 }
