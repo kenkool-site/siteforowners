@@ -832,7 +832,9 @@
           "close": "Cerrar",
           "previous": "Foto anterior",
           "next": "Foto siguiente",
-          "viewerLabel": "Foto {current} de {total}"
+          "viewerLabel": "Foto {current} de {total}",
+          "nearbyCount": "{count, plural, one {# persona más capturó este momento} other {# personas más capturaron este momento}}",
+          "nearbyDetourLabel": "Viendo un momento cercano · {current} de {total}"
         }
       }
     },

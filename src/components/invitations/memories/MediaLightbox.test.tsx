@@ -27,7 +27,7 @@ function polyfillAnimationFrame(dom: JSDOM): void {
   dom.window.cancelAnimationFrame = ((id: number) => dom.window.clearTimeout(id)) as typeof dom.window.cancelAnimationFrame;
 }
 
-const GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLButtonElement", "HTMLImageElement", "HTMLVideoElement", "Event", "navigator", "IS_REACT_ACT_ENVIRONMENT"] as const;
+const GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLButtonElement", "HTMLImageElement", "HTMLVideoElement", "Event", "navigator", "IS_REACT_ACT_ENVIRONMENT", "fetch"] as const;
 
 const OLD_TIMESTAMP = "2020-01-01T00:00:00Z";
 
@@ -46,6 +46,12 @@ function mediaItem(id: string, overrides: Partial<PublicMemoryMedia> = {}): Publ
 
 function flush(ms = 20): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+type FetchCall = { url: string };
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
 // jsdom has no real PointerEvent constructor with usable coordinate data (see
@@ -69,7 +75,8 @@ function pointerEvent(dom: JSDOM, type: string, clientX: number): Event {
 async function withMountedLightbox(
   media: PublicMemoryMedia[],
   initialIndex: number,
-  callback: (ctx: { dom: JSDOM }) => Promise<void>,
+  callback: (ctx: { dom: JSDOM; calls: FetchCall[] }) => Promise<void>,
+  fetchImpl: (url: string) => Promise<Response> = async () => jsonResponse({ media: [] }),
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", {
     url: "https://invite.example.test",
@@ -77,6 +84,11 @@ async function withMountedLightbox(
   });
   polyfillAnimationFrame(dom);
   const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const calls: FetchCall[] = [];
+  const trackingFetch = async (input: RequestInfo | URL) => {
+    calls.push({ url: String(input) });
+    return fetchImpl(String(input));
+  };
 
   Object.assign(globalThis, {
     window: dom.window,
@@ -86,6 +98,7 @@ async function withMountedLightbox(
     HTMLImageElement: dom.window.HTMLImageElement,
     HTMLVideoElement: dom.window.HTMLVideoElement,
     Event: dom.window.Event,
+    fetch: trackingFetch,
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
@@ -96,9 +109,7 @@ async function withMountedLightbox(
 
   function Harness() {
     const [index, setIndex] = React.useState(initialIndex);
-    return (
-      <MediaLightbox media={media} index={index} onClose={() => {}} onNavigate={setIndex} />
-    );
+    return <MediaLightbox media={media} index={index} onClose={() => {}} onNavigate={setIndex} />;
   }
 
   try {
@@ -110,7 +121,7 @@ async function withMountedLightbox(
       );
       await flush();
     });
-    await callback({ dom });
+    await callback({ dom, calls });
   } finally {
     await act(async () => root.unmount());
     originals.forEach((descriptor, key) => (descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete (globalThis as Record<string, unknown>)[key]));
@@ -220,6 +231,124 @@ test("swipe navigation advances when the gesture starts on the <video> element i
       assert.ok(imgEl, "expected the photo element to be showing at index 1 after swiping away from the video");
       assert.equal(imgEl!.getAttribute("src"), "/api/memories/media/m2/display");
       assert.ok(!dom.window.document.querySelector("video"), "expected no <video> once swiped off the video item");
+    },
+  );
+});
+
+test("shows the nearby strip with a count label when matches exist", async () => {
+  const matches = [mediaItem("m2", { uploaderDisplayName: null })];
+  await withMountedLightbox(
+    [mediaItem("m1")],
+    0,
+    async ({ dom, calls }) => {
+      assert.ok(calls.some((c) => c.url.endsWith("/api/memories/media/m1/nearby")), "expected a fetch to the nearby endpoint for the displayed item");
+      const text = dom.window.document.body.textContent ?? "";
+      assert.match(text, /1 other captured this moment/);
+    },
+    async () => jsonResponse({ media: matches }),
+  );
+});
+
+test("shows no strip when there are no nearby matches", async () => {
+  await withMountedLightbox(
+    [mediaItem("m1")],
+    0,
+    async ({ dom }) => {
+      const text = dom.window.document.body.textContent ?? "";
+      assert.doesNotMatch(text, /captured this moment/);
+    },
+    async () => jsonResponse({ media: [] }),
+  );
+});
+
+test("shows an uploader caption under a nearby thumbnail only when the uploader gave a name", async () => {
+  const matches = [mediaItem("named", { uploaderDisplayName: "Priya" }), mediaItem("anon", { uploaderDisplayName: null })];
+  await withMountedLightbox(
+    [mediaItem("m1")],
+    0,
+    async ({ dom }) => {
+      const text = dom.window.document.body.textContent ?? "";
+      assert.match(text, /Priya/);
+      const thumbnails = dom.window.document.querySelectorAll('img[src^="/api/memories/media/"][src$="/thumbnail"]');
+      assert.equal(thumbnails.length, 2);
+    },
+    async () => jsonResponse({ media: matches }),
+  );
+});
+
+// Every dispatch below gets its own act() call rather than one shared act()
+// around the sequence — matching this file's established reasoning (see the
+// swipe tests above): "pointermove" is a React continuous-priority event, so
+// its state update is not guaranteed to commit before the next synchronous
+// dispatchEvent call unless act() resolving forces that flush first. This
+// file has already hit the bug that comes from skipping this once.
+test("hides the nearby strip while a drag is in progress", async () => {
+  await withMountedLightbox(
+    [mediaItem("m1"), mediaItem("m2")],
+    0,
+    async ({ dom }) => {
+      await flush();
+      assert.match(dom.window.document.body.textContent ?? "", /1 other captured this moment/);
+
+      const img = dom.window.document.querySelector(`img[src="/api/memories/media/m1/display"]`)!;
+      await act(async () => {
+        img.dispatchEvent(pointerEvent(dom, "pointerdown", 200));
+      });
+      await act(async () => {
+        img.dispatchEvent(pointerEvent(dom, "pointermove", 100));
+      });
+
+      assert.doesNotMatch(dom.window.document.body.textContent ?? "", /captured this moment/, "expected the strip to hide mid-drag");
+
+      await act(async () => {
+        img.dispatchEvent(pointerEvent(dom, "pointerup", 100));
+        await flush(320);
+      });
+    },
+    async () => jsonResponse({ media: [mediaItem("m2")] }),
+  );
+});
+
+test("tapping a nearby thumbnail already in the current list navigates via onNavigate, without a detour", async () => {
+  await withMountedLightbox(
+    [mediaItem("m1"), mediaItem("m2")],
+    0,
+    async ({ dom }) => {
+      await flush();
+      const thumbnailButton = dom.window.document.querySelector(`img[src="/api/memories/media/m2/thumbnail"]`)?.closest("button");
+      assert.ok(thumbnailButton, "expected a tappable nearby thumbnail for m2");
+      await act(async () => {
+        thumbnailButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+        await flush(320);
+      });
+      assert.match(dom.window.document.body.textContent ?? "", /Photo 2 of 2/);
+    },
+    async (url) => (url.endsWith("/m1/nearby") ? jsonResponse({ media: [mediaItem("m2")] }) : jsonResponse({ media: [] })),
+  );
+});
+
+test("tapping a nearby thumbnail outside the current list starts a detour, with a distinct footer label", async () => {
+  const outsideMatch = mediaItem("outside", { uploaderDisplayName: null });
+  await withMountedLightbox(
+    [mediaItem("m1")],
+    0,
+    async ({ dom }) => {
+      await flush();
+      const thumbnailButton = dom.window.document.querySelector(`img[src="/api/memories/media/outside/thumbnail"]`)?.closest("button");
+      assert.ok(thumbnailButton, "expected a tappable nearby thumbnail for the outside match");
+      await act(async () => {
+        thumbnailButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+        await flush(320);
+      });
+      assert.match(dom.window.document.body.textContent ?? "", /Browsing nearby moment · 2 of 2/);
+      assert.ok(
+        dom.window.document.querySelector(`img[src="/api/memories/media/outside/display"]`),
+        "expected the lightbox to now display the detoured item",
+      );
+    },
+    async (url) => {
+      if (url.endsWith("/m1/nearby")) return jsonResponse({ media: [outsideMatch] });
+      return jsonResponse({ media: [] });
     },
   );
 });
