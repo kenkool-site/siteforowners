@@ -615,6 +615,12 @@ test("shows an uploader caption under a nearby thumbnail only when the uploader 
   );
 });
 
+// Every dispatch below gets its own act() call rather than one shared act()
+// around the sequence — matching this file's established reasoning (see the
+// swipe tests above): "pointermove" is a React continuous-priority event, so
+// its state update is not guaranteed to commit before the next synchronous
+// dispatchEvent call unless act() resolving forces that flush first. This
+// file has already hit the bug that comes from skipping this once.
 test("hides the nearby strip while a drag is in progress", async () => {
   await withMountedLightbox(
     [mediaItem("m1"), mediaItem("m2")],
@@ -624,13 +630,19 @@ test("hides the nearby strip while a drag is in progress", async () => {
       assert.match(dom.window.document.body.textContent ?? "", /1 other captured this moment/);
 
       const img = dom.window.document.querySelector(`img[src="/api/memories/media/m1/display"]`)!;
-      img.dispatchEvent(pointerEvent(dom, "pointerdown", 200));
-      img.dispatchEvent(pointerEvent(dom, "pointermove", 100));
+      await act(async () => {
+        img.dispatchEvent(pointerEvent(dom, "pointerdown", 200));
+      });
+      await act(async () => {
+        img.dispatchEvent(pointerEvent(dom, "pointermove", 100));
+      });
 
       assert.doesNotMatch(dom.window.document.body.textContent ?? "", /captured this moment/, "expected the strip to hide mid-drag");
 
-      img.dispatchEvent(pointerEvent(dom, "pointerup", 100));
-      await flush(400);
+      await act(async () => {
+        img.dispatchEvent(pointerEvent(dom, "pointerup", 100));
+        await flush(320);
+      });
     },
     async () => jsonResponse({ media: [mediaItem("m2")] }),
   );
@@ -644,8 +656,10 @@ test("tapping a nearby thumbnail already in the current list navigates via onNav
       await flush();
       const thumbnailButton = dom.window.document.querySelector(`img[src="/api/memories/media/m2/thumbnail"]`)?.closest("button");
       assert.ok(thumbnailButton, "expected a tappable nearby thumbnail for m2");
-      thumbnailButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-      await flush(450);
+      await act(async () => {
+        thumbnailButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+        await flush(320);
+      });
       assert.match(dom.window.document.body.textContent ?? "", /Photo 2 of 2/);
     },
     async (url) => (url.endsWith("/m1/nearby") ? jsonResponse({ media: [mediaItem("m2")] }) : jsonResponse({ media: [] })),
@@ -661,8 +675,10 @@ test("tapping a nearby thumbnail outside the current list starts a detour, with 
       await flush();
       const thumbnailButton = dom.window.document.querySelector(`img[src="/api/memories/media/outside/thumbnail"]`)?.closest("button");
       assert.ok(thumbnailButton, "expected a tappable nearby thumbnail for the outside match");
-      thumbnailButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-      await flush(450);
+      await act(async () => {
+        thumbnailButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+        await flush(320);
+      });
       assert.match(dom.window.document.body.textContent ?? "", /Browsing nearby moment · 2 of 2/);
       assert.ok(
         dom.window.document.querySelector(`img[src="/api/memories/media/outside/display"]`),
