@@ -98,7 +98,16 @@ export async function markVideoMemoryMediaReady(mediaId: string, objectKeyOrigin
       processing_status: "ready",
     })
     .eq("id", mediaId)
-    .eq("upload_status", "pending"); // idempotent, matching markMemoryMediaUploaded
+    // Guard on object_key_thumbnail (the column this function actually owns), not
+    // upload_status. processing-complete/route.ts's self-heal path also flips
+    // upload_status to 'uploaded' independently, triggered by the R2 Worker's own
+    // event notification (which can batch for up to 30s) — if that self-heal wins
+    // the race and runs before this call, an upload_status='pending' guard would
+    // match 0 rows and silently no-op, leaving object_key_display/object_key_thumbnail
+    // permanently null even though the guest's /complete call returns 200. The write
+    // is value-idempotent by construction (same mediaId always derives the same
+    // target values), so guarding on "not yet set" is safe and closes that race.
+    .is("object_key_thumbnail", null);
   if (error) throw new Error(`failed to mark video memory_media ready: ${error.message}`);
 }
 

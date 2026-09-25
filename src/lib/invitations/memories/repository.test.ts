@@ -79,12 +79,17 @@ test("markVideoMemoryMediaReady sets display/thumbnail keys and processing_statu
   // Video never enters the photon-rs derivative pipeline — this function must
   // not queue a memory_processing_jobs row the way markMemoryMediaUploaded does.
   assert.doesNotMatch(source, /memory_processing_jobs/);
-  // Idempotency guard matching markMemoryMediaUploaded's own convention.
-  // [\s\S] instead of the /s (dotAll) flag — matches this repo's own
-  // migration-contract test convention (see e.g. rsvp-migration-contract.test.ts);
-  // the /s flag needs an es2018+ tsc target, which this project's tsconfig
-  // doesn't set, so it fails `tsc --noEmit` even though tsx runs it fine.
-  assert.match(source, /upload_status[\s\S]*pending|pending[\s\S]*upload_status/);
+  // Idempotency guard: this function is the SOLE writer of object_key_thumbnail
+  // for a video row, so it must guard on that column rather than on
+  // upload_status (markMemoryMediaUploaded's convention). upload_status is also
+  // independently flipped by processing-complete/route.ts's self-heal path
+  // (triggered by the R2 Worker's own event notification, unordered with
+  // respect to this call) — guarding on upload_status='pending' would let that
+  // race silently no-op this write and leave object_key_display/
+  // object_key_thumbnail permanently null. See repository.ts for the full
+  // writeup.
+  assert.match(source, /object_key_thumbnail[\s\S]*null|null[\s\S]*object_key_thumbnail/);
+  assert.doesNotMatch(source, /upload_status[\s\S]*pending|pending[\s\S]*upload_status/);
 });
 
 test("createMemoryMoment inserts into memory_moments scoped to the event", () => {
