@@ -793,6 +793,7 @@
           "added": "{count, plural, one {# foto agregada} other {# fotos agregadas}}",
           "addMore": "Agregar más fotos",
           "heicError": "El formato de foto predeterminado del iPhone aún no es compatible — cambia tu cámara a \"Más compatible\" en Configuración, o comparte un JPEG.",
+          "videoTooLongError": "Los videos pueden durar hasta 60 segundos — recorta tu clip e inténtalo de nuevo.",
           "quotaError": "Este evento alcanzó su límite de fotos.",
           "windowClosedError": "La ventana para subir fotos de este evento ya cerró.",
           "genericError": "Algo salió mal — inténtalo de nuevo."

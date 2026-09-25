@@ -793,6 +793,7 @@
           "added": "{count, plural, one {# photo added} other {# photos added}}",
           "addMore": "Add more photos",
           "heicError": "iPhone's default photo format isn't supported yet — switch your camera to \"Most Compatible\" in Settings, or share a JPEG instead.",
+          "videoTooLongError": "Videos can be up to 60 seconds — please trim your clip and try again.",
           "quotaError": "This event has reached its photo limit.",
           "windowClosedError": "The photo-upload window for this event has closed.",
           "genericError": "Something went wrong — please try again."
