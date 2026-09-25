@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { objectKeyForOriginal } from "./upload-tickets";
 import {
+  markVideoMemoryMediaReady,
   createMemoryMoment,
   updateMemoryMoment,
   deleteMemoryMoment,
@@ -61,6 +62,29 @@ test("updateEventMemoriesSettings patches only the memories fields provided", ()
   const source = updateEventMemoriesSettings.toString();
   assert.match(source, /memories_enabled/);
   assert.match(source, /memories_mode/);
+});
+
+// Video's counterpart to markMemoryMediaUploaded — matching this file's own
+// established convention (see the header comment above): createAdminClient()
+// has no injection seam, so this asserts on the function source rather than
+// invoking it against a real database.
+test("markVideoMemoryMediaReady sets display/thumbnail keys and processing_status without creating a processing job", () => {
+  assert.equal(typeof markVideoMemoryMediaReady, "function");
+  const source = markVideoMemoryMediaReady.toString();
+  assert.match(source, /memory_media/);
+  assert.match(source, /object_key_display/);
+  assert.match(source, /object_key_thumbnail/);
+  assert.match(source, /processing_status/);
+  assert.match(source, /'ready'|"ready"/);
+  // Video never enters the photon-rs derivative pipeline — this function must
+  // not queue a memory_processing_jobs row the way markMemoryMediaUploaded does.
+  assert.doesNotMatch(source, /memory_processing_jobs/);
+  // Idempotency guard matching markMemoryMediaUploaded's own convention.
+  // [\s\S] instead of the /s (dotAll) flag — matches this repo's own
+  // migration-contract test convention (see e.g. rsvp-migration-contract.test.ts);
+  // the /s flag needs an es2018+ tsc target, which this project's tsconfig
+  // doesn't set, so it fails `tsc --noEmit` even though tsx runs it fine.
+  assert.match(source, /upload_status[\s\S]*pending|pending[\s\S]*upload_status/);
 });
 
 test("createMemoryMoment inserts into memory_moments scoped to the event", () => {

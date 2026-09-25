@@ -193,3 +193,50 @@ test("upload/init computes posterUploadUrl only for video, and includes it condi
     "expected posterUploadUrl to be conditionally spread into both the fixture-mode and real-R2 response bodies",
   );
 });
+
+// Video-aware upload/complete (Task 3). Real handler invocation isn't possible
+// for the branching behavior itself: getMemoryMediaById is the very next call
+// after ticket verification, and it reaches createAdminClient() with no
+// Supabase credentials loaded into this `tsx --test` process (this repo's
+// .env.local is not auto-loaded here — see the top-of-file KNOWN FOLLOW-UP and
+// the init route's own "posterUploadUrl" test just above for the same
+// limitation), so any request that gets past body/ticket validation 500s with
+// no response body worth asserting on. Even setting SESSION_COOKIE_SECRET
+// in-process to pass ticket verification doesn't help — createAdminClient()
+// throws synchronously on the missing Supabase URL/key before any network
+// call. And this worktree's real Supabase project backs a real live client
+// (see repository.test.ts's own header comment), so seeding a row to get a
+// genuine 200 isn't a safe option either. Following the precedent set by
+// "upload/init computes posterUploadUrl only for video" above, these assert
+// the same contract structurally instead.
+test("upload/complete fetches the media row and 404s when it doesn't exist", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  assert.match(source, /getMemoryMediaById\(parsedBody\.mediaId\)/);
+  assert.match(source, /if \(!media\)/);
+  assert.match(source, /status: 404/);
+});
+
+test("upload/complete branches on media kind: video checks poster existence via R2StorageProvider.objectExists before marking ready", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  assert.match(source, /media\.mediaKind === "video"/);
+  assert.match(source, /objectKeyForVideoPoster\(eventId, parsedBody\.mediaId\)/);
+  assert.match(source, /new R2StorageProvider\(\)/);
+  assert.match(source, /storage\.objectExists\(posterKey\)/);
+  assert.match(source, /markVideoMemoryMediaReady\(parsedBody\.mediaId, media\.objectKeyOriginal, posterKey\)/);
+});
+
+test("upload/complete returns 409 without marking the video ready when the poster object is missing", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  assert.match(source, /if \(!posterExists\)/);
+  assert.match(source, /status: 409/);
+  // The 409 short-circuit must sit before the markVideoMemoryMediaReady call,
+  // so a missing poster can never still flip the row to ready.
+  const posterCheckIndex = source.indexOf("if (!posterExists)");
+  const markVideoReadyIndex = source.indexOf("await markVideoMemoryMediaReady(");
+  assert.ok(posterCheckIndex > -1 && markVideoReadyIndex > -1 && posterCheckIndex < markVideoReadyIndex);
+});
+
+test("upload/complete still completes a non-video (photo) upload via markMemoryMediaUploaded, unchanged", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  assert.match(source, /}\s*else\s*{\s*\n\s*await markMemoryMediaUploaded\(parsedBody\.mediaId\);/);
+});
