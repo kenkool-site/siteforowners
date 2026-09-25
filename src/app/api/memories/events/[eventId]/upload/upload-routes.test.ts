@@ -194,6 +194,23 @@ test("upload/init computes posterUploadUrl only for video, and includes it condi
   );
 });
 
+// Regression coverage for the poster upload having no server-enforced size
+// cap: the main video/photo upload's own createPresignedUploadUrl call
+// already passes body.sizeBytes as contentLength (see the
+// "contentLength parameter is passed to storage provider" test above), but
+// the poster's presign call omitted it entirely — now that the client caps
+// the captured poster frame's pixel dimensions (GuestUploadView.tsx), the
+// upload itself should also be capped server-side, matching the main
+// upload's own convention.
+test("upload/init passes an explicit contentLength cap to the poster's presigned upload URL", () => {
+  const source = readFileSync(new URL("./init/route.ts", import.meta.url), "utf8");
+  assert.match(source, /MAX_POSTER_UPLOAD_BYTES\s*=\s*2\s*\*\s*1024\s*\*\s*1024/);
+  assert.match(
+    source,
+    /createPresignedUploadUrl\(\s*\n?\s*objectKeyForVideoPoster\(eventId, mediaId\),\s*\n?\s*"image\/jpeg",\s*\n?\s*15 \* 60,\s*\n?\s*MAX_POSTER_UPLOAD_BYTES,?\s*\n?\s*\)/,
+  );
+});
+
 // Video-aware upload/complete (Task 3). Real handler invocation isn't possible
 // for the branching behavior itself: getMemoryMediaById is the very next call
 // after ticket verification, and it reaches createAdminClient() with no
@@ -239,4 +256,57 @@ test("upload/complete returns 409 without marking the video ready when the poste
 test("upload/complete still completes a non-video (photo) upload via markMemoryMediaUploaded, unchanged", () => {
   const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
   assert.match(source, /}\s*else\s*{\s*\n\s*await markMemoryMediaUploaded\(parsedBody\.mediaId\);/);
+});
+
+// Regression coverage for the critical finding that nothing ever triggered
+// moderation for a video: workers/memories-processing/src/index.ts (the
+// Cloudflare Worker) returns early for any unsupported (non-image)
+// extension — every video — before it ever reaches its own fire-and-forget
+// moderation trigger. So a video's moderation_status stayed at its DB
+// default ('pending') forever, invisible to computeGalleryVisible (requires
+// 'approved') and unrescuable by the host review UI (allowedModerationStatuses
+// ("approve") never accepts 'pending'). The fix: upload/complete/route.ts
+// calls the extracted moderateMedia(...) (see ../../../moderate/moderate-media.ts)
+// directly, independent of the Worker pipeline, immediately after a video is
+// marked ready — real handler invocation isn't possible here for the same
+// reason documented at the top of this file (createAdminClient() throws with
+// no Supabase env loaded into this tsx --test process), so — matching this
+// file's own established structural-test convention for that exact
+// limitation — this asserts the source actually wires the call into the
+// video branch (and only the video branch), in the right order, best-effort.
+test("upload/complete imports and calls moderateMedia for the video branch, after markVideoMemoryMediaReady succeeds", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  assert.match(source, /import\s*{\s*moderateMedia\s*}\s*from\s*["']@\/app\/api\/memories\/moderate\/moderate-media["']/);
+  assert.match(source, /moderateMedia\(parsedBody\.mediaId\)/);
+
+  const markReadyIndex = source.indexOf("await markVideoMemoryMediaReady(");
+  const moderateCallIndex = source.indexOf("moderateMedia(parsedBody.mediaId)");
+  const elseBranchIndex = source.indexOf("} else {");
+  assert.ok(markReadyIndex > -1 && moderateCallIndex > -1 && elseBranchIndex > -1);
+  assert.ok(markReadyIndex < moderateCallIndex, "moderation must be triggered only after the video is marked ready");
+  assert.ok(moderateCallIndex < elseBranchIndex, "the moderation trigger must live inside the video branch, not the photo (else) branch");
+});
+
+test("upload/complete's video-moderation trigger is best-effort: wrapped so a failure is logged, not thrown, and never turns /complete into an error response", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  const moderateCallIndex = source.indexOf("moderateMedia(parsedBody.mediaId)");
+  const precedingTryIndex = source.lastIndexOf("try {", moderateCallIndex);
+  const followingCatchIndex = source.indexOf("} catch", moderateCallIndex);
+  assert.ok(precedingTryIndex > -1 && followingCatchIndex > -1, "expected the moderateMedia call to sit inside its own try/catch");
+  // That catch block must log, not rethrow — i.e. no bare `throw` between the
+  // catch and its closing brace, which would otherwise propagate into this
+  // route's outer try/catch and turn a moderation hiccup into a 500 for the
+  // guest.
+  const catchBlock = source.slice(followingCatchIndex, source.indexOf("}", source.indexOf("{", followingCatchIndex) + 1) + 1);
+  assert.match(catchBlock, /console\.error\(/);
+  assert.doesNotMatch(catchBlock, /\bthrow\b/);
+});
+
+test("photo (non-video) completion never calls moderateMedia — photos still rely solely on the Worker's own trigger", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  const elseBranchStart = source.indexOf("} else {");
+  const elseBranchEnd = source.indexOf("\n    }\n\n    return NextResponse.json({ ok: true });");
+  assert.ok(elseBranchStart > -1 && elseBranchEnd > -1 && elseBranchStart < elseBranchEnd);
+  const elseBranchSource = source.slice(elseBranchStart, elseBranchEnd);
+  assert.doesNotMatch(elseBranchSource, /moderateMedia\(/);
 });
