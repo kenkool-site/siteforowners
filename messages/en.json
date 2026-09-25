@@ -789,21 +789,21 @@
           "failed": "Couldn't upload — nothing is lost, tap retry",
           "retry": "Retry",
           "dismiss": "Dismiss",
-          "uploadingCount": "{count, plural, one {Uploading # photo} other {Uploading # photos}}",
-          "added": "{count, plural, one {# photo added} other {# photos added}}",
-          "addMore": "Add more photos",
+          "uploadingCount": "{count, plural, one {Uploading # item} other {Uploading # items}}",
+          "added": "{count, plural, one {# item added} other {# items added}}",
+          "addMore": "Add more photos or videos",
           "heicError": "iPhone's default photo format isn't supported yet — switch your camera to \"Most Compatible\" in Settings, or share a JPEG instead.",
           "videoTooLongError": "Videos can be up to 60 seconds — please trim your clip and try again.",
-          "quotaError": "This event has reached its photo limit.",
-          "windowClosedError": "The photo-upload window for this event has closed.",
+          "quotaError": "This event has reached its upload limit.",
+          "windowClosedError": "The upload window for this event has closed.",
           "genericError": "Something went wrong — please try again."
         },
         "gallery": {
           "loading": "Loading photos…",
           "error": "The gallery could not be loaded. Try again shortly.",
-          "empty": "No photos yet — be the first to share one!",
-          "newPhotos": "{count} new photos just now",
-          "recentLabel": "Recently shared photos",
+          "empty": "No memories yet — be the first to share one!",
+          "newPhotos": "{count} new memories just now",
+          "recentLabel": "Recently shared memories",
           "justAdded": "Just added",
           "live": "Live",
           "earlierToday": "Earlier today",
@@ -818,7 +818,7 @@
         "moments": {
           "loading": "Loading moments…",
           "empty": "No moments yet — check back soon.",
-          "photoCount": "{count, plural, one {# photo} other {# photos}}",
+          "photoCount": "{count, plural, one {# item} other {# items}}",
           "back": "All moments"
         },
         "aiHighlight": {
