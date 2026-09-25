@@ -155,6 +155,11 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
   const [items, setItems] = useState<GuestUploadPreview[]>([]);
   const [rejectionError, setRejectionError] = useState<string | null>(null);
   const [successCount, setSuccessCount] = useState(0);
+  // Collapses the CTA to an icon-only button once the guest scrolls past the
+  // header, so it stops competing visually with the bottom tab bar directly
+  // beneath it. Full pill only while near the top, where there's no nav
+  // crowding yet.
+  const [scrolled, setScrolled] = useState(false);
   const queueRef = useRef<UploadQueue | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const previewsRef = useRef(new Map<string, string>());
@@ -207,6 +212,15 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
       previews.clear();
     };
   }, [eventId, publishItems]);
+
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 80);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   async function handleFiles(fileList: FileList | null) {
     if (!fileList || !queueRef.current) return;
@@ -261,9 +275,16 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
         {successCount > 0 && active.length === 0 && <div role="status" className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold shadow-lg ring-1 ring-black/5"><span className="grid size-6 place-items-center rounded-full text-white" style={{ backgroundColor: accent }}><Check className="size-4" /></span>{t("added", { count: successCount })}</div>}
       </div>
 
-      <div className="fixed inset-x-4 bottom-[4.75rem] z-30 mx-auto max-w-xl">
-        <button type="button" onClick={() => inputRef.current?.click()} className="flex min-h-14 w-full items-center justify-center gap-3 rounded-full px-6 py-3 text-base font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.16)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ backgroundColor: accent, outlineColor: accent }}>
-          <Camera className="size-5" />{tLanding("addPhotos")}
+      <div className={`fixed inset-x-4 bottom-[4.75rem] z-30 mx-auto flex max-w-xl ${scrolled ? "justify-end" : ""}`}>
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          aria-label={scrolled ? tLanding("addPhotos") : undefined}
+          className={`flex min-h-14 items-center justify-center gap-3 rounded-full text-base font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.16)] transition-[width,padding] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${scrolled ? "w-14 px-0" : "w-full px-6 py-3"}`}
+          style={{ backgroundColor: accent, outlineColor: accent }}
+        >
+          <Camera className="size-5" />
+          {!scrolled && tLanding("addPhotos")}
         </button>
       </div>
     </>
