@@ -28,7 +28,11 @@ export async function POST(request: NextRequest) {
   let outcome;
   let bytes: Uint8Array;
   try {
-    const moderationKey = deriveObjectKeys(media.eventId, media.id).moderation;
+    const moderationKey =
+      media.mediaKind === "video" ? media.objectKeyThumbnail : deriveObjectKeys(media.eventId, media.id).moderation;
+    if (!moderationKey) {
+      throw new Error(`no moderation-input key available for ${media.mediaKind} media ${media.id}`);
+    }
     const downloadUrl = await storage.getSignedDownloadUrl(moderationKey, 60);
     const imageResponse = await fetch(downloadUrl);
     if (!imageResponse.ok) {

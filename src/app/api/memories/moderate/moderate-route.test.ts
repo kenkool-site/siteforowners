@@ -24,3 +24,32 @@ test("moderate route persists AI Highlight descriptors and queues generation ins
   assert.doesNotMatch(source, /listMemoryMoments/);
   assert.doesNotMatch(source, /setAiClassifiedMoment/);
 });
+
+// Structural, same rationale as above: the branch that picks the
+// moderation-input key runs before any reachable seam (R2 signed download +
+// Rekognition), so this asserts the source actually branches on mediaKind
+// instead of invoking the handler against a live DB row.
+test("moderate route uses the poster (objectKeyThumbnail) for video media, not the moderation-derivative key", () => {
+  const source = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+
+  assert.match(source, /media\.mediaKind\s*===\s*["']video["']/);
+  assert.match(source, /media\.objectKeyThumbnail/);
+});
+
+test("moderate route fails clearly, without crashing, when a video item has no thumbnail key", () => {
+  const source = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+
+  // The moderationKey computation must be null-checked before use, and that
+  // check must live inside the same try/catch that already turns any
+  // failure in this block into a logged 500 (see the "AI Highlight
+  // descriptors" test above for the route's existing error-shape
+  // convention) rather than throwing an uncaught error.
+  assert.match(source, /if\s*\(\s*!moderationKey\s*\)/);
+  assert.match(source, /throw new Error\(/);
+});
+
+test("moderate route still uses deriveObjectKeys(...).moderation for photo media, unchanged", () => {
+  const source = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+
+  assert.match(source, /deriveObjectKeys\(media\.eventId,\s*media\.id\)\.moderation/);
+});
