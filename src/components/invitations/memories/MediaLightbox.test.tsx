@@ -327,6 +327,41 @@ test("tapping a nearby thumbnail already in the current list navigates via onNav
   );
 });
 
+test("suppresses the nearby strip entirely when the displayed item is a video, even with nonempty nearby matches", async () => {
+  const matches = [mediaItem("m2", { uploaderDisplayName: null })];
+  await withMountedLightbox(
+    [mediaItem("m1", { mediaKind: "video" })],
+    0,
+    async ({ dom, calls }) => {
+      await flush();
+      // The nearby fetch still happens (it's keyed off the displayed item's
+      // id regardless of kind) — it's only the strip's render that's
+      // suppressed for a video, so a future pass can turn it on once the
+      // control-bar overlap is designed for.
+      assert.ok(calls.some((c) => c.url.endsWith("/api/memories/media/m1/nearby")));
+      const text = dom.window.document.body.textContent ?? "";
+      assert.doesNotMatch(text, /captured this moment/, "expected no nearby strip while a video is the displayed item");
+    },
+    async () => jsonResponse({ media: matches }),
+  );
+});
+
+// jsdom cannot simulate real hit-testing (a tap "landing on" the covered
+// native video control bar vs. bubbling to the dialog's onClick), so this is
+// a structural check on the footer wrapper's own className instead of an
+// attempt to fake click-through behavior — proving the fix (pointer-events-none
+// on the wrapper, pointer-events-auto on the inner strip container) is
+// actually in place rather than asserting on behavior this environment can't
+// observe.
+test("the footer overlay wrapper is click-through (pointer-events-none) so it never swallows taps meant for the video controls beneath it", async () => {
+  await withMountedLightbox([mediaItem("m1", { mediaKind: "video" })], 0, async ({ dom }) => {
+    const videoEl = dom.window.document.querySelector("video");
+    assert.ok(videoEl, "expected a <video> element for a video item");
+    const footer = videoEl!.parentElement?.querySelector(".pointer-events-none.absolute.inset-x-0.bottom-0");
+    assert.ok(footer, "expected the footer overlay wrapper to carry pointer-events-none");
+  });
+});
+
 test("tapping a nearby thumbnail outside the current list starts a detour, with a distinct footer label", async () => {
   const outsideMatch = mediaItem("outside", { uploaderDisplayName: null });
   await withMountedLightbox(

@@ -1,7 +1,7 @@
 // src/lib/invitations/memories/nearby-media.test.ts
 import assert from "node:assert/strict";
 import test from "node:test";
-import { findNearbyMatches, getNearbyMedia, NEARBY_WINDOW_MS } from "./nearby-media";
+import { findNearbyMatches, getNearbyMedia, NEARBY_MAX_RESULTS, NEARBY_WINDOW_MS } from "./nearby-media";
 import type { PublicMemoryMedia } from "./gallery";
 
 const ANCHOR_TIME = "2026-09-24T22:08:00.000Z";
@@ -21,6 +21,10 @@ function media(id: string, overrides: Partial<PublicMemoryMedia> = {}): PublicMe
 
 test("NEARBY_WINDOW_MS is 3 minutes", () => {
   assert.equal(NEARBY_WINDOW_MS, 3 * 60 * 1000);
+});
+
+test("NEARBY_MAX_RESULTS is 12", () => {
+  assert.equal(NEARBY_MAX_RESULTS, 12);
 });
 
 test("includes a candidate captured before the target, within the window", () => {
@@ -89,10 +93,24 @@ test("returns an empty array when there are no candidates", () => {
 // comment and repository-missing-descriptors-rpc.integration.test.ts) — every
 // test in this module touching a createAdminClient()-backed function asserts
 // on its source instead of invoking it, matching that established convention.
-test("getNearbyMedia looks up the anchor, gates on gallery-visibility, and matches against the event's gallery-visible pool", () => {
+test("getNearbyMedia looks up the anchor, gates on gallery-visibility and the memoriesEnabled setting, queries a captured_at-bounded window, and matches/caps against that pool", () => {
   const source = getNearbyMedia.toString();
   assert.match(source, /getMemoryMediaById/);
   assert.match(source, /computeGalleryVisible/);
-  assert.match(source, /listGalleryVisibleMedia/);
+  // Gated on the host's memoriesEnabled setting, the same way every other
+  // listing endpoint in this codebase is (see gallery/route.ts) — a host who
+  // switched Memories off must not leave this lookup enumerable.
+  assert.match(source, /getEventMemoriesSettings/);
+  assert.match(source, /memoriesEnabled/);
+  // Queries memory_media directly with a captured_at window (indexed by
+  // memory_media_event_captured_idx) instead of a full-event
+  // listGalleryVisibleMedia scan filtered in JS.
+  assert.match(source, /captured_at/);
+  assert.match(source, /\.gte\(/);
+  assert.match(source, /\.lte\(/);
   assert.match(source, /findNearbyMatches/);
+  // Caps the result set nearest-first after matching, so a busy moment can't
+  // render an unbounded strip/detour cluster.
+  assert.match(source, /NEARBY_MAX_RESULTS/);
+  assert.match(source, /\.slice\(/);
 });

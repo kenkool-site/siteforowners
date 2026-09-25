@@ -333,13 +333,19 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
         />
       )}
 
-      <div className="absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-8">
-        {!isDragging && !suppressTransition && nearby.length > 0 && (
-          <div className="mb-2.5" onClick={(event) => event.stopPropagation()}>
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-8">
+        {!isDragging && !suppressTransition && item.mediaKind !== "video" && nearby.length > 0 && (
+          <div className="pointer-events-auto mb-2.5" onClick={(event) => event.stopPropagation()}>
             <p className="mb-2 text-[11px] font-semibold tracking-wide text-white/90">{t("nearbyCount", { count: nearby.length })}</p>
             <div className="flex gap-2 overflow-x-auto">
               {nearby.map((match) => (
-                <button key={match.id} type="button" onClick={() => handleNearbyTap(match.id)} className="flex-none text-center">
+                <button
+                  key={match.id}
+                  type="button"
+                  onClick={() => handleNearbyTap(match.id)}
+                  aria-label={match.uploaderDisplayName ?? t("nearbyThumbnailLabel")}
+                  className="flex-none text-center"
+                >
                   <span className="relative block">
                     <img
                       src={`/api/memories/media/${match.id}/thumbnail`}

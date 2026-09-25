@@ -71,7 +71,15 @@ async function withMountedGallery(media: PublicMemoryMedia[], callback: (ctx: { 
     HTMLElement: dom.window.HTMLElement,
     HTMLButtonElement: dom.window.HTMLButtonElement,
     Event: dom.window.Event,
-    fetch: async () => jsonResponse({ media }),
+    // MediaLightbox (mounted by this file's tests once a photo is tapped)
+    // fetches /api/memories/media/[id]/nearby on its own — without a
+    // URL-aware stub, that fetch would resolve to this same gallery-shaped
+    // `{ media }` payload (which includes the anchor item itself) and render
+    // an unintended "Every Perspective" strip, the same latent-collision
+    // shape GuestAiHighlightView.test.tsx hit earlier in this plan. Matches
+    // the URL-aware pattern MediaLightbox.test.tsx and
+    // GuestMemoriesApp.interaction.test.tsx already use.
+    fetch: async (input: RequestInfo | URL) => (String(input).endsWith("/nearby") ? jsonResponse({ media: [] }) : jsonResponse({ media })),
     IS_REACT_ACT_ENVIRONMENT: true,
   });
   Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
