@@ -126,7 +126,11 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     pendingTimeouts.current.push(swapTimeout);
   }
 
-  function handlePointerDown(event: ReactPointerEvent<HTMLImageElement>) {
+  // HTMLImageElement | HTMLVideoElement, not just HTMLImageElement — these
+  // three handlers are now shared verbatim between the <img> and <video>
+  // branches below, and TS's PointerEvent<T> is invariant enough in T that a
+  // handler typed for one element only isn't assignable to the other's prop.
+  function handlePointerDown(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
     // A new gesture starting mid-settle (fast repeated swipes) must not let
     // the previous swipe's deferred steps land in the middle of this one.
     pendingTimeouts.current.forEach((id) => window.clearTimeout(id));
@@ -140,12 +144,12 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
-  function handlePointerMove(event: ReactPointerEvent<HTMLImageElement>) {
+  function handlePointerMove(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
     if (dragStartX.current === null) return;
     setDragX(event.clientX - dragStartX.current);
   }
 
-  function handlePointerUp(event: ReactPointerEvent<HTMLImageElement>) {
+  function handlePointerUp(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
     if (dragStartX.current === null) return;
     const releasedAt = dragX;
     const nextIndex = resolveSwipeNavigation(releasedAt, index, media.length);
@@ -201,17 +205,31 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
         </button>
       )}
 
-      <img
-        src={`/api/memories/media/${item.id}/display`}
-        alt=""
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
-        className="max-h-full max-w-full touch-pan-y select-none object-contain"
-      />
+      {item.mediaKind === "video" ? (
+        <video
+          src={`/api/memories/media/${item.id}/display`}
+          controls
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
+          className="max-h-full max-w-full touch-pan-y object-contain"
+        />
+      ) : (
+        <img
+          src={`/api/memories/media/${item.id}/display`}
+          alt=""
+          onClick={(event) => event.stopPropagation()}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
+          className="max-h-full max-w-full touch-pan-y select-none object-contain"
+        />
+      )}
 
       <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs font-medium text-white/80">
         {t("viewerLabel", { current: index + 1, total: media.length })}

@@ -1,0 +1,179 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import React, { act } from "react";
+import { NextIntlClientProvider } from "next-intl";
+import { JSDOM, VirtualConsole } from "jsdom";
+import enMessages from "../../../../messages/en.json";
+import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
+
+Object.assign(globalThis, { React });
+
+// omitJSDOMErrors keeps unrelated jsdom "not implemented" noise out of this
+// file's output, matching GuestGalleryView.test.tsx / GuestAiHighlightView.test.tsx's
+// own convention.
+function quietVirtualConsole(): VirtualConsole {
+  const virtualConsole = new VirtualConsole();
+  virtualConsole.sendTo(console, { omitJSDOMErrors: true });
+  return virtualConsole;
+}
+
+// jsdom implements neither requestAnimationFrame nor cancelAnimationFrame at
+// all (not even as a stub) — MediaLightbox's slide sequencing (navigateWithSlide)
+// uses both, so without this polyfill any navigation (button, keyboard, or
+// swipe-driven) would throw. A plain setTimeout shim is standard practice for
+// this exact gap, copied verbatim from GuestGalleryView.test.tsx.
+function polyfillAnimationFrame(dom: JSDOM): void {
+  dom.window.requestAnimationFrame = ((callback: FrameRequestCallback) => dom.window.setTimeout(() => callback(Date.now()), 16)) as typeof dom.window.requestAnimationFrame;
+  dom.window.cancelAnimationFrame = ((id: number) => dom.window.clearTimeout(id)) as typeof dom.window.cancelAnimationFrame;
+}
+
+const GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLButtonElement", "HTMLImageElement", "HTMLVideoElement", "Event", "navigator", "IS_REACT_ACT_ENVIRONMENT"] as const;
+
+const OLD_TIMESTAMP = "2020-01-01T00:00:00Z";
+
+function mediaItem(id: string, overrides: Partial<PublicMemoryMedia> = {}): PublicMemoryMedia {
+  return {
+    id,
+    mediaKind: "photo",
+    uploaderDisplayName: "Jamie",
+    objectKeyDisplay: `display/${id}.webp`,
+    objectKeyThumbnail: `thumb/${id}.webp`,
+    capturedAt: OLD_TIMESTAMP,
+    uploadedAt: OLD_TIMESTAMP,
+    ...overrides,
+  };
+}
+
+function flush(ms = 20): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// jsdom has no real PointerEvent constructor with usable coordinate data (see
+// MediaLightbox.tsx's own comment on resolveSwipeNavigation), so a swipe is
+// simulated by dispatching a plain Event and attaching the handful of
+// properties (clientX, pointerId) that MediaLightbox's handlers actually
+// read — React's synthetic event system pulls these off the native event by
+// plain property access, not by checking `instanceof PointerEvent`.
+function pointerEvent(dom: JSDOM, type: string, clientX: number): Event {
+  const event = new dom.window.Event(type, { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "clientX", { value: clientX, configurable: true });
+  Object.defineProperty(event, "pointerId", { value: 1, configurable: true });
+  return event;
+}
+
+// MediaLightbox is controlled: it takes `index` as a prop and calls
+// `onNavigate` to request a change, exactly like its real callers
+// (GuestGalleryView, GuestAiHighlightView). This harness owns that bit of
+// state itself so a simulated swipe can be observed end-to-end, the same way
+// a real caller would re-render MediaLightbox at the new index.
+async function withMountedLightbox(
+  media: PublicMemoryMedia[],
+  initialIndex: number,
+  callback: (ctx: { dom: JSDOM }) => Promise<void>,
+) {
+  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", {
+    url: "https://invite.example.test",
+    virtualConsole: quietVirtualConsole(),
+  });
+  polyfillAnimationFrame(dom);
+  const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    HTMLButtonElement: dom.window.HTMLButtonElement,
+    HTMLImageElement: dom.window.HTMLImageElement,
+    HTMLVideoElement: dom.window.HTMLVideoElement,
+    Event: dom.window.Event,
+    IS_REACT_ACT_ENVIRONMENT: true,
+  });
+  Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
+
+  const { createRoot } = await import("react-dom/client");
+  const { MediaLightbox } = await import("./MediaLightbox");
+  const root = createRoot(dom.window.document.querySelector("#root")!);
+
+  function Harness() {
+    const [index, setIndex] = React.useState(initialIndex);
+    return (
+      <MediaLightbox media={media} index={index} onClose={() => {}} onNavigate={setIndex} />
+    );
+  }
+
+  try {
+    await act(async () => {
+      root.render(
+        <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
+          <Harness />
+        </NextIntlClientProvider>,
+      );
+      await flush();
+    });
+    await callback({ dom });
+  } finally {
+    await act(async () => root.unmount());
+    originals.forEach((descriptor, key) => (descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete (globalThis as Record<string, unknown>)[key]));
+  }
+}
+
+test("a video item renders a <video controls> element with the display URL, not an <img>", async () => {
+  await withMountedLightbox([mediaItem("m1", { mediaKind: "video" })], 0, async ({ dom }) => {
+    const videoEl = dom.window.document.querySelector("video");
+    assert.ok(videoEl, "expected a <video> element for a video item");
+    assert.equal(videoEl!.getAttribute("src"), "/api/memories/media/m1/display");
+    assert.ok(videoEl!.hasAttribute("controls"));
+    assert.ok(!dom.window.document.querySelector("img"), "expected no <img> for a video item");
+  });
+});
+
+test("a photo item still renders an <img>, unchanged", async () => {
+  await withMountedLightbox([mediaItem("m1", { mediaKind: "photo" })], 0, async ({ dom }) => {
+    const imgEl = dom.window.document.querySelector("img");
+    assert.ok(imgEl, "expected an <img> element for a photo item");
+    assert.equal(imgEl!.getAttribute("src"), "/api/memories/media/m1/display");
+    assert.ok(!dom.window.document.querySelector("video"), "expected no <video> for a photo item");
+  });
+});
+
+test("swipe navigation still advances the index when moving from a photo to a video item in the same list", async () => {
+  await withMountedLightbox(
+    [mediaItem("m1", { mediaKind: "photo" }), mediaItem("m2", { mediaKind: "video" })],
+    0,
+    async ({ dom }) => {
+      const photoEl = dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]');
+      assert.ok(photoEl, "expected the first (photo) item to render initially");
+
+      // A leftward drag past SWIPE_THRESHOLD_PX (50px): down at 300, move to
+      // 200 (delta -100), release — same pointer sequence the pure-logic
+      // tests in MediaLightbox.test.ts exercise via resolveSwipeNavigation.
+      //
+      // Each dispatch gets its own act() rather than one shared act() around
+      // all three: "pointermove" is a React continuous-priority event, so its
+      // setDragX update is not guaranteed to commit before the very next
+      // synchronous dispatchEvent call — only act() resolving forces that
+      // flush. Sharing one act() left handlePointerUp reading a stale dragX
+      // (still 0) via its closure, so the swipe was never recognized.
+      await act(async () => {
+        photoEl!.dispatchEvent(pointerEvent(dom, "pointerdown", 300));
+      });
+      await act(async () => {
+        photoEl!.dispatchEvent(pointerEvent(dom, "pointermove", 200));
+      });
+      await act(async () => {
+        photoEl!.dispatchEvent(pointerEvent(dom, "pointerup", 200));
+        // navigateWithSlide defers the actual index swap until the exit
+        // animation's SETTLE_DURATION_MS (260ms) plus two polyfilled
+        // requestAnimationFrame hops — 320ms comfortably covers that, matching
+        // GuestGalleryView.test.tsx's own proven flush window for this exact
+        // deferred-navigation shape.
+        await flush(320);
+      });
+
+      const videoEl = dom.window.document.querySelector("video");
+      assert.ok(videoEl, "expected the video element to be showing at index 1 after the swipe");
+      assert.equal(videoEl!.getAttribute("src"), "/api/memories/media/m2/display");
+      assert.ok(!dom.window.document.querySelector("img"), "expected no <img> once swiped onto the video item");
+    },
+  );
+});
