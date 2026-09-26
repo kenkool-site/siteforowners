@@ -2,7 +2,7 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const FIND_ME_WINDOW_SECONDS = 24 * 60 * 60;
-const FIND_ME_MAX_ATTEMPTS = 5;
+const FIND_ME_MAX_ATTEMPTS = 20;
 
 type FindMeRateLimitAttempt = {
   eventId: string;
@@ -15,9 +15,19 @@ type FindMeRateLimitDependencies = {
   attempt(input: FindMeRateLimitAttempt): Promise<{ data: boolean | null; error: unknown | null }>;
 };
 
+// "allowed": the guest is under the limit, proceed.
+// "denied": the RPC itself ran and said no — a genuine 5th-strike (well,
+// FIND_ME_MAX_ATTEMPTS-th) denial.
+// "error": the RPC call failed (network/DB hiccup, missing function, etc.) —
+// this must never be reported to the guest the same way as "denied": a
+// transient infra failure isn't "you've used up your searches", and
+// conflating the two previously made any RPC error look exactly like a rate
+// limit hit even on a guest's very first attempt.
+export type FindMeRateLimitOutcome = "allowed" | "denied" | "error";
+
 export function createFindMeRateLimiter(dependencies: FindMeRateLimitDependencies) {
   return {
-    async allowAttempt(eventId: string, guestSessionId: string): Promise<boolean> {
+    async allowAttempt(eventId: string, guestSessionId: string): Promise<FindMeRateLimitOutcome> {
       try {
         const result = await dependencies.attempt({
           eventId,
@@ -25,20 +35,20 @@ export function createFindMeRateLimiter(dependencies: FindMeRateLimitDependencie
           windowSeconds: FIND_ME_WINDOW_SECONDS,
           maxAttempts: FIND_ME_MAX_ATTEMPTS,
         });
-        if (result.error || result.data !== true) {
-          console.error("[memories/find-me] rate limit unavailable", { eventId, guestSessionId, error: result.error });
-          return false;
+        if (result.error) {
+          console.error("[memories/find-me] rate limit check failed", { eventId, guestSessionId, error: result.error });
+          return "error";
         }
-        return true;
+        return result.data === true ? "allowed" : "denied";
       } catch (error) {
-        console.error("[memories/find-me] rate limit unavailable", { eventId, guestSessionId, error });
-        return false;
+        console.error("[memories/find-me] rate limit check failed", { eventId, guestSessionId, error });
+        return "error";
       }
     },
   };
 }
 
-export async function allowFindMeAttempt(eventId: string, guestSessionId: string): Promise<boolean> {
+export async function allowFindMeAttempt(eventId: string, guestSessionId: string): Promise<FindMeRateLimitOutcome> {
   const limiter = createFindMeRateLimiter({
     attempt: async (input) => {
       const { data, error } = await createAdminClient().rpc("attempt_memories_find_me_rate_limit", {
