@@ -225,3 +225,86 @@ test("applyOrientation rotates 180 degrees without changing dimensions (orientat
     result.free();
   }
 });
+
+// A single marker pixel on an otherwise-empty background (every test above)
+// cannot catch widespread corruption — this is exactly how a real production
+// incident slipped past this suite: @cf-wasm/photon's own rotate() silently
+// returned an image ~80% blown out to solid white for a real photo, which
+// this file's marker-pixel tests could never have noticed since they never
+// inspect any pixel except the one marker. This builds a larger (64x48),
+// fully-opaque image where EVERY pixel has a unique, position-derived color,
+// then asserts EVERY output pixel — not just one — traces back to the
+// correct source pixel after each hand-rolled rotation.
+const GRID_WIDTH = 64;
+const GRID_HEIGHT = 48;
+
+function buildGridImage(): PhotonImage {
+  const pixels = new Uint8Array(GRID_WIDTH * GRID_HEIGHT * 4);
+  for (let y = 0; y < GRID_HEIGHT; y++) {
+    for (let x = 0; x < GRID_WIDTH; x++) {
+      const i = (y * GRID_WIDTH + x) * 4;
+      pixels[i] = x % 256;
+      pixels[i + 1] = y % 256;
+      pixels[i + 2] = (x + y) % 256;
+      pixels[i + 3] = 255;
+    }
+  }
+  return new PhotonImage(pixels, GRID_WIDTH, GRID_HEIGHT);
+}
+
+function pixelAt(image: PhotonImage, x: number, y: number): [number, number, number, number] {
+  const width = image.get_width();
+  const pixels = image.get_raw_pixels();
+  const i = (y * width + x) * 4;
+  return [pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]];
+}
+
+test("applyOrientation preserves every pixel — not just a marker — through a 90-degree rotation (orientation 6)", () => {
+  const result = applyOrientation(buildGridImage(), 6);
+  try {
+    assert.equal(result.get_width(), GRID_HEIGHT);
+    assert.equal(result.get_height(), GRID_WIDTH);
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+      for (let x = 0; x < GRID_WIDTH; x++) {
+        // Forward mapping used by rotate90Clockwise: (x,y) -> (H-1-y, x).
+        const expected: [number, number, number, number] = [x % 256, y % 256, (x + y) % 256, 255];
+        assert.deepEqual(pixelAt(result, GRID_HEIGHT - 1 - y, x), expected, `mismatch for source (${x},${y})`);
+      }
+    }
+  } finally {
+    result.free();
+  }
+});
+
+test("applyOrientation preserves every pixel through a 180-degree rotation (orientation 3)", () => {
+  const result = applyOrientation(buildGridImage(), 3);
+  try {
+    assert.equal(result.get_width(), GRID_WIDTH);
+    assert.equal(result.get_height(), GRID_HEIGHT);
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+      for (let x = 0; x < GRID_WIDTH; x++) {
+        const expected: [number, number, number, number] = [x % 256, y % 256, (x + y) % 256, 255];
+        assert.deepEqual(pixelAt(result, GRID_WIDTH - 1 - x, GRID_HEIGHT - 1 - y), expected, `mismatch for source (${x},${y})`);
+      }
+    }
+  } finally {
+    result.free();
+  }
+});
+
+test("applyOrientation preserves every pixel through a 270-degree rotation (orientation 8)", () => {
+  const result = applyOrientation(buildGridImage(), 8);
+  try {
+    assert.equal(result.get_width(), GRID_HEIGHT);
+    assert.equal(result.get_height(), GRID_WIDTH);
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+      for (let x = 0; x < GRID_WIDTH; x++) {
+        // Forward mapping used by rotate270Clockwise: (x,y) -> (y, W-1-x).
+        const expected: [number, number, number, number] = [x % 256, y % 256, (x + y) % 256, 255];
+        assert.deepEqual(pixelAt(result, y, GRID_WIDTH - 1 - x), expected, `mismatch for source (${x},${y})`);
+      }
+    }
+  } finally {
+    result.free();
+  }
+});
