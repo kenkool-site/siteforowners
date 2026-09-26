@@ -27,6 +27,10 @@ export async function PATCH(request: NextRequest, { params }: { params: { eventI
       await updateEventMemoriesSettings(params.eventId, { memoriesMode: values.mode });
       return NextResponse.json({ ok: true });
     }
+    if (values.action === "set_find_me_enabled" && typeof values.enabled === "boolean") {
+      await updateEventMemoriesSettings(params.eventId, { findMeEnabled: values.enabled });
+      return NextResponse.json({ ok: true });
+    }
     return NextResponse.json({ error: "invalid action" }, { status: 400 });
   } catch (error) {
     console.error("[memories/settings] update failed", { error });

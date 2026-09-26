@@ -157,6 +157,7 @@
           "manage": "Manage photos",
           "enableLabel": "Let guests share photos",
           "modeLabel": "Require my approval before photos are visible",
+          "findMeEnableLabel": "Let guests find photos of themselves",
           "saveError": "The photo-sharing setting could not be saved. Try again."
         },
         "status": {

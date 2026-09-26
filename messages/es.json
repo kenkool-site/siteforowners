@@ -157,6 +157,7 @@
           "manage": "Administrar fotos",
           "enableLabel": "Permitir que los invitados compartan fotos",
           "modeLabel": "Requerir mi aprobación antes de mostrar las fotos",
+          "findMeEnableLabel": "Permitir que los invitados encuentren fotos de sí mismos",
           "saveError": "No se pudo guardar la configuración. Inténtalo de nuevo."
         },
         "status": {

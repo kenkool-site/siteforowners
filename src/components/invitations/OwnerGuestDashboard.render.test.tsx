@@ -39,7 +39,7 @@ test("owner landing page leads with guests and keeps customization as a secondar
       <OwnerGuestDashboard
         event={{ id: "event-1", title: "You're Invited", honoreeNames: "Mercy & John", status: "published", slug: "mercy-john", publicSubdomain: "mercy-john" }}
         initialData={responses}
-        memories={{ enabled: true, mode: "auto_publish", photoCount: 4, videoCount: 0, guestContributorCount: 2, flaggedCount: 1, recentThumbnailMediaIds: ["media-1"] }}
+        memories={{ enabled: true, mode: "auto_publish", findMeEnabled: true, photoCount: 4, videoCount: 0, guestContributorCount: 2, flaggedCount: 1, recentThumbnailMediaIds: ["media-1"] }}
       />
     </NextIntlClientProvider>,
   );

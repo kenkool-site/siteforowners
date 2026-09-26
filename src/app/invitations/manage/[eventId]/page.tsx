@@ -31,7 +31,7 @@ export default async function OwnerInvitationManagementPage({ params }: { params
   }
   try {
     const [settings, summary] = await Promise.all([getEventMemoriesSettings(event.id), getMemoriesEventSummary(event.id)]);
-    if (settings) memories = { enabled: settings.memoriesEnabled, mode: settings.memoriesMode, ...summary };
+    if (settings) memories = { enabled: settings.memoriesEnabled, mode: settings.memoriesMode, findMeEnabled: settings.findMeEnabled, ...summary };
   } catch (error) {
     console.error("[invitations] owner dashboard Memories failed", { eventId: event.id, error });
   }
