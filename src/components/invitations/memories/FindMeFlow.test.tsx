@@ -93,6 +93,26 @@ async function withMountedFindMeFlow(
   }
 }
 
+test("locks background scroll while open and restores it once closed", async () => {
+  // Definite-assignment assertion: withMountedFindMeFlow always invokes the
+  // callback (and thus assigns this) before resolving, but TypeScript can't
+  // see that through the closure — asserting it avoids fighting the
+  // resulting `JSDOM | null` narrowing.
+  let capturedDom!: JSDOM;
+  await withMountedFindMeFlow(
+    async () => jsonResponse({ media: [] }),
+    async ({ dom }) => {
+      capturedDom = dom;
+      const body = dom.window.document.body;
+      assert.equal(body.style.overflow, "hidden");
+      assert.equal(body.style.position, "fixed");
+    },
+  );
+  const body = capturedDom.window.document.body;
+  assert.equal(body.style.overflow, "", "expected overflow restored after FindMeFlow unmounts");
+  assert.equal(body.style.position, "", "expected position restored after FindMeFlow unmounts");
+});
+
 test("shows consent copy, a consent checkbox, and a capture button before anything is submitted", async () => {
   await withMountedFindMeFlow(
     async () => jsonResponse({ media: [] }),

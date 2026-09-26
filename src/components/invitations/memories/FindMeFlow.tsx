@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
@@ -30,6 +30,34 @@ export function FindMeFlow({ eventId, accent, surface, onClose }: { eventId: str
   // requirements (e.g. Illinois' BIPA).
   const [agreed, setAgreed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Locks background scroll while this full-screen flow is open — same fix
+  // and same rationale as MediaLightbox's own scroll-lock: this component is
+  // only ever mounted while showing (the caller conditionally renders it),
+  // so lock on mount and restore on unmount unconditionally. overflow:hidden
+  // alone doesn't reliably stop a touch-scroll on iOS Safari from reaching
+  // the gallery page underneath.
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const previousBodyStyle = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.position = previousBodyStyle.position;
+      body.style.top = previousBodyStyle.top;
+      body.style.width = previousBodyStyle.width;
+      body.style.overflow = previousBodyStyle.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
 
   function resetToIdle() {
     setStatus("idle");
