@@ -108,10 +108,22 @@ export function applyOrientation(image: PhotonImage, orientation: number): Photo
 
 export async function process(original: Uint8Array): Promise<DerivativeResult> {
   const decoded = PhotonImage.new_from_byteslice(original);
-  const image = applyOrientation(decoded, readJpegOrientation(original));
+  const orientation = readJpegOrientation(original);
   try {
-    const display = resizeToMax(image, DISPLAY_MAX_DIMENSION);
-    const thumbnail = resizeToMax(image, THUMBNAIL_MAX_DIMENSION);
+    // Resize BEFORE correcting orientation, not after: rotate() allocates a
+    // second full buffer at its INPUT resolution, and a modern phone photo
+    // (12+MP) rotated at full size can exceed a Cloudflare Worker's isolate
+    // memory limit — confirmed in production via `wrangler tail` against a
+    // real failing upload: "RangeError: Invalid array buffer length" inside
+    // this pipeline, for photos needing rotation specifically. Resizing
+    // first means rotate() only ever runs on an already-small (<=1600px)
+    // image regardless of the original's resolution. Final dimensions are
+    // identical either order: resize's target is based on max(width,
+    // height), which a 90/270 rotation only swaps, never changes.
+    const displayResized = resizeToMax(decoded, DISPLAY_MAX_DIMENSION);
+    const thumbnailResized = resizeToMax(decoded, THUMBNAIL_MAX_DIMENSION);
+    const display = applyOrientation(displayResized, orientation);
+    const thumbnail = applyOrientation(thumbnailResized, orientation);
     try {
       return {
         displayBytes: display.get_bytes_webp(),
@@ -123,7 +135,7 @@ export async function process(original: Uint8Array): Promise<DerivativeResult> {
       thumbnail.free();
     }
   } finally {
-    image.free();
+    decoded.free();
   }
 }
 
