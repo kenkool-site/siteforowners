@@ -23,6 +23,36 @@ function flush(ms = 20): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function captureButton(dom: JSDOM): HTMLButtonElement {
+  const button = Array.from(dom.window.document.querySelectorAll("button")).find((b) => b.textContent === "Take a selfie");
+  assert.ok(button, "expected a Take a selfie button");
+  return button as HTMLButtonElement;
+}
+
+async function checkConsent(dom: JSDOM): Promise<void> {
+  const checkbox = dom.window.document.querySelector('input[type="checkbox"]') as HTMLInputElement;
+  // A real click (rather than setting `.checked` and dispatching a bare
+  // "change" event) is what actually toggles the native checked state and
+  // fires React's change detection — React tracks the checked property
+  // itself, so a manual assignment before dispatch is invisible to it.
+  await act(async () => {
+    checkbox.click();
+  });
+}
+
+// Mirrors what a real guest does: check the consent box (which is what
+// enables the capture button), then the file input's change event (which
+// is what the hidden input fires once a photo is chosen via that button).
+async function selectSelfie(dom: JSDOM, file: File, flushMs = 50): Promise<void> {
+  await checkConsent(dom);
+  const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
+  Object.defineProperty(input, "files", { value: [file] });
+  await act(async () => {
+    input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    await flush(flushMs);
+  });
+}
+
 async function withMountedFindMeFlow(
   fetchImpl: (url: string) => Promise<Response>,
   callback: (ctx: { dom: JSDOM }) => Promise<void>,
@@ -63,13 +93,48 @@ async function withMountedFindMeFlow(
   }
 }
 
-test("shows consent copy and a file input before anything is submitted", async () => {
+test("shows consent copy, a consent checkbox, and a capture button before anything is submitted", async () => {
   await withMountedFindMeFlow(
     async () => jsonResponse({ media: [] }),
     async ({ dom }) => {
       const text = dom.window.document.body.textContent ?? "";
       assert.match(text, /Take or upload a selfie/);
-      assert.ok(dom.window.document.querySelector('input[type="file"]'), "expected a file input for the selfie");
+      assert.ok(dom.window.document.querySelector('input[type="checkbox"]'), "expected a consent checkbox");
+      assert.ok(dom.window.document.querySelector('input[type="file"]'), "expected a (hidden) file input for the selfie");
+      assert.ok(captureButton(dom), "expected a Take a selfie button");
+    },
+  );
+});
+
+test("the capture button is disabled until the consent checkbox is checked", async () => {
+  await withMountedFindMeFlow(
+    async () => jsonResponse({ media: [] }),
+    async ({ dom }) => {
+      const button = captureButton(dom);
+      assert.equal(button.disabled, true, "expected the capture button disabled before consent");
+      await checkConsent(dom);
+      assert.equal(button.disabled, false, "expected the capture button enabled after consent");
+    },
+  );
+});
+
+test("selecting a selfie without checking the consent box does not submit", async () => {
+  let fetchCalled = false;
+  await withMountedFindMeFlow(
+    async () => {
+      fetchCalled = true;
+      return jsonResponse({ media: [] });
+    },
+    async ({ dom }) => {
+      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
+      const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
+      Object.defineProperty(input, "files", { value: [file] });
+      await act(async () => {
+        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+        await flush(20);
+      });
+      assert.equal(fetchCalled, false, "expected no request without consent");
+      assert.match(dom.window.document.body.textContent ?? "", /Take or upload a selfie/, "expected to remain on the consent screen");
     },
   );
 });
@@ -78,13 +143,8 @@ test("submitting a selfie posts to the find-me endpoint and shows results", asyn
   await withMountedFindMeFlow(
     async () => jsonResponse({ media: [{ id: "m1", mediaKind: "photo", uploaderDisplayName: null, objectKeyDisplay: "d", objectKeyThumbnail: "t", capturedAt: null, uploadedAt: "2026-09-24T20:00:00Z" }] }),
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(50);
-      });
+      await selectSelfie(dom, file);
       assert.ok(dom.window.document.querySelector('img[src="/api/memories/media/m1/thumbnail"]'), "expected a result thumbnail for the matched photo");
     },
   );
@@ -94,13 +154,8 @@ test("shows the empty state when no matches are found", async () => {
   await withMountedFindMeFlow(
     async () => jsonResponse({ media: [] }),
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(50);
-      });
+      await selectSelfie(dom, file);
       assert.match(dom.window.document.body.textContent ?? "", /No matches found/);
     },
   );
@@ -110,13 +165,8 @@ test("shows the rate-limit message on a 429", async () => {
   await withMountedFindMeFlow(
     async () => jsonResponse({ error: "too many searches" }, 429),
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(50);
-      });
+      await selectSelfie(dom, file);
       assert.match(dom.window.document.body.textContent ?? "", /reached the search limit/);
     },
   );
@@ -145,13 +195,8 @@ test("rejects a non-JPEG/PNG selfie without calling the find-me endpoint, landin
       return jsonResponse({ media: [] });
     },
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.heic", { type: "image/heic" });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(20);
-      });
+      await selectSelfie(dom, file, 20);
       assert.equal(fetchCalled, false, "expected the unsupported-format selfie to never reach fetch");
       assert.match(dom.window.document.body.textContent ?? "", /Something went wrong/);
     },
@@ -166,14 +211,9 @@ test("rejects an oversized selfie without calling the find-me endpoint, landing 
       return jsonResponse({ media: [] });
     },
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
       Object.defineProperty(file, "size", { value: 6 * 1024 * 1024 });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(20);
-      });
+      await selectSelfie(dom, file, 20);
       assert.equal(fetchCalled, false, "expected the oversized selfie to never reach fetch");
       assert.match(dom.window.document.body.textContent ?? "", /Something went wrong/);
     },
@@ -184,13 +224,8 @@ test("offers a Try another selfie button after an empty result, returning to the
   await withMountedFindMeFlow(
     async () => jsonResponse({ media: [] }),
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(50);
-      });
+      await selectSelfie(dom, file);
       assert.match(dom.window.document.body.textContent ?? "", /No matches found/);
 
       const tryAgain = Array.from(dom.window.document.querySelectorAll("button")).find((b) => b.textContent === "Try another selfie");
@@ -202,6 +237,7 @@ test("offers a Try another selfie button after an empty result, returning to the
 
       assert.ok(dom.window.document.querySelector('input[type="file"]'), "expected to return to the file-input screen");
       assert.match(dom.window.document.body.textContent ?? "", /Take or upload a selfie/);
+      assert.equal(captureButton(dom).disabled, true, "expected consent to be required again after resetting");
     },
   );
 });
@@ -210,13 +246,8 @@ test("offers a Try another selfie button after an error, returning to the consen
   await withMountedFindMeFlow(
     async () => new Response(null, { status: 500 }),
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(50);
-      });
+      await selectSelfie(dom, file);
       assert.match(dom.window.document.body.textContent ?? "", /Something went wrong/);
 
       const tryAgain = Array.from(dom.window.document.querySelectorAll("button")).find((b) => b.textContent === "Try another selfie");
@@ -236,13 +267,8 @@ test("does not offer a Try another selfie button in the rate-limited state", asy
   await withMountedFindMeFlow(
     async () => jsonResponse({ error: "too many searches" }, 429),
     async ({ dom }) => {
-      const input = dom.window.document.querySelector('input[type="file"]') as HTMLInputElement;
       const file = new dom.window.File([new Uint8Array([1, 2, 3])], "selfie.jpg", { type: "image/jpeg" });
-      Object.defineProperty(input, "files", { value: [file] });
-      await act(async () => {
-        input.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
-        await flush(50);
-      });
+      await selectSelfie(dom, file);
       assert.match(dom.window.document.body.textContent ?? "", /reached the search limit/);
 
       const tryAgain = Array.from(dom.window.document.querySelectorAll("button")).find((b) => b.textContent === "Try another selfie");
