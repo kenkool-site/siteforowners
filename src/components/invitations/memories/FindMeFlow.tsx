@@ -7,6 +7,15 @@ import { MediaLightbox } from "./MediaLightbox";
 
 type FindMeStatus = "idle" | "searching" | "results" | "empty" | "rate_limited" | "error";
 
+// Rekognition only accepts JPEG/PNG and has a hard 5MB limit on image bytes.
+// The selfie is the shared source image across every comparison in a
+// search, so a badly-formatted or oversized one would fail the whole
+// search (unlike a single bad candidate, which is now isolated per-item) —
+// checked here, client-side, on the File object's own type/size before ever
+// attempting the request.
+const ACCEPTED_SELFIE_TYPES = new Set(["image/jpeg", "image/png"]);
+const MAX_SELFIE_BYTES = 5 * 1024 * 1024;
+
 export function FindMeFlow({ eventId, accent, surface, onClose }: { eventId: string; accent: string; surface: string; onClose: () => void }) {
   const t = useTranslations("invitations.public.memories.findMe");
   const [status, setStatus] = useState<FindMeStatus>("idle");
@@ -14,9 +23,23 @@ export function FindMeFlow({ eventId, accent, surface, onClose }: { eventId: str
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  function resetToIdle() {
+    setStatus("idle");
+    setResults([]);
+    if (inputRef.current) inputRef.current.value = "";
+  }
+
   async function handleFile(fileList: FileList | null) {
     const file = fileList?.[0];
     if (!file) return;
+    if (!ACCEPTED_SELFIE_TYPES.has(file.type)) {
+      setStatus("error");
+      return;
+    }
+    if (file.size > MAX_SELFIE_BYTES) {
+      setStatus("error");
+      return;
+    }
     setStatus("searching");
     try {
       const response = await fetch(`/api/memories/events/${eventId}/find-me`, {
@@ -42,14 +65,14 @@ export function FindMeFlow({ eventId, accent, surface, onClose }: { eventId: str
   }
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-40 overflow-y-auto p-4" style={{ backgroundColor: surface }}>
+    <div role="dialog" aria-modal="true" aria-labelledby="find-me-title" className="fixed inset-0 z-40 overflow-y-auto p-4" style={{ backgroundColor: surface }}>
       <button type="button" onClick={onClose} className="mb-4 min-h-11 text-sm font-semibold" style={{ color: accent }}>
         {t("close")}
       </button>
 
       {(status === "idle" || status === "searching") && (
         <div className="space-y-4 text-center">
-          <h2 className="text-xl font-semibold">{t("consentTitle")}</h2>
+          <h2 id="find-me-title" className="text-xl font-semibold">{t("consentTitle")}</h2>
           <p className="text-sm opacity-80">{t("consentBody")}</p>
           <input
             ref={inputRef}
@@ -65,8 +88,22 @@ export function FindMeFlow({ eventId, accent, surface, onClose }: { eventId: str
         </div>
       )}
 
-      {status === "empty" && <p className="p-8 text-center text-sm" style={{ color: accent }}>{t("empty")}</p>}
-      {status === "error" && <p role="alert" className="p-8 text-center text-sm text-red-700">{t("error")}</p>}
+      {status === "empty" && (
+        <div className="space-y-4 p-8 text-center">
+          <p className="text-sm" style={{ color: accent }}>{t("empty")}</p>
+          <button type="button" onClick={resetToIdle} className="min-h-11 text-sm font-semibold" style={{ color: accent }}>
+            {t("tryAgain")}
+          </button>
+        </div>
+      )}
+      {status === "error" && (
+        <div className="space-y-4 p-8 text-center">
+          <p role="alert" className="text-sm text-red-700">{t("error")}</p>
+          <button type="button" onClick={resetToIdle} className="min-h-11 text-sm font-semibold" style={{ color: accent }}>
+            {t("tryAgain")}
+          </button>
+        </div>
+      )}
       {status === "rate_limited" && <p role="alert" className="p-8 text-center text-sm text-red-700">{t("tooManyAttempts")}</p>}
 
       {status === "results" && (

@@ -8,6 +8,7 @@ import type { AIProvider } from "@/lib/invitations/memories/ai-provider";
 import { RekognitionAIProvider } from "@/lib/invitations/memories/ai-provider";
 import { listGalleryVisibleMediaWithFaces, toPublicMemoryMedia, type PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { allowFindMeAttempt } from "@/lib/invitations/memories/find-me-rate-limit";
+import { deriveObjectKeys } from "@/lib/invitations/memories/processing-provider";
 import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 import type { StorageProvider } from "@/lib/invitations/memories/storage-provider";
@@ -52,13 +53,53 @@ export async function compareAgainstCandidates(
     while (cursor < candidates.length) {
       const index = cursor++;
       const candidate = candidates[index];
-      const similarity = await compareFaces(selfieBytes, candidate.bytes, SIMILARITY_THRESHOLD);
+      let similarity = 0;
+      try {
+        similarity = await compareFaces(selfieBytes, candidate.bytes, SIMILARITY_THRESHOLD);
+      } catch (err) {
+        console.error("[memories/find-me] face comparison failed for a candidate, skipping it", { mediaId: candidate.media.id, error: err });
+      }
       if (similarity > 0) results.push({ media: candidate.media, similarity });
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, candidates.length) }, () => worker()));
   return results.sort((a, b) => b.similarity - a.similarity);
+}
+
+// Pure and independently testable, mirroring compareAgainstCandidates's own
+// worker-pool shape: downloads candidate bytes with bounded concurrency so a
+// large gallery (up to MAX_CANDIDATES) doesn't serialize hundreds of
+// sequential network round-trips before any comparison can even start. Kept
+// as a separate function (not merged into compareAgainstCandidates) so each
+// stage stays independently testable with its own fakes.
+export async function downloadCandidates(
+  candidateMedia: MemoryMedia[],
+  storage: StorageProvider,
+  concurrency: number,
+): Promise<Array<{ media: MemoryMedia; bytes: Uint8Array }>> {
+  const candidates: Array<{ media: MemoryMedia; bytes: Uint8Array }> = [];
+  let cursor = 0;
+
+  async function worker() {
+    while (cursor < candidateMedia.length) {
+      const index = cursor++;
+      const media = candidateMedia[index];
+      const key = media.mediaKind === "video" ? media.objectKeyThumbnail : deriveObjectKeys(media.eventId, media.id).moderation;
+      if (!key) continue;
+      try {
+        const downloadUrl = await storage.getSignedDownloadUrl(key, 60);
+        const response = await fetch(downloadUrl);
+        if (!response.ok) continue;
+        candidates.push({ media, bytes: new Uint8Array(await response.arrayBuffer()) });
+      } catch (err) {
+        console.error("[memories/find-me] failed to fetch a candidate photo, skipping it", { mediaId: media.id, error: err });
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, candidateMedia.length) }, () => worker()));
+  return candidates;
 }
 
 export async function searchFindMe(
@@ -82,19 +123,7 @@ export async function searchFindMe(
   if (!allowed) return { status: 429, body: { error: "too many searches, try again later" } };
 
   const candidateMedia = await listCandidates(eventId, MAX_CANDIDATES);
-  const candidates: Array<{ media: MemoryMedia; bytes: Uint8Array }> = [];
-  for (const media of candidateMedia) {
-    const key = media.mediaKind === "video" ? media.objectKeyThumbnail : media.objectKeyDisplay;
-    if (!key) continue;
-    try {
-      const downloadUrl = await storage.getSignedDownloadUrl(key, 60);
-      const response = await fetch(downloadUrl);
-      if (!response.ok) continue;
-      candidates.push({ media, bytes: new Uint8Array(await response.arrayBuffer()) });
-    } catch (err) {
-      console.error("[memories/find-me] failed to fetch a candidate photo, skipping it", { mediaId: media.id, error: err });
-    }
-  }
+  const candidates = await downloadCandidates(candidateMedia, storage, CONCURRENCY);
 
   const matches = await compareAgainstCandidates(
     selfieBytes,

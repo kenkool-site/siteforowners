@@ -1,8 +1,15 @@
 ALTER TABLE public.invitation_events
   ADD COLUMN IF NOT EXISTS find_me_enabled boolean NOT NULL DEFAULT false;
 
+-- Nullable (not NOT NULL DEFAULT false): has_faces is only ever computed as
+-- a side effect of the moderation pipeline running (see moderate-media.ts),
+-- which happens once, at upload. Every photo already in a gallery before
+-- this feature ships will never get that side effect retroactively, so a
+-- future incremental backfill needs to tell "checked, no face found" (false)
+-- apart from "never checked" (null) — a NOT NULL default would collapse both
+-- into false and make that backfill impossible to target correctly.
 ALTER TABLE public.memory_media
-  ADD COLUMN IF NOT EXISTS has_faces boolean NOT NULL DEFAULT false;
+  ADD COLUMN IF NOT EXISTS has_faces boolean;
 
 -- One row per event and guest session — the primary key makes the upsert
 -- serialize concurrent Find Me attempts for exactly this event/guest

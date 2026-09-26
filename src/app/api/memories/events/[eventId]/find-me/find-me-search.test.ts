@@ -1,7 +1,7 @@
 // src/app/api/memories/events/[eventId]/find-me/find-me-search.test.ts
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareAgainstCandidates, searchFindMe } from "./find-me-search";
+import { compareAgainstCandidates, downloadCandidates, searchFindMe } from "./find-me-search";
 import type { MemoryMedia } from "@/lib/invitations/memories/types";
 
 function media(overrides: Partial<MemoryMedia> & { id: string }): MemoryMedia {
@@ -67,6 +67,24 @@ test("compareAgainstCandidates returns an empty array for an empty candidate lis
   assert.deepEqual(result, []);
 });
 
+test("compareAgainstCandidates isolates a candidate whose comparison throws, still comparing and returning the rest", async () => {
+  const candidates = [
+    { media: media({ id: "boom" }), bytes: new Uint8Array([1]) },
+    { media: media({ id: "ok-low" }), bytes: new Uint8Array([2]) },
+    { media: media({ id: "ok-high" }), bytes: new Uint8Array([3]) },
+  ];
+  const scores: Record<string, number> = { "ok-low": 82, "ok-high": 97 };
+  const compareFaces = async (_source: Uint8Array, target: Uint8Array) => {
+    const id = ["boom", "ok-low", "ok-high"][target[0] - 1];
+    if (id === "boom") throw new Error("throttled");
+    return scores[id];
+  };
+
+  const result = await compareAgainstCandidates(SELFIE, candidates, compareFaces, 5);
+
+  assert.deepEqual(result.map((r) => r.media.id), ["ok-high", "ok-low"]);
+});
+
 async function withStubbedFetch<T>(fn: () => Promise<T>): Promise<T> {
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL) => {
@@ -79,6 +97,72 @@ async function withStubbedFetch<T>(fn: () => Promise<T>): Promise<T> {
     globalThis.fetch = original;
   }
 }
+
+test("downloadCandidates requests the moderation derivative (jpg) for a photo candidate, not the display webp", async () => {
+  const requestedKeys: string[] = [];
+  const photo = media({ id: "photo-1" });
+  const storage = {
+    createPresignedUploadUrl: async () => "https://example.test/upload",
+    getSignedDownloadUrl: async (key: string) => {
+      requestedKeys.push(key);
+      return `https://example.test/${key}`;
+    },
+    deleteObject: async () => undefined,
+    objectExists: async () => true,
+  };
+
+  await withStubbedFetch(() => downloadCandidates([photo], storage, 5));
+
+  assert.equal(requestedKeys.length, 1);
+  assert.match(requestedKeys[0], /^moderation\/.*\.jpg$/);
+  assert.doesNotMatch(requestedKeys[0], /display\/.*\.webp$/);
+});
+
+test("downloadCandidates requests the thumbnail (jpg poster) for a video candidate", async () => {
+  const requestedKeys: string[] = [];
+  const video = media({ id: "video-1", mediaKind: "video", objectKeyThumbnail: "thumb/video-1.jpg" });
+  const storage = {
+    createPresignedUploadUrl: async () => "https://example.test/upload",
+    getSignedDownloadUrl: async (key: string) => {
+      requestedKeys.push(key);
+      return `https://example.test/${key}`;
+    },
+    deleteObject: async () => undefined,
+    objectExists: async () => true,
+  };
+
+  await withStubbedFetch(() => downloadCandidates([video], storage, 5));
+
+  assert.deepEqual(requestedKeys, ["thumb/video-1.jpg"]);
+});
+
+test("downloadCandidates respects a concurrency cap without dropping any candidate", async () => {
+  const candidateMedia = Array.from({ length: 12 }, (_, i) => media({ id: `m${i}` }));
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const storage = {
+    createPresignedUploadUrl: async () => "https://example.test/upload",
+    getSignedDownloadUrl: async (key: string) => `https://example.test/${key}`,
+    deleteObject: async () => undefined,
+    objectExists: async () => true,
+  };
+  const original = globalThis.fetch;
+  globalThis.fetch = (async () => {
+    inFlight++;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    inFlight--;
+    return new Response(new Uint8Array([1, 2, 3]), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const result = await downloadCandidates(candidateMedia, storage, 3);
+    assert.equal(result.length, 12);
+    assert.ok(maxInFlight <= 3, `expected at most 3 concurrent downloads, saw ${maxInFlight}`);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 
 function baseSearchDependencies(overrides: Parameters<typeof searchFindMe>[3] = {}): Parameters<typeof searchFindMe>[3] {
   return {

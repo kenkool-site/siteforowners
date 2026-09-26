@@ -15,3 +15,12 @@ test("requires a verified guest session before searching, and rejects an empty b
   assert.match(source, /status: 400/);
   assert.match(source, /searchFindMe\(params\.eventId, session\.sessionId, selfieBytes\)/);
 });
+
+test("blocks cross-origin requests, caps a long-running search, and rejects an oversized selfie", () => {
+  const source = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+  assert.match(source, /isSameOrigin/);
+  assert.match(source, /status: 403/);
+  assert.match(source, /export const maxDuration = 60/);
+  assert.match(source, /MAX_SELFIE_BYTES\s*=\s*5\s*\*\s*1024\s*\*\s*1024/);
+  assert.match(source, /selfieBytes\.length > MAX_SELFIE_BYTES/);
+});
