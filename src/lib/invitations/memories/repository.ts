@@ -134,11 +134,11 @@ export async function simulateFixtureMediaReady(mediaId: string): Promise<void> 
 
 export async function getEventMemoriesSettings(
   eventId: string,
-): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null } | null> {
+): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null; findMeEnabled: boolean } | null> {
   const client = createAdminClient();
   const { data, error } = await client
     .from("invitation_events")
-    .select("memories_enabled,memories_mode,starts_at")
+    .select("memories_enabled,memories_mode,starts_at,find_me_enabled")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
@@ -146,17 +146,19 @@ export async function getEventMemoriesSettings(
     memoriesEnabled: data.memories_enabled as boolean,
     memoriesMode: data.memories_mode as "auto_publish" | "review_required",
     startsAt: (data.starts_at as string | null) ?? null,
+    findMeEnabled: data.find_me_enabled as boolean,
   };
 }
 
 export async function updateEventMemoriesSettings(
   eventId: string,
-  updates: { memoriesEnabled?: boolean; memoriesMode?: "auto_publish" | "review_required" },
+  updates: { memoriesEnabled?: boolean; memoriesMode?: "auto_publish" | "review_required"; findMeEnabled?: boolean },
 ): Promise<void> {
   const client = createAdminClient();
   const patch: Record<string, unknown> = {};
   if (updates.memoriesEnabled !== undefined) patch.memories_enabled = updates.memoriesEnabled;
   if (updates.memoriesMode !== undefined) patch.memories_mode = updates.memoriesMode;
+  if (updates.findMeEnabled !== undefined) patch.find_me_enabled = updates.findMeEnabled;
   const { error } = await client.from("invitation_events").update(patch).eq("id", eventId);
   if (error) throw new Error(`failed to update memories settings: ${error.message}`);
 }
@@ -176,6 +178,12 @@ export async function updateMemoryMediaModeration(
     .eq("id", mediaId)
     .eq("moderation_status", "pending"); // idempotent: a retried moderation call can't re-flag an already-decided item
   if (error) throw new Error(`failed to update memory_media moderation: ${error.message}`);
+}
+
+export async function updateMemoryMediaHasFaces(mediaId: string, hasFaces: boolean): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client.from("memory_media").update({ has_faces: hasFaces }).eq("id", mediaId);
+  if (error) throw new Error(`failed to update media has_faces: ${error.message}`);
 }
 
 export async function getRsvpForEditCredential(

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
-import { computeGalleryVisible, toPublicMemoryMedia } from "./gallery";
+import { computeGalleryVisible, toPublicMemoryMedia, listGalleryVisibleMediaWithFaces } from "./gallery";
 import type { MemoryMedia } from "./types";
 
 function baseMedia(overrides: Partial<MemoryMedia>): MemoryMedia {
@@ -57,6 +57,13 @@ test("public gallery projection excludes original keys, RSVP ids, and moderation
     capturedAt: null,
     uploadedAt: "2026-09-21T00:00:00Z",
   });
+});
+
+test("listGalleryVisibleMediaWithFaces additionally filters on has_faces and accepts a limit", () => {
+  const source = listGalleryVisibleMediaWithFaces.toString();
+  assert.match(source, /has_faces/);
+  assert.match(source, /\.limit\(/);
+  assert.match(source, /event_id/);
 });
 
 // Separation regression guard for Task 8: the old, one-shot AI-to-Moment

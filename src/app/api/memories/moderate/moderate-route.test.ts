@@ -52,8 +52,8 @@ function media(overrides: Partial<MemoryMedia> & { id: string }): MemoryMedia {
   } as MemoryMedia;
 }
 
-function settings(overrides: Partial<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null }> = {}) {
-  return { memoriesEnabled: true, memoriesMode: "auto_publish" as const, startsAt: null, ...overrides };
+function settings(overrides: Partial<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null; findMeEnabled: boolean }> = {}) {
+  return { memoriesEnabled: true, memoriesMode: "auto_publish" as const, startsAt: null, findMeEnabled: false, ...overrides };
 }
 
 // moderateMedia downloads moderation-input bytes via a plain, module-level

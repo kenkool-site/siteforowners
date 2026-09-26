@@ -16,7 +16,7 @@ function request(): NextRequest {
 }
 
 function enabledSettings() {
-  return { memoriesEnabled: true, memoriesMode: "auto_publish" as const, startsAt: null };
+  return { memoriesEnabled: true, memoriesMode: "auto_publish" as const, startsAt: null, findMeEnabled: false };
 }
 
 function group(overrides: Partial<MemoryHighlightGroup> & { id: string }): MemoryHighlightGroup {
@@ -118,7 +118,7 @@ test("GET maps a null result to 404 and forwards a non-null result as JSON", () 
 test("returns null when memories are disabled for the event", async () => {
   const result = await getGuestHighlightsForEvent(EVENT_ID, {
     ...noopDependencies(),
-    getEventMemoriesSettings: async () => ({ memoriesEnabled: false, memoriesMode: "auto_publish", startsAt: null }),
+    getEventMemoriesSettings: async () => ({ memoriesEnabled: false, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: false }),
   });
   assert.equal(result, null);
 });
