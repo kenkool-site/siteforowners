@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import { MediaLightbox } from "./MediaLightbox";
 
 export function GuestMomentsView({ eventId, accent, surface }: { eventId: string; accent: string; surface: string }) {
   const t = useTranslations("invitations.public.memories.moments");
@@ -13,6 +14,7 @@ export function GuestMomentsView({ eventId, accent, surface }: { eventId: string
   const [media, setMedia] = useState<PublicMemoryMedia[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -30,17 +32,20 @@ export function GuestMomentsView({ eventId, accent, surface }: { eventId: string
   if (selectedMoment) {
     const selectedMedia = media.filter((item) => momentForMedia(item, moments)?.id === selectedMoment.id);
     return <div className="space-y-4 p-4">
-      <button type="button" onClick={() => setSelected(null)} className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-sm font-semibold" style={{ color: accent }}>
+      <button type="button" onClick={() => { setSelected(null); setLightboxIndex(null); }} className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-sm font-semibold" style={{ color: accent }}>
         <ChevronLeft className="size-5" />
         {t("back")}
       </button>
       <h2 className="text-2xl font-semibold">{selectedMoment.name}</h2>
-      <div className="columns-2 gap-2 sm:columns-3">{selectedMedia.map((item) => <div key={item.id} className="relative mb-2 break-inside-avoid">
+      <div className="columns-2 gap-2 sm:columns-3">{selectedMedia.map((item, index) => <button key={item.id} type="button" onClick={() => setLightboxIndex(index)} className="relative mb-2 block w-full break-inside-avoid">
         <img src={`/api/memories/media/${item.id}/${item.mediaKind === "video" ? "thumbnail" : "display"}`} alt="" className="h-auto w-full rounded-xl" loading="lazy" />
         {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
           <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
         </span>}
-      </div>)}</div>
+      </button>)}</div>
+      {lightboxIndex !== null && (
+        <MediaLightbox media={selectedMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
+      )}
     </div>;
   }
   if (moments.length === 0) return <p className="p-8 text-center text-sm" style={{ color: accent }}>{t("empty")}</p>;

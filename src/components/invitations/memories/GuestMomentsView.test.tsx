@@ -127,6 +127,33 @@ test("a video item's thumbnail shows a play-badge overlay; a photo item's does n
   );
 });
 
+test("tapping a photo inside a moment's detail view opens the lightbox, scoped to that moment's own photos", async () => {
+  const m = moment({ id: "moment-1" });
+  await withMountedMoments(
+    [mediaItem("m1"), mediaItem("m2")],
+    [m],
+    async ({ dom }) => {
+      const coverCard = dom.window.document.querySelector('img[src="/api/memories/media/m1/thumbnail"]')?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, coverCard);
+        await flush();
+      });
+
+      assert.ok(!dom.window.document.querySelector('[role="dialog"]'), "expected no lightbox before tapping a photo");
+
+      const photoTile = dom.window.document.querySelector('img[src="/api/memories/media/m2/display"]')?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, photoTile);
+        await flush();
+      });
+
+      const dialog = dom.window.document.querySelector('[role="dialog"]');
+      assert.ok(dialog, "expected the lightbox to open after tapping a photo");
+      assert.ok(dialog!.querySelector('img[src="/api/memories/media/m2/display"]'), "expected the lightbox to show the tapped photo");
+    },
+  );
+});
+
 test("a moment's cover tile shows a play-badge overlay when its first photo is a video", async () => {
   const momentA = moment({ id: "moment-a", name: "First Dance" });
   const momentB = moment({ id: "moment-b", name: "Cake Cutting", startsAt: "2026-09-22T21:00:00Z", endsAt: "2026-09-22T22:00:00Z", sortOrder: 1 });
