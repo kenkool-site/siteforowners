@@ -82,20 +82,26 @@ and `/api/memories/processing-complete` against this shared secret.
 
 ## 3. AWS Rekognition (moderation + AI Highlight labeling)
 
-The code makes two AWS calls against the same IAM user: `ai-provider.ts`'s
-`DetectModerationLabelsCommand` (moderation, Plan A) and `DetectLabelsCommand`
-(AI Highlight descriptor extraction — `detectLabels`, added by the AI
-Highlight Grouping plan). Neither supports resource-level scoping — per AWS's
-own service authorization reference, both operate on image bytes passed in
-the request rather than a stored resource ARN, so `Resource: "*"` is the only
-valid value for either, not an over-broad grant.
+The code makes four AWS calls against the same IAM user, all in
+`ai-provider.ts`: `DetectModerationLabelsCommand` (moderation, Plan A),
+`DetectLabelsCommand` (AI Highlight descriptor extraction — `detectLabels`,
+added by the AI Highlight Grouping plan), `DetectFacesCommand` (the `has_faces`
+presence flag computed once per photo at moderation time — added by the Find
+Me plan), and `CompareFacesCommand` (the actual selfie-vs-candidate matching
+at Find Me search time). None of the four support resource-level scoping —
+per AWS's own service authorization reference, all operate on image bytes
+passed in the request rather than a stored resource ARN, so `Resource: "*"`
+is the only valid value, not an over-broad grant.
 
-**If this IAM user/policy was created before the AI Highlight Grouping
-feature shipped, it only has `DetectModerationLabels` — `DetectLabels` calls
-will fail with `AccessDeniedException` until the policy below is
-re-applied.** Symptom: highlight generations stay stuck at `queued` or churn
-without ever producing descriptors; cron/route logs show
-`AccessDeniedException: ... not authorized to perform: rekognition:DetectLabels`.
+**If this IAM user/policy predates a given feature, it will be missing that
+feature's action(s) — calls will fail with `AccessDeniedException` until the
+policy below is re-applied.** Symptoms: missing `DetectLabels` → highlight
+generations stay stuck at `queued` or churn without ever producing
+descriptors; missing `DetectFaces` → logs show a non-fatal
+`[memories/moderate] has_faces detection failed` on every upload and Find Me
+never has any candidates to search; missing `CompareFaces` → every Find Me
+search 500s. All three show the same shape of log line:
+`AccessDeniedException: ... not authorized to perform: rekognition:<Action>`.
 
 Policy JSON: `docs/aws-rekognition-memories-policy.json`
 
@@ -106,7 +112,7 @@ Policy JSON: `docs/aws-rekognition-memories-policy.json`
     {
       "Sid": "InviteSpotMemoriesModeration",
       "Effect": "Allow",
-      "Action": ["rekognition:DetectModerationLabels", "rekognition:DetectLabels"],
+      "Action": ["rekognition:DetectModerationLabels", "rekognition:DetectLabels", "rekognition:DetectFaces", "rekognition:CompareFaces"],
       "Resource": "*"
     }
   ]
@@ -120,9 +126,9 @@ Policy JSON: `docs/aws-rekognition-memories-policy.json`
 tab → Create access key ("Application running outside AWS") → copy into
 `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`.
 
-**Console (adding `DetectLabels` to an existing policy):** IAM → Policies →
+**Console (adding missing actions to an existing policy):** IAM → Policies →
 find the policy attached to your existing Rekognition IAM user → Edit →
-JSON tab → replace with the two-action JSON above → Save changes. Takes
+JSON tab → replace with the four-action JSON above → Save changes. Takes
 effect immediately, no new access key needed.
 
 **CLI (new setup):**
@@ -136,7 +142,7 @@ aws iam attach-user-policy --user-name invitespot-memories-rekognition \
 aws iam create-access-key --user-name invitespot-memories-rekognition
 ```
 
-**CLI (adding `DetectLabels` to an existing policy):**
+**CLI (adding missing actions to an existing policy):**
 
 ```bash
 aws iam create-policy-version \
@@ -146,7 +152,8 @@ aws iam create-policy-version \
 ```
 
 Don't reuse a broader existing AWS key for this — this credential should
-only ever be able to call `DetectModerationLabels` and `DetectLabels`.
+only ever be able to call `DetectModerationLabels`, `DetectLabels`,
+`DetectFaces`, and `CompareFaces`.
 
 ## 4. Environment variables — Vercel (Production)
 
