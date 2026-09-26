@@ -16,3 +16,9 @@ test("settings route guards every write with same-origin and host access", () =>
   assert.match(source, /requireInvitationAccess\(request, params\.eventId\)/);
   assert.match(source, /updateEventMemoriesSettings\(params\.eventId/);
 });
+
+test("settings route recognizes set_find_me_enabled and patches findMeEnabled", () => {
+  const source = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+  assert.match(source, /set_find_me_enabled/);
+  assert.match(source, /findMeEnabled: values\.enabled/);
+});

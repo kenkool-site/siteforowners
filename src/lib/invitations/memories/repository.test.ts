@@ -9,6 +9,7 @@ import {
   deleteMemoryMoment,
   getEventMemoriesSettings,
   updateEventMemoriesSettings,
+  updateMemoryMediaHasFaces,
   upsertMemoryMediaDescriptor,
   listApprovedMemoryDescriptors,
   listApprovedMediaMissingDescriptors,
@@ -62,6 +63,26 @@ test("updateEventMemoriesSettings patches only the memories fields provided", ()
   const source = updateEventMemoriesSettings.toString();
   assert.match(source, /memories_enabled/);
   assert.match(source, /memories_mode/);
+});
+
+test("getEventMemoriesSettings selects and returns find_me_enabled alongside the existing fields", () => {
+  const source = getEventMemoriesSettings.toString();
+  assert.match(source, /find_me_enabled/);
+  assert.match(source, /findMeEnabled/);
+});
+
+test("updateEventMemoriesSettings patches find_me_enabled when provided, alongside the existing fields", () => {
+  const source = updateEventMemoriesSettings.toString();
+  assert.match(source, /find_me_enabled/);
+  assert.match(source, /findMeEnabled/);
+});
+
+test("updateMemoryMediaHasFaces patches has_faces on memory_media, scoped by media id", () => {
+  assert.equal(typeof updateMemoryMediaHasFaces, "function");
+  const source = updateMemoryMediaHasFaces.toString();
+  assert.match(source, /memory_media/);
+  assert.match(source, /has_faces/);
+  assert.match(source, /\.eq\(\s*"id"/);
 });
 
 // Video's counterpart to markMemoryMediaUploaded — matching this file's own

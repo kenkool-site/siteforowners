@@ -3,23 +3,33 @@
 import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { visibleOptimisticUploads, type GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { groupMediaByTime } from "@/lib/invitations/memories/gallery-view";
 import { MediaLightbox } from "./MediaLightbox";
+import { FindMeFlow } from "./FindMeFlow";
 
 const IDLE_POLL_MS = 15_000;
 const PUBLISHING_POLL_MS = 2_000;
 
-export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventId: string; accent: string; surface: string; uploads: GuestUploadPreview[] }) {
+export function GuestGalleryView({ eventId, accent, surface, uploads, findMeEnabled }: { eventId: string; accent: string; surface: string; uploads: GuestUploadPreview[]; findMeEnabled: boolean }) {
   const t = useTranslations("invitations.public.memories.gallery");
+  const tFindMe = useTranslations("invitations.public.memories.findMe");
   const [media, setMedia] = useState<PublicMemoryMedia[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [findMeOpen, setFindMeOpen] = useState(false);
   const previousIds = useRef<Set<string>>(new Set());
+  const searchParams = useSearchParams();
+  // A shared photo link (see MediaLightbox's share button) lands here as
+  // ?photo=<mediaId>. Applied at most once per mount, once the gallery has
+  // actually loaded — otherwise a guest who closes the lightbox would find
+  // it reopening on every re-render/poll while the param is still present.
+  const appliedPhotoParam = useRef(false);
   const hasPublishing = uploads.some((item) => item.status === "queued" || item.status === "uploading" || item.status === "done");
 
   useEffect(() => {
@@ -69,12 +79,23 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
   const recentVisible = recent.slice(0, 8);
   const lightboxMedia = [...recentVisible, ...olderFlat];
 
+  useEffect(() => {
+    if (appliedPhotoParam.current || !loaded) return;
+    appliedPhotoParam.current = true;
+    const photoId = searchParams?.get("photo");
+    if (!photoId) return;
+    const index = lightboxMedia.findIndex((item) => item.id === photoId);
+    if (index !== -1) setLightboxIndex(index);
+  }, [loaded, lightboxMedia, searchParams]);
+
   if (!loaded && optimistic.length === 0) return <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>;
   if (error && media.length === 0 && optimistic.length === 0) return <p role="alert" className="p-8 text-center text-sm text-red-700">{t("error")}</p>;
   if (media.length === 0 && optimistic.length === 0) return <p className="px-6 py-16 text-center font-serif text-xl" style={{ color: accent }}>{t("empty")}</p>;
 
   return <div className="space-y-8 px-3 pb-48 pt-2 sm:px-5">
     {newCount > 0 && <button type="button" onClick={() => setNewCount(0)} className="sticky top-3 z-10 mx-auto block min-h-10 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg" style={{ backgroundColor: accent }}>{t("newPhotos", { count: newCount })}</button>}
+
+    {findMeEnabled && <button type="button" onClick={() => setFindMeOpen(true)} className="mx-auto block min-h-11 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md" style={{ backgroundColor: accent }}>{tFindMe("banner")}</button>}
 
     {hasJustAdded && <section aria-labelledby="just-added-heading">
       <div className="mb-3 flex items-center gap-3">
@@ -117,5 +138,7 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
     {lightboxIndex !== null && (
       <MediaLightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
     )}
+
+    {findMeOpen && <FindMeFlow eventId={eventId} accent={accent} surface={surface} onClose={() => setFindMeOpen(false)} />}
   </div>;
 }

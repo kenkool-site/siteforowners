@@ -57,7 +57,7 @@ function flush(ms = 20): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function withMountedGallery(media: PublicMemoryMedia[], callback: (ctx: { dom: JSDOM }) => Promise<void>) {
+async function withMountedGallery(media: PublicMemoryMedia[], callback: (ctx: { dom: JSDOM }) => Promise<void>, findMeEnabled = false) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", {
     url: "https://invite.example.test",
     virtualConsole: quietVirtualConsole(),
@@ -92,7 +92,7 @@ async function withMountedGallery(media: PublicMemoryMedia[], callback: (ctx: { 
     await act(async () => {
       root.render(
         <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-          <GuestGalleryView eventId="event-1" accent="#6D456F" surface="#ffffff" uploads={[]} />
+          <GuestGalleryView eventId="event-1" accent="#6D456F" surface="#ffffff" uploads={[]} findMeEnabled={findMeEnabled} />
         </NextIntlClientProvider>,
       );
       await flush();
@@ -224,4 +224,14 @@ test("closing the lightbox returns to the gallery grid", async () => {
     assert.ok(!dom.window.document.querySelector('[role="dialog"]'), "expected the lightbox to close");
     assert.ok(dom.window.document.querySelector('img[src="/api/memories/media/m1/display"]'), "expected the gallery grid to still show the photo");
   });
+});
+
+test("shows the Find Me banner when findMeEnabled is true, and nothing when it's false", async () => {
+  await withMountedGallery([mediaItem("m1")], async ({ dom }) => {
+    assert.doesNotMatch(dom.window.document.body.textContent ?? "", /Find yourself in these photos/);
+  }, false);
+
+  await withMountedGallery([mediaItem("m1")], async ({ dom }) => {
+    assert.match(dom.window.document.body.textContent ?? "", /Find yourself in these photos/);
+  }, true);
 });

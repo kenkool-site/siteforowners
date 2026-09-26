@@ -3,7 +3,7 @@
 import { FormEvent, useState } from "react";
 import { useTranslations } from "next-intl";
 
-export function PasscodeGate({ slug }: { slug: string }) {
+export function PasscodeGate({ slug, redirectTo }: { slug: string; redirectTo?: string }) {
   const t = useTranslations("invitations.public.passcode");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -21,7 +21,10 @@ export function PasscodeGate({ slug }: { slug: string }) {
         body: JSON.stringify({ slug, passcode }),
       });
       if (response.ok) {
-        window.location.reload();
+        // With a deep link (e.g. a shared photo), return to exactly where the
+        // guest was headed instead of just reloading the passcode page itself.
+        if (redirectTo) window.location.href = redirectTo;
+        else window.location.reload();
         return;
       }
       setError(response.status === 429 ? t("rateLimited") : t("invalid"));

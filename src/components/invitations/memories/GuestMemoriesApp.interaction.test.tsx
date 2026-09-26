@@ -37,7 +37,7 @@ test("memories opens on the gallery with upload as an action instead of a destin
     await act(async () => {
       root.render(
         <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-          <GuestMemoriesApp eventId="event-1" eventTitle="Mercy & John" accent="#275B35" background="#FAF8F1" text="#16351F" surface="#EEF1E8" />
+          <GuestMemoriesApp eventId="event-1" eventTitle="Mercy & John" accent="#275B35" background="#FAF8F1" text="#16351F" surface="#EEF1E8" findMeEnabled={false} />
         </NextIntlClientProvider>,
       );
       await new Promise((resolve) => setTimeout(resolve, 20));

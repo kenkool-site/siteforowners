@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Share2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 
@@ -63,6 +63,18 @@ export function resolveNearbyTap(
   return null;
 }
 
+// Compact "Sep 24, 6:15 PM"-style label for a photo/video's capture time.
+// Uses the environment's default locale (no explicit locale argument), matching
+// this codebase's existing bare toLocaleDateString()/toLocaleString() convention
+// (see OwnerMomentsManager.tsx) rather than introducing next-intl's useFormatter
+// as a new pattern for a single label.
+export function formatCapturedAt(capturedAt: string): string {
+  const date = new Date(capturedAt);
+  const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  return `${day}, ${time}`;
+}
+
 function exitDistance(): number {
   return (typeof window !== "undefined" ? window.innerWidth : FALLBACK_EXIT_DISTANCE_PX) + 100;
 }
@@ -81,6 +93,10 @@ type NavigationTarget = { kind: "list"; index: number } | { kind: "detour"; medi
 // viewed.
 export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightboxProps) {
   const t = useTranslations("invitations.public.memories.lightbox");
+  // Reuses the gallery namespace's existing "Photo shared by {name}" copy —
+  // today only rendered as alt text on gallery thumbnails — rather than
+  // duplicating an equivalent string under the lightbox namespace.
+  const tGallery = useTranslations("invitations.public.memories.gallery");
   const [dragX, setDragX] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   // True only for the single instant "jump to the opposite edge" reposition
@@ -106,6 +122,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
   // id so navigating back and forth doesn't refetch what's already known.
   const nearbyCache = useRef<Map<string, PublicMemoryMedia[]>>(new Map());
   const [nearby, setNearby] = useState<PublicMemoryMedia[]>([]);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -172,6 +189,13 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
 
   if (!item) return null;
 
+  const capturedLabel = item.capturedAt ? formatCapturedAt(item.capturedAt) : null;
+  const itemMetaLabel = capturedLabel
+    ? item.uploaderDisplayName
+      ? `${tGallery("photoBy", { name: item.uploaderDisplayName })} · ${capturedLabel}`
+      : capturedLabel
+    : null;
+
   // Drives every non-drag transition: the current photo exits fully
   // off-screen in `exitSign`'s direction (continuing whatever motion — a
   // swipe's own direction, or a button/keyboard tap's implied direction),
@@ -217,6 +241,37 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
       pendingFrames.current.push(frame1);
     }, SETTLE_DURATION_MS);
     pendingTimeouts.current.push(swapTimeout);
+  }
+
+  // Deep-links to this exact item on the page the guest is already viewing —
+  // built from the live location rather than a prop, so this component never
+  // needs to know the invitation's slug or base URL. Query param, not a hash
+  // fragment: unlike a hash, a query param survives the server-side passcode
+  // redirect a protected event's memories page issues (see
+  // src/app/invite/[slug]/memories/page.tsx and PasscodeGate.tsx), so a
+  // shared link still lands on this photo after the guest enters the code.
+  async function handleShare() {
+    const url = new URL(window.location.pathname, window.location.origin);
+    url.searchParams.set("photo", item.id);
+    const shareUrl = url.toString();
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ url: shareUrl });
+      } catch {
+        // The guest cancelled the native share sheet, or the browser refused
+        // — either way there's nothing to recover from or fall back to.
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShowCopiedToast(true);
+      window.setTimeout(() => setShowCopiedToast(false), 2000);
+    } catch {
+      // Clipboard permission denied/unavailable — no further fallback.
+    }
   }
 
   function handleNearbyTap(tappedId: string) {
@@ -270,6 +325,22 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-2" onClick={onClose}>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          void handleShare();
+        }}
+        aria-label={t("share")}
+        className="absolute left-3 top-3 z-10 grid size-11 place-items-center rounded-full bg-white/10 text-white"
+      >
+        <Share2 className="size-5" />
+      </button>
+      {showCopiedToast && (
+        <p role="status" className="absolute left-1/2 top-16 z-10 -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-lg">
+          {t("linkCopied")}
+        </p>
+      )}
       <button
         type="button"
         onClick={onClose}
@@ -369,6 +440,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
             </div>
           </div>
         )}
+        {itemMetaLabel && <p className="mb-1 text-center text-xs text-white/70">{itemMetaLabel}</p>}
         <p className="text-center text-xs font-medium text-white/80">
           {detour
             ? t("nearbyDetourLabel", { current: activeIndex + 1, total: activeMedia.length })

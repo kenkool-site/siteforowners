@@ -1,5 +1,5 @@
 // src/lib/invitations/memories/ai-provider.ts
-import { RekognitionClient, DetectModerationLabelsCommand, DetectLabelsCommand } from "@aws-sdk/client-rekognition";
+import { RekognitionClient, DetectModerationLabelsCommand, DetectLabelsCommand, DetectFacesCommand, CompareFacesCommand } from "@aws-sdk/client-rekognition";
 import type { ModerationStatus } from "./types";
 
 export interface DetectedLabel {
@@ -39,6 +39,8 @@ export function resolveModerationOutcome(
 export interface AIProvider {
   moderateImage(bytes: Uint8Array): Promise<ModerationResult>;
   detectLabels(bytes: Uint8Array): Promise<DetectedLabel[]>;
+  detectFaces(bytes: Uint8Array): Promise<boolean>;
+  compareFaces(sourceBytes: Uint8Array, targetBytes: Uint8Array, similarityThreshold: number): Promise<number>;
 }
 
 export class RekognitionAIProvider implements AIProvider {
@@ -61,5 +63,33 @@ export class RekognitionAIProvider implements AIProvider {
     return labels
       .filter((label) => label.Name)
       .map((label) => ({ name: label.Name as string, confidence: (label.Confidence ?? 0) / 100 }));
+  }
+
+  async detectFaces(bytes: Uint8Array): Promise<boolean> {
+    const client = new RekognitionClient({ region: process.env.AWS_REGION ?? "us-east-1" });
+    const response = await client.send(new DetectFacesCommand({ Image: { Bytes: bytes } }));
+    return (response.FaceDetails ?? []).length > 0;
+  }
+
+  async compareFaces(sourceBytes: Uint8Array, targetBytes: Uint8Array, similarityThreshold: number): Promise<number> {
+    const client = new RekognitionClient({ region: process.env.AWS_REGION ?? "us-east-1" });
+    try {
+      const response = await client.send(
+        new CompareFacesCommand({
+          SourceImage: { Bytes: sourceBytes },
+          TargetImage: { Bytes: targetBytes },
+          SimilarityThreshold: similarityThreshold,
+        }),
+      );
+      const matches = response.FaceMatches ?? [];
+      return matches.reduce((max, match) => Math.max(max, match.Similarity ?? 0), 0);
+    } catch (error) {
+      // Rekognition throws InvalidParameterException when it can't find a
+      // detectable face in either image — a normal outcome for this feature
+      // (a candidate photo with nobody recognizable in it, say), not a real
+      // error. Every other error still propagates.
+      if (error instanceof Error && error.name === "InvalidParameterException") return 0;
+      throw error;
+    }
   }
 }

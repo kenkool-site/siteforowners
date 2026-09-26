@@ -9,7 +9,7 @@ import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recip
 
 export const dynamic = "force-dynamic";
 
-export default async function GuestMemoriesPage({ params }: { params: { slug: string } }) {
+export default async function GuestMemoriesPage({ params, searchParams }: { params: { slug: string }; searchParams: { photo?: string } }) {
   const invitation = await getPublicInvitationBySlug(params.slug);
   if (!invitation) notFound();
 
@@ -32,7 +32,15 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
     } catch {
       hasAccess = false;
     }
-    if (!hasAccess) redirect(`/invite/${params.slug}`); // same passcode gate the public page itself enforces
+    if (!hasAccess) {
+      // Preserve where the guest was actually headed (e.g. a shared photo
+      // link's ?photo= param) through the passcode challenge — PasscodeGate
+      // reads this back via the general invite page and navigates here again
+      // on success, instead of stranding the guest on the general invite page.
+      const photoParam = typeof searchParams.photo === "string" ? `?photo=${encodeURIComponent(searchParams.photo)}` : "";
+      const next = encodeURIComponent(`/invite/${params.slug}/memories${photoParam}`);
+      redirect(`/invite/${params.slug}?next=${next}`); // same passcode gate the public page itself enforces
+    }
   }
 
   const settings = await getEventMemoriesSettings(invitation.event.id);
@@ -49,6 +57,7 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
         background={recipe.palette.background}
         text={recipe.palette.text}
         surface={recipe.palette.surface}
+        findMeEnabled={settings.findMeEnabled}
       />
     </InvitationPublicProvider>
   );

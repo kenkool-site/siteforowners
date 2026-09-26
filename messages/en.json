@@ -157,6 +157,7 @@
           "manage": "Manage photos",
           "enableLabel": "Let guests share photos",
           "modeLabel": "Require my approval before photos are visible",
+          "findMeEnableLabel": "Let guests find photos of themselves",
           "saveError": "The photo-sharing setting could not be saved. Try again."
         },
         "status": {
@@ -835,7 +836,22 @@
           "viewerLabel": "Photo {current} of {total}",
           "nearbyCount": "{count, plural, one {# other captured this moment} other {# others captured this moment}}",
           "nearbyDetourLabel": "Browsing nearby moment · {current} of {total}",
-          "nearbyThumbnailLabel": "View related photo"
+          "nearbyThumbnailLabel": "View related photo",
+          "share": "Share",
+          "linkCopied": "Link copied!"
+        },
+        "findMe": {
+          "banner": "Find yourself in these photos",
+          "consentTitle": "Find your photos",
+          "consentBody": "Take or upload a selfie and we'll compare it against this event's photos to find the ones you're in. Your selfie is never saved — it's used once, then discarded.",
+          "captureLabel": "Take or choose a selfie",
+          "searching": "Looking for you…",
+          "resultsTitle": "Photos of you",
+          "empty": "No matches found — try a clearer selfie, or check back once more photos are shared.",
+          "error": "Something went wrong. Please try again.",
+          "tooManyAttempts": "You've reached the search limit for now. Try again tomorrow.",
+          "tryAgain": "Try another selfie",
+          "close": "Close"
         }
       }
     },

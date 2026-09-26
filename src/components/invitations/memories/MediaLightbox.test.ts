@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { resolveNearbyTap, resolveSwipeNavigation } from "./MediaLightbox";
+import { formatCapturedAt, resolveNearbyTap, resolveSwipeNavigation } from "./MediaLightbox";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 
 // resolveSwipeNavigation is pure and DOM-free by design specifically so it
@@ -82,4 +82,23 @@ test("resolveNearbyTap: returns null when the tapped id is in neither the curren
   const currentMedia = [mediaItem("a")];
   const result = resolveNearbyTap(currentMedia, "ghost", [mediaItem("z")]);
   assert.equal(result, null);
+});
+
+// formatCapturedAt uses the environment's own default locale (matching this
+// codebase's existing bare toLocaleString()/toLocaleDateString() convention,
+// e.g. OwnerMomentsManager.tsx), so these tests compute their expectation the
+// same way rather than hardcoding a literal string that would drift with the
+// test environment's ICU locale data.
+test("formatCapturedAt combines a short date and a short time", () => {
+  const iso = "2026-09-24T22:08:00.000Z";
+  const date = new Date(iso);
+  const expectedDay = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+  const expectedTime = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  assert.equal(formatCapturedAt(iso), `${expectedDay}, ${expectedTime}`);
+});
+
+test("formatCapturedAt reflects a different instant distinctly", () => {
+  const morning = formatCapturedAt("2026-01-01T09:05:00.000Z");
+  const evening = formatCapturedAt("2026-06-15T20:45:00.000Z");
+  assert.notEqual(morning, evening);
 });

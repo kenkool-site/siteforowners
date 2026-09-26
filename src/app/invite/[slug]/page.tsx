@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 }
 
-export default async function PublicInvitationPage({ params }: { params: { slug: string } }) {
+export default async function PublicInvitationPage({ params, searchParams }: { params: { slug: string }; searchParams: { next?: string } }) {
   const resolution = await resolvePublicInvitationPage(params.slug, new Date(), {
     find: getPublicInvitationBySlug,
     hasPasscodeAccess: (event) => {
@@ -54,9 +54,17 @@ export default async function PublicInvitationPage({ params }: { params: { slug:
   }
 
   if (resolution.kind === "passcode") {
+    // Only trust a same-event relative path — anything else (an absolute
+    // URL, a different event's path) is dropped rather than handed to
+    // window.location.href client-side, which would otherwise make ?next=
+    // an open redirect.
+    const redirectTo =
+      typeof searchParams.next === "string" && searchParams.next.startsWith(`/invite/${resolution.event.slug}`)
+        ? searchParams.next
+        : undefined;
     return (
       <InvitationPublicProvider locale={resolution.event.locale} timeZone="UTC">
-        <PasscodeGate slug={resolution.event.slug} />
+        <PasscodeGate slug={resolution.event.slug} redirectTo={redirectTo} />
       </InvitationPublicProvider>
     );
   }

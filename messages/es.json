@@ -157,6 +157,7 @@
           "manage": "Administrar fotos",
           "enableLabel": "Permitir que los invitados compartan fotos",
           "modeLabel": "Requerir mi aprobación antes de mostrar las fotos",
+          "findMeEnableLabel": "Permitir que los invitados encuentren fotos de sí mismos",
           "saveError": "No se pudo guardar la configuración. Inténtalo de nuevo."
         },
         "status": {
@@ -835,7 +836,22 @@
           "viewerLabel": "Foto {current} de {total}",
           "nearbyCount": "{count, plural, one {# persona más capturó este momento} other {# personas más capturaron este momento}}",
           "nearbyDetourLabel": "Viendo un momento cercano · {current} de {total}",
-          "nearbyThumbnailLabel": "Ver foto relacionada"
+          "nearbyThumbnailLabel": "Ver foto relacionada",
+          "share": "Compartir",
+          "linkCopied": "¡Enlace copiado!"
+        },
+        "findMe": {
+          "banner": "Encuéntrate en estas fotos",
+          "consentTitle": "Encuentra tus fotos",
+          "consentBody": "Toma o sube una selfie y la compararemos con las fotos de este evento para encontrar las tuyas. Tu selfie nunca se guarda: se usa una vez y luego se descarta.",
+          "captureLabel": "Toma o elige una selfie",
+          "searching": "Buscándote…",
+          "resultsTitle": "Fotos tuyas",
+          "empty": "No se encontraron coincidencias — prueba con una selfie más clara, o vuelve más tarde cuando se compartan más fotos.",
+          "error": "Algo salió mal. Inténtalo de nuevo.",
+          "tooManyAttempts": "Has alcanzado el límite de búsquedas por ahora. Inténtalo de nuevo mañana.",
+          "tryAgain": "Probar con otra selfie",
+          "close": "Cerrar"
         }
       }
     },
