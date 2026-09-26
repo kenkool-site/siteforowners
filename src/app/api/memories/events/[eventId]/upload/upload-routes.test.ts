@@ -152,12 +152,35 @@ test("POST accepts mediaKind video with an accepted content type", async () => {
   assert.notEqual(response.status, 400);
 });
 
-test("POST rejects an unsupported video content type with 400", async () => {
+test("POST rejects an unsupported video content type with 400 and code unsupported_type", async () => {
   const { POST } = await import("./init/route");
   // AVI — never in ALLOWED_CONTENT_TYPES, so this 400s before any database call.
   const request = sameOriginInitRequest({ mediaKind: "video", contentType: "video/x-msvideo", sizeBytes: 1_000_000 });
   const response = await POST(request, { params: { eventId: EVENT_ID } });
   assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.code, "unsupported_type");
+});
+
+// Regression coverage: the original 50MB cap (copied from an unrelated
+// host-asset video cap) rejected essentially every real 60-second phone video
+// before any upload_media row was ever created — the client showed a generic
+// "something went wrong" with no indication of why. The cap is now 200MB, and
+// the rejection carries a `code` the client maps to a specific message.
+test("POST rejects a video over the 200MB cap with 400 and code too_large, before any database call", async () => {
+  const { POST } = await import("./init/route");
+  const request = sameOriginInitRequest({ mediaKind: "video", contentType: "video/mp4", sizeBytes: 200 * 1024 * 1024 + 1 });
+  const response = await POST(request, { params: { eventId: EVENT_ID } });
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.code, "too_large");
+});
+
+test("POST accepts a video at exactly the 200MB cap (validation only — reaches the database call past this point)", async () => {
+  const { POST } = await import("./init/route");
+  const request = sameOriginInitRequest({ mediaKind: "video", contentType: "video/mp4", sizeBytes: 200 * 1024 * 1024 });
+  const response = await POST(request, { params: { eventId: EVENT_ID } });
+  assert.notEqual(response.status, 400);
 });
 
 for (const contentType of ["video/mp4", "video/webm", "video/quicktime"]) {

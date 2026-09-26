@@ -820,6 +820,8 @@
           "addMore": "Add more photos or videos",
           "heicError": "iPhone's default photo format isn't supported yet — switch your camera to \"Most Compatible\" in Settings, or share a JPEG instead.",
           "videoTooLongError": "Videos can be up to 60 seconds — please trim your clip and try again.",
+          "fileTooLargeError": "This file is too large — videos can be up to 200MB.",
+          "unsupportedTypeError": "This file type isn't supported — try a JPEG, PNG, WebP, or GIF image, or an MP4, WebM, or MOV video.",
           "quotaError": "This event has reached its upload limit.",
           "windowClosedError": "The upload window for this event has closed.",
           "genericError": "Something went wrong — please try again."

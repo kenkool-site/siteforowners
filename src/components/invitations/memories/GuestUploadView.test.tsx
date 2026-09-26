@@ -248,6 +248,70 @@ test("a video longer than 60 seconds is rejected before any network call", async
   );
 });
 
+test("an oversized video surfaces the server's specific 'too large' error, not the generic message, and offers no retry", async () => {
+  const { XHRClass } = createRecordingXHRClass();
+  await withMountedUploadView(
+    {
+      eventId: "event-video-too-large",
+      durationSeconds: 10,
+      XHRClass,
+      fetchImpl: async (url) => {
+        if (url.endsWith("/upload/init")) {
+          return jsonResponse({ error: "invalid or oversized file", code: "too_large" }, 400);
+        }
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    },
+    async ({ dom }) => {
+      const video = new dom.window.File([new Uint8Array([1, 2, 3])], "big.mp4", { type: "video/mp4" });
+      await act(async () => {
+        pickFiles(dom, [video]);
+        dom.window.document.querySelector('input[type="file"]')!.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+        await flush();
+      });
+
+      const alertText = dom.window.document.querySelector('[role="alert"]')?.textContent ?? "";
+      assert.match(alertText, /too large — videos can be up to 200MB/);
+      assert.doesNotMatch(alertText, /Something went wrong/);
+
+      const buttons = Array.from(dom.window.document.querySelectorAll("button"));
+      assert.ok(!buttons.some((button) => button.textContent === "Retry"), "expected no retry button for a file that will always fail the same way");
+    },
+  );
+});
+
+test("a video rejected for an unsupported type surfaces that specific error, not the generic message", async () => {
+  const { XHRClass } = createRecordingXHRClass();
+  await withMountedUploadView(
+    {
+      eventId: "event-video-unsupported",
+      durationSeconds: 10,
+      XHRClass,
+      fetchImpl: async (url) => {
+        if (url.endsWith("/upload/init")) {
+          return jsonResponse(
+            { error: "unsupported file type — upload a JPEG, PNG, WebP, or GIF image, or an MP4, WebM, or MOV video", code: "unsupported_type" },
+            400,
+          );
+        }
+        throw new Error(`unexpected fetch ${url}`);
+      },
+    },
+    async ({ dom }) => {
+      const video = new dom.window.File([new Uint8Array([1, 2, 3])], "clip.mp4", { type: "video/mp4" });
+      await act(async () => {
+        pickFiles(dom, [video]);
+        dom.window.document.querySelector('input[type="file"]')!.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+        await flush();
+      });
+
+      const alertText = dom.window.document.querySelector('[role="alert"]')?.textContent ?? "";
+      assert.match(alertText, /This file type isn't supported/);
+      assert.doesNotMatch(alertText, /Something went wrong/);
+    },
+  );
+});
+
 test("a picked photo file is still enqueued with mediaKind photo and no poster, unchanged", async () => {
   const { XHRClass, calls: xhrCalls } = createRecordingXHRClass();
   await withMountedUploadView(
