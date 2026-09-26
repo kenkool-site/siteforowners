@@ -40,17 +40,30 @@ function polyfillObjectUrl(dom: JSDOM): void {
 function installVideoCanvasStubs(dom: JSDOM, durationSeconds: number, options: { failPosterCapture?: boolean } = {}): void {
   const doc = dom.window.document;
   const originalCreateElement = doc.createElement.bind(doc);
+  // The real component now attaches its <video> element to document.body
+  // (see createHiddenVideoElement's own header comment on why) — a real
+  // appendChild would reject this plain fake object, so appendChild is
+  // stubbed to recognize and no-op on it, and the fake carries its own
+  // remove() for the matching cleanup call.
+  const originalAppendChild = doc.body.appendChild.bind(doc.body);
+  doc.body.appendChild = ((node: unknown) => {
+    if (node && (node as { __isFakeVideo?: boolean }).__isFakeVideo) return node as Node;
+    return originalAppendChild(node as Node);
+  }) as typeof doc.body.appendChild;
   doc.createElement = ((tagName: string, createOptions?: ElementCreationOptions) => {
     if (tagName === "video") {
       let onloadedmetadata: (() => void) | null = null;
       let onloadeddata: (() => void) | null = null;
       const fakeVideo = {
+        __isFakeVideo: true,
         preload: "",
         muted: false,
+        style: {},
         videoWidth: 640,
         videoHeight: 360,
         duration: durationSeconds,
         onerror: null,
+        remove: () => undefined,
         get onloadedmetadata() { return onloadedmetadata; },
         set onloadedmetadata(fn: (() => void) | null) { onloadedmetadata = fn; },
         get onloadeddata() { return onloadeddata; },

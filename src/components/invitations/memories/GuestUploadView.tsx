@@ -30,19 +30,54 @@ function exceedsMaxVideoDuration(durationSeconds: number): boolean {
   return durationSeconds > MAX_VIDEO_DURATION_SECONDS;
 }
 
-// Reads a video File's duration by loading it into a detached <video> element.
+// WebKit-family browsers (Safari, and iOS browsers like Chrome that Apple
+// requires to run on WebKit's engine) have been observed to never fire any
+// load event at all on a <video> element that's never attached to the
+// document — leaving a guest's video upload hanging forever with no error,
+// no queued item, and no network request ever made. Hidden off-screen
+// (never display:none, which some engines skip loading for entirely)
+// rather than fully detached.
+function createHiddenVideoElement(): HTMLVideoElement {
+  const video = document.createElement("video");
+  video.style.position = "fixed";
+  video.style.width = "1px";
+  video.style.height = "1px";
+  video.style.opacity = "0";
+  video.style.pointerEvents = "none";
+  document.body.appendChild(video);
+  return video;
+}
+
+// Belt-and-suspenders alongside the DOM-attachment fix above: if a browser
+// still never fires any event on the video element, this guarantees the
+// guest sees the existing generic upload error within a bounded time
+// instead of the file silently never enqueuing at all.
+const VIDEO_LOAD_TIMEOUT_MS = 15_000;
+
+// Reads a video File's duration by loading it into a hidden <video> element.
 // Not unit-testable under jsdom (no real media decoding) — verified manually
 // per the video-support design spec's Testing section.
 function readVideoDurationSeconds(file: File): Promise<number> {
   return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.preload = "metadata";
-    video.onloadedmetadata = () => {
+    const video = createHiddenVideoElement();
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error("timed out reading video duration"));
+    }, VIDEO_LOAD_TIMEOUT_MS);
+    function cleanup() {
+      clearTimeout(timeoutId);
       URL.revokeObjectURL(video.src);
-      resolve(video.duration);
+      video.remove();
+    }
+    video.preload = "metadata";
+    video.muted = true;
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      cleanup();
+      resolve(duration);
     };
     video.onerror = () => {
-      URL.revokeObjectURL(video.src);
+      cleanup();
       reject(new Error("could not read video duration"));
     };
     video.src = URL.createObjectURL(file);
@@ -63,7 +98,16 @@ const MAX_POSTER_DIMENSION_PX = 1600;
 // browser. Verified manually.
 function capturePosterFrame(file: File): Promise<File> {
   return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
+    const video = createHiddenVideoElement();
+    const timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error("timed out capturing poster frame"));
+    }, VIDEO_LOAD_TIMEOUT_MS);
+    function cleanup() {
+      clearTimeout(timeoutId);
+      URL.revokeObjectURL(video.src);
+      video.remove();
+    }
     video.preload = "metadata";
     video.muted = true;
     video.onloadeddata = () => {
@@ -77,7 +121,7 @@ function capturePosterFrame(file: File): Promise<File> {
       canvas.height = scaledHeight;
       const ctx = canvas.getContext("2d");
       if (!ctx) {
-        URL.revokeObjectURL(video.src);
+        cleanup();
         reject(new Error("could not get canvas context"));
         return;
       }
@@ -87,7 +131,7 @@ function capturePosterFrame(file: File): Promise<File> {
       // dimensions merely look smaller.
       ctx.drawImage(video, 0, 0, scaledWidth, scaledHeight);
       canvas.toBlob((blob) => {
-        URL.revokeObjectURL(video.src);
+        cleanup();
         if (!blob) {
           reject(new Error("could not capture poster frame"));
           return;
@@ -96,7 +140,7 @@ function capturePosterFrame(file: File): Promise<File> {
       }, "image/jpeg", 0.85);
     };
     video.onerror = () => {
-      URL.revokeObjectURL(video.src);
+      cleanup();
       reject(new Error("could not load video for poster capture"));
     };
     video.src = URL.createObjectURL(file);
