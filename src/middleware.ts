@@ -48,6 +48,10 @@ export async function middleware(request: NextRequest) {
   const host = classifyHost(hostname);
   if (host.kind === "root") return NextResponse.next();
 
+  if (host.kind === "invitespot-root") {
+    return NextResponse.rewrite(new URL("/invitespot", request.url));
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -75,6 +79,19 @@ export async function middleware(request: NextRequest) {
     const reservation = reservationResult.error ? null : reservationResult.data;
 
     if (reservation?.invitation_event_id) {
+      // Invitation events are moving to invitespot.app going forward — a
+      // request for one on the old siteforowners.com platform domain
+      // permanently redirects to its invitespot.app equivalent (path and
+      // query preserved) instead of being served here. Only invitespot.app
+      // itself (and local dev) serve invitation content directly. The
+      // label alone is enough to build the redirect target, so this skips
+      // the invitation_events lookup entirely for this case.
+      if (host.apex === "siteforowners") {
+        const redirectUrl = new URL(pathname, `https://${host.label}.invitespot.app`);
+        redirectUrl.search = request.nextUrl.search;
+        return NextResponse.redirect(redirectUrl, 301);
+      }
+
       const eventResult = await supabase
         .from("invitation_events")
         .select("slug")
@@ -94,6 +111,16 @@ export async function middleware(request: NextRequest) {
     }
 
     if (reservation?.tenant_id) {
+      // invitespot.app only ever serves invitation events, never a
+      // SiteForOwners tenant business site — without this guard, a tenant
+      // label requested under invitespot.app would render that tenant's
+      // site under the wrong brand.
+      if (host.apex === "invitespot") {
+        const unavailable = NextResponse.rewrite(new URL("/not-found", request.url));
+        unavailable.headers.set("Cache-Control", "no-store, must-revalidate");
+        return unavailable;
+      }
+
       const tenantResult = await supabase
         .from("tenants")
         .select("preview_slug, site_published, subscription_status")
