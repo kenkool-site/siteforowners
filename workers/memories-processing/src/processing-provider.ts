@@ -1,4 +1,4 @@
-import { PhotonImage, resize, rotate, fliph, flipv, SamplingFilter } from "@cf-wasm/photon";
+import { PhotonImage, resize, fliph, flipv, SamplingFilter } from "@cf-wasm/photon";
 
 export interface DerivativeResult {
   displayBytes: Uint8Array;
@@ -69,11 +69,81 @@ export function readJpegOrientation(bytes: Uint8Array): number {
   return 1;
 }
 
-// rotate() returns a new PhotonImage rather than mutating in place (unlike
-// fliph/flipv), so the caller's old reference must be freed once the
-// rotated copy comes back, or it leaks in the WASM heap.
-function rotateAndFree(image: PhotonImage, degrees: number): PhotonImage {
-  const rotated = rotate(image, degrees);
+// @cf-wasm/photon's own rotate() has a real, reproducible bug for exactly
+// the 90/180/270-degree angles applyOrientation needs (confirmed by
+// downloading a real failing production upload and running it through this
+// pipeline directly): rotate(image, 90|180|270) returns an image that's
+// ~80% blown out to solid white — arbitrary non-axis-aligned angles like 45,
+// 89, or 91 degrees rotate correctly, which points to a bug specifically in
+// the library's fast path for axis-aligned rotations, not a general decode
+// or memory problem. Rather than depend on undocumented internal library
+// behavior (e.g. nudging the angle off 90 to dodge the fast path), these
+// three angles are rotated by hand via a direct raw-pixel remap — simple
+// enough to verify exactly, and this file's own tests already assert the
+// precise pixel-position math these formulas implement.
+function rotate90Clockwise(image: PhotonImage): PhotonImage {
+  const width = image.get_width();
+  const height = image.get_height();
+  const src = image.get_raw_pixels();
+  const dst = new Uint8Array(src.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const srcIndex = (y * width + x) * 4;
+      // (x, y) -> (H-1-y, x) in the new, width/height-swapped canvas.
+      const dstIndex = (x * height + (height - 1 - y)) * 4;
+      dst[dstIndex] = src[srcIndex];
+      dst[dstIndex + 1] = src[srcIndex + 1];
+      dst[dstIndex + 2] = src[srcIndex + 2];
+      dst[dstIndex + 3] = src[srcIndex + 3];
+    }
+  }
+  return new PhotonImage(dst, height, width);
+}
+
+function rotate180(image: PhotonImage): PhotonImage {
+  const width = image.get_width();
+  const height = image.get_height();
+  const src = image.get_raw_pixels();
+  const dst = new Uint8Array(src.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const srcIndex = (y * width + x) * 4;
+      // (x, y) -> (W-1-x, H-1-y) — dimensions unchanged.
+      const dstIndex = ((height - 1 - y) * width + (width - 1 - x)) * 4;
+      dst[dstIndex] = src[srcIndex];
+      dst[dstIndex + 1] = src[srcIndex + 1];
+      dst[dstIndex + 2] = src[srcIndex + 2];
+      dst[dstIndex + 3] = src[srcIndex + 3];
+    }
+  }
+  return new PhotonImage(dst, width, height);
+}
+
+function rotate270Clockwise(image: PhotonImage): PhotonImage {
+  const width = image.get_width();
+  const height = image.get_height();
+  const src = image.get_raw_pixels();
+  const dst = new Uint8Array(src.length);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const srcIndex = (y * width + x) * 4;
+      // (x, y) -> (y, W-1-x) in the new, width/height-swapped canvas.
+      const dstIndex = ((width - 1 - x) * height + y) * 4;
+      dst[dstIndex] = src[srcIndex];
+      dst[dstIndex + 1] = src[srcIndex + 1];
+      dst[dstIndex + 2] = src[srcIndex + 2];
+      dst[dstIndex + 3] = src[srcIndex + 3];
+    }
+  }
+  return new PhotonImage(dst, height, width);
+}
+
+// The hand-rolled rotation constructs a brand-new PhotonImage rather than
+// mutating in place (unlike fliph/flipv), so the caller's old reference must
+// be freed once the rotated copy comes back, or it leaks in the WASM heap.
+function rotateAndFree(image: PhotonImage, degrees: 90 | 180 | 270): PhotonImage {
+  const rotateFn = degrees === 90 ? rotate90Clockwise : degrees === 180 ? rotate180 : rotate270Clockwise;
+  const rotated = rotateFn(image);
   image.free();
   return rotated;
 }
