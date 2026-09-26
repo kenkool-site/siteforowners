@@ -217,21 +217,27 @@ test("upload/init computes posterUploadUrl only for video, and includes it condi
   );
 });
 
-// Regression coverage for the poster upload having no server-enforced size
-// cap: the main video/photo upload's own createPresignedUploadUrl call
-// already passes body.sizeBytes as contentLength (see the
-// "contentLength parameter is passed to storage provider" test above), but
-// the poster's presign call omitted it entirely — now that the client caps
-// the captured poster frame's pixel dimensions (GuestUploadView.tsx), the
-// upload itself should also be capped server-side, matching the main
-// upload's own convention.
-test("upload/init passes an explicit contentLength cap to the poster's presigned upload URL", () => {
+// Regression coverage for a real production bug: the poster's presigned PUT
+// URL was signed with an explicit contentLength (MAX_POSTER_UPLOAD_BYTES, a
+// fixed 2MB guess), but a presigned S3/R2 PUT URL's Content-Length becomes
+// part of its signature — and the poster's real captured size essentially
+// never equals that guess exactly, so R2 rejected every real poster upload
+// with a signature mismatch. Confirmed live: a guest's video got past
+// poster-capture and the main video PUT, then failed with a generic upload
+// error — traced to this. The main upload's own contentLength (the client's
+// real, already-known file size) is unaffected and stays exact.
+test("upload/init does NOT pass a contentLength to the poster's presigned upload URL (its real size isn't known until after this response)", () => {
   const source = readFileSync(new URL("./init/route.ts", import.meta.url), "utf8");
-  assert.match(source, /MAX_POSTER_UPLOAD_BYTES\s*=\s*2\s*\*\s*1024\s*\*\s*1024/);
+  assert.doesNotMatch(source, /MAX_POSTER_UPLOAD_BYTES/);
   assert.match(
     source,
-    /createPresignedUploadUrl\(\s*\n?\s*objectKeyForVideoPoster\(eventId, mediaId\),\s*\n?\s*"image\/jpeg",\s*\n?\s*15 \* 60,\s*\n?\s*MAX_POSTER_UPLOAD_BYTES,?\s*\n?\s*\)/,
+    /createPresignedUploadUrl\(objectKeyForVideoPoster\(eventId, mediaId\), "image\/jpeg", 15 \* 60\)/,
   );
+});
+
+test("upload/init still passes the client-reported real sizeBytes as contentLength for the main upload", () => {
+  const source = readFileSync(new URL("./init/route.ts", import.meta.url), "utf8");
+  assert.match(source, /createPresignedUploadUrl\(objectKey, contentType, 15 \* 60, parsedBody\.sizeBytes\)/);
 });
 
 // Video-aware upload/complete (Task 3). Real handler invocation isn't possible
@@ -256,24 +262,38 @@ test("upload/complete fetches the media row and 404s when it doesn't exist", () 
   assert.match(source, /status: 404/);
 });
 
-test("upload/complete branches on media kind: video checks poster existence via R2StorageProvider.objectExists before marking ready", () => {
+test("upload/complete branches on media kind: video checks the poster's real uploaded size via R2StorageProvider.getObjectSizeBytes before marking ready", () => {
   const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
   assert.match(source, /media\.mediaKind === "video"/);
   assert.match(source, /objectKeyForVideoPoster\(eventId, parsedBody\.mediaId\)/);
   assert.match(source, /new R2StorageProvider\(\)/);
-  assert.match(source, /storage\.objectExists\(posterKey\)/);
+  assert.match(source, /storage\.getObjectSizeBytes\(posterKey\)/);
   assert.match(source, /markVideoMemoryMediaReady\(parsedBody\.mediaId, media\.objectKeyOriginal, posterKey\)/);
 });
 
 test("upload/complete returns 409 without marking the video ready when the poster object is missing", () => {
   const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
-  assert.match(source, /if \(!posterExists\)/);
+  assert.match(source, /if \(posterSizeBytes === null\)/);
   assert.match(source, /status: 409/);
   // The 409 short-circuit must sit before the markVideoMemoryMediaReady call,
   // so a missing poster can never still flip the row to ready.
-  const posterCheckIndex = source.indexOf("if (!posterExists)");
+  const posterCheckIndex = source.indexOf("if (posterSizeBytes === null)");
   const markVideoReadyIndex = source.indexOf("await markVideoMemoryMediaReady(");
   assert.ok(posterCheckIndex > -1 && markVideoReadyIndex > -1 && posterCheckIndex < markVideoReadyIndex);
+});
+
+// Regression coverage for the size cap this same signature-mismatch fix
+// necessarily dropped from upload/init (see that route's own test above):
+// since the cap can no longer be enforced by signing an exact
+// Content-Length, it's enforced here instead, against the real object R2
+// reports it received.
+test("upload/complete returns 400 without marking the video ready when the poster exceeds MAX_POSTER_UPLOAD_BYTES", () => {
+  const source = readFileSync(new URL("./complete/route.ts", import.meta.url), "utf8");
+  assert.match(source, /if \(posterSizeBytes > MAX_POSTER_UPLOAD_BYTES\)/);
+  assert.match(source, /status: 400/);
+  const sizeCheckIndex = source.indexOf("if (posterSizeBytes > MAX_POSTER_UPLOAD_BYTES)");
+  const markVideoReadyIndex = source.indexOf("await markVideoMemoryMediaReady(");
+  assert.ok(sizeCheckIndex > -1 && markVideoReadyIndex > -1 && sizeCheckIndex < markVideoReadyIndex);
 });
 
 test("upload/complete still completes a non-video (photo) upload via markMemoryMediaUploaded, unchanged", () => {

@@ -6,6 +6,10 @@ export interface StorageProvider {
   getSignedDownloadUrl(objectKey: string, expiresInSeconds: number): Promise<string>;
   deleteObject(objectKey: string): Promise<void>;
   objectExists(objectKey: string): Promise<boolean>;
+  // Optional: only R2StorageProvider's real callers (upload/complete's video
+  // poster-size check) need this, so existing test fakes across the codebase
+  // that implement StorageProvider don't all need updating for it.
+  getObjectSizeBytes?(objectKey: string): Promise<number | null>;
 }
 
 export class R2StorageProvider implements StorageProvider {
@@ -54,6 +58,17 @@ export class R2StorageProvider implements StorageProvider {
     } catch (error) {
       const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
       if (status === 404) return false;
+      throw error;
+    }
+  }
+
+  async getObjectSizeBytes(objectKey: string): Promise<number | null> {
+    try {
+      const response = await this.client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: objectKey }));
+      return response.ContentLength ?? null;
+    } catch (error) {
+      const status = (error as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+      if (status === 404) return null;
       throw error;
     }
   }
