@@ -10,6 +10,8 @@ import {
   getEventMemoriesSettings,
   updateEventMemoriesSettings,
   updateMemoryMediaHasFaces,
+  listRejectedMemoryMediaByIds,
+  deleteMemoryMediaRows,
   upsertMemoryMediaDescriptor,
   listApprovedMemoryDescriptors,
   listApprovedMediaMissingDescriptors,
@@ -138,6 +140,30 @@ test("deleteMemoryMoment removes from memory_moments scoped to both the moment i
   assert.match(source, /memory_moments/);
   assert.match(source, /\.eq\(\s*"id"/);
   assert.match(source, /\.eq\(\s*"event_id"/);
+});
+
+test("listRejectedMemoryMediaByIds scopes to the event and moderation_status='rejected'", () => {
+  assert.equal(typeof listRejectedMemoryMediaByIds, "function");
+  const source = listRejectedMemoryMediaByIds.toString();
+  assert.match(source, /memory_media/);
+  assert.match(source, /\.eq\(\s*"event_id"/);
+  assert.match(source, /moderation_status/);
+  assert.match(source, /rejected/);
+  assert.match(source, /\.in\(\s*"id"/);
+});
+
+// The hard-delete counterpart to moderateMemoryMediaForHost — must carry the
+// exact same moderation_status='rejected' scoping so a permanent-delete call
+// can never remove a live or pending row.
+test("deleteMemoryMediaRows deletes only rejected rows scoped to the event", () => {
+  assert.equal(typeof deleteMemoryMediaRows, "function");
+  const source = deleteMemoryMediaRows.toString();
+  assert.match(source, /memory_media/);
+  assert.match(source, /\.delete\(/);
+  assert.match(source, /\.eq\(\s*"event_id"/);
+  assert.match(source, /moderation_status/);
+  assert.match(source, /rejected/);
+  assert.match(source, /\.in\(\s*"id"/);
 });
 
 // invitation_rsvps.id/event_id are both `uuid` columns. Non-UUID literals like

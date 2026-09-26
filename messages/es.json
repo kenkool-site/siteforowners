@@ -187,6 +187,8 @@
         "bulkApprove": "Aprobar seleccionadas",
         "bulkReject": "Rechazar seleccionadas",
         "remove": "Quitar de la galería",
+        "deleteAllPermanently": "Eliminar todo permanentemente",
+        "deletePermanentlyConfirm": "¿Eliminar permanentemente {count, plural, one {# foto} other {# fotos}}? Esta acción no se puede deshacer — los archivos originales también se eliminarán.",
         "empty": "No hay nada aquí por ahora.",
         "anonymous": "Invitado anónimo",
         "selectPhoto": "Seleccionar foto de {name}",

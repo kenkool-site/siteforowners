@@ -326,6 +326,37 @@ export async function moderateMemoryMediaForHost(eventId: string, action: HostMo
   return (data ?? []).map((row) => row.id as string);
 }
 
+// Scoped to moderation_status='rejected' — the same status the host's
+// Removed/Rejected tab already filters on (see moderationStatusForFilter) —
+// so a permanent-delete call can never reach a live or pending item even if
+// the caller passes an unexpected id.
+export async function listRejectedMemoryMediaByIds(eventId: string, mediaIds: string[]): Promise<MemoryMedia[]> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media").select("*")
+    .eq("event_id", eventId)
+    .eq("moderation_status", "rejected")
+    .in("id", mediaIds);
+  if (error) throw new Error(`failed to list rejected Memories media: ${error.message}`);
+  return (data ?? []).map(mapRow);
+}
+
+// The hard-delete counterpart to moderateMemoryMediaForHost's soft status
+// update — same moderation_status='rejected' scoping, but removes the row
+// outright. Callers must delete the row's R2 objects themselves first (this
+// function only owns the database row); memory_media's ON DELETE CASCADE
+// foreign keys clean up any highlight-descriptor/moment-membership rows.
+export async function deleteMemoryMediaRows(eventId: string, mediaIds: string[]): Promise<string[]> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media")
+    .delete()
+    .eq("event_id", eventId)
+    .eq("moderation_status", "rejected")
+    .in("id", mediaIds)
+    .select("id");
+  if (error) throw new Error(`failed to permanently delete Memories media: ${error.message}`);
+  return (data ?? []).map((row) => row.id as string);
+}
+
 // ---------------------------------------------------------------------------
 // AI Highlight grouping — independent of memory_moments/memory_moment_media.
 // These methods only ever touch the four tables added by
