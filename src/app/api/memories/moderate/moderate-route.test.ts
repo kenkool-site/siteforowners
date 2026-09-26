@@ -95,6 +95,8 @@ function baseDependencies(overrides: ModerateMediaDependencies = {}): ModerateMe
     aiProvider: {
       moderateImage: async () => ({ highestConfidence: 0, categories: [] }),
       detectLabels: async () => [],
+      detectFaces: async () => false,
+      compareFaces: async () => 0,
     },
     ...overrides,
   };
@@ -137,6 +139,8 @@ test("uses the poster (objectKeyThumbnail) for video media, not the moderation-d
         aiProvider: {
           moderateImage: async () => ({ highestConfidence: 0, categories: [] }),
           detectLabels: async () => [],
+          detectFaces: async () => false,
+          compareFaces: async () => 0,
         },
       }),
     ),
@@ -164,6 +168,8 @@ test("still uses deriveObjectKeys(...).moderation for photo media, unchanged", a
         aiProvider: {
           moderateImage: async () => ({ highestConfidence: 0, categories: [] }),
           detectLabels: async () => [],
+          detectFaces: async () => false,
+          compareFaces: async () => 0,
         },
       }),
     ),
@@ -199,6 +205,8 @@ test("returns 500 when the Rekognition/download step throws, without persisting 
             throw new Error("rekognition down");
           },
           detectLabels: async () => [],
+          detectFaces: async () => false,
+          compareFaces: async () => 0,
         },
       }),
     ),
@@ -218,6 +226,8 @@ test("persists AI Highlight descriptors and queues generation for approved media
         aiProvider: {
           moderateImage: async () => ({ highestConfidence: 0, categories: [] }), // resolves to "approved" under auto_publish
           detectLabels: async () => [{ name: "Cake", confidence: 0.9 }],
+          detectFaces: async () => false,
+          compareFaces: async () => 0,
         },
         upsertMemoryMediaDescriptor: async (input) => {
           descriptorMediaId = input.mediaId;
@@ -250,6 +260,8 @@ test("does not queue a generation for awaiting_host_review media, but still pers
           // to "approved" under auto_publish instead — see the test above).
           moderateImage: async () => ({ highestConfidence: 0, categories: [] }),
           detectLabels: async () => [],
+          detectFaces: async () => false,
+          compareFaces: async () => 0,
         },
         upsertMemoryMediaDescriptor: async () => {
           descriptorCalled = true;
@@ -277,6 +289,8 @@ test("does not attempt descriptor extraction for rejected media", async () => {
         aiProvider: {
           moderateImage: async () => ({ highestConfidence: 0.99, categories: ["Explicit Nudity"] }),
           detectLabels: async () => [],
+          detectFaces: async () => false,
+          compareFaces: async () => 0,
         },
         upsertMemoryMediaDescriptor: async () => {
           descriptorCalled = true;
@@ -304,6 +318,8 @@ test("a descriptor-extraction failure is non-fatal — moderation status was alr
           detectLabels: async () => {
             throw new Error("labels service down");
           },
+          detectFaces: async () => false,
+          compareFaces: async () => 0,
         },
       }),
     ),
