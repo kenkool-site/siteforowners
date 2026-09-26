@@ -163,6 +163,33 @@ export async function updateEventMemoriesSettings(
   if (error) throw new Error(`failed to update memories settings: ${error.message}`);
 }
 
+// Global, not per-event — see the migration's own comment on why Find Me's
+// search cap is a founder/platform cost-control knob rather than something
+// each event host tunes. Falls back to this same default the column itself
+// defaults to if the singleton row is ever missing (defensive only; the
+// migration always inserts it).
+const DEFAULT_FIND_ME_DAILY_LIMIT = 20;
+
+export async function getFindMeDailyLimit(): Promise<number> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memories_find_me_platform_settings")
+    .select("daily_search_limit")
+    .eq("id", true)
+    .maybeSingle();
+  if (error || !data) return DEFAULT_FIND_ME_DAILY_LIMIT;
+  return data.daily_search_limit as number;
+}
+
+export async function updateFindMeDailyLimit(limit: number): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client
+    .from("memories_find_me_platform_settings")
+    .update({ daily_search_limit: limit })
+    .eq("id", true);
+  if (error) throw new Error(`failed to update Find Me daily search limit: ${error.message}`);
+}
+
 export async function updateMemoryMediaModeration(
   mediaId: string,
   outcome: { moderationStatus: string; moderationScore: number; moderationCategories: string[] },

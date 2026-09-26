@@ -10,6 +10,8 @@ import {
   getEventMemoriesSettings,
   updateEventMemoriesSettings,
   updateMemoryMediaHasFaces,
+  getFindMeDailyLimit,
+  updateFindMeDailyLimit,
   listRejectedMemoryMediaByIds,
   deleteMemoryMediaRows,
   upsertMemoryMediaDescriptor,
@@ -77,6 +79,24 @@ test("updateEventMemoriesSettings patches find_me_enabled when provided, alongsi
   const source = updateEventMemoriesSettings.toString();
   assert.match(source, /find_me_enabled/);
   assert.match(source, /findMeEnabled/);
+});
+
+test("getFindMeDailyLimit reads the singleton platform-settings row, not a per-event table", () => {
+  assert.equal(typeof getFindMeDailyLimit, "function");
+  const source = getFindMeDailyLimit.toString();
+  assert.match(source, /memories_find_me_platform_settings/);
+  assert.match(source, /daily_search_limit/);
+  // The singleton row is keyed by id=true, not an event id — this must never
+  // gain an eventId parameter or an event_id filter.
+  assert.doesNotMatch(source, /event_id/);
+});
+
+test("updateFindMeDailyLimit patches the singleton platform-settings row", () => {
+  assert.equal(typeof updateFindMeDailyLimit, "function");
+  const source = updateFindMeDailyLimit.toString();
+  assert.match(source, /memories_find_me_platform_settings/);
+  assert.match(source, /daily_search_limit/);
+  assert.doesNotMatch(source, /event_id/);
 });
 
 test("updateMemoryMediaHasFaces patches has_faces on memory_media, scoped by media id", () => {

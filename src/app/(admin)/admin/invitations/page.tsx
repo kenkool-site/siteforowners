@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { InvitationCopyLinkButton } from "@/components/invitations/InvitationCopyLinkButton";
+import { FindMeSettingsCard } from "@/components/invitations/FindMeSettingsCard";
 import { listFounderEvents } from "@/lib/invitations/repository";
 import type { FounderInvitationEventSummary } from "@/lib/invitations/repository";
 import type { InvitationEventStatus } from "@/lib/invitations/types";
 import { invitationPublicUrl } from "@/lib/invitations/public-url";
+import { getFindMeDailyLimit } from "@/lib/invitations/memories/repository";
 
 export const revalidate = 0;
 
@@ -37,6 +39,7 @@ export default async function FounderInvitationsPage() {
     events = [];
     loadError = true;
   }
+  const findMeDailyLimit = await getFindMeDailyLimit();
 
   return (
     <div>
@@ -52,6 +55,8 @@ export default async function FounderInvitationsPage() {
           New invitation
         </Link>
       </div>
+
+      <FindMeSettingsCard initialDailySearchLimit={findMeDailyLimit} />
 
       {loadError ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-5 text-sm text-red-800">
