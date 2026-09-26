@@ -17,12 +17,36 @@ test("processing emits WebP gallery derivatives and a JPEG moderation derivative
   assert.deepEqual(Array.from(result.moderationBytes.subarray(0, 3)), [0xff, 0xd8, 0xff]);
 });
 
-// Builds a minimal, synthetic JPEG containing only what readJpegOrientation
-// needs to find: SOI, one APP1 segment with a one-entry EXIF IFD holding the
-// Orientation tag, then SOS. Not a decodable image — this function never
-// reads past the header segments it's scanning for, so no real compressed
-// image data is needed to test it in isolation.
-function buildExifOrientationJpeg(orientation: number): Uint8Array {
+// End-to-end regression test for process()'s own wiring, not just
+// applyOrientation() in isolation (the unit tests further down never
+// exercise process() at all): a real, decodable JPEG with an injected
+// orientation-6 tag (a 90-degree rotation) must come out of the FULL
+// pipeline — decode, resize, orient, encode — with width and height
+// swapped. This also guards the resize-before-rotate reordering below: if a
+// future change accidentally applied orientation to the wrong variable (or
+// dropped it after resizing), the swap would silently stop happening.
+test("process() applies EXIF orientation correction end to end, after resizing", async () => {
+  const source = buildMarkerImage();
+  const baseJpeg = source.get_bytes_jpeg(95);
+  source.free();
+  const orientedJpeg = injectExifOrientation(baseJpeg, 6);
+
+  const result = await process(orientedJpeg);
+
+  const decodedDisplay = PhotonImage.new_from_byteslice(result.displayBytes);
+  try {
+    assert.equal(decodedDisplay.get_width(), MARKER_HEIGHT);
+    assert.equal(decodedDisplay.get_height(), MARKER_WIDTH);
+  } finally {
+    decodedDisplay.free();
+  }
+});
+
+// The APP1/EXIF segment bytes (marker + length + content) holding a single
+// Orientation tag — shared by buildExifOrientationJpeg (a minimal synthetic
+// JPEG, header-only) and injectExifOrientation (spliced into a real,
+// decodable JPEG for the end-to-end process() test below).
+function buildExifApp1Segment(orientation: number): number[] {
   const content: number[] = [];
   content.push(0x45, 0x78, 0x69, 0x66, 0x00, 0x00); // "Exif\0\0"
   content.push(0x49, 0x49); // "II" — little-endian TIFF byte order
@@ -36,11 +60,30 @@ function buildExifOrientationJpeg(orientation: number): Uint8Array {
   content.push(0x00, 0x00, 0x00, 0x00); // next IFD offset = 0 (none)
 
   const segmentLength = content.length + 2; // JPEG segment length includes its own 2 length bytes
+  return [0xff, 0xe1, (segmentLength >> 8) & 0xff, segmentLength & 0xff, ...content];
+}
+
+// Builds a minimal, synthetic JPEG containing only what readJpegOrientation
+// needs to find: SOI, one APP1 segment with a one-entry EXIF IFD holding the
+// Orientation tag, then SOS. Not a decodable image — this function never
+// reads past the header segments it's scanning for, so no real compressed
+// image data is needed to test it in isolation.
+function buildExifOrientationJpeg(orientation: number): Uint8Array {
   return new Uint8Array([
     0xff, 0xd8, // SOI
-    0xff, 0xe1, (segmentLength >> 8) & 0xff, segmentLength & 0xff, // APP1 marker + length
-    ...content,
+    ...buildExifApp1Segment(orientation),
     0xff, 0xda, // SOS — parser stops scanning here
+  ]);
+}
+
+// Splices an APP1/EXIF orientation segment right after a real, decodable
+// JPEG's SOI marker — unlike buildExifOrientationJpeg above, the result is a
+// genuine image process() can decode, resize, and re-encode end to end.
+function injectExifOrientation(jpegBytes: Uint8Array, orientation: number): Uint8Array {
+  return new Uint8Array([
+    jpegBytes[0], jpegBytes[1], // SOI
+    ...buildExifApp1Segment(orientation),
+    ...jpegBytes.slice(2),
   ]);
 }
 
