@@ -32,6 +32,7 @@ import { deriveObjectKeys } from "@/lib/invitations/memories/processing-provider
 import {
   getEventMemoriesSettings,
   getMemoryMediaById,
+  updateMemoryMediaHasFaces,
   updateMemoryMediaModeration,
   upsertMemoryMediaDescriptor,
 } from "@/lib/invitations/memories/repository";
@@ -55,6 +56,7 @@ export interface ModerateMediaDependencies {
   getMemoryMediaById?: typeof getMemoryMediaById;
   getEventMemoriesSettings?: typeof getEventMemoriesSettings;
   updateMemoryMediaModeration?: typeof updateMemoryMediaModeration;
+  updateMemoryMediaHasFaces?: typeof updateMemoryMediaHasFaces;
   upsertMemoryMediaDescriptor?: typeof upsertMemoryMediaDescriptor;
   requestHighlightGeneration?: typeof requestHighlightGeneration;
   storage?: StorageProvider;
@@ -71,6 +73,7 @@ export async function moderateMedia(
   const getMedia = dependencies.getMemoryMediaById ?? getMemoryMediaById;
   const getSettings = dependencies.getEventMemoriesSettings ?? getEventMemoriesSettings;
   const updateModeration = dependencies.updateMemoryMediaModeration ?? updateMemoryMediaModeration;
+  const updateHasFaces = dependencies.updateMemoryMediaHasFaces ?? updateMemoryMediaHasFaces;
   const upsertDescriptor = dependencies.upsertMemoryMediaDescriptor ?? upsertMemoryMediaDescriptor;
   const requestGeneration = dependencies.requestHighlightGeneration ?? requestHighlightGeneration;
   const storage = dependencies.storage ?? new R2StorageProvider();
@@ -106,6 +109,21 @@ export async function moderateMedia(
   }
 
   await updateModeration(mediaId, outcome);
+
+  // Best-effort has_faces detection — like the descriptor extraction below,
+  // never lets a failure here affect the moderation outcome already
+  // committed above. Reuses the moderation derivative `bytes` already
+  // downloaded — no second R2 fetch. Runs regardless of moderation outcome
+  // (including flagged/rejected): a flagged item can still be manually
+  // approved by the host later, and by then this flag should already be
+  // set — recomputing it retroactively would mean re-fetching bytes for
+  // content that's already been reviewed.
+  try {
+    const hasFaces = await provider.detectFaces(bytes);
+    await updateHasFaces(mediaId, hasFaces);
+  } catch (err) {
+    console.error("[memories/moderate] has_faces detection failed (non-fatal)", { mediaId, error: err });
+  }
 
   // Best-effort AI Highlight descriptor extraction — never lets a failure
   // here affect the moderation outcome above, which has already been

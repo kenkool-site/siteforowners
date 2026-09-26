@@ -84,6 +84,7 @@ function baseDependencies(overrides: ModerateMediaDependencies = {}): ModerateMe
     },
     getEventMemoriesSettings: async () => settings(),
     updateMemoryMediaModeration: async () => undefined,
+    updateMemoryMediaHasFaces: async () => undefined,
     upsertMemoryMediaDescriptor: async () => undefined,
     requestHighlightGeneration: async () => null,
     storage: {
@@ -327,6 +328,80 @@ test("a descriptor-extraction failure is non-fatal — moderation status was alr
   assert.equal(result.status, 200);
   assert.equal(result.body.moderationStatus, "approved");
   assert.equal(updateCalled, true, "the moderation outcome must already be persisted before descriptor extraction runs");
+});
+
+test("has_faces is set from detectFaces using the same bytes already fetched for moderation, without affecting the moderation outcome", async () => {
+  let hasFacesCall: { mediaId: string; hasFaces: boolean } | undefined;
+  const result = await withStubbedFetch(() =>
+    moderateMedia(
+      "media-1",
+      baseDependencies({
+        getMemoryMediaById: async () => media({ id: "media-1" }),
+        updateMemoryMediaHasFaces: async (mediaId, hasFaces) => {
+          hasFacesCall = { mediaId, hasFaces };
+        },
+        aiProvider: {
+          moderateImage: async () => ({ highestConfidence: 0, categories: [] }),
+          detectLabels: async () => [],
+          detectFaces: async () => true,
+          compareFaces: async () => 0,
+        },
+      }),
+    ),
+  );
+
+  assert.equal(result.status, 200);
+  assert.deepEqual(hasFacesCall, { mediaId: "media-1", hasFaces: true });
+});
+
+test("a has_faces detection failure is logged and swallowed, leaving the already-committed moderation outcome intact", async () => {
+  const result = await withStubbedFetch(() =>
+    moderateMedia(
+      "media-1",
+      baseDependencies({
+        getMemoryMediaById: async () => media({ id: "media-1" }),
+        updateMemoryMediaHasFaces: async () => {
+          throw new Error("has_faces write failed");
+        },
+        aiProvider: {
+          moderateImage: async () => ({ highestConfidence: 0, categories: [] }),
+          detectLabels: async () => [],
+          detectFaces: async () => {
+            throw new Error("rekognition unavailable");
+          },
+          compareFaces: async () => 0,
+        },
+      }),
+    ),
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.moderationStatus, "approved");
+});
+
+test("has_faces is computed even for flagged/rejected content, since a flagged item can still be manually approved later", async () => {
+  let hasFacesCall: { mediaId: string; hasFaces: boolean } | undefined;
+  const result = await withStubbedFetch(() =>
+    moderateMedia(
+      "media-1",
+      baseDependencies({
+        getMemoryMediaById: async () => media({ id: "media-1" }),
+        updateMemoryMediaHasFaces: async (mediaId, hasFaces) => {
+          hasFacesCall = { mediaId, hasFaces };
+        },
+        aiProvider: {
+          moderateImage: async () => ({ highestConfidence: 0.99, categories: ["Explicit Nudity"] }),
+          detectLabels: async () => [],
+          detectFaces: async () => true,
+          compareFaces: async () => 0,
+        },
+      }),
+    ),
+  );
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.moderationStatus, "rejected");
+  assert.deepEqual(hasFacesCall, { mediaId: "media-1", hasFaces: true });
 });
 
 // Structural, matching the route-contract tests in
