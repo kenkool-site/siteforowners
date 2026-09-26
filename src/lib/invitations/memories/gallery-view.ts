@@ -19,6 +19,16 @@ function distanceToWindow(captured: number, startsAt: number, endsAt: number): n
   return 0;
 }
 
+// How far outside every Moment's own window the "closest Moment" fallback
+// below is still willing to reach — generous enough for a real event running
+// hours off its own schedule, but not so generous that a photo taken days or
+// weeks before a future-dated Moment (e.g. host set up their real wedding-day
+// schedule in advance, then guests tested/uploaded before the wedding itself)
+// gets force-matched to whichever Moment happens to start soonest. Past this
+// distance, momentForMedia returns null instead — an unsorted photo still
+// shows normally in the plain Gallery, it's just not miscategorized.
+const MAX_FALLBACK_DISTANCE_MS = 24 * 60 * 60 * 1000;
+
 export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]): MemoryMoment | null {
   // Deliberately time-window only — the "Moments" tab is the host's own
   // schedule-based view and must never silently disagree with it. AI's
@@ -39,10 +49,12 @@ export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]
   // taken before the first Moment starts, after the last one ends, or in a gap
   // between two (the ceremony ran long, say) would otherwise never sort into
   // any Moment at all. Falling back to whichever Moment's boundary is
-  // temporally closest keeps every timestamped photo grouped somewhere,
-  // trading a small amount of precision at the edges for guests never seeing
-  // an unexplained "unsorted" photo. Ties keep the earlier sortOrder (`<`, not
-  // `<=`), matching the strict-match branch's own first-match-wins rule.
+  // temporally closest, within MAX_FALLBACK_DISTANCE_MS, keeps every
+  // near-schedule photo grouped somewhere, trading a small amount of
+  // precision at the edges for guests never seeing an unexplained "unsorted"
+  // photo — without reaching arbitrarily far for a photo that isn't actually
+  // near any Moment at all. Ties keep the earlier sortOrder (`<`, not `<=`),
+  // matching the strict-match branch's own first-match-wins rule.
   let closest = sorted[0];
   let closestDistance = distanceToWindow(captured, Date.parse(closest.startsAt), Date.parse(closest.endsAt));
   for (const moment of sorted.slice(1)) {
@@ -52,5 +64,5 @@ export function momentForMedia(media: PublicMemoryMedia, moments: MemoryMoment[]
       closestDistance = distance;
     }
   }
-  return closest;
+  return closestDistance <= MAX_FALLBACK_DISTANCE_MS ? closest : null;
 }

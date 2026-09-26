@@ -71,3 +71,33 @@ test("a tie between two equidistant moments keeps the earlier sortOrder", () => 
 test("no moments defined yet returns null, not a crash", () => {
   assert.equal(momentForMedia(item, []), null);
 });
+
+test("a photo taken weeks before a future-dated moment is left unsorted, not force-matched", () => {
+  // Host set up their real, future wedding-day schedule in advance (e.g. via
+  // "Create Moments from your Event Schedule"); this photo is a test/setup
+  // upload taken long before any of it. The nearest moment is still weeks
+  // away — well past the 24-hour fallback cap.
+  const farBefore = { ...item, capturedAt: "2026-09-22T20:00:00Z" };
+  const found = momentForMedia(farBefore, [
+    { id: "ceremony", name: "Ceremony", startsAt: "2026-11-14T18:00:00Z", endsAt: "2026-11-14T19:00:00Z", sortOrder: 1 },
+    { id: "cocktail", name: "Cocktail", startsAt: "2026-11-14T19:00:00Z", endsAt: "2026-11-14T20:00:00Z", sortOrder: 2 },
+    { id: "reception", name: "Reception", startsAt: "2026-11-14T20:00:00Z", endsAt: "2026-11-14T23:00:00Z", sortOrder: 3 },
+  ]);
+  assert.equal(found, null);
+});
+
+test("a photo taken 23 hours before a moment still falls back to it (within the cap)", () => {
+  const withinCap = { ...item, capturedAt: "2026-09-22T20:00:00Z" };
+  const found = momentForMedia(withinCap, [
+    { id: "ceremony", name: "Ceremony", startsAt: "2026-09-23T19:00:00Z", endsAt: "2026-09-23T20:00:00Z", sortOrder: 1 },
+  ]);
+  assert.equal(found?.id, "ceremony");
+});
+
+test("a photo taken 25 hours before a moment falls outside the cap", () => {
+  const outsideCap = { ...item, capturedAt: "2026-09-22T18:00:00Z" };
+  const found = momentForMedia(outsideCap, [
+    { id: "ceremony", name: "Ceremony", startsAt: "2026-09-23T19:00:00Z", endsAt: "2026-09-23T20:00:00Z", sortOrder: 1 },
+  ]);
+  assert.equal(found, null);
+});
