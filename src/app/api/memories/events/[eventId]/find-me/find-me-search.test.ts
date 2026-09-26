@@ -168,7 +168,7 @@ function baseSearchDependencies(overrides: Parameters<typeof searchFindMe>[3] = 
   return {
     getEventMemoriesSettings: async () => ({ memoriesEnabled: true, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: true }),
     listGalleryVisibleMediaWithFaces: async () => [],
-    allowFindMeAttempt: async () => true,
+    allowFindMeAttempt: async () => "allowed",
     storage: {
       createPresignedUploadUrl: async () => "https://example.test/upload",
       getSignedDownloadUrl: async (key: string) => `https://example.test/${key}`,
@@ -206,8 +206,16 @@ test("searchFindMe 404s when memories itself is disabled, even if find_me_enable
 });
 
 test("searchFindMe 429s when the rate limiter denies the attempt", async () => {
-  const result = await searchFindMe("event-1", "session-1", SELFIE, baseSearchDependencies({ allowFindMeAttempt: async () => false }));
+  const result = await searchFindMe("event-1", "session-1", SELFIE, baseSearchDependencies({ allowFindMeAttempt: async () => "denied" }));
   assert.equal(result.status, 429);
+});
+
+// A rate-limit RPC failure is an infra error, not a genuine denial — it must
+// surface as a 500 ("search failed"), never the same 429 a guest sees after
+// really using up their attempts. See find-me-rate-limit.ts's "error" outcome.
+test("searchFindMe 500s (not 429) when the rate limiter itself fails", async () => {
+  const result = await searchFindMe("event-1", "session-1", SELFIE, baseSearchDependencies({ allowFindMeAttempt: async () => "error" }));
+  assert.equal(result.status, 500);
 });
 
 test("searchFindMe returns 200 with matched media, skipping candidates whose download fails", async () => {

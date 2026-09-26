@@ -10,6 +10,10 @@ import {
   getEventMemoriesSettings,
   updateEventMemoriesSettings,
   updateMemoryMediaHasFaces,
+  getFindMeDailyLimit,
+  updateFindMeDailyLimit,
+  listRejectedMemoryMediaByIds,
+  deleteMemoryMediaRows,
   upsertMemoryMediaDescriptor,
   listApprovedMemoryDescriptors,
   listApprovedMediaMissingDescriptors,
@@ -77,6 +81,24 @@ test("updateEventMemoriesSettings patches find_me_enabled when provided, alongsi
   assert.match(source, /findMeEnabled/);
 });
 
+test("getFindMeDailyLimit reads the singleton platform-settings row, not a per-event table", () => {
+  assert.equal(typeof getFindMeDailyLimit, "function");
+  const source = getFindMeDailyLimit.toString();
+  assert.match(source, /memories_find_me_platform_settings/);
+  assert.match(source, /daily_search_limit/);
+  // The singleton row is keyed by id=true, not an event id — this must never
+  // gain an eventId parameter or an event_id filter.
+  assert.doesNotMatch(source, /event_id/);
+});
+
+test("updateFindMeDailyLimit patches the singleton platform-settings row", () => {
+  assert.equal(typeof updateFindMeDailyLimit, "function");
+  const source = updateFindMeDailyLimit.toString();
+  assert.match(source, /memories_find_me_platform_settings/);
+  assert.match(source, /daily_search_limit/);
+  assert.doesNotMatch(source, /event_id/);
+});
+
 test("updateMemoryMediaHasFaces patches has_faces on memory_media, scoped by media id", () => {
   assert.equal(typeof updateMemoryMediaHasFaces, "function");
   const source = updateMemoryMediaHasFaces.toString();
@@ -138,6 +160,30 @@ test("deleteMemoryMoment removes from memory_moments scoped to both the moment i
   assert.match(source, /memory_moments/);
   assert.match(source, /\.eq\(\s*"id"/);
   assert.match(source, /\.eq\(\s*"event_id"/);
+});
+
+test("listRejectedMemoryMediaByIds scopes to the event and moderation_status='rejected'", () => {
+  assert.equal(typeof listRejectedMemoryMediaByIds, "function");
+  const source = listRejectedMemoryMediaByIds.toString();
+  assert.match(source, /memory_media/);
+  assert.match(source, /\.eq\(\s*"event_id"/);
+  assert.match(source, /moderation_status/);
+  assert.match(source, /rejected/);
+  assert.match(source, /\.in\(\s*"id"/);
+});
+
+// The hard-delete counterpart to moderateMemoryMediaForHost — must carry the
+// exact same moderation_status='rejected' scoping so a permanent-delete call
+// can never remove a live or pending row.
+test("deleteMemoryMediaRows deletes only rejected rows scoped to the event", () => {
+  assert.equal(typeof deleteMemoryMediaRows, "function");
+  const source = deleteMemoryMediaRows.toString();
+  assert.match(source, /memory_media/);
+  assert.match(source, /\.delete\(/);
+  assert.match(source, /\.eq\(\s*"event_id"/);
+  assert.match(source, /moderation_status/);
+  assert.match(source, /rejected/);
+  assert.match(source, /\.in\(\s*"id"/);
 });
 
 // invitation_rsvps.id/event_id are both `uuid` columns. Non-UUID literals like

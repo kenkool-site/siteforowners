@@ -4,6 +4,7 @@ import { requireInvitationAccess } from "@/lib/invitations/access";
 import { requestHighlightGeneration } from "@/lib/invitations/memories/highlight-service";
 import { moderateMemoryMediaForHost } from "@/lib/invitations/memories/repository";
 import type { HostModerationAction } from "@/lib/invitations/memories/host";
+import { permanentlyDeleteMemoryMedia } from "./permanent-delete";
 
 const ACTIONS = new Set<HostModerationAction>(["approve", "reject", "remove"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -38,5 +39,22 @@ export async function PATCH(request: NextRequest, { params }: { params: { eventI
   } catch (error) {
     console.error("[memories/moderation] update failed", { eventId: params.eventId, error });
     return NextResponse.json({ error: "moderation update failed" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: { eventId: string } }) {
+  if (!isSameOrigin(request)) return NextResponse.json({ error: "Cross-origin request blocked" }, { status: 403 });
+  if (!await requireInvitationAccess(request, params.eventId)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const body = await request.json() as { mediaIds?: unknown };
+    if (!Array.isArray(body.mediaIds) || body.mediaIds.length < 1 || body.mediaIds.length > 100 || !body.mediaIds.every((id) => typeof id === "string" && UUID.test(id))) {
+      return NextResponse.json({ error: "invalid mediaIds" }, { status: 400 });
+    }
+    const deletedIds = await permanentlyDeleteMemoryMedia(params.eventId, body.mediaIds as string[]);
+    if (deletedIds.length !== body.mediaIds.length) return NextResponse.json({ error: "One or more photos are no longer eligible for permanent deletion", deletedIds }, { status: 409 });
+    return NextResponse.json({ ok: true, deletedIds });
+  } catch (error) {
+    console.error("[memories/moderation] permanent delete failed", { eventId: params.eventId, error });
+    return NextResponse.json({ error: "permanent delete failed" }, { status: 500 });
   }
 }

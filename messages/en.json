@@ -187,6 +187,8 @@
         "bulkApprove": "Approve selected",
         "bulkReject": "Reject selected",
         "remove": "Remove from gallery",
+        "deleteAllPermanently": "Delete all permanently",
+        "deletePermanentlyConfirm": "Permanently delete {count, plural, one {# photo} other {# photos}}? This can't be undone — the original files will be deleted too.",
         "empty": "Nothing here right now.",
         "anonymous": "Anonymous guest",
         "selectPhoto": "Select photo from {name}",

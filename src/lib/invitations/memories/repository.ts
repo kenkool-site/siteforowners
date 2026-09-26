@@ -163,6 +163,33 @@ export async function updateEventMemoriesSettings(
   if (error) throw new Error(`failed to update memories settings: ${error.message}`);
 }
 
+// Global, not per-event — see the migration's own comment on why Find Me's
+// search cap is a founder/platform cost-control knob rather than something
+// each event host tunes. Falls back to this same default the column itself
+// defaults to if the singleton row is ever missing (defensive only; the
+// migration always inserts it).
+const DEFAULT_FIND_ME_DAILY_LIMIT = 20;
+
+export async function getFindMeDailyLimit(): Promise<number> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memories_find_me_platform_settings")
+    .select("daily_search_limit")
+    .eq("id", true)
+    .maybeSingle();
+  if (error || !data) return DEFAULT_FIND_ME_DAILY_LIMIT;
+  return data.daily_search_limit as number;
+}
+
+export async function updateFindMeDailyLimit(limit: number): Promise<void> {
+  const client = createAdminClient();
+  const { error } = await client
+    .from("memories_find_me_platform_settings")
+    .update({ daily_search_limit: limit })
+    .eq("id", true);
+  if (error) throw new Error(`failed to update Find Me daily search limit: ${error.message}`);
+}
+
 export async function updateMemoryMediaModeration(
   mediaId: string,
   outcome: { moderationStatus: string; moderationScore: number; moderationCategories: string[] },
@@ -323,6 +350,37 @@ export async function moderateMemoryMediaForHost(eventId: string, action: HostMo
     .in("moderation_status", allowedModerationStatuses(action))
     .select("id");
   if (error) throw new Error(`failed to moderate Memories media: ${error.message}`);
+  return (data ?? []).map((row) => row.id as string);
+}
+
+// Scoped to moderation_status='rejected' — the same status the host's
+// Removed/Rejected tab already filters on (see moderationStatusForFilter) —
+// so a permanent-delete call can never reach a live or pending item even if
+// the caller passes an unexpected id.
+export async function listRejectedMemoryMediaByIds(eventId: string, mediaIds: string[]): Promise<MemoryMedia[]> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media").select("*")
+    .eq("event_id", eventId)
+    .eq("moderation_status", "rejected")
+    .in("id", mediaIds);
+  if (error) throw new Error(`failed to list rejected Memories media: ${error.message}`);
+  return (data ?? []).map(mapRow);
+}
+
+// The hard-delete counterpart to moderateMemoryMediaForHost's soft status
+// update — same moderation_status='rejected' scoping, but removes the row
+// outright. Callers must delete the row's R2 objects themselves first (this
+// function only owns the database row); memory_media's ON DELETE CASCADE
+// foreign keys clean up any highlight-descriptor/moment-membership rows.
+export async function deleteMemoryMediaRows(eventId: string, mediaIds: string[]): Promise<string[]> {
+  const client = createAdminClient();
+  const { data, error } = await client.from("memory_media")
+    .delete()
+    .eq("event_id", eventId)
+    .eq("moderation_status", "rejected")
+    .in("id", mediaIds)
+    .select("id");
+  if (error) throw new Error(`failed to permanently delete Memories media: ${error.message}`);
   return (data ?? []).map((row) => row.id as string);
 }
 

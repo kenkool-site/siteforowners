@@ -119,8 +119,9 @@ export async function searchFindMe(
     return { status: 404, body: { error: "find me not enabled for this event" } };
   }
 
-  const allowed = await allowAttempt(eventId, guestSessionId);
-  if (!allowed) return { status: 429, body: { error: "too many searches, try again later" } };
+  const attemptOutcome = await allowAttempt(eventId, guestSessionId);
+  if (attemptOutcome === "denied") return { status: 429, body: { error: "too many searches, try again later" } };
+  if (attemptOutcome === "error") return { status: 500, body: { error: "search failed" } };
 
   const candidateMedia = await listCandidates(eventId, MAX_CANDIDATES);
   const candidates = await downloadCandidates(candidateMedia, storage, CONCURRENCY);

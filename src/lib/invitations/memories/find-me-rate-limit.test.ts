@@ -2,31 +2,66 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createFindMeRateLimiter } from "./find-me-rate-limit";
 
-test("the find-me limiter fails closed when its serialized RPC is unavailable", async () => {
+// An RPC failure must be distinguishable from a genuine denial — see the
+// "error" outcome's own doc comment in find-me-rate-limit.ts. Previously
+// both collapsed to `false`, which made a transient DB hiccup indistinguishable
+// from a guest's 5th-strike-and-out.
+test("the find-me limiter reports 'error' (not 'denied') when its RPC fails", async () => {
   const limiter = createFindMeRateLimiter({
     attempt: async () => ({ data: null, error: new Error("database unavailable") }),
+    getDailyLimit: async () => 20,
   });
 
-  assert.equal(await limiter.allowAttempt("event-1", "session-1"), false);
+  assert.equal(await limiter.allowAttempt("event-1", "session-1"), "error");
 });
 
-test("the find-me limiter delegates one event-and-session attempt to its RPC, with a 24-hour/5-attempt window", async () => {
+test("the find-me limiter reports 'error' (not 'denied') when the RPC call itself throws", async () => {
+  const limiter = createFindMeRateLimiter({
+    attempt: async () => {
+      throw new Error("connection reset");
+    },
+    getDailyLimit: async () => 20,
+  });
+
+  assert.equal(await limiter.allowAttempt("event-1", "session-1"), "error");
+});
+
+test("the find-me limiter delegates one event-and-session attempt to its RPC, using the platform's configured daily limit", async () => {
   const calls: Array<{ eventId: string; guestSessionId: string; windowSeconds: number; maxAttempts: number }> = [];
   const limiter = createFindMeRateLimiter({
     attempt: async (input) => {
       calls.push(input);
       return { data: true, error: null };
     },
+    getDailyLimit: async () => 20,
   });
 
-  assert.equal(await limiter.allowAttempt("event-1", "session-1"), true);
-  assert.deepEqual(calls, [{ eventId: "event-1", guestSessionId: "session-1", windowSeconds: 86400, maxAttempts: 5 }]);
+  assert.equal(await limiter.allowAttempt("event-1", "session-1"), "allowed");
+  assert.deepEqual(calls, [{ eventId: "event-1", guestSessionId: "session-1", windowSeconds: 86400, maxAttempts: 20 }]);
 });
 
-test("the find-me limiter denies the attempt when the RPC itself says no", async () => {
+// The cap is a founder-controlled platform setting, not a code constant —
+// this proves a non-default value actually reaches the RPC call rather than
+// the limiter ignoring getDailyLimit() and hardcoding something itself.
+test("the find-me limiter passes through whatever daily limit the platform setting currently holds", async () => {
+  const calls: Array<{ maxAttempts: number }> = [];
   const limiter = createFindMeRateLimiter({
-    attempt: async () => ({ data: false, error: null }),
+    attempt: async (input) => {
+      calls.push(input);
+      return { data: true, error: null };
+    },
+    getDailyLimit: async () => 50,
   });
 
-  assert.equal(await limiter.allowAttempt("event-1", "session-1"), false);
+  await limiter.allowAttempt("event-1", "session-1");
+  assert.equal(calls[0]?.maxAttempts, 50);
+});
+
+test("the find-me limiter reports 'denied' when the RPC itself says no", async () => {
+  const limiter = createFindMeRateLimiter({
+    attempt: async () => ({ data: false, error: null }),
+    getDailyLimit: async () => 20,
+  });
+
+  assert.equal(await limiter.allowAttempt("event-1", "session-1"), "denied");
 });
