@@ -256,6 +256,37 @@ test("flexible additional sections render headings and preserve authored line br
   assert.match(html, /Wedding Ceremony @ 1pm[\s\S]*<br\/>[\s\S]*Cocktail @ 2:30pm/);
 });
 
+test("the Event Schedule card renders items in order with location lines only where set", () => {
+  const html = render("published", {
+    eventSchedule: [
+      { name: "Wedding Ceremony", startsAt: "2026-10-10T17:00:00.000Z", locationName: "St. Mary's Catholic Church", locationAddress: "123 Chapel St, Brooklyn, NY" },
+      { name: "Cocktail Hour", startsAt: "2026-10-10T18:30:00.000Z" },
+      { name: "Wedding Reception", startsAt: "2026-10-10T19:30:00.000Z", locationName: "The Grand Ballroom" },
+    ],
+  });
+  assert.match(html, /Event Schedule/);
+  const ceremonyIndex = html.indexOf("Wedding Ceremony");
+  const cocktailIndex = html.indexOf("Cocktail Hour");
+  const receptionIndex = html.indexOf("Wedding Reception");
+  assert.ok(ceremonyIndex > -1 && cocktailIndex > ceremonyIndex && receptionIndex > cocktailIndex, "expected items in chronological order");
+  assert.match(html, /St\. Mary&#x27;s Catholic Church — 123 Chapel St, Brooklyn, NY/);
+  assert.match(html, /The Grand Ballroom/);
+  assert.doesNotMatch(html, /The Grand Ballroom —/, "expected no trailing separator when only locationName is set");
+  // Cocktail Hour has neither location field — no stray " — " or empty location line near it.
+  const cocktailSection = html.slice(cocktailIndex, receptionIndex);
+  assert.doesNotMatch(cocktailSection, /—/);
+});
+
+test("the Event Schedule card is entirely absent when the event has no schedule items", () => {
+  const html = render("published", { eventSchedule: [] });
+  assert.doesNotMatch(html, /Event Schedule/);
+});
+
+test("the Event Schedule card is absent when eventSchedule is undefined (pre-existing events)", () => {
+  const html = render("published");
+  assert.doesNotMatch(html, /Event Schedule/);
+});
+
 test("enabled guestbook renders after invitation content and before the footer", () => {
   const html = render("published", { commentWallEnabled: true });
   assert.match(html, /data-invitation-comment-wall="true"/);

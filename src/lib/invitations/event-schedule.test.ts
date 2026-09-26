@@ -96,3 +96,14 @@ test("computeInferredScheduleRanges: a single item gets a 2-hour inferred end", 
 test("computeInferredScheduleRanges: an empty list returns an empty list", () => {
   assert.deepEqual(computeInferredScheduleRanges([]), []);
 });
+
+test("computeInferredScheduleRanges: falls back to the 2-hour default when the next item shares (or precedes) the current item's start time", () => {
+  const items = [
+    { name: "Cocktail Hour", startsAt: "2026-10-03T17:00:00.000Z" },
+    { name: "Photos", startsAt: "2026-10-03T17:00:00.000Z" },
+    { name: "Reception", startsAt: "2026-10-03T19:00:00.000Z" },
+  ];
+  const result = computeInferredScheduleRanges(items);
+  assert.deepEqual(result[0], { item: items[0], startsAt: "2026-10-03T17:00:00.000Z", endsAt: "2026-10-03T19:00:00.000Z" });
+  assert.deepEqual(result[1], { item: items[1], startsAt: "2026-10-03T17:00:00.000Z", endsAt: "2026-10-03T19:00:00.000Z" });
+});

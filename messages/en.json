@@ -220,7 +220,6 @@
           "deleteError": "Could not delete that moment. Try again.",
           "fromSchedule": {
             "title": "Create Moments from your Event Schedule",
-            "empty": "No schedule items yet — add some in the Event Editor first.",
             "add": "Add selected as Moments",
             "adding": "Adding…",
             "error": "Could not create those Moments. Try again."

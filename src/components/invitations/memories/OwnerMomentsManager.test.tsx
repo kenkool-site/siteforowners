@@ -301,6 +301,7 @@ test("Create Moments from your Event Schedule posts one create-moment request pe
       assert.equal((postCalls[0].body as { name: string }).name, "Ceremony");
       assert.equal((postCalls[0].body as { startsAt: string }).startsAt, "2026-10-03T17:00:00.000Z");
       assert.equal((postCalls[0].body as { endsAt: string }).endsAt, "2026-10-03T18:30:00.000Z");
+      assert.ok(!calls.some((c) => c.method === "PATCH"), "creating Moments from the schedule must never write back to event_schedule");
     },
     schedule,
   );
@@ -341,6 +342,7 @@ test("a partial failure across multiple selected items only leaves the failed it
 
       const postCalls = calls.filter((c) => c.method === "POST");
       assert.equal(postCalls.length, 2, "expected a create-moment request for each checked item, in order");
+      assert.ok(!calls.some((c) => c.method === "PATCH"), "creating Moments from the schedule must never write back to event_schedule");
 
       assert.ok(
         dom.window.document.querySelector('button[aria-label="Edit Ceremony"]'),

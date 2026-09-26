@@ -289,34 +289,36 @@ export function OwnerMomentsManager({ eventId, initialMoments, initialEventSched
           <h3 className="text-sm font-semibold">{t("fromSchedule.title")}</h3>
           <ul className="mt-3 flex flex-col gap-2">
             {inferredScheduleRanges.map((range, index) => (
-              <li key={index} className="flex items-center gap-3 text-sm">
-                <input
-                  type="checkbox"
-                  checked={scheduleSelections.has(index)}
-                  // onClick (toggling our own tracked state), not onChange reading
-                  // event.target.checked: this component's test harness dispatches a
-                  // bare synthetic "click" Event rather than calling the native
-                  // .click() method, so jsdom never runs the checkbox's activation
-                  // behavior and target.checked never actually flips — an onChange
-                  // gated on that native property would silently never fire under
-                  // test. Toggling from our own previous state is equivalent for a
-                  // real user (React still reconciles the rendered checkbox to match
-                  // `checked` on the next render) and works under both.
-                  onClick={() =>
-                    setScheduleSelections((previous) => {
-                      const next = new Set(previous);
-                      if (next.has(index)) next.delete(index);
-                      else next.add(index);
-                      return next;
-                    })
-                  }
-                  onChange={() => {}}
-                  className="size-5 accent-[#6D456F]"
-                />
-                <span className="font-medium">{range.item.name}</span>
-                <span className="text-[#675d6a]">
-                  {new Date(range.startsAt).toLocaleString()} – {new Date(range.endsAt).toLocaleString()}
-                </span>
+              <li key={index}>
+                <label className="flex min-h-11 items-center gap-3 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={scheduleSelections.has(index)}
+                    // onClick (toggling our own tracked state), not onChange reading
+                    // event.target.checked: this component's test harness dispatches a
+                    // bare synthetic "click" Event rather than calling the native
+                    // .click() method, so jsdom never runs the checkbox's activation
+                    // behavior and target.checked never actually flips — an onChange
+                    // gated on that native property would silently never fire under
+                    // test. Toggling from our own previous state is equivalent for a
+                    // real user (React still reconciles the rendered checkbox to match
+                    // `checked` on the next render) and works under both.
+                    onClick={() =>
+                      setScheduleSelections((previous) => {
+                        const next = new Set(previous);
+                        if (next.has(index)) next.delete(index);
+                        else next.add(index);
+                        return next;
+                      })
+                    }
+                    onChange={() => {}}
+                    className="size-5 accent-[#6D456F]"
+                  />
+                  <span className="font-medium">{range.item.name}</span>
+                  <span className="text-[#675d6a]">
+                    {new Date(range.startsAt).toLocaleString()} – {new Date(range.endsAt).toLocaleString()}
+                  </span>
+                </label>
               </li>
             ))}
           </ul>

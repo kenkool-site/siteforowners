@@ -67,9 +67,11 @@ export function computeInferredScheduleRanges(
 ): Array<{ item: EventScheduleItem; startsAt: string; endsAt: string }> {
   return items.map((item, index) => {
     const next = items[index + 1];
-    const endsAt = next
+    const nextStartsAtMs = next ? Date.parse(next.startsAt) : NaN;
+    const itemStartsAtMs = Date.parse(item.startsAt);
+    const endsAt = next && nextStartsAtMs > itemStartsAtMs
       ? next.startsAt
-      : new Date(Date.parse(item.startsAt) + DEFAULT_INFERRED_DURATION_MS).toISOString();
+      : new Date(itemStartsAtMs + DEFAULT_INFERRED_DURATION_MS).toISOString();
     return { item, startsAt: item.startsAt, endsAt };
   });
 }
