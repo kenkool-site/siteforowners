@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, Play, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Share2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 
@@ -122,6 +122,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
   // id so navigating back and forth doesn't refetch what's already known.
   const nearbyCache = useRef<Map<string, PublicMemoryMedia[]>>(new Map());
   const [nearby, setNearby] = useState<PublicMemoryMedia[]>([]);
+  const [showCopiedToast, setShowCopiedToast] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -242,6 +243,37 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     pendingTimeouts.current.push(swapTimeout);
   }
 
+  // Deep-links to this exact item on the page the guest is already viewing —
+  // built from the live location rather than a prop, so this component never
+  // needs to know the invitation's slug or base URL. Query param, not a hash
+  // fragment: unlike a hash, a query param survives the server-side passcode
+  // redirect a protected event's memories page issues (see
+  // src/app/invite/[slug]/memories/page.tsx and PasscodeGate.tsx), so a
+  // shared link still lands on this photo after the guest enters the code.
+  async function handleShare() {
+    const url = new URL(window.location.pathname, window.location.origin);
+    url.searchParams.set("photo", item.id);
+    const shareUrl = url.toString();
+
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ url: shareUrl });
+      } catch {
+        // The guest cancelled the native share sheet, or the browser refused
+        // — either way there's nothing to recover from or fall back to.
+      }
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setShowCopiedToast(true);
+      window.setTimeout(() => setShowCopiedToast(false), 2000);
+    } catch {
+      // Clipboard permission denied/unavailable — no further fallback.
+    }
+  }
+
   function handleNearbyTap(tappedId: string) {
     const cluster = [item, ...nearby];
     const result = resolveNearbyTap(activeMedia, tappedId, cluster);
@@ -293,6 +325,22 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-2" onClick={onClose}>
+      <button
+        type="button"
+        onClick={(event) => {
+          event.stopPropagation();
+          void handleShare();
+        }}
+        aria-label={t("share")}
+        className="absolute left-3 top-3 z-10 grid size-11 place-items-center rounded-full bg-white/10 text-white"
+      >
+        <Share2 className="size-5" />
+      </button>
+      {showCopiedToast && (
+        <p role="status" className="absolute left-1/2 top-16 z-10 -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-lg">
+          {t("linkCopied")}
+        </p>
+      )}
       <button
         type="button"
         onClick={onClose}

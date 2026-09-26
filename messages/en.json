@@ -835,7 +835,9 @@
           "viewerLabel": "Photo {current} of {total}",
           "nearbyCount": "{count, plural, one {# other captured this moment} other {# others captured this moment}}",
           "nearbyDetourLabel": "Browsing nearby moment · {current} of {total}",
-          "nearbyThumbnailLabel": "View related photo"
+          "nearbyThumbnailLabel": "View related photo",
+          "share": "Share",
+          "linkCopied": "Link copied!"
         }
       }
     },

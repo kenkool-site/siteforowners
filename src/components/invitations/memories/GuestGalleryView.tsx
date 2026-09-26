@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useSearchParams } from "next/navigation";
 import { visibleOptimisticUploads, type GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { groupMediaByTime } from "@/lib/invitations/memories/gallery-view";
@@ -20,6 +21,12 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
   const [now, setNow] = useState(() => Date.now());
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const previousIds = useRef<Set<string>>(new Set());
+  const searchParams = useSearchParams();
+  // A shared photo link (see MediaLightbox's share button) lands here as
+  // ?photo=<mediaId>. Applied at most once per mount, once the gallery has
+  // actually loaded — otherwise a guest who closes the lightbox would find
+  // it reopening on every re-render/poll while the param is still present.
+  const appliedPhotoParam = useRef(false);
   const hasPublishing = uploads.some((item) => item.status === "queued" || item.status === "uploading" || item.status === "done");
 
   useEffect(() => {
@@ -68,6 +75,15 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
   const olderFlat = (["tonight", "thisAfternoon", "earlier"] as const).flatMap((section) => olderGroups[section]);
   const recentVisible = recent.slice(0, 8);
   const lightboxMedia = [...recentVisible, ...olderFlat];
+
+  useEffect(() => {
+    if (appliedPhotoParam.current || !loaded) return;
+    appliedPhotoParam.current = true;
+    const photoId = searchParams?.get("photo");
+    if (!photoId) return;
+    const index = lightboxMedia.findIndex((item) => item.id === photoId);
+    if (index !== -1) setLightboxIndex(index);
+  }, [loaded, lightboxMedia, searchParams]);
 
   if (!loaded && optimistic.length === 0) return <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>;
   if (error && media.length === 0 && optimistic.length === 0) return <p role="alert" className="p-8 text-center text-sm text-red-700">{t("error")}</p>;

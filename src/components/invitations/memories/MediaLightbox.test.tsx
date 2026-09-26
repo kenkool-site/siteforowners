@@ -420,3 +420,28 @@ test("shows no metadata line at all when capturedAt is null", async () => {
     assert.doesNotMatch(text, /Photo shared by/);
   });
 });
+
+test("sharing copies a link to the exact item and shows a confirmation, when the native share sheet isn't available", async () => {
+  await withMountedLightbox([mediaItem("m1"), mediaItem("m2")], 1, async ({ dom }) => {
+    let copied: string | null = null;
+    // jsdom implements neither navigator.share nor navigator.clipboard —
+    // stubbed here rather than in the shared harness since only this test
+    // needs them.
+    Object.defineProperty(dom.window.navigator, "clipboard", {
+      value: { writeText: async (text: string) => { copied = text; } },
+      configurable: true,
+    });
+
+    const shareButton = dom.window.document.querySelector('button[aria-label="Share"]');
+    assert.ok(shareButton, "expected a share button");
+    await act(async () => {
+      shareButton!.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+      await flush();
+    });
+
+    assert.ok(copied, "expected the link to be copied to the clipboard");
+    const url = new URL(copied!);
+    assert.equal(url.searchParams.get("photo"), "m2");
+    assert.match(dom.window.document.body.textContent ?? "", /Link copied!/);
+  });
+});
