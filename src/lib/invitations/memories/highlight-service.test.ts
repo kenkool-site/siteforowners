@@ -609,6 +609,7 @@ function highlightState(overrides: Partial<HighlightGenerationState> = {}): High
     pendingGenerationId: null,
     generationStatus: "idle",
     lastGeneratedMediaCount: 0,
+    lastGeneratedAt: null,
     generationError: null,
     ...overrides,
   };
@@ -685,10 +686,11 @@ test("requestHighlightGeneration reclaims a stale stuck-processing generation an
 });
 
 test("requestHighlightGeneration force bypasses the 'not enough new media yet' policy check", async () => {
-  // Already published once, at the same count as now — shouldQueueHighlightGeneration
-  // alone would refuse (nothing new to justify a re-run), but force overrides that.
+  // Already published once, at the same count as now, with no descriptor
+  // newer than that generation — shouldQueueHighlightGeneration alone would
+  // refuse (nothing new to justify a re-run), but force overrides that.
   const getState = spy<RequestDep<"getHighlightGenerationState">>(async () =>
-    highlightState({ publishedGenerationId: "gen-old", lastGeneratedMediaCount: 3 }),
+    highlightState({ publishedGenerationId: "gen-old", lastGeneratedMediaCount: 3, lastGeneratedAt: "2026-09-20T00:00:00.000Z" }),
   );
   const listDescriptors = spy<RequestDep<"listApprovedMemoryDescriptors">>(async () => [descriptor("m1"), descriptor("m2"), descriptor("m3")]);
   const queue = spy<RequestDep<"queueHighlightGeneration">>(async (eventId, mode) => generation({ id: "gen-forced", eventId, mode }));
@@ -699,6 +701,51 @@ test("requestHighlightGeneration force bypasses the 'not enough new media yet' p
     queueHighlightGeneration: queue.fn,
   };
   const result = await requestHighlightGeneration("event-1", true, deps);
+
+  assert.ok(result);
+  assert.equal(queue.calls.length, 1);
+});
+
+test("requestHighlightGeneration does not queue (without force) when the approved count is unchanged and nothing is newer than the last generation", async () => {
+  // Same setup as the force test above, minus force — this is the actual
+  // "should refuse" case the force test's own comment describes.
+  const getState = spy<RequestDep<"getHighlightGenerationState">>(async () =>
+    highlightState({ publishedGenerationId: "gen-old", lastGeneratedMediaCount: 3, lastGeneratedAt: "2026-09-20T00:00:00.000Z" }),
+  );
+  const listDescriptors = spy<RequestDep<"listApprovedMemoryDescriptors">>(async () => [descriptor("m1"), descriptor("m2"), descriptor("m3")]);
+  const queue = neverCalled<RequestDep<"queueHighlightGeneration">>("queueHighlightGeneration");
+
+  const deps: RequestHighlightGenerationDependencies = {
+    getHighlightGenerationState: getState.fn,
+    listApprovedMemoryDescriptors: listDescriptors.fn,
+    queueHighlightGeneration: queue.fn,
+  };
+  const result = await requestHighlightGeneration("event-1", false, deps);
+
+  assert.equal(result, null);
+  assert.equal(queue.calls.length, 0);
+});
+
+test("requestHighlightGeneration queues without force when a descriptor is newer than the last generation, even though the raw count matches (regression: a deletion plus a fresh approval must not mask genuinely new content)", async () => {
+  const getState = spy<RequestDep<"getHighlightGenerationState">>(async () =>
+    highlightState({ publishedGenerationId: "gen-old", lastGeneratedMediaCount: 3, lastGeneratedAt: "2026-09-20T00:00:00.000Z" }),
+  );
+  const listDescriptors = spy<RequestDep<"listApprovedMemoryDescriptors">>(async () => [
+    { ...descriptor("m1"), createdAt: "2026-09-15T00:00:00.000Z" },
+    { ...descriptor("m2"), createdAt: "2026-09-16T00:00:00.000Z" },
+    // m3 replaces a photo deleted after the last generation — approved and
+    // described well after lastGeneratedAt, even though the total count (3)
+    // still matches lastGeneratedMediaCount (3) exactly.
+    { ...descriptor("m3"), createdAt: "2026-09-26T00:00:00.000Z" },
+  ]);
+  const queue = spy<RequestDep<"queueHighlightGeneration">>(async (eventId, mode) => generation({ id: "gen-fresh-content", eventId, mode }));
+
+  const deps: RequestHighlightGenerationDependencies = {
+    getHighlightGenerationState: getState.fn,
+    listApprovedMemoryDescriptors: listDescriptors.fn,
+    queueHighlightGeneration: queue.fn,
+  };
+  const result = await requestHighlightGeneration("event-1", false, deps);
 
   assert.ok(result);
   assert.equal(queue.calls.length, 1);
