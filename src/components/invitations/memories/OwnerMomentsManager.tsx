@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import { computeInferredScheduleRanges, type EventScheduleItem } from "@/lib/invitations/event-schedule";
 
 const MAX_NAME_LENGTH = 80;
 
@@ -16,7 +17,7 @@ function toDatetimeLocalValue(iso: string): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-export function OwnerMomentsManager({ eventId, initialMoments }: { eventId: string; initialMoments: MemoryMoment[] }) {
+export function OwnerMomentsManager({ eventId, initialMoments, initialEventSchedule }: { eventId: string; initialMoments: MemoryMoment[]; initialEventSchedule: EventScheduleItem[] }) {
   const t = useTranslations("invitations.manage.memories.moments");
   const basePath = `/api/invitations/events/${eventId}/memories/moments`;
   const [moments, setMoments] = useState<MemoryMoment[]>(initialMoments);
@@ -32,6 +33,11 @@ export function OwnerMomentsManager({ eventId, initialMoments }: { eventId: stri
   const [editEndsAt, setEditEndsAt] = useState("");
   const [busyMomentId, setBusyMomentId] = useState<string | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+
+  const [scheduleSelections, setScheduleSelections] = useState<Set<number>>(new Set());
+  const [scheduleBusy, setScheduleBusy] = useState(false);
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+  const inferredScheduleRanges = computeInferredScheduleRanges(initialEventSchedule);
 
   async function addMoment() {
     if (!name.trim() || !startsAt || !endsAt) return;
@@ -62,6 +68,39 @@ export function OwnerMomentsManager({ eventId, initialMoments }: { eventId: stri
       setError(t("error"));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function createSelectedMomentsFromSchedule() {
+    const selected = inferredScheduleRanges.filter((_, index) => scheduleSelections.has(index));
+    if (!selected.length) return;
+    setScheduleBusy(true);
+    setScheduleError(null);
+    try {
+      let nextSortOrder = moments.length;
+      const created: MemoryMoment[] = [];
+      for (const range of selected) {
+        const response = await fetch(basePath, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            name: range.item.name,
+            startsAt: range.startsAt,
+            endsAt: range.endsAt,
+            sortOrder: nextSortOrder,
+          }),
+        });
+        if (!response.ok) throw new Error(`moments ${response.status}`);
+        const { moment } = (await response.json()) as { moment: MemoryMoment };
+        created.push(moment);
+        nextSortOrder += 1;
+      }
+      setMoments((previous) => [...previous, ...created]);
+      setScheduleSelections(new Set());
+    } catch {
+      setScheduleError(t("fromSchedule.error"));
+    } finally {
+      setScheduleBusy(false);
     }
   }
 
@@ -235,6 +274,58 @@ export function OwnerMomentsManager({ eventId, initialMoments }: { eventId: stri
         <p role="alert" className="mt-2 text-sm text-red-700">
           {rowError}
         </p>
+      )}
+
+      {initialEventSchedule.length > 0 && (
+        <div className="mt-6 rounded-md border border-[#e5dde8] p-4">
+          <h3 className="text-sm font-semibold">{t("fromSchedule.title")}</h3>
+          <ul className="mt-3 flex flex-col gap-2">
+            {inferredScheduleRanges.map((range, index) => (
+              <li key={index} className="flex items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={scheduleSelections.has(index)}
+                  // onClick (toggling our own tracked state), not onChange reading
+                  // event.target.checked: this component's test harness dispatches a
+                  // bare synthetic "click" Event rather than calling the native
+                  // .click() method, so jsdom never runs the checkbox's activation
+                  // behavior and target.checked never actually flips — an onChange
+                  // gated on that native property would silently never fire under
+                  // test. Toggling from our own previous state is equivalent for a
+                  // real user (React still reconciles the rendered checkbox to match
+                  // `checked` on the next render) and works under both.
+                  onClick={() =>
+                    setScheduleSelections((previous) => {
+                      const next = new Set(previous);
+                      if (next.has(index)) next.delete(index);
+                      else next.add(index);
+                      return next;
+                    })
+                  }
+                  onChange={() => {}}
+                  className="size-5 accent-[#6D456F]"
+                />
+                <span className="font-medium">{range.item.name}</span>
+                <span className="text-[#675d6a]">
+                  {new Date(range.startsAt).toLocaleString()} – {new Date(range.endsAt).toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={() => void createSelectedMomentsFromSchedule()}
+            disabled={scheduleBusy || scheduleSelections.size === 0}
+            className="mt-3 min-h-11 rounded-md bg-[#6D456F] px-4 text-sm font-semibold text-white disabled:opacity-40"
+          >
+            {scheduleBusy ? t("fromSchedule.adding") : t("fromSchedule.add")}
+          </button>
+          {scheduleError && (
+            <p role="alert" className="mt-2 text-sm text-red-700">
+              {scheduleError}
+            </p>
+          )}
+        </div>
       )}
 
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:flex-wrap">

@@ -217,7 +217,14 @@
           "deleteFor": "Eliminar {name}",
           "deleteConfirm": "¿Eliminar este momento? Las fotos permanecen — solo dejarán de agruparse bajo él.",
           "saveError": "No se pudo guardar ese cambio — revisa los horarios e inténtalo de nuevo.",
-          "deleteError": "No se pudo eliminar ese momento. Inténtalo de nuevo."
+          "deleteError": "No se pudo eliminar ese momento. Inténtalo de nuevo.",
+          "fromSchedule": {
+            "title": "Crear Momentos desde tu Cronograma del Evento",
+            "empty": "Aún no hay elementos en el cronograma — agrega algunos primero en el Editor del Evento.",
+            "add": "Agregar seleccionados como Momentos",
+            "adding": "Agregando…",
+            "error": "No se pudieron crear esos Momentos. Inténtalo de nuevo."
+          }
         },
         "highlights": {
           "title": "Destacados IA",

@@ -217,7 +217,14 @@
           "deleteFor": "Delete {name}",
           "deleteConfirm": "Delete this moment? Photos stay — they just won't be grouped under it anymore.",
           "saveError": "Could not save that change — check the times and try again.",
-          "deleteError": "Could not delete that moment. Try again."
+          "deleteError": "Could not delete that moment. Try again.",
+          "fromSchedule": {
+            "title": "Create Moments from your Event Schedule",
+            "empty": "No schedule items yet — add some in the Event Editor first.",
+            "add": "Add selected as Moments",
+            "adding": "Adding…",
+            "error": "Could not create those Moments. Try again."
+          }
         },
         "highlights": {
           "title": "AI Highlights",
