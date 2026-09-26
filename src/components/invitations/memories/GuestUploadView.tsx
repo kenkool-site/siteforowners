@@ -93,9 +93,28 @@ function readVideoDurationSeconds(file: File): Promise<number> {
 // while keeping the JPEG comfortably small.
 const MAX_POSTER_DIMENSION_PX = 1600;
 
+// A short, fixed wait after playback starts, for browsers without
+// requestVideoFrameCallback below — long enough for a real frame to decode
+// (video renders at 24fps+, so a frame is ready within tens of ms) without
+// adding noticeable delay to the guest's upload.
+const POSTER_FRAME_FALLBACK_DELAY_MS = 100;
+
+type VideoWithFrameCallback = HTMLVideoElement & { requestVideoFrameCallback?: (callback: () => void) => number };
+
 // Captures a frame from a video File as a JPEG File, for use as the poster.
 // Same jsdom limitation as above — canvas drawImage/toBlob needs a real
 // browser. Verified manually.
+//
+// iPhone's default camera format is HEVC, and WebKit has a known limitation
+// where drawImage/toBlob can't reliably grab a frame from an HEVC <video>
+// that has only loaded metadata/data — it needs a real decode, which only
+// happens once playback actually starts (confirmed live: the guest's exact
+// HEVC clip hung on this step in both iOS Safari and iOS Chrome — both
+// WebKit — until this played the video briefly before capturing). So this
+// starts real (muted, inline, invisible) playback first, waits for an
+// actually-decoded frame via requestVideoFrameCallback where available
+// (Safari 15.4+ and Chrome-on-iOS, which shares the same WebKit engine) or a
+// short fallback delay otherwise, then captures and immediately pauses.
 function capturePosterFrame(file: File): Promise<File> {
   return new Promise((resolve, reject) => {
     const video = createHiddenVideoElement();
@@ -103,14 +122,16 @@ function capturePosterFrame(file: File): Promise<File> {
       cleanup();
       reject(new Error("timed out capturing poster frame"));
     }, VIDEO_LOAD_TIMEOUT_MS);
+    let settled = false;
     function cleanup() {
       clearTimeout(timeoutId);
       URL.revokeObjectURL(video.src);
+      video.pause();
       video.remove();
     }
-    video.preload = "metadata";
-    video.muted = true;
-    video.onloadeddata = () => {
+    function captureFrame() {
+      if (settled) return;
+      settled = true;
       // Scale down to MAX_POSTER_DIMENSION_PX on the longest side, preserving
       // aspect ratio — never upscale a video already smaller than the cap.
       const scale = Math.min(1, MAX_POSTER_DIMENSION_PX / Math.max(video.videoWidth, video.videoHeight));
@@ -125,11 +146,17 @@ function capturePosterFrame(file: File): Promise<File> {
         reject(new Error("could not get canvas context"));
         return;
       }
-      // The 5-argument overload draws (and resamples) into the scaled
-      // destination size — using the native-size overload here would still
-      // write full-resolution pixel data into a canvas whose *declared*
-      // dimensions merely look smaller.
-      ctx.drawImage(video, 0, 0, scaledWidth, scaledHeight);
+      try {
+        // The 5-argument overload draws (and resamples) into the scaled
+        // destination size — using the native-size overload here would still
+        // write full-resolution pixel data into a canvas whose *declared*
+        // dimensions merely look smaller.
+        ctx.drawImage(video, 0, 0, scaledWidth, scaledHeight);
+      } catch (drawError) {
+        cleanup();
+        reject(drawError instanceof Error ? drawError : new Error("could not draw video frame"));
+        return;
+      }
       canvas.toBlob((blob) => {
         cleanup();
         if (!blob) {
@@ -138,6 +165,24 @@ function capturePosterFrame(file: File): Promise<File> {
         }
         resolve(new File([blob], "poster.jpg", { type: "image/jpeg" }));
       }, "image/jpeg", 0.85);
+    }
+    video.preload = "metadata";
+    video.muted = true;
+    video.playsInline = true;
+    video.setAttribute("playsinline", "true");
+    video.onloadedmetadata = () => {
+      video
+        .play()
+        .then(() => {
+          const withFrameCallback = (video as VideoWithFrameCallback).requestVideoFrameCallback;
+          if (withFrameCallback) withFrameCallback.call(video, captureFrame);
+          else setTimeout(captureFrame, POSTER_FRAME_FALLBACK_DELAY_MS);
+        })
+        // Autoplay blocked or playback failed outright — fall back to
+        // capturing whatever frame is already available rather than failing
+        // immediately; drawImage above still throws/produces a blank result
+        // if nothing was ever decoded, caught the same as any other failure.
+        .catch(() => captureFrame());
     };
     video.onerror = () => {
       cleanup();

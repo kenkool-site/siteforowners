@@ -11,7 +11,12 @@ Object.assign(globalThis, { React });
 
 const GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLInputElement", "Event", "File", "URL", "XMLHttpRequest", "navigator", "fetch", "IS_REACT_ACT_ENVIRONMENT"] as const;
 
-function flush(ms = 150): Promise<void> {
+// 400ms default: capturePosterFrame's real-play-then-capture flow (see its
+// own header comment) waits POSTER_FRAME_FALLBACK_DELAY_MS (100ms) after
+// play() resolves whenever requestVideoFrameCallback isn't available — as is
+// the case for this test file's fake video stub — plus surrounding
+// microtask/IndexedDB overhead.
+function flush(ms = 400): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -58,12 +63,16 @@ function installVideoCanvasStubs(dom: JSDOM, durationSeconds: number, options: {
         __isFakeVideo: true,
         preload: "",
         muted: false,
+        playsInline: false,
         style: {},
         videoWidth: 640,
         videoHeight: 360,
         duration: durationSeconds,
         onerror: null,
         remove: () => undefined,
+        pause: () => undefined,
+        play: () => Promise.resolve(),
+        setAttribute: () => undefined,
         get onloadedmetadata() { return onloadedmetadata; },
         set onloadedmetadata(fn: (() => void) | null) { onloadedmetadata = fn; },
         get onloadeddata() { return onloadeddata; },
