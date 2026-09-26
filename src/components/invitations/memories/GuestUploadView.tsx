@@ -11,8 +11,13 @@ const VIDEO_CONTENT_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime
 const MAX_VIDEO_DURATION_SECONDS = 60;
 const ERROR_QUOTA = "quota";
 const ERROR_WINDOW_CLOSED = "window_closed";
+const ERROR_TOO_LARGE = "too_large";
+const ERROR_UNSUPPORTED_TYPE = "unsupported_type";
 const ERROR_GENERIC = "generic";
-const TERMINAL_UPLOAD_ERRORS = new Set([ERROR_QUOTA, ERROR_WINDOW_CLOSED]);
+// Retrying the same file can't help any of these — they're a property of the
+// file itself (or the event), not a transient network hiccup — so the retry
+// button is hidden for all of them, not just quota/window-closed.
+const TERMINAL_UPLOAD_ERRORS = new Set([ERROR_QUOTA, ERROR_WINDOW_CLOSED, ERROR_TOO_LARGE, ERROR_UNSUPPORTED_TYPE]);
 const PREVIEW_LIFETIME_MS = 30_000;
 
 function isVideoFile(file: File): boolean {
@@ -108,6 +113,13 @@ async function uploadOne(eventId: string, file: File, posterFile: File | undefin
   if (!initRes.ok) {
     if (initRes.status === 429) throw new Error(ERROR_QUOTA);
     if (initRes.status === 404) throw new Error(ERROR_WINDOW_CLOSED);
+    // The server names the specific rejection reason (too_large/unsupported_type)
+    // in the response body — surface that instead of a generic failure so the
+    // guest knows why (e.g. their video's too big) rather than just "try again"
+    // forever on a file that will never succeed.
+    const errorBody: { code?: string } | null = await initRes.json().catch(() => null);
+    if (errorBody?.code === "too_large") throw new Error(ERROR_TOO_LARGE);
+    if (errorBody?.code === "unsupported_type") throw new Error(ERROR_UNSUPPORTED_TYPE);
     throw new Error(ERROR_GENERIC);
   }
   const { mediaId, ticket, uploadUrl, posterUploadUrl } = await initRes.json();
@@ -142,9 +154,13 @@ async function uploadOne(eventId: string, file: File, posterFile: File | undefin
   return { mediaId };
 }
 
-function failureMessageKey(error: string | undefined): "quotaError" | "windowClosedError" | "genericError" | "failed" {
+function failureMessageKey(
+  error: string | undefined,
+): "quotaError" | "windowClosedError" | "fileTooLargeError" | "unsupportedTypeError" | "genericError" | "failed" {
   if (error === ERROR_QUOTA) return "quotaError";
   if (error === ERROR_WINDOW_CLOSED) return "windowClosedError";
+  if (error === ERROR_TOO_LARGE) return "fileTooLargeError";
+  if (error === ERROR_UNSUPPORTED_TYPE) return "unsupportedTypeError";
   if (error === ERROR_GENERIC) return "genericError";
   return "failed";
 }

@@ -820,6 +820,8 @@
           "addMore": "Agregar más fotos o videos",
           "heicError": "El formato de foto predeterminado del iPhone aún no es compatible — cambia tu cámara a \"Más compatible\" en Configuración, o comparte un JPEG.",
           "videoTooLongError": "Los videos pueden durar hasta 60 segundos — recorta tu clip e inténtalo de nuevo.",
+          "fileTooLargeError": "Este archivo es demasiado grande — los videos pueden pesar hasta 200MB.",
+          "unsupportedTypeError": "Este tipo de archivo no es compatible — prueba con una imagen JPEG, PNG, WebP o GIF, o un video MP4, WebM o MOV.",
           "quotaError": "Este evento alcanzó su límite de contenido.",
           "windowClosedError": "La ventana para subir contenido de este evento ya cerró.",
           "genericError": "Algo salió mal — inténtalo de nuevo."

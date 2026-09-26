@@ -20,7 +20,7 @@ import type { MediaKind } from "@/lib/invitations/memories/types";
 // and is what access.ts and broadcasts.ts import directly.
 import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-guard";
 
-// Video: 60s/50MB cap (client-checked duration, this constant covers size),
+// Video: 60s/200MB cap (client-checked duration, this constant covers size),
 // moderated via a client-captured poster frame — see
 // docs/superpowers/specs/2026-09-24-invitespot-memories-video-support-design.md.
 // Video never enters the photon-rs processing Worker pipeline (no transcoding),
@@ -36,7 +36,12 @@ const ALLOWED_CONTENT_TYPES = new Set([
   "image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif",
   "video/mp4", "video/webm", "video/quicktime",
 ]);
-const MAX_UPLOAD_BYTES = 50 * 1024 * 1024; // 50MB — matches this module's existing video cap in direct-media.ts
+// 200MB — the original 50MB (copied from direct-media.ts's unrelated host-asset
+// cover-video cap) rejected essentially every real 60-second phone clip before
+// any upload even began: a typical iPhone 1080p recording alone runs
+// 60-130MB/minute, well past 50MB. 200MB comfortably covers 1080p and most
+// 4K/30fps clips at the 60s duration cap.
+const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 const MAX_MEDIA_PER_EVENT = 2000;
 // Server-enforced ceiling for the poster JPEG's presigned upload. The client
 // now caps the captured poster frame at 1600px on its longest side (see
@@ -69,12 +74,15 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     const contentType = parsedBody.contentType?.split(";")[0].trim().toLowerCase();
     if (!contentType || !ALLOWED_CONTENT_TYPES.has(contentType)) {
       return NextResponse.json(
-        { error: "unsupported file type — upload a JPEG, PNG, WebP, or GIF image, or an MP4, WebM, or MOV video" },
+        {
+          error: "unsupported file type — upload a JPEG, PNG, WebP, or GIF image, or an MP4, WebM, or MOV video",
+          code: "unsupported_type",
+        },
         { status: 400 },
       );
     }
     if (typeof parsedBody.sizeBytes !== "number" || parsedBody.sizeBytes <= 0 || parsedBody.sizeBytes > MAX_UPLOAD_BYTES) {
-      return NextResponse.json({ error: "invalid or oversized file" }, { status: 400 });
+      return NextResponse.json({ error: "invalid or oversized file", code: "too_large" }, { status: 400 });
     }
 
     const settings = await getEventMemoriesSettings(eventId);
