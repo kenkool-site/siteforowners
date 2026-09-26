@@ -78,7 +78,6 @@ export function OwnerMomentsManager({ eventId, initialMoments, initialEventSched
     setScheduleError(null);
     try {
       let nextSortOrder = moments.length;
-      const created: MemoryMoment[] = [];
       for (const range of selected) {
         const response = await fetch(basePath, {
           method: "POST",
@@ -92,11 +91,20 @@ export function OwnerMomentsManager({ eventId, initialMoments, initialEventSched
         });
         if (!response.ok) throw new Error(`moments ${response.status}`);
         const { moment } = (await response.json()) as { moment: MemoryMoment };
-        created.push(moment);
+        // Update state for THIS item immediately, before moving to the next —
+        // a later item's failure must never discard an earlier item's
+        // already-persisted success, and the checkbox for a succeeded item
+        // must not still be checked (and re-postable) after a partial
+        // failure further down the loop.
+        setMoments((previous) => [...previous, moment]);
+        const scheduleIndex = inferredScheduleRanges.indexOf(range);
+        setScheduleSelections((previous) => {
+          const next = new Set(previous);
+          next.delete(scheduleIndex);
+          return next;
+        });
         nextSortOrder += 1;
       }
-      setMoments((previous) => [...previous, ...created]);
-      setScheduleSelections(new Set());
     } catch {
       setScheduleError(t("fromSchedule.error"));
     } finally {

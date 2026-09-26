@@ -305,3 +305,56 @@ test("Create Moments from your Event Schedule posts one create-moment request pe
     schedule,
   );
 });
+
+test("a partial failure across multiple selected items only leaves the failed item checked — the succeeded item's Moment appears and its checkbox clears", async () => {
+  const schedule = [
+    { name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z" },
+    { name: "Cocktail Hour", startsAt: "2026-10-03T18:30:00.000Z" },
+  ];
+  let postCount = 0;
+  await withMountedComponent(
+    [],
+    async (url, init) => {
+      if (init?.method === "POST") {
+        postCount += 1;
+        // First POST (Ceremony) succeeds; second POST (Cocktail Hour)
+        // fails — simulates a transient error partway through a
+        // multi-item create so the checkbox/state handling for the item
+        // that already succeeded can be verified independently of the
+        // one that didn't.
+        if (postCount === 1) {
+          return jsonResponse({ moment: { id: "new-moment", name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z", endsAt: "2026-10-03T18:30:00.000Z", sortOrder: 0 } });
+        }
+        return jsonResponse({ error: "boom" }, 500);
+      }
+      return jsonResponse({});
+    },
+    async ({ dom, calls }) => {
+      const checkboxes = Array.from(dom.window.document.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      click(dom, checkboxes[0]);
+      await flush();
+      click(dom, checkboxes[1]);
+      await flush();
+
+      click(dom, byText(dom, "button", "Add selected as Moments"));
+      await flush();
+
+      const postCalls = calls.filter((c) => c.method === "POST");
+      assert.equal(postCalls.length, 2, "expected a create-moment request for each checked item, in order");
+
+      assert.ok(
+        dom.window.document.querySelector('button[aria-label="Edit Ceremony"]'),
+        "expected the succeeded item's Moment to appear in the rendered moments list, not be discarded by the later failure",
+      );
+
+      const [ceremonyCheckbox, cocktailCheckbox] = Array.from(
+        dom.window.document.querySelectorAll('input[type="checkbox"]'),
+      ) as HTMLInputElement[];
+      assert.equal(ceremonyCheckbox.checked, false, "the succeeded item's checkbox must clear so a retry can't duplicate it");
+      assert.equal(cocktailCheckbox.checked, true, "the failed item's checkbox must remain checked so a retry can re-attempt only it");
+
+      assert.match(dom.window.document.body.textContent ?? "", /Could not create those Moments/, "expected the failure to surface an error");
+    },
+    schedule,
+  );
+});
