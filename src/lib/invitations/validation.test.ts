@@ -320,6 +320,25 @@ test("event updates normalize flexible additional sections", () => {
   });
 });
 
+test("event updates normalize the event schedule and sort it by time", () => {
+  assert.deepEqual(parseEventUpdate({
+    eventSchedule: [
+      { name: " Reception ", startsAt: "2026-10-03T19:00:00.000Z" },
+      { name: " Ceremony ", startsAt: "2026-10-03T17:00:00.000Z" },
+    ],
+  }, "owner"), {
+    ok: true,
+    value: { eventSchedule: [
+      { name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z" },
+      { name: "Reception", startsAt: "2026-10-03T19:00:00.000Z" },
+    ] },
+  });
+  assert.deepEqual(parseEventUpdate({ eventSchedule: [{ name: "Ceremony" }] }, "owner"), {
+    ok: false,
+    errors: { eventSchedule: "Each schedule item needs a valid time." },
+  });
+});
+
 test("publish validation blocks incoherent event timing", () => {
   const errors = validatePublishableEvent({
     title: "Ana & Luis",

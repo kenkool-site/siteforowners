@@ -53,6 +53,7 @@ export interface InvitationEvent {
   travelInfo?: InvitationTravelInfo;
   styleGuide?: InvitationStyleGuide | null;
   additionalSections?: InvitationAdditionalSection[];
+  eventSchedule?: EventScheduleItem[];
   themeKey: string;
   primaryColor: string;
   accentColor: string;
@@ -177,3 +178,4 @@ import type { InvitationReferenceAnalysis } from "./reference-analysis";
 import type { InvitationTravelInfo } from "./travel";
 import type { InvitationStyleGuide } from "./style-guide";
 import type { InvitationAdditionalSection } from "./additional-sections";
+import type { EventScheduleItem } from "./event-schedule";

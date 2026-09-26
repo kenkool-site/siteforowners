@@ -42,6 +42,7 @@ export type PublicInvitationEvent = Pick<
   | "travelInfo"
   | "styleGuide"
   | "additionalSections"
+  | "eventSchedule"
   | "themeKey"
   | "primaryColor"
   | "accentColor"
