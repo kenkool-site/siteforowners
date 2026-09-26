@@ -32,6 +32,18 @@ export interface HighlightGenerationPolicyInput {
   lastGeneratedCount: number;
   hasPublishedGeneration: boolean;
   hasPendingGeneration: boolean;
+  // Whether at least one approved+described item is newer than the last
+  // generation's own snapshot — a real content signal, unlike approvedCount
+  // vs lastGeneratedCount: a host permanently deleting an old photo while a
+  // new one gets approved can leave the raw count exactly where it was, even
+  // though genuinely new, never-classified content now exists (confirmed in
+  // production — see the 2026-09-26 incident this field was added to fix).
+  hasNewApprovedMediaSinceLastGeneration: boolean;
+  // How long it's been since the last generation ran, or null if never.
+  // Used only to catch a trailing handful of photos that never reach a full
+  // REGENERATION_INTERVAL batch — without this, a late-event lull in uploads
+  // could leave real content unclassified indefinitely.
+  msSinceLastGeneration: number | null;
 }
 
 // Labels below this confidence are treated as noise for classification
@@ -45,6 +57,16 @@ const DYNAMIC_CLASSIFICATION_FLOOR = 8;
 // Once dynamic classification is active, how many additional approved items
 // must accumulate before it's worth re-running (cost/rate-limit guard).
 const REGENERATION_INTERVAL = 10;
+
+// Above the floor, a count-only batching threshold means a trailing handful
+// of photos that never reaches REGENERATION_INTERVAL would sit unclassified
+// forever once uploads taper off near the end of an event. Once this much
+// time has passed since the last generation, go ahead and regenerate for
+// whatever new content exists, even below a full batch. Long enough that a
+// busy event's same-day upload bursts still batch together for cost control;
+// short enough that leftover content gets swept up within the same event day
+// rather than sitting unclassified indefinitely.
+const REGENERATION_MAX_WAIT_MS = 4 * 60 * 60 * 1000;
 
 function normalize(value: string): string {
   return value.trim().toLowerCase();
@@ -228,23 +250,41 @@ export function classifyIntoHostGroups(
 //   media to work with — guests should never be stuck on an empty state
 //   longer than necessary, regardless of whether a prior (unpublished)
 //   attempt ran at the same count.
+// - If nothing genuinely new has been approved since the last generation,
+//   never queue — this is the real gate everything below is scoped by. A
+//   raw approvedCount/lastGeneratedCount comparison can't distinguish "truly
+//   nothing changed" from "one item was deleted and a different one was
+//   approved," which previously left real new content permanently
+//   unclassified whenever the counts happened to net out equal.
 // - Below the dynamic-classification floor (or while the last generation
 //   was itself below the floor), refresh on every newly approved item —
 //   this is cheap fallback-dictionary work, not an AI call.
 // - The moment the approved count reaches the floor while the last
 //   generation was still below it, switch to dynamic mode immediately.
-// - Once dynamic mode is active (both counts >= floor), only re-run once
-//   enough new media has accumulated to justify another AI call.
+// - Once dynamic mode is active (both counts >= floor), batch by count for
+//   cost control — but if enough time has passed since the last run, go
+//   ahead and regenerate for a trailing handful of new items even without a
+//   full batch, so late-event stragglers don't sit unclassified forever.
 export function shouldQueueHighlightGeneration(input: HighlightGenerationPolicyInput): boolean {
-  const { approvedCount, lastGeneratedCount, hasPublishedGeneration, hasPendingGeneration } = input;
+  const {
+    approvedCount,
+    lastGeneratedCount,
+    hasPublishedGeneration,
+    hasPendingGeneration,
+    hasNewApprovedMediaSinceLastGeneration,
+    msSinceLastGeneration,
+  } = input;
 
   if (hasPendingGeneration) return false;
 
   if (!hasPublishedGeneration) return approvedCount > 0;
 
+  if (!hasNewApprovedMediaSinceLastGeneration) return false;
+
   if (approvedCount < DYNAMIC_CLASSIFICATION_FLOOR || lastGeneratedCount < DYNAMIC_CLASSIFICATION_FLOOR) {
-    return approvedCount > lastGeneratedCount;
+    return true;
   }
 
-  return approvedCount - lastGeneratedCount >= REGENERATION_INTERVAL;
+  if (approvedCount - lastGeneratedCount >= REGENERATION_INTERVAL) return true;
+  return msSinceLastGeneration !== null && msSinceLastGeneration >= REGENERATION_MAX_WAIT_MS;
 }

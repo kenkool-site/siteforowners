@@ -91,6 +91,7 @@ test("resolveHighlightGenerationRequest: a duplicate request (already queued/pro
     pendingGenerationId: "gen-already-pending",
     generationStatus: "processing",
     lastGeneratedMediaCount: 42,
+    lastGeneratedAt: "2026-09-20T00:00:00.000Z",
     generationError: null,
   };
   const result = await resolveHighlightGenerationRequest(EVENT_ID, {

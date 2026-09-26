@@ -98,7 +98,20 @@ export async function requestHighlightGeneration(
 
   if (hasPendingGeneration) return null;
 
-  const approvedCount = (await listDescriptors(eventId)).length;
+  const approvedDescriptors = await listDescriptors(eventId);
+  const approvedCount = approvedDescriptors.length;
+  const lastGeneratedAtMs = state.lastGeneratedAt ? Date.parse(state.lastGeneratedAt) : null;
+  // A missing createdAt (shouldn't happen in production — the real
+  // listApprovedMemoryDescriptors always selects it) can't be proven newer
+  // than the cutoff, so it's conservatively excluded rather than assumed new.
+  const hasNewApprovedMediaSinceLastGeneration =
+    lastGeneratedAtMs === null
+      ? approvedCount > 0
+      : approvedDescriptors.some(
+          (descriptor) => descriptor.createdAt !== undefined && Date.parse(descriptor.createdAt) > lastGeneratedAtMs,
+        );
+  const msSinceLastGeneration = lastGeneratedAtMs === null ? null : Date.now() - lastGeneratedAtMs;
+
   const shouldQueue =
     force ||
     shouldQueueHighlightGeneration({
@@ -106,6 +119,8 @@ export async function requestHighlightGeneration(
       lastGeneratedCount: state.lastGeneratedMediaCount,
       hasPublishedGeneration: state.publishedGenerationId !== null,
       hasPendingGeneration,
+      hasNewApprovedMediaSinceLastGeneration,
+      msSinceLastGeneration,
     });
   if (!shouldQueue) return null;
 

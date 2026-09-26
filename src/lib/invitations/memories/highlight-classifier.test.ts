@@ -163,6 +163,8 @@ test("shouldQueueHighlightGeneration queues the initial generation once any medi
       lastGeneratedCount: 0,
       hasPublishedGeneration: false,
       hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: true,
+      msSinceLastGeneration: null,
     }),
     true,
   );
@@ -175,6 +177,8 @@ test("shouldQueueHighlightGeneration refreshes fallback output below the floor a
       lastGeneratedCount: 6,
       hasPublishedGeneration: true,
       hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: true,
+      msSinceLastGeneration: 0,
     }),
     true,
   );
@@ -187,6 +191,8 @@ test("shouldQueueHighlightGeneration switches to dynamic mode the moment the cou
       lastGeneratedCount: 7,
       hasPublishedGeneration: true,
       hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: true,
+      msSinceLastGeneration: 0,
     }),
     true,
   );
@@ -199,6 +205,8 @@ test("shouldQueueHighlightGeneration withholds regeneration above the floor unti
       lastGeneratedCount: 8,
       hasPublishedGeneration: true,
       hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: true,
+      msSinceLastGeneration: 60 * 60 * 1000, // 1 hour — well under the max-wait fallback
     }),
     false,
   );
@@ -211,6 +219,8 @@ test("shouldQueueHighlightGeneration regenerates once the interval above the flo
       lastGeneratedCount: 8,
       hasPublishedGeneration: true,
       hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: true,
+      msSinceLastGeneration: 0,
     }),
     true,
   );
@@ -223,7 +233,55 @@ test("shouldQueueHighlightGeneration never queues over an existing pending gener
       lastGeneratedCount: 8,
       hasPublishedGeneration: true,
       hasPendingGeneration: true,
+      hasNewApprovedMediaSinceLastGeneration: true,
+      msSinceLastGeneration: null,
     }),
     false,
+  );
+});
+
+test("shouldQueueHighlightGeneration never queues when nothing new was approved, even if churn (a deletion plus a fresh approval) left the raw count unchanged", () => {
+  // Regression for the 2026-09-26 production incident: approvedCount equals
+  // lastGeneratedCount here (as it would when one photo was permanently
+  // deleted and a different one approved in between), which a count-only
+  // comparison can't distinguish from "genuinely nothing happened."
+  assert.equal(
+    shouldQueueHighlightGeneration({
+      approvedCount: 39,
+      lastGeneratedCount: 39,
+      hasPublishedGeneration: true,
+      hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: false,
+      msSinceLastGeneration: 2 * 24 * 60 * 60 * 1000, // 2 days — time alone must not force a queue either
+    }),
+    false,
+  );
+});
+
+test("shouldQueueHighlightGeneration applies the same 'nothing new' gate below the dynamic floor too", () => {
+  assert.equal(
+    shouldQueueHighlightGeneration({
+      approvedCount: 5,
+      lastGeneratedCount: 5,
+      hasPublishedGeneration: true,
+      hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: false,
+      msSinceLastGeneration: 0,
+    }),
+    false,
+  );
+});
+
+test("shouldQueueHighlightGeneration regenerates a trailing handful of new items once enough time has passed, even without a full batch", () => {
+  assert.equal(
+    shouldQueueHighlightGeneration({
+      approvedCount: 43, // only 4 new since the last run — short of REGENERATION_INTERVAL (10)
+      lastGeneratedCount: 39,
+      hasPublishedGeneration: true,
+      hasPendingGeneration: false,
+      hasNewApprovedMediaSinceLastGeneration: true,
+      msSinceLastGeneration: 5 * 60 * 60 * 1000, // 5 hours — past the 4-hour max wait
+    }),
+    true,
   );
 });

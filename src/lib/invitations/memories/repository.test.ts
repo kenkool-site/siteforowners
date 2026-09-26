@@ -237,6 +237,12 @@ test("listApprovedMemoryDescriptors scopes to the event's approved, uploaded, an
   forbidsMomentsTables(source);
 });
 
+test("listApprovedMemoryDescriptors selects and returns each descriptor's createdAt, for requestHighlightGeneration's freshness check", () => {
+  const source = listApprovedMemoryDescriptors.toString();
+  assert.match(source, /created_at/);
+  assert.match(source, /createdAt/);
+});
+
 test("listApprovedMediaMissingDescriptors scopes to the event, excludes already-described media, and agrees with listApprovedMemoryDescriptors on processing_status", () => {
   const source = listApprovedMediaMissingDescriptors.toString();
   assert.match(source, /memory_media_descriptors/);
@@ -338,6 +344,13 @@ test("getHighlightGenerationState reads invitation_events highlight columns scop
   // selected and mapped onto the returned state as `generationError`.
   assert.match(source, /highlight_generation_error/);
   assert.match(source, /generationError/);
+});
+
+test("getHighlightGenerationState looks up the published generation's own created_at as lastGeneratedAt", () => {
+  const source = getHighlightGenerationState.toString();
+  assert.match(source, /memory_highlight_generations/);
+  assert.match(source, /created_at/);
+  assert.match(source, /lastGeneratedAt/);
 });
 
 test("getHostHighlightsOverview composes generation state with host-defined groups+counts, including the generation error detail", () => {

@@ -28,6 +28,12 @@ export interface MemoryMediaDescriptor {
   labels: Array<{ name: string; confidence: number }>;
   embedding?: number[];
   transcriptCues?: string[];
+  // When this descriptor was extracted — optional because most consumers
+  // (both classifiers) never need it; only requestHighlightGeneration's
+  // "is there content newer than the last generation" freshness check does.
+  // Kept optional rather than required to avoid rippling into every other
+  // fixture/consumer of this type across the codebase.
+  createdAt?: string;
 }
 
 // A highlight group definition (automatic, fallback, or host-defined) for one

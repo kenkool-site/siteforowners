@@ -488,7 +488,7 @@ export async function listApprovedMemoryDescriptors(eventId: string): Promise<Me
 
   const { data: descriptorRows, error: descriptorError } = await client
     .from("memory_media_descriptors")
-    .select("media_id,labels,embedding,transcript_cues")
+    .select("media_id,labels,embedding,transcript_cues,created_at")
     .in("media_id", Array.from(mediaKindById.keys()));
   if (descriptorError) throw new Error(`failed to list memory_media_descriptors: ${descriptorError.message}`);
 
@@ -500,6 +500,7 @@ export async function listApprovedMemoryDescriptors(eventId: string): Promise<Me
       labels: (row.labels as Array<{ name: string; confidence: number }>) ?? [],
       embedding: (row.embedding as number[] | undefined) ?? undefined,
       transcriptCues: (row.transcript_cues as string[] | undefined) ?? undefined,
+      createdAt: row.created_at as string,
     };
   });
 }
@@ -712,6 +713,13 @@ export interface HighlightGenerationState {
   pendingGenerationId: string | null;
   generationStatus: EventHighlightGenerationStatus;
   lastGeneratedMediaCount: number;
+  // When the published generation was queued (memory_highlight_generations'
+  // own created_at, via publishedGenerationId) — null if nothing has ever
+  // published. requestHighlightGeneration uses this as the cutoff for "is
+  // there approved+described content newer than what the last run saw,"
+  // which a raw media-count comparison can't reliably answer (deleting an
+  // old photo while approving a new one can leave the count unchanged).
+  lastGeneratedAt: string | null;
   // The short, machine-readable code failHighlightGeneration/
   // reclaimStaleHighlightGeneration persist to invitation_events on failure
   // (e.g. "EMPTY_OUTPUT", "TIMEOUT") — previously write-only: nothing read
@@ -733,12 +741,25 @@ export async function getHighlightGenerationState(eventId: string): Promise<High
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
+
+  const publishedGenerationId = (data.published_highlight_generation_id as string | null) ?? null;
+  let lastGeneratedAt: string | null = null;
+  if (publishedGenerationId) {
+    const { data: generationRow } = await client
+      .from("memory_highlight_generations")
+      .select("created_at")
+      .eq("id", publishedGenerationId)
+      .maybeSingle();
+    lastGeneratedAt = (generationRow?.created_at as string | null) ?? null;
+  }
+
   return {
     highlightMode: data.highlight_mode as HighlightMode,
-    publishedGenerationId: (data.published_highlight_generation_id as string | null) ?? null,
+    publishedGenerationId,
     pendingGenerationId: (data.pending_highlight_generation_id as string | null) ?? null,
     generationStatus: data.highlight_generation_status as EventHighlightGenerationStatus,
     lastGeneratedMediaCount: data.highlight_last_generated_media_count as number,
+    lastGeneratedAt,
     generationError: (data.highlight_generation_error as string | null) ?? null,
   };
 }
