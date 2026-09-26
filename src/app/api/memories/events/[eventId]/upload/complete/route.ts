@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
-import { verifyMemoriesUploadTicket, objectKeyForVideoPoster } from "@/lib/invitations/memories/upload-tickets";
+import { verifyMemoriesUploadTicket, objectKeyForVideoPoster, MAX_POSTER_UPLOAD_BYTES } from "@/lib/invitations/memories/upload-tickets";
 import { getMemoryMediaById, markMemoryMediaUploaded, markVideoMemoryMediaReady } from "@/lib/invitations/memories/repository";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 import { moderateMedia } from "@/app/api/memories/moderate/moderate-media";
@@ -40,9 +40,16 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       // queue would show a video with no thumbnail to review.
       const posterKey = objectKeyForVideoPoster(eventId, parsedBody.mediaId);
       const storage = new R2StorageProvider();
-      const posterExists = await storage.objectExists(posterKey);
-      if (!posterExists) {
+      // The poster's presigned upload URL can't sign an exact expected size
+      // (see upload/init's own comment on that call) since the poster isn't
+      // captured until after that URL is issued — so the size cap is
+      // enforced here instead, against the real uploaded object.
+      const posterSizeBytes = await storage.getObjectSizeBytes(posterKey);
+      if (posterSizeBytes === null) {
         return NextResponse.json({ error: "poster upload not found" }, { status: 409 });
+      }
+      if (posterSizeBytes > MAX_POSTER_UPLOAD_BYTES) {
+        return NextResponse.json({ error: "poster upload too large" }, { status: 400 });
       }
       await markVideoMemoryMediaReady(parsedBody.mediaId, media.objectKeyOriginal, posterKey);
 

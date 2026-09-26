@@ -43,14 +43,6 @@ const ALLOWED_CONTENT_TYPES = new Set([
 // 4K/30fps clips at the 60s duration cap.
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 const MAX_MEDIA_PER_EVENT = 2000;
-// Server-enforced ceiling for the poster JPEG's presigned upload. The client
-// now caps the captured poster frame at 1600px on its longest side (see
-// GuestUploadView.tsx's capturePosterFrame/MAX_POSTER_DIMENSION_PX), which
-// should never produce more than a few hundred KB at reasonable JPEG
-// quality — 2MB is generous headroom above that while still being a real,
-// enforced limit, matching the main upload's own contentLength enforcement
-// below.
-const MAX_POSTER_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 export async function POST(request: NextRequest, { params }: { params: { eventId: string } }) {
   if (!isSameOrigin(request)) {
@@ -142,14 +134,21 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     // Video is moderated via a client-captured poster frame (see the
     // ALLOWED_KINDS comment above) — issue a second presigned PUT so the guest
     // client can upload that frame as a plain JPEG alongside the video itself.
+    //
+    // Deliberately NOT passing a contentLength here (unlike the main upload
+    // above, which passes the client-reported real file size): the poster
+    // doesn't exist yet at this point — it's captured client-side, after this
+    // response — so there is no real size to sign. A presigned S3/R2 PUT URL's
+    // Content-Length becomes part of its signature (confirmed by tracing
+    // @smithy/signature-v4: content-length isn't in ALWAYS_UNSIGNABLE_HEADERS
+    // or excluded elsewhere in this codebase's usage), so signing a guessed
+    // cap here made R2 reject the real poster PUT with a signature mismatch
+    // whenever its actual size didn't exactly equal the guess — which is
+    // essentially always. The size cap is enforced post-hoc instead, in
+    // upload/complete, once the real uploaded object's size is known.
     const posterUploadUrl =
       mediaKind === "video"
-        ? await storage.createPresignedUploadUrl(
-            objectKeyForVideoPoster(eventId, mediaId),
-            "image/jpeg",
-            15 * 60,
-            MAX_POSTER_UPLOAD_BYTES,
-          )
+        ? await storage.createPresignedUploadUrl(objectKeyForVideoPoster(eventId, mediaId), "image/jpeg", 15 * 60)
         : undefined;
 
     return NextResponse.json({ mediaId, ticket, uploadUrl, ...(posterUploadUrl ? { posterUploadUrl } : {}) });

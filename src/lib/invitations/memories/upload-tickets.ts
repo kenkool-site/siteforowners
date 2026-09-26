@@ -62,6 +62,21 @@ export function objectKeyForVideoPoster(eventId: string, mediaId: string): strin
   return `posters/${eventId}/${mediaId}.jpg`;
 }
 
+// Ceiling for the poster JPEG's actual uploaded size, checked post-hoc at
+// upload/complete via R2StorageProvider.getObjectSizeBytes (see that route's
+// own comment for why this can't be enforced as the presigned PUT URL's
+// signed Content-Length the way the main upload's cap is: the poster's real
+// size isn't known until the client captures it, well after upload/init has
+// already presigned the URL — signing an exact-match Content-Length there
+// against a guessed value broke every real poster upload with a signature
+// mismatch, since the guessed value essentially never equals the real
+// compressed JPEG's byte size). The client caps the captured poster frame at
+// 1600px on its longest side (GuestUploadView.tsx's MAX_POSTER_DIMENSION_PX),
+// which should never produce more than a few hundred KB at reasonable JPEG
+// quality — 2MB is generous headroom above that while still being a real,
+// enforced limit.
+export const MAX_POSTER_UPLOAD_BYTES = 2 * 1024 * 1024;
+
 export function createMemoriesUploadTicket(
   eventId: string,
   mediaId: string,
