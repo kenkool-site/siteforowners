@@ -128,6 +128,20 @@ async function withMountedLightbox(
   }
 }
 
+test("locks background scroll while open and restores it once closed", async () => {
+  let capturedDom: JSDOM | null = null;
+  await withMountedLightbox([mediaItem("m1")], 0, async ({ dom }) => {
+    capturedDom = dom;
+    const body = dom.window.document.body;
+    assert.equal(body.style.overflow, "hidden");
+    assert.equal(body.style.position, "fixed");
+  });
+  assert.ok(capturedDom, "expected dom to have been captured during mount");
+  const body = capturedDom!.window.document.body;
+  assert.equal(body.style.overflow, "", "expected overflow restored after the lightbox unmounts");
+  assert.equal(body.style.position, "", "expected position restored after the lightbox unmounts");
+});
+
 test("a video item renders a <video controls> element with the display URL, not an <img>", async () => {
   await withMountedLightbox([mediaItem("m1", { mediaKind: "video" })], 0, async ({ dom }) => {
     const videoEl = dom.window.document.querySelector("video");

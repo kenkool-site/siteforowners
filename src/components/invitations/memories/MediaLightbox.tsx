@@ -131,6 +131,36 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
     };
   }, []);
 
+  // Locks background scroll while the lightbox is open — this component is
+  // only ever mounted while it's showing (the caller conditionally renders
+  // it), so lock on mount and restore on unmount, unconditionally. Matches
+  // InvitationRsvpDialog's own scroll-lock: overflow:hidden alone doesn't
+  // reliably stop background scroll on iOS Safari, which still lets a touch
+  // gesture on this fixed overlay scroll the page underneath — pinning the
+  // body itself via position:fixed (with top offset by scrollY, corrected
+  // for on restore) is what actually prevents that everywhere.
+  useEffect(() => {
+    const scrollY = window.scrollY;
+    const body = document.body;
+    const previousBodyStyle = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    return () => {
+      body.style.position = previousBodyStyle.position;
+      body.style.top = previousBodyStyle.top;
+      body.style.width = previousBodyStyle.width;
+      body.style.overflow = previousBodyStyle.overflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, []);
+
   const activeMedia = detour ? detour.media : media;
   const activeIndex = detour ? detour.index : index;
   const item = activeMedia[activeIndex];
