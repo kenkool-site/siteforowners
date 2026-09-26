@@ -714,6 +714,9 @@
       "openMap": "Abrir mapa",
       "googleCalendar": "Agregar a Google Calendar",
       "downloadCalendar": "Descargar archivo de calendario",
+      "eventSchedule": {
+        "title": "Cronograma del evento"
+      },
       "travel": {
         "title": "Información de viaje",
         "airports": "Aeropuertos más cercanos",

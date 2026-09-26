@@ -282,6 +282,30 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
 
         {event.styleGuide && <div className={`${rhythm}`} style={{ order: sectionOrder("details") + 0.25 }}><InvitationStyleGuide guide={event.styleGuide} titleClass={titleFont} accent={recipe.palette.accent} surface={recipe.palette.surface} /></div>}
 
+        {(event.eventSchedule ?? []).length > 0 && (
+          <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.1 }} aria-labelledby="invitation-schedule-heading">
+            <h2 id="invitation-schedule-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("eventSchedule.title")}</h2>
+            <div className="relative mt-6 pl-7">
+              <div className="absolute bottom-1 left-[5px] top-1 w-px" style={{ backgroundColor: recipe.palette.accent, opacity: 0.35 }} />
+              {(event.eventSchedule ?? []).map((item, index) => (
+                <div key={`${item.name}:${index}`} className="relative pb-7 last:pb-0">
+                  <div className="absolute -left-7 top-1.5 size-2.5 rounded-full" style={{ backgroundColor: recipe.palette.accent }} />
+                  <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
+                    {new Intl.DateTimeFormat(event.locale, { hour: "numeric", minute: "2-digit", timeZone: event.timezone }).format(new Date(item.startsAt))}
+                  </p>
+                  <p className="mt-1 text-lg">{item.name}</p>
+                  {(item.locationName || item.locationAddress) && (
+                    <p className="mt-1 flex items-start gap-1.5 text-sm opacity-75">
+                      <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                      <span>{[item.locationName, item.locationAddress].filter(Boolean).join(" — ")}</span>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
         {(event.additionalSections ?? []).map((section, index) => (
           <section
             key={`${section.heading}:${index}`}
