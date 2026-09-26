@@ -175,6 +175,7 @@ test("management projection omits owner PIN and event passcode hashes", async ()
         hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
       },
       additional_sections: [{ heading: "Dress Code", content: "Formal attire" }],
+      event_schedule: [{ name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z" }],
       theme_key: "classic",
       primary_color: "#1f2937",
       accent_color: "#d4a373",
@@ -234,6 +235,7 @@ test("management projection omits owner PIN and event passcode hashes", async ()
     hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
   });
   assert.deepEqual(event.additionalSections, [{ heading: "Dress Code", content: "Formal attire" }]);
+  assert.deepEqual(event.eventSchedule, [{ name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z" }]);
 });
 
 test("public lookup preserves the exact slug and returns only presentation fields plus aggregates", async () => {
@@ -291,6 +293,52 @@ test("public lookup preserves the exact slug and returns only presentation field
     airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }],
   });
   assert.deepEqual(invitation.event.additionalSections, [{ heading: "Wedding Day Schedule", content: "Ceremony @ 1pm" }]);
+});
+
+test("public lookup exposes the event schedule", async () => {
+  const invitation = await getPublicInvitationBySlug("Mia-And-Lee ", {
+    findBySlug: async () => ({
+      id: "event-1",
+      slug: "Mia-And-Lee ",
+      event_type: "wedding",
+      locale: "en",
+      title: "Mia & Lee",
+      honoree_names: "Mia and Lee",
+      description: "Celebrate with us",
+      starts_at: "2026-10-03T20:00:00.000Z",
+      ends_at: null,
+      timezone: "America/New_York",
+      venue_name: "The Garden",
+      venue_url: "https://venue.example/",
+      address: "42 Celebration Way",
+      map_url: null,
+      travel_info: { airports: [], hotels: [{ name: "The Grand", address: "10 Main St", recommended: true }] },
+      additional_sections: [{ heading: "Wedding Day Schedule", content: "Ceremony @ 1pm" }],
+      event_schedule: [{ name: "Reception", startsAt: "2026-10-03T19:00:00.000Z", locationName: "The Grand Ballroom" }],
+      theme_key: "classic",
+      primary_color: "#18253A",
+      accent_color: "#9B6A44",
+      font_pair_key: "fraunces-geist",
+      designed_invite_path: null,
+      cover_image_path: null,
+      video_path: null,
+      passcode_hash: "stored-passcode-hash",
+      show_public_rsvp_count: true,
+      rsvp_deadline: null,
+      status: "published",
+      expire_at: null,
+      invitation_rsvps: [
+        { attending: true, party_size: 4 },
+        { attending: false, party_size: 0 },
+        { attending: false, party_size: 0 },
+      ],
+    }),
+  });
+
+  assert.ok(invitation);
+  assert.deepEqual(invitation.event.eventSchedule, [
+    { name: "Reception", startsAt: "2026-10-03T19:00:00.000Z", locationName: "The Grand Ballroom" },
+  ]);
 });
 
 test("event update rows map editable fields without inventing passcode changes", () => {

@@ -5,6 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { JSDOM } from "jsdom";
 import enMessages from "../../../../messages/en.json";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import type { EventScheduleItem } from "@/lib/invitations/event-schedule";
 
 Object.assign(globalThis, { React });
 
@@ -37,6 +38,7 @@ async function withMountedComponent(
   initialMoments: MemoryMoment[],
   fetchImpl: (url: string, init?: RequestInit) => Promise<Response>,
   callback: (ctx: { dom: JSDOM; calls: FetchCall[] }) => Promise<void>,
+  initialEventSchedule: EventScheduleItem[] = [],
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test" });
   const originals = new Map(GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
@@ -67,7 +69,7 @@ async function withMountedComponent(
     await act(async () => {
       root.render(
         <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-          <OwnerMomentsManager eventId="event-1" initialMoments={initialMoments} />
+          <OwnerMomentsManager eventId="event-1" initialMoments={initialMoments} initialEventSchedule={initialEventSchedule} />
         </NextIntlClientProvider>,
       );
     });
@@ -236,7 +238,7 @@ test("Delete does nothing if the host cancels the confirmation dialog", async ()
     await act(async () => {
       root.render(
         <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-          <OwnerMomentsManager eventId="event-1" initialMoments={[moment({ name: "Ceremony" })]} />
+          <OwnerMomentsManager eventId="event-1" initialMoments={[moment({ name: "Ceremony" })]} initialEventSchedule={[]} />
         </NextIntlClientProvider>,
       );
     });
@@ -273,4 +275,88 @@ test("Save rejects a blank name locally, without sending a request", async () =>
     assert.ok(!calls.some((c) => c.method === "PATCH"), "a blank name must be rejected before any request");
     assert.match(dom.window.document.body.textContent ?? "", /Name is required/);
   });
+});
+
+test("Create Moments from your Event Schedule posts one create-moment request per checked item, using each item's inferred range", async () => {
+  const schedule = [
+    { name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z" },
+    { name: "Cocktail Hour", startsAt: "2026-10-03T18:30:00.000Z" },
+  ];
+  await withMountedComponent(
+    [],
+    async (url, init) => {
+      if (init?.method === "POST") return jsonResponse({ moment: { id: "new-moment", name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z", endsAt: "2026-10-03T18:30:00.000Z", sortOrder: 0 } });
+      return jsonResponse({});
+    },
+    async ({ dom, calls }) => {
+      const ceremonyCheckbox = Array.from(dom.window.document.querySelectorAll('input[type="checkbox"]'))[0] as HTMLInputElement;
+      click(dom, ceremonyCheckbox);
+      await flush();
+
+      click(dom, byText(dom, "button", "Add selected as Moments"));
+      await flush();
+
+      const postCalls = calls.filter((c) => c.method === "POST");
+      assert.equal(postCalls.length, 1, "expected exactly one create-moment request for the one checked item");
+      assert.equal((postCalls[0].body as { name: string }).name, "Ceremony");
+      assert.equal((postCalls[0].body as { startsAt: string }).startsAt, "2026-10-03T17:00:00.000Z");
+      assert.equal((postCalls[0].body as { endsAt: string }).endsAt, "2026-10-03T18:30:00.000Z");
+      assert.ok(!calls.some((c) => c.method === "PATCH"), "creating Moments from the schedule must never write back to event_schedule");
+    },
+    schedule,
+  );
+});
+
+test("a partial failure across multiple selected items only leaves the failed item checked — the succeeded item's Moment appears and its checkbox clears", async () => {
+  const schedule = [
+    { name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z" },
+    { name: "Cocktail Hour", startsAt: "2026-10-03T18:30:00.000Z" },
+  ];
+  let postCount = 0;
+  await withMountedComponent(
+    [],
+    async (url, init) => {
+      if (init?.method === "POST") {
+        postCount += 1;
+        // First POST (Ceremony) succeeds; second POST (Cocktail Hour)
+        // fails — simulates a transient error partway through a
+        // multi-item create so the checkbox/state handling for the item
+        // that already succeeded can be verified independently of the
+        // one that didn't.
+        if (postCount === 1) {
+          return jsonResponse({ moment: { id: "new-moment", name: "Ceremony", startsAt: "2026-10-03T17:00:00.000Z", endsAt: "2026-10-03T18:30:00.000Z", sortOrder: 0 } });
+        }
+        return jsonResponse({ error: "boom" }, 500);
+      }
+      return jsonResponse({});
+    },
+    async ({ dom, calls }) => {
+      const checkboxes = Array.from(dom.window.document.querySelectorAll('input[type="checkbox"]')) as HTMLInputElement[];
+      click(dom, checkboxes[0]);
+      await flush();
+      click(dom, checkboxes[1]);
+      await flush();
+
+      click(dom, byText(dom, "button", "Add selected as Moments"));
+      await flush();
+
+      const postCalls = calls.filter((c) => c.method === "POST");
+      assert.equal(postCalls.length, 2, "expected a create-moment request for each checked item, in order");
+      assert.ok(!calls.some((c) => c.method === "PATCH"), "creating Moments from the schedule must never write back to event_schedule");
+
+      assert.ok(
+        dom.window.document.querySelector('button[aria-label="Edit Ceremony"]'),
+        "expected the succeeded item's Moment to appear in the rendered moments list, not be discarded by the later failure",
+      );
+
+      const [ceremonyCheckbox, cocktailCheckbox] = Array.from(
+        dom.window.document.querySelectorAll('input[type="checkbox"]'),
+      ) as HTMLInputElement[];
+      assert.equal(ceremonyCheckbox.checked, false, "the succeeded item's checkbox must clear so a retry can't duplicate it");
+      assert.equal(cocktailCheckbox.checked, true, "the failed item's checkbox must remain checked so a retry can re-attempt only it");
+
+      assert.match(dom.window.document.body.textContent ?? "", /Could not create those Moments/, "expected the failure to surface an error");
+    },
+    schedule,
+  );
 });

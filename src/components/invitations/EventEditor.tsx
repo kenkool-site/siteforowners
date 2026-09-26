@@ -18,6 +18,7 @@ import type { InvitationWording } from "@/lib/invitations/wording";
 import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import type { InvitationStyleGuide } from "@/lib/invitations/style-guide";
 import type { InvitationAdditionalSection } from "@/lib/invitations/additional-sections";
+import { type EventScheduleItem, MAX_EVENT_SCHEDULE_ITEMS, MAX_EVENT_SCHEDULE_NAME_LENGTH, MAX_EVENT_SCHEDULE_LOCATION_NAME_LENGTH, MAX_EVENT_SCHEDULE_LOCATION_ADDRESS_LENGTH } from "@/lib/invitations/event-schedule";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -33,6 +34,7 @@ const LOCALIZED_ERROR_KEYS = new Set([
   "travelInfo",
   "styleGuide",
   "additionalSections",
+  "eventSchedule",
   "capacity", "rsvpDeadline", "passcode", "removePasscode", "notificationEmail",
   "notificationPhone", "expireAt", "submissionLimit", "emailNotificationLimit",
   "smsNotificationLimit", "media", "command",
@@ -192,6 +194,7 @@ export function EventEditor({
   const [designRecipe, setDesignRecipe] = useState<InvitationDesignRecipe | null>(event.designRecipe);
   const [styleGuide, setStyleGuide] = useState<InvitationStyleGuide | null>(event.styleGuide ?? null);
   const [additionalSections, setAdditionalSections] = useState<InvitationAdditionalSection[]>(event.additionalSections ?? []);
+  const [eventSchedule, setEventSchedule] = useState<EventScheduleItem[]>(event.eventSchedule ?? []);
   const [wordingSuggestion, setWordingSuggestion] = useState<InvitationWording | null>(null);
   const [wordingBusy, setWordingBusy] = useState(false);
   const [wordingError, setWordingError] = useState("");
@@ -274,6 +277,7 @@ export function EventEditor({
         },
         styleGuide,
         additionalSections,
+        eventSchedule,
         themeKey: stringValue(data, "themeKey"),
         fontPairKey: stringValue(data, "fontPairKey"),
         primaryColor: stringValue(data, "primaryColor"),
@@ -327,6 +331,7 @@ export function EventEditor({
       setDesignRecipe(result.event.designRecipe);
       setStyleGuide(result.event.styleGuide ?? null);
       setAdditionalSections(result.event.additionalSections ?? []);
+      setEventSchedule(result.event.eventSchedule ?? []);
       setAnalysis(result.event.referenceAnalysis);
       setDirty(false);
       setSaved(true);
@@ -738,6 +743,25 @@ export function EventEditor({
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.venueUrl")}<input name="venueUrl" type="url" defaultValue={currentEvent.venueUrl ?? ""} placeholder={t("placeholders.venueUrl")} className={inputClass} /><FieldError name="venueUrl" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
+            <details data-event-schedule-editor open={eventSchedule.length > 0} className="group mt-8 border-t border-[#ddd4e1] pt-5">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between text-lg font-semibold text-[#2B2231] outline-none focus-visible:ring-2 focus-visible:ring-[#6D456F] [&::-webkit-details-marker]:hidden">
+                {t("eventSchedule.title")}<span aria-hidden="true" className="text-2xl font-normal transition-transform group-open:rotate-45">+</span>
+              </summary>
+              <p className="mt-1 text-sm leading-6 text-[#675d6a]">{t("eventSchedule.help")}</p>
+              <div className="mt-5 space-y-5">
+                {eventSchedule.map((item, index) => (
+                  <div key={index} className="rounded-md border border-[#e1d9e4] bg-white p-4">
+                    <label className={labelClass}>{t("eventSchedule.nameLabel")}<input maxLength={MAX_EVENT_SCHEDULE_NAME_LENGTH} value={item.name} placeholder={t("eventSchedule.namePlaceholder")} onChange={(event) => setEventSchedule((items) => items.map((current, currentIndex) => currentIndex === index ? { ...current, name: event.target.value } : current))} className={inputClass} /></label>
+                    <label className={`${labelClass} mt-4`}>{t("eventSchedule.timeLabel")}<input type="datetime-local" value={toLocalInput(item.startsAt, currentEvent.timezone)} onChange={(event) => { if (!event.target.value) return; const startsAt = zonedWallTimeToUtcIso(event.target.value, currentEvent.timezone); setEventSchedule((items) => items.map((current, currentIndex) => currentIndex === index ? { ...current, startsAt } : current)); }} className={inputClass} /></label>
+                    <label className={`${labelClass} mt-4`}>{t("eventSchedule.locationNameLabel")}<input maxLength={MAX_EVENT_SCHEDULE_LOCATION_NAME_LENGTH} value={item.locationName ?? ""} placeholder={t("eventSchedule.locationNamePlaceholder")} onChange={(event) => setEventSchedule((items) => items.map((current, currentIndex) => currentIndex === index ? { ...current, locationName: event.target.value } : current))} className={inputClass} /></label>
+                    <label className={`${labelClass} mt-4`}>{t("eventSchedule.locationAddressLabel")}<input maxLength={MAX_EVENT_SCHEDULE_LOCATION_ADDRESS_LENGTH} value={item.locationAddress ?? ""} placeholder={t("eventSchedule.locationAddressPlaceholder")} onChange={(event) => setEventSchedule((items) => items.map((current, currentIndex) => currentIndex === index ? { ...current, locationAddress: event.target.value } : current))} className={inputClass} /></label>
+                    <button type="button" onClick={() => { setEventSchedule((items) => items.filter((_, currentIndex) => currentIndex !== index)); markDirty(); }} className="mt-3 min-h-11 text-sm font-semibold text-[#7f2929] underline underline-offset-4">{t("eventSchedule.remove")}</button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" disabled={eventSchedule.length >= MAX_EVENT_SCHEDULE_ITEMS} onClick={() => { setEventSchedule((items) => [...items, { name: "", startsAt: currentEvent.startsAt ?? new Date().toISOString() }]); markDirty(); }} className="mt-4 min-h-11 rounded-md border border-[#6D456F] bg-white px-4 py-2 text-sm font-semibold text-[#55405a] disabled:opacity-50">{t("eventSchedule.add")}</button>
+              <FieldError name="eventSchedule" errors={errors} />
+            </details>
             <details data-style-guide-editor open={Boolean(styleGuide?.note || styleGuide?.colors.length)} className="group mt-8 border-t border-[#ddd4e1] pt-5">
               <summary className="flex min-h-11 cursor-pointer items-center justify-between text-sm font-semibold text-[#2B2231]">
                 <span>{t("styleGuide.title")}</span><span aria-hidden="true" className="text-lg group-open:rotate-45">+</span>

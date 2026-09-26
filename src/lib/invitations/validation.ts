@@ -6,6 +6,7 @@ import { parseInvitationTravelInfo, type InvitationTravelInfo } from "./travel";
 import { validatePlatformSubdomain } from "@/lib/subdomain";
 import { parseInvitationStyleGuide, type InvitationStyleGuide } from "./style-guide";
 import { parseInvitationAdditionalSections, type InvitationAdditionalSection } from "./additional-sections";
+import { parseInvitationEventSchedule, type EventScheduleItem } from "./event-schedule";
 
 export type ParsedRsvpInput = {
   primaryName: string;
@@ -47,6 +48,7 @@ export type InvitationEventUpdate = {
   travelInfo?: InvitationTravelInfo;
   styleGuide?: InvitationStyleGuide | null;
   additionalSections?: InvitationAdditionalSection[];
+  eventSchedule?: EventScheduleItem[];
   themeKey?: InvitationThemeKey;
   primaryColor?: string;
   accentColor?: string;
@@ -239,6 +241,12 @@ export function parseEventUpdate(
     const sections = parseInvitationAdditionalSections(body.additionalSections);
     if (sections.ok) value.additionalSections = sections.value;
     else errors.additionalSections = sections.error;
+  }
+
+  if ("eventSchedule" in body) {
+    const schedule = parseInvitationEventSchedule(body.eventSchedule);
+    if (schedule.ok) value.eventSchedule = schedule.value;
+    else errors.eventSchedule = schedule.error;
   }
 
   if ("locale" in body) {

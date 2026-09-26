@@ -1,5 +1,6 @@
 // src/lib/invitations/memories/repository.ts
 import { createAdminClient } from "@/lib/supabase/admin";
+import { normalizeInvitationEventSchedule, type EventScheduleItem } from "@/lib/invitations/event-schedule";
 import type { MediaKind, MemoriesGuestLevel, MemoryMedia } from "./types";
 import { allowedModerationStatuses, buildMemoriesEventSummary, moderationStatusForFilter, type HostModerationAction, type HostReviewFilter, type MemoriesEventSummary } from "./host";
 import type {
@@ -148,6 +149,17 @@ export async function getEventMemoriesSettings(
     startsAt: (data.starts_at as string | null) ?? null,
     findMeEnabled: data.find_me_enabled as boolean,
   };
+}
+
+export async function getEventSchedule(eventId: string): Promise<EventScheduleItem[]> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("invitation_events")
+    .select("event_schedule")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error || !data) return [];
+  return normalizeInvitationEventSchedule(data.event_schedule);
 }
 
 export async function updateEventMemoriesSettings(

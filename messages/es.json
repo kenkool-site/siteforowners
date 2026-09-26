@@ -217,7 +217,13 @@
           "deleteFor": "Eliminar {name}",
           "deleteConfirm": "¿Eliminar este momento? Las fotos permanecen — solo dejarán de agruparse bajo él.",
           "saveError": "No se pudo guardar ese cambio — revisa los horarios e inténtalo de nuevo.",
-          "deleteError": "No se pudo eliminar ese momento. Inténtalo de nuevo."
+          "deleteError": "No se pudo eliminar ese momento. Inténtalo de nuevo.",
+          "fromSchedule": {
+            "title": "Crear Momentos desde tu Cronograma del Evento",
+            "add": "Agregar seleccionados como Momentos",
+            "adding": "Agregando…",
+            "error": "No se pudieron crear esos Momentos. Inténtalo de nuevo."
+          }
         },
         "highlights": {
           "title": "Destacados IA",
@@ -486,6 +492,19 @@
         "add": "Agregar sección",
         "remove": "Eliminar sección"
       },
+      "eventSchedule": {
+        "title": "Cronograma del evento",
+        "help": "Enumera cada parte del día con su propia hora, para que los invitados vean un cronograma real en lugar de un párrafo.",
+        "nameLabel": "Nombre",
+        "namePlaceholder": "Ceremonia de boda",
+        "timeLabel": "Hora",
+        "locationNameLabel": "Nombre del lugar (opcional)",
+        "locationNamePlaceholder": "Iglesia de Santa María",
+        "locationAddressLabel": "Dirección (opcional)",
+        "locationAddressPlaceholder": "Calle Capilla 123, Brooklyn, NY",
+        "add": "Agregar elemento",
+        "remove": "Quitar elemento"
+      },
       "frame": {
         "title": "Marco de portada",
         "help": "Elija un marco que use el color de acento de esta invitación.",
@@ -658,6 +677,7 @@
         "travelInfo": "Revise los detalles de viaje. Complete cada fila utilizada y elija como máximo un hotel recomendado.",
         "styleGuide": "Revise la nota de estilo y los colores del evento. Cada color necesita un nombre.",
         "additionalSections": "Complete o elimine cada sección adicional. Puede agregar hasta ocho.",
+        "eventSchedule": "Completa o elimina cada elemento del cronograma, y verifica que cada hora sea válida.",
         "media": "Agregue contenido multimedia válido antes de publicar.",
         "command": "Elija una acción de estado válida.",
         "ownerName": "Ingrese el nombre del propietario.",
@@ -700,6 +720,9 @@
       "openMap": "Abrir mapa",
       "googleCalendar": "Agregar a Google Calendar",
       "downloadCalendar": "Descargar archivo de calendario",
+      "eventSchedule": {
+        "title": "Cronograma del evento"
+      },
       "travel": {
         "title": "Información de viaje",
         "airports": "Aeropuertos más cercanos",
