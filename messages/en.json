@@ -486,6 +486,19 @@
         "add": "Add section",
         "remove": "Remove section"
       },
+      "eventSchedule": {
+        "title": "Event schedule",
+        "help": "List each part of the day with its own time, so guests see a real schedule instead of a paragraph.",
+        "nameLabel": "Name",
+        "namePlaceholder": "Wedding Ceremony",
+        "timeLabel": "Time",
+        "locationNameLabel": "Location name (optional)",
+        "locationNamePlaceholder": "St. Mary's Catholic Church",
+        "locationAddressLabel": "Address (optional)",
+        "locationAddressPlaceholder": "123 Chapel St, Brooklyn, NY",
+        "add": "Add schedule item",
+        "remove": "Remove item"
+      },
       "frame": {
         "title": "Cover frame",
         "help": "Choose a frame that uses this invitation's accent color.",
@@ -658,6 +671,7 @@
         "travelInfo": "Check the travel details. Complete each used row and choose no more than one recommended hotel.",
         "styleGuide": "Check the style note and event colors. Each color needs a name.",
         "additionalSections": "Complete or remove each additional section. You can add up to eight.",
+        "eventSchedule": "Complete or remove each schedule item, and make sure every time is valid.",
         "media": "Add valid invitation media before publishing.",
         "command": "Choose a valid invitation status action.",
         "ownerName": "Enter the owner's name.",
