@@ -3,6 +3,9 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "InviteSpot",
   description: "Digital invitations and shared photos for your event.",
+  alternates: {
+    canonical: "https://www.invitespot.app/",
+  },
 };
 
 export default function InviteSpotLandingPage() {
