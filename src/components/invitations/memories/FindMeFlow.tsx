@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { Camera } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { MediaLightbox } from "./MediaLightbox";
@@ -21,17 +22,25 @@ export function FindMeFlow({ eventId, accent, surface, onClose }: { eventId: str
   const [status, setStatus] = useState<FindMeStatus>("idle");
   const [results, setResults] = useState<PublicMemoryMedia[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  // Explicit, affirmative gate — the guest must actively check this before
+  // the capture button becomes usable at all, rather than consent being
+  // implied by the mere presence of descriptive copy on screen. This is the
+  // mechanism half of biometric-consent practice; the exact wording is not
+  // a substitute for legal review in jurisdictions with specific statutory
+  // requirements (e.g. Illinois' BIPA).
+  const [agreed, setAgreed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   function resetToIdle() {
     setStatus("idle");
     setResults([]);
+    setAgreed(false);
     if (inputRef.current) inputRef.current.value = "";
   }
 
   async function handleFile(fileList: FileList | null) {
     const file = fileList?.[0];
-    if (!file) return;
+    if (!file || !agreed) return;
     if (!ACCEPTED_SELFIE_TYPES.has(file.type)) {
       setStatus("error");
       return;
@@ -74,16 +83,34 @@ export function FindMeFlow({ eventId, accent, surface, onClose }: { eventId: str
         <div className="space-y-4 text-center">
           <h2 id="find-me-title" className="text-xl font-semibold">{t("consentTitle")}</h2>
           <p className="text-sm opacity-80">{t("consentBody")}</p>
+          <label className="mx-auto flex max-w-xs items-start gap-2.5 text-left text-sm">
+            <input
+              type="checkbox"
+              checked={agreed}
+              onChange={(event) => setAgreed(event.target.checked)}
+              className="mt-0.5 size-5 shrink-0"
+              style={{ accentColor: accent }}
+            />
+            {t("consentAgree")}
+          </label>
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png"
             capture="user"
-            aria-label={t("captureLabel")}
-            disabled={status === "searching"}
+            className="hidden"
             onChange={(event) => void handleFile(event.target.files)}
-            className="mx-auto block"
           />
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={!agreed || status === "searching"}
+            className="mx-auto flex min-h-14 items-center justify-center gap-3 rounded-full px-6 py-3 text-base font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.16)] disabled:cursor-not-allowed disabled:opacity-40"
+            style={{ backgroundColor: accent }}
+          >
+            <Camera className="size-5" />
+            {t("captureLabel")}
+          </button>
           {status === "searching" && <p role="status" className="text-sm font-medium">{t("searching")}</p>}
         </div>
       )}
