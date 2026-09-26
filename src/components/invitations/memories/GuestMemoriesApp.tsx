@@ -29,6 +29,7 @@ export function GuestMemoriesApp({
   background,
   text,
   surface,
+  findMeEnabled,
 }: {
   eventId: string;
   eventTitle: string;
@@ -36,6 +37,7 @@ export function GuestMemoriesApp({
   background: string;
   text: string;
   surface: string;
+  findMeEnabled: boolean;
 }) {
   const t = useTranslations("invitations.public.memories.landing");
   const tUpload = useTranslations("invitations.public.memories.upload");
@@ -115,7 +117,7 @@ export function GuestMemoriesApp({
         {sessionError && <p role="alert" className="mx-5 mb-3 text-sm text-red-700 sm:mx-7">{tUpload("genericError")}</p>}
 
         <main>
-          {tab === "gallery" && <GuestGalleryView eventId={eventId} accent={accent} surface={surface} uploads={uploads} />}
+          {tab === "gallery" && <GuestGalleryView eventId={eventId} accent={accent} surface={surface} uploads={uploads} findMeEnabled={findMeEnabled} />}
           {tab === "moments" && <GuestMomentsView eventId={eventId} accent={accent} surface={surface} />}
           {tab === "highlights" && <GuestAiHighlightView eventId={eventId} accent={accent} surface={surface} />}
         </main>

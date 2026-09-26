@@ -8,18 +8,21 @@ import { visibleOptimisticUploads, type GuestUploadPreview } from "@/lib/invitat
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { groupMediaByTime } from "@/lib/invitations/memories/gallery-view";
 import { MediaLightbox } from "./MediaLightbox";
+import { FindMeFlow } from "./FindMeFlow";
 
 const IDLE_POLL_MS = 15_000;
 const PUBLISHING_POLL_MS = 2_000;
 
-export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventId: string; accent: string; surface: string; uploads: GuestUploadPreview[] }) {
+export function GuestGalleryView({ eventId, accent, surface, uploads, findMeEnabled }: { eventId: string; accent: string; surface: string; uploads: GuestUploadPreview[]; findMeEnabled: boolean }) {
   const t = useTranslations("invitations.public.memories.gallery");
+  const tFindMe = useTranslations("invitations.public.memories.findMe");
   const [media, setMedia] = useState<PublicMemoryMedia[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [findMeOpen, setFindMeOpen] = useState(false);
   const previousIds = useRef<Set<string>>(new Set());
   const searchParams = useSearchParams();
   // A shared photo link (see MediaLightbox's share button) lands here as
@@ -92,6 +95,8 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
   return <div className="space-y-8 px-3 pb-48 pt-2 sm:px-5">
     {newCount > 0 && <button type="button" onClick={() => setNewCount(0)} className="sticky top-3 z-10 mx-auto block min-h-10 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg" style={{ backgroundColor: accent }}>{t("newPhotos", { count: newCount })}</button>}
 
+    {findMeEnabled && <button type="button" onClick={() => setFindMeOpen(true)} className="mx-auto block min-h-11 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md" style={{ backgroundColor: accent }}>{tFindMe("banner")}</button>}
+
     {hasJustAdded && <section aria-labelledby="just-added-heading">
       <div className="mb-3 flex items-center gap-3">
         <h2 id="just-added-heading" className="shrink-0 text-lg font-semibold" style={{ color: accent }}>{t("justAdded")}</h2>
@@ -133,5 +138,7 @@ export function GuestGalleryView({ eventId, accent, surface, uploads }: { eventI
     {lightboxIndex !== null && (
       <MediaLightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
     )}
+
+    {findMeOpen && <FindMeFlow eventId={eventId} accent={accent} surface={surface} onClose={() => setFindMeOpen(false)} />}
   </div>;
 }

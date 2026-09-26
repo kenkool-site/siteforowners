@@ -57,6 +57,7 @@ export default async function GuestMemoriesPage({ params, searchParams }: { para
         background={recipe.palette.background}
         text={recipe.palette.text}
         surface={recipe.palette.surface}
+        findMeEnabled={settings.findMeEnabled}
       />
     </InvitationPublicProvider>
   );

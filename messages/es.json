@@ -839,6 +839,19 @@
           "nearbyThumbnailLabel": "Ver foto relacionada",
           "share": "Compartir",
           "linkCopied": "¡Enlace copiado!"
+        },
+        "findMe": {
+          "banner": "Encuéntrate en estas fotos",
+          "consentTitle": "Encuentra tus fotos",
+          "consentBody": "Toma o sube una selfie y la compararemos con las fotos de este evento para encontrar las tuyas. Tu selfie nunca se guarda: se usa una vez y luego se descarta.",
+          "captureLabel": "Toma o elige una selfie",
+          "searching": "Buscándote…",
+          "resultsTitle": "Fotos tuyas",
+          "empty": "No se encontraron coincidencias — prueba con una selfie más clara, o vuelve más tarde cuando se compartan más fotos.",
+          "error": "Algo salió mal. Inténtalo de nuevo.",
+          "tooManyAttempts": "Has alcanzado el límite de búsquedas por ahora. Inténtalo de nuevo mañana.",
+          "tryAgain": "Probar con otra selfie",
+          "close": "Cerrar"
         }
       }
     },
