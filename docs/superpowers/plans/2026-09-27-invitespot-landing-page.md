@@ -1618,47 +1618,84 @@ export default async function InviteSpotLandingPage({ searchParams }: { searchPa
 
 - [ ] **Step 5: Update the render test**
 
+**Do not import `./page` in this test file.** `page.tsx` (Step 4) imports
+`getPublicInvitationBySlug` from `@/lib/invitations/repository` at module
+scope — correct for production (Next.js's bundler resolves that module's
+`"react-server"` export condition when building real Server Component
+code), but `repository.ts` starts with `import "server-only"`, whose
+`index.js` is an unconditional `throw new Error(...)` with no runtime
+check at all (confirmed by reading `node_modules/server-only/index.js`
+directly) — the only reason it doesn't throw in production is Next.js's
+own bundler picking the package's `"react-server"` conditional export
+instead of `"default"`, a resolution plain Node (and therefore `tsx
+--test`, which has no react-server condition configured) does not do.
+Importing `./page` here would crash this entire test file at import
+time, before any test body runs — the exact same failure Task 4 already
+hit and fixed for `public-access.ts` (see that task's ledger). There is
+no existing precedent in this codebase for render-testing a `page.tsx`
+that also imports `repository.ts`, so this is the first task to hit it;
+the correct approach is to test `InviteSpotLandingContent` directly —
+it takes `referralName`/`referralSlug` as plain props with zero
+repository dependency, and it alone controls every piece of rendered
+output the original two tests cared about (hero, form, referral banner).
+
 Replace the full contents of `src/app/invitespot/page.render.test.tsx`:
 
 ```tsx
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import InviteSpotLandingPage from "./page";
+import { NextIntlClientProvider } from "next-intl";
+import enMessages from "../../../messages/en.json";
+import { InviteSpotLandingContent } from "@/components/invitespot/InviteSpotLandingContent";
 
 Object.assign(globalThis, { React });
 
-async function render(searchParams: { from?: string } = {}): Promise<string> {
-  // The page wraps its own content in InvitationPublicProvider (which
-  // supplies NextIntlClientProvider itself) — call the async Server
-  // Component directly (valid in a plain Node test, matching how
-  // src/app/invitations/login/page.render.test.tsx tests the same kind of
-  // component) and render the resolved JSX with no additional wrapping.
-  const element = await InviteSpotLandingPage({ searchParams });
-  return renderToStaticMarkup(element);
+function render(referralName: string | null, referralSlug: string | null): string {
+  return renderToStaticMarkup(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
+      <InviteSpotLandingContent referralName={referralName} referralSlug={referralSlug} />
+    </NextIntlClientProvider>,
+  );
 }
 
-test("the invitespot.app landing page renders the hero and form without a referral param", async () => {
-  const html = await render();
+test("the invitespot.app landing page renders the hero and form without a referral name", () => {
+  const html = render(null, null);
   assert.match(html, /You send the details\. We build the page\./);
   assert.match(html, /Tell us about your event/);
   assert.doesNotMatch(html, /You came from/);
 });
 
-test("the invitespot.app landing page shows no referral banner for an unknown slug", async () => {
-  const html = await render({ from: "no-such-event-slug-at-all" });
-  assert.doesNotMatch(html, /You came from/);
+test("the invitespot.app landing page shows the referral banner with the honoree names when a name is resolved", () => {
+  const html = render("Mia and Lee", "mia-and-lee");
+  assert.match(html, /You came from Mia and Lee&#x27;s page/);
+});
+
+// Structural, matching this codebase's convention for logic that can't be
+// exercised by direct invocation in this test environment (see
+// src/app/api/invitations/admin/find-me-settings/route.test.ts): page.tsx
+// itself can't be imported here (see the note above this file), so this
+// confirms its referral-lookup wiring and error-swallowing by reading its
+// own source rather than calling it.
+test("the page wires the real getPublicInvitationBySlug into getInvitationReferralDisplayName inside a try/catch that never rethrows", () => {
+  const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  assert.match(source, /getInvitationReferralDisplayName\(referralSlug, getPublicInvitationBySlug\)/);
+  const tryIndex = source.indexOf("try {");
+  const catchIndex = source.indexOf("} catch");
+  assert.notEqual(tryIndex, -1);
+  assert.notEqual(catchIndex, -1);
+  const lookupCallIndex = source.indexOf("getInvitationReferralDisplayName(referralSlug, getPublicInvitationBySlug)");
+  assert.ok(tryIndex < lookupCallIndex && lookupCallIndex < catchIndex, "the lookup call must be inside the try block");
 });
 ```
 
 - [ ] **Step 6: Run tests to verify they pass**
 
 Run: `npx tsx --test src/app/invitespot/page.render.test.tsx`
-Expected: PASS (2 tests) — the page's own try/catch around the referral
-lookup (Step 4) means a Supabase-credential-less test environment degrades
-to "no banner" rather than throwing, so both tests pass without needing a
-live database.
+Expected: PASS (3 tests) — none of them import `./page`, so nothing here
+touches `@/lib/invitations/repository` or `server-only`.
 
 - [ ] **Step 7: Typecheck and build**
 
