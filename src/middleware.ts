@@ -12,6 +12,7 @@ const ADMIN_ROUTES = [
   "/clients",
   "/previews",
   "/requests",
+  "/invitespot-leads",
   "/onboard",
 ];
 
