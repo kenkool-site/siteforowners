@@ -938,7 +938,7 @@ git commit -m "feat: add admin InviteSpot Leads tab"
 - Modify (ripple): `src/components/invitations/PublicInvitation.render.test.tsx`
 
 **Interfaces:**
-- Produces: `getInvitationReferralDisplayName(slug: string, find: (slug: string) => Promise<PublicInvitationLookup | null>): Promise<string | null>` from `public-access.ts` — `find` is a **required** parameter with no default, matching this file's existing dependency-injection convention exactly (`PublicInvitationResolutionDependencies.find` and `resolveInvitationPreview`'s `dependencies.find` are both required, never defaulted inside this file). `public-access.ts` must never import from `./repository` itself — that module starts with `import "server-only"`, which throws when loaded outside a Server Component context (e.g. under `tsx --test`), and `public-access.ts`'s own test file already relies on running under plain `tsx --test`. The real `getPublicInvitationBySlug` is imported and passed in by the caller instead — exactly how `src/app/invite/[slug]/page.tsx` already wires `find: getPublicInvitationBySlug` into `resolvePublicInvitationPage`. Task 5's page.tsx does the same for this function.
+- Produces: `getInvitationReferralDisplayName(slug: string, find: (slug: string) => Promise<PublicInvitationLookup | null>): Promise<string | null>` from `public-access.ts` — `find` is a **required** parameter with no default, matching this file's existing dependency-injection convention exactly (`PublicInvitationResolutionDependencies.find` and `resolveInvitationPreview`'s `dependencies.find` are both required, never defaulted inside this file). `public-access.ts` must never import from `./repository` itself — that module starts with `import "server-only"`, which throws when loaded outside a Server Component context (e.g. under `tsx --test`), and `public-access.ts`'s own test file already relies on running under plain `tsx --test`. The real `getPublicInvitationBySlug` is imported and passed in by the caller instead — exactly how `src/app/invite/[slug]/page.tsx` already wires `find: getPublicInvitationBySlug` into `resolvePublicInvitationPage`. Task 5's page.tsx does the same for this function. The function must also refuse a passcode-protected event (`invitation.passcodeHash` truthy) regardless of lifecycle state — a visitor on the landing page has no passcode-access context for the other event, unlike `resolvePublicInvitationPage`'s conditional grant.
 - `InvitationFooter` gains a required `slug: string` prop.
 
 - [ ] **Step 1: Write the failing tests**
@@ -972,6 +972,12 @@ test("getInvitationReferralDisplayName returns null when the slug doesn't resolv
   const name = await getInvitationReferralDisplayName("no-such-slug", async () => null);
   assert.equal(name, null);
 });
+
+test("getInvitationReferralDisplayName returns null for a passcode-protected event, even when published", async () => {
+  const fixture = { ...invitation, passcodeHash: "stored" };
+  const name = await getInvitationReferralDisplayName("mia-and-lee", async () => fixture);
+  assert.equal(name, null);
+});
 ```
 
 - [ ] **Step 2: Run tests to verify they fail**
@@ -996,11 +1002,15 @@ Add this function anywhere after `resolvePublicInvitationPage`:
 // on the invitespot.app landing page: given the slug of the invitation that
 // sent a visitor there (via ?from=), returns just its honoree names — never
 // anything else about the event, and never for an event a stranger couldn't
-// already see by visiting its own invitation page directly (the exact same
-// state gate resolvePublicInvitationPage itself applies). `find` is required,
-// not defaulted — callers (a Server Component) import and pass the real
-// `getPublicInvitationBySlug` from `./repository` themselves, the same way
-// `src/app/invite/[slug]/page.tsx` already wires it into
+// already see by visiting its own invitation page directly. A visitor here
+// has no session/cookie context for the OTHER event, so unlike
+// resolvePublicInvitationPage (which can grant passcode access via
+// dependencies.hasPasscodeAccess), any passcode at all must suppress the
+// name entirely — mirroring invitationPageMetadata's stricter passcode
+// check in this same file, not resolvePublicInvitationPage's conditional one.
+// `find` is required, not defaulted — callers (a Server Component) import and
+// pass the real `getPublicInvitationBySlug` from `./repository` themselves,
+// the same way `src/app/invite/[slug]/page.tsx` already wires it into
 // resolvePublicInvitationPage's `find` dependency.
 export async function getInvitationReferralDisplayName(
   slug: string,
@@ -1008,6 +1018,7 @@ export async function getInvitationReferralDisplayName(
 ): Promise<string | null> {
   const invitation = await find(slug);
   if (!invitation) return null;
+  if (invitation.passcodeHash) return null;
   const state = getEffectiveEventState(invitation.event, new Date());
   if (state !== "published" && state !== "rsvp_closed") return null;
   return invitation.event.honoreeNames;
@@ -1017,7 +1028,7 @@ export async function getInvitationReferralDisplayName(
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `npx tsx --test src/lib/invitations/public-access.test.ts`
-Expected: PASS (all existing tests plus the 4 new ones)
+Expected: PASS (all existing tests plus the 5 new ones)
 
 - [ ] **Step 5: Thread `slug` through `InvitationFooter`**
 
