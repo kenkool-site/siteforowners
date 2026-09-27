@@ -197,3 +197,9 @@ test("getInvitationReferralDisplayName returns null when the slug doesn't resolv
   const name = await getInvitationReferralDisplayName("no-such-slug", async () => null);
   assert.equal(name, null);
 });
+
+test("getInvitationReferralDisplayName returns null for a passcode-protected event, even when published", async () => {
+  const fixture = { ...invitation, passcodeHash: "stored" };
+  const name = await getInvitationReferralDisplayName("mia-and-lee", async () => fixture);
+  assert.equal(name, null);
+});
