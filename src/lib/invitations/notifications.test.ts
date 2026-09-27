@@ -60,8 +60,12 @@ const smsFixture: DispatchRsvpNotificationsInput = {
 
 test("notification invitation links prefer the event subdomain and retain the legacy fallback", () => {
   assert.equal(
+    // The subdomain branch always resolves to invitespot.app now, regardless
+    // of the origin argument passed — invitation events moved there, while
+    // this origin argument only ever mattered for the no-subdomain fallback
+    // case below.
     notificationInvitationUrl({ ...baseEvent, publicSubdomain: "sample-wedding" }, "https://www.siteforowners.com"),
-    "https://sample-wedding.siteforowners.com/",
+    "https://sample-wedding.invitespot.app/",
   );
   assert.equal(
     notificationInvitationUrl(baseEvent, "https://www.siteforowners.com"),

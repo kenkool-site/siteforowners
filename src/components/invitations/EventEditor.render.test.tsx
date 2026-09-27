@@ -121,7 +121,7 @@ test("only founders see cost limit controls", () => {
 test("only founders can edit the public subdomain while owners see the clean share link", () => {
   assert.match(render("founder"), /name="publicSubdomain"/);
   assert.doesNotMatch(render("owner"), /name="publicSubdomain"/);
-  assert.match(render("owner", undefined, { publicSubdomain: "ana-luis" }), /https:\/\/ana-luis\.siteforowners\.com\//);
+  assert.match(render("owner", undefined, { publicSubdomain: "ana-luis" }), /https:\/\/ana-luis\.invitespot\.app\//);
 });
 
 test("the theme preview remains available in the mobile editing column", () => {
@@ -210,4 +210,8 @@ test("a full gallery disables the thirteenth upload", () => {
   assert.match(html, /id="invitation-media-gallery"[^>]*disabled/);
   assert.match(html, /The gallery is full/);
   assert.equal((html.match(/>Replace</g) ?? []).length, 12);
+});
+
+test("founders see the public subdomain input suffixed with invitespot.app, matching where invitation events now live", () => {
+  assert.match(render("founder"), /\.invitespot\.app</);
 });

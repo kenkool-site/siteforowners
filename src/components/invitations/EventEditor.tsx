@@ -806,7 +806,7 @@ export function EventEditor({
                       onBlur={(event) => void checkPublicSubdomain(event.currentTarget.value)}
                       className="min-h-11 min-w-0 flex-1 rounded-l-md px-3 py-2 text-[16px] outline-none"
                     />
-                    <span className="pr-3 text-sm font-normal text-[#675d6a]">.siteforowners.com</span>
+                    <span className="pr-3 text-sm font-normal text-[#675d6a]">.invitespot.app</span>
                   </span>
                 </label>
                 <p className="mt-2 text-xs leading-5 text-[#675d6a]">{subdomainFeedback || t("publicDomainHelp")}</p>
@@ -1043,7 +1043,11 @@ export function EventEditor({
             </div>
             <div className="mt-5 flex flex-wrap gap-x-5 gap-y-3 text-sm font-semibold">
               <a href={`/invitations/preview/${currentEvent.id}`} target="_blank" rel="noreferrer" className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.openPreview")}</a>
-              <button type="button" onClick={() => navigator.clipboard.writeText(invitationPublicUrl(currentEvent, window.location.origin))} className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.copyLink")}</button>
+              <button type="button" onClick={() => {
+                const origin = window.location.origin;
+                const isLocalOrPreview = origin.includes("localhost") || origin.includes("127.0.0.1") || origin.endsWith(".vercel.app");
+                navigator.clipboard.writeText(invitationPublicUrl(currentEvent, isLocalOrPreview ? origin : undefined));
+              }} className="text-[#6D456F] underline decoration-[#bca9c0] underline-offset-4">{t("actions.copyLink")}</button>
             </div>
             <p className="mt-3 break-all text-xs text-[#675d6a]">{invitationPublicUrl(currentEvent)}</p>
           </section>

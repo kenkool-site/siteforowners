@@ -192,7 +192,7 @@ export function FounderEventForm() {
                 onBlur={(event) => void checkSubdomain(event.currentTarget.value)}
                 className="min-h-11 min-w-0 flex-1 rounded-l-lg px-3 py-2.5 text-base text-gray-950 outline-none"
               />
-              <span className="pr-3 text-sm text-gray-500">.siteforowners.com</span>
+              <span className="pr-3 text-sm text-gray-500">.invitespot.app</span>
             </span>
             <span className="mt-1 block text-xs font-normal text-gray-500">{subdomainFeedback || "Generated from the event title; you can edit it."}</span>
           </label>

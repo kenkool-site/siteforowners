@@ -7,7 +7,9 @@ export function InvitationCopyLinkButton({ slug, publicSubdomain, label = "Copy 
   const [copied, setCopied] = useState(false);
 
   async function copyLink() {
-    await navigator.clipboard.writeText(invitationPublicUrl({ slug, publicSubdomain: publicSubdomain ?? null }, window.location.origin));
+    const origin = window.location.origin;
+    const isLocalOrPreview = origin.includes("localhost") || origin.includes("127.0.0.1") || origin.endsWith(".vercel.app");
+    await navigator.clipboard.writeText(invitationPublicUrl({ slug, publicSubdomain: publicSubdomain ?? null }, isLocalOrPreview ? origin : undefined));
     setCopied(true);
   }
 
