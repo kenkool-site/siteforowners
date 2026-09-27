@@ -938,7 +938,7 @@ git commit -m "feat: add admin InviteSpot Leads tab"
 - Modify (ripple): `src/components/invitations/PublicInvitation.render.test.tsx`
 
 **Interfaces:**
-- Produces: `getInvitationReferralDisplayName(slug: string, find?: (slug: string) => Promise<PublicInvitationLookup | null>): Promise<string | null>` from `public-access.ts` — the optional `find` parameter defaults to the real `getPublicInvitationBySlug`, matching this file's existing dependency-injection convention (its other functions take `find` as an injected dependency for testability without a live Supabase instance) so tests can inject a fake.
+- Produces: `getInvitationReferralDisplayName(slug: string, find: (slug: string) => Promise<PublicInvitationLookup | null>): Promise<string | null>` from `public-access.ts` — `find` is a **required** parameter with no default, matching this file's existing dependency-injection convention exactly (`PublicInvitationResolutionDependencies.find` and `resolveInvitationPreview`'s `dependencies.find` are both required, never defaulted inside this file). `public-access.ts` must never import from `./repository` itself — that module starts with `import "server-only"`, which throws when loaded outside a Server Component context (e.g. under `tsx --test`), and `public-access.ts`'s own test file already relies on running under plain `tsx --test`. The real `getPublicInvitationBySlug` is imported and passed in by the caller instead — exactly how `src/app/invite/[slug]/page.tsx` already wires `find: getPublicInvitationBySlug` into `resolvePublicInvitationPage`. Task 5's page.tsx does the same for this function.
 - `InvitationFooter` gains a required `slug: string` prop.
 
 - [ ] **Step 1: Write the failing tests**
@@ -981,12 +981,13 @@ Expected: FAIL — `getInvitationReferralDisplayName` doesn't exist yet.
 
 - [ ] **Step 3: Add the function to `public-access.ts`**
 
-Add this import to the top of `src/lib/invitations/public-access.ts`,
-alongside the existing imports:
-
-```ts
-import { getPublicInvitationBySlug } from "./repository";
-```
+**Do not** import anything from `./repository` in this file — that module
+starts with `import "server-only"`, which throws when loaded outside a
+Server Component context, and would break every test in
+`public-access.test.ts` (including the ones that already pass today) the
+moment it's imported at module scope, whether or not the import is ever
+actually invoked. `find` must stay a required parameter, exactly like
+this file's other dependency-injected functions.
 
 Add this function anywhere after `resolvePublicInvitationPage`:
 
@@ -996,10 +997,14 @@ Add this function anywhere after `resolvePublicInvitationPage`:
 // sent a visitor there (via ?from=), returns just its honoree names — never
 // anything else about the event, and never for an event a stranger couldn't
 // already see by visiting its own invitation page directly (the exact same
-// state gate resolvePublicInvitationPage itself applies).
+// state gate resolvePublicInvitationPage itself applies). `find` is required,
+// not defaulted — callers (a Server Component) import and pass the real
+// `getPublicInvitationBySlug` from `./repository` themselves, the same way
+// `src/app/invite/[slug]/page.tsx` already wires it into
+// resolvePublicInvitationPage's `find` dependency.
 export async function getInvitationReferralDisplayName(
   slug: string,
-  find: (slug: string) => Promise<PublicInvitationLookup | null> = getPublicInvitationBySlug,
+  find: (slug: string) => Promise<PublicInvitationLookup | null>,
 ): Promise<string | null> {
   const invitation = await find(slug);
   if (!invitation) return null;
@@ -1547,6 +1552,7 @@ Replace the full contents of `src/app/invitespot/page.tsx`:
 import type { Metadata } from "next";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { getInvitationReferralDisplayName } from "@/lib/invitations/public-access";
+import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { InviteSpotLandingContent } from "@/components/invitespot/InviteSpotLandingContent";
 
 export const metadata: Metadata = {
@@ -1582,7 +1588,7 @@ export default async function InviteSpotLandingPage({ searchParams }: { searchPa
   let referralName: string | null = null;
   if (referralSlug) {
     try {
-      referralName = await getInvitationReferralDisplayName(referralSlug);
+      referralName = await getInvitationReferralDisplayName(referralSlug, getPublicInvitationBySlug);
     } catch (error) {
       // A referral-lookup hiccup must never 500 the whole landing page for a
       // guest who followed a link with a slug that happens to error — degrade
