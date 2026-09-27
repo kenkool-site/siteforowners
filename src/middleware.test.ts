@@ -76,3 +76,40 @@ test("middleware rewrites the invitespot.app apex to its dedicated route, before
   const supabaseClientIndex = source.indexOf("createClient(supabaseUrl, supabaseKey)");
   assert.ok(invitespotRootIndex > -1 && supabaseClientIndex > -1 && invitespotRootIndex < supabaseClientIndex);
 });
+
+// The invitespot-root branch used to be an unconditional rewrite to /invitespot
+// regardless of pathname, which swallowed /invite/{slug} — the exact path
+// invitationPublicUrl's no-subdomain fallback now points at for
+// www.invitespot.app (an "invitespot-root" host, not "platform"). These tests
+// pin the pathname-aware replacement: only "/" goes to the placeholder,
+// "/invite/*" passes through untouched, and everything else explicitly
+// 404s (deny-by-default, so /clients, /prospects, etc. never leak onto the
+// invitespot.app brand).
+test("the invitespot-root branch only rewrites the bare '/' path to the placeholder", () => {
+  const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
+  const rootBlock = source.slice(
+    source.indexOf('host.kind === "invitespot-root"'),
+    source.indexOf('const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;'),
+  );
+  assert.match(rootBlock, /if \(pathname === "\/"\)/);
+  assert.match(rootBlock, /NextResponse\.rewrite\(new URL\("\/invitespot", request\.url\)\)/);
+});
+
+test("the invitespot-root branch lets /invite/* paths through with NextResponse.next()", () => {
+  const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
+  const rootBlock = source.slice(
+    source.indexOf('host.kind === "invitespot-root"'),
+    source.indexOf('const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;'),
+  );
+  assert.match(rootBlock, /if \(pathname\.startsWith\("\/invite\/"\)\) return NextResponse\.next\(\);/);
+});
+
+test("the invitespot-root branch denies everything else with a no-store 404, not a bare next()", () => {
+  const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
+  const rootBlock = source.slice(
+    source.indexOf('host.kind === "invitespot-root"'),
+    source.indexOf('const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;'),
+  );
+  assert.match(rootBlock, /NextResponse\.rewrite\(new URL\("\/not-found", request\.url\)\)/);
+  assert.match(rootBlock, /no-store, must-revalidate/);
+});

@@ -27,7 +27,13 @@ export function classifyHost(host: string): HostClassification {
 }
 
 export function invitationRewritePath(slug: string, pathname: string): string | null {
-  if (pathname === "/") return `/invite/${encodeURIComponent(slug)}`;
-  if (pathname === "/memories") return `/invite/${encodeURIComponent(slug)}/memories`;
+  const encodedSlug = encodeURIComponent(slug);
+  if (pathname === "/") return `/invite/${encodedSlug}`;
+  if (pathname === "/memories") return `/invite/${encodedSlug}/memories`;
+  // The passcode gate's own internal redirect (src/app/invite/[slug]/memories/page.tsx)
+  // targets this exact path on the same host it was reached on — without this identity
+  // passthrough, that redirect 404s on any platform subdomain, since neither case above
+  // matches it.
+  if (pathname === `/invite/${encodedSlug}` || pathname === `/invite/${encodedSlug}/memories`) return pathname;
   return null;
 }

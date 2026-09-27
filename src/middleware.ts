@@ -49,7 +49,13 @@ export async function middleware(request: NextRequest) {
   if (host.kind === "root") return NextResponse.next();
 
   if (host.kind === "invitespot-root") {
-    return NextResponse.rewrite(new URL("/invitespot", request.url));
+    if (pathname === "/") {
+      return NextResponse.rewrite(new URL("/invitespot", request.url));
+    }
+    if (pathname.startsWith("/invite/")) return NextResponse.next();
+    const notFound = NextResponse.rewrite(new URL("/not-found", request.url));
+    notFound.headers.set("Cache-Control", "no-store, must-revalidate");
+    return notFound;
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
