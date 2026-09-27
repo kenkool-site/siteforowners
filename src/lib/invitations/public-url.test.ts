@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { invitationCoverPreviewUrl, invitationPublicUrl } from "./public-url";
+import { invitationCoverPreviewUrl, invitationMemoriesUrl, invitationPublicUrl } from "./public-url";
 
 test("invitation public URL prefers an assigned clean subdomain, on invitespot.app", () => {
   assert.equal(
@@ -45,6 +45,23 @@ test("invitation public URL without a subdomain honors NEXT_PUBLIC_INVITESPOT_AP
     if (original === undefined) delete process.env.NEXT_PUBLIC_INVITESPOT_APP_URL;
     else process.env.NEXT_PUBLIC_INVITESPOT_APP_URL = original;
   }
+});
+
+test("invitation memories URL prefers an assigned clean subdomain, on invitespot.app", () => {
+  assert.equal(
+    invitationMemoriesUrl({ slug: "mercy-john-lx9cwn", publicSubdomain: "mercy-john" }),
+    "https://mercy-john.invitespot.app/memories",
+  );
+});
+
+test("invitation memories URL without a subdomain falls back to the /invite/{slug}/memories route", () => {
+  assert.equal(
+    invitationMemoriesUrl(
+      { slug: "mercy-john-lx9cwn", publicSubdomain: null },
+      "https://www.invitespot.app",
+    ),
+    "https://www.invitespot.app/invite/mercy-john-lx9cwn/memories",
+  );
 });
 
 test("cover previews stay on the shared siteforowners.com app URL, unaffected by the invitespot.app migration", () => {

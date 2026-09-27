@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyHost, invitationRewritePath } from "./host-routing";
+import { classifyHost, invitationRewritePath, isLegacySiteforownersApex } from "./host-routing";
 
 test("host classification recognizes root, preview, platform, local, and custom hosts", () => {
   assert.deepEqual(classifyHost("www.siteforowners.com"), { kind: "root" });
@@ -41,4 +41,15 @@ test("invitation hosts pass through the already-resolved /invite/{slug} paths un
 
 test("invitation hosts still 404 an unrelated slug's already-resolved invite path", () => {
   assert.equal(invitationRewritePath("mercy-john-lx9cwn", "/invite/someone-else"), null);
+});
+
+test("isLegacySiteforownersApex recognizes only the bare siteforowners.com root (with or without www), not the platform or invitespot.app hosts", () => {
+  assert.equal(isLegacySiteforownersApex("siteforowners.com"), true);
+  assert.equal(isLegacySiteforownersApex("www.siteforowners.com"), true);
+  assert.equal(isLegacySiteforownersApex("SITEFOROWNERS.COM"), true);
+  assert.equal(isLegacySiteforownersApex("mercy-john.siteforowners.com"), false);
+  assert.equal(isLegacySiteforownersApex("mercy-john.invitespot.app"), false);
+  assert.equal(isLegacySiteforownersApex("invitespot.app"), false);
+  assert.equal(isLegacySiteforownersApex("localhost:3000"), false);
+  assert.equal(isLegacySiteforownersApex("feature-abc.vercel.app"), false);
 });

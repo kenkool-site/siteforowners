@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
+import { cookies, headers } from "next/headers";
+import { notFound, redirect } from "next/navigation";
 import { PasscodeGate } from "@/components/invitations/PasscodeGate";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { InvitationStateView, PublicInvitation } from "@/components/invitations/PublicInvitation";
@@ -8,12 +8,14 @@ import {
   getInvitationPasscodeCookieName,
   verifyInvitationPasscodeSession,
 } from "@/lib/invitations/auth";
+import { isLegacySiteforownersApex } from "@/lib/host-routing";
 import { getInvitationMediaForManagement } from "@/lib/invitations/media";
 import {
   invitationPageMetadata,
   resolvePublicInvitationPage,
   toPublicInvitationClientDetails,
 } from "@/lib/invitations/public-access";
+import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import { getPublicInvitationBySlug, listPublicInvitationComments } from "@/lib/invitations/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 
@@ -44,6 +46,16 @@ export default async function PublicInvitationPage({ params, searchParams }: { p
     loadMedia: getInvitationMediaForManagement,
   });
   if (resolution.kind === "not_found") notFound();
+
+  // An event with a reserved subdomain now lives on invitespot.app — a
+  // direct hit on the legacy siteforowners.com apex (an old bookmark or
+  // shared link) bounces there instead of serving this page under the old
+  // brand. Checked before any state branching below: which domain serves
+  // this content is independent of the invitation's lifecycle state.
+  if (resolution.event.publicSubdomain && isLegacySiteforownersApex(headers().get("host") ?? "")) {
+    redirect(invitationPublicUrl({ slug: resolution.event.slug, publicSubdomain: resolution.event.publicSubdomain }));
+  }
+
   if (resolution.kind === "unavailable" || resolution.kind === "ended") {
     const state = resolution.kind === "unavailable" ? "draft" : "expired";
     return (

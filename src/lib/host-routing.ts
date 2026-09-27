@@ -4,8 +4,23 @@ export type HostClassification =
   | { kind: "platform"; label: string; apex: "siteforowners" | "invitespot" | "local" }
   | { kind: "custom"; hostname: string };
 
+function normalizeHostname(host: string): string {
+  return host.split(":")[0].toLowerCase().replace(/^www\./, "");
+}
+
+// Used by the invitation pages themselves (not middleware) to redirect a
+// direct hit on the legacy siteforowners.com apex — e.g. an old bookmarked
+// /invite/{slug} or /invite/{slug}/memories link — to the event's
+// invitespot.app equivalent, for events that have one. Deliberately a
+// narrower check than classifyHost's "root" kind: that bucket also includes
+// localhost and *.vercel.app, which must keep working locally/in preview
+// without bouncing to a real production domain.
+export function isLegacySiteforownersApex(host: string): boolean {
+  return normalizeHostname(host) === "siteforowners.com";
+}
+
 export function classifyHost(host: string): HostClassification {
-  const hostname = host.split(":")[0].toLowerCase().replace(/^www\./, "");
+  const hostname = normalizeHostname(host);
   if (
     hostname === "siteforowners.com"
     || hostname === "localhost"

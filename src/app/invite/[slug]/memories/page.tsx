@@ -1,8 +1,10 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { GuestMemoriesApp } from "@/components/invitations/memories/GuestMemoriesApp";
 import { getInvitationPasscodeCookieName, verifyInvitationPasscodeSession } from "@/lib/invitations/auth";
+import { isLegacySiteforownersApex } from "@/lib/host-routing";
+import { invitationMemoriesUrl } from "@/lib/invitations/public-url";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
 import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recipe";
@@ -12,6 +14,13 @@ export const dynamic = "force-dynamic";
 export default async function GuestMemoriesPage({ params, searchParams }: { params: { slug: string }; searchParams: { photo?: string } }) {
   const invitation = await getPublicInvitationBySlug(params.slug);
   if (!invitation) notFound();
+
+  // Same legacy-apex redirect as the root invite page (src/app/invite/[slug]/page.tsx)
+  // — an old siteforowners.com bookmark/share for an event with a reserved
+  // subdomain bounces to its invitespot.app equivalent instead of serving here.
+  if (invitation.event.publicSubdomain && isLegacySiteforownersApex(headers().get("host") ?? "")) {
+    redirect(invitationMemoriesUrl({ slug: invitation.event.slug, publicSubdomain: invitation.event.publicSubdomain }));
+  }
 
   // A host taking the event fully offline is an explicit kill switch — Memories
   // must not stay reachable just because memories_enabled is still true.
