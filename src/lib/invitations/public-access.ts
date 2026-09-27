@@ -9,7 +9,6 @@ import {
   type EffectiveEventState,
 } from "./state";
 import { invitationCoverPreviewUrl, invitationPublicUrl } from "./public-url";
-import { getPublicInvitationBySlug } from "./repository";
 
 export type PublicInvitationResolution =
   | { kind: "not_found" }
@@ -84,9 +83,11 @@ export async function resolvePublicInvitationPage(
 // anything else about the event, and never for an event a stranger couldn't
 // already see by visiting its own invitation page directly (the exact same
 // state gate resolvePublicInvitationPage itself applies).
+// The `find` parameter is required (not defaulted) so this file never imports
+// ./repository, which starts with `import "server-only"` and would break tests.
 export async function getInvitationReferralDisplayName(
   slug: string,
-  find: (slug: string) => Promise<PublicInvitationLookup | null> = getPublicInvitationBySlug,
+  find: (slug: string) => Promise<PublicInvitationLookup | null>,
 ): Promise<string | null> {
   const invitation = await find(slug);
   if (!invitation) return null;
