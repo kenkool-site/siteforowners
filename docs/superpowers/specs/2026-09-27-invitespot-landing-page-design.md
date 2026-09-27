@@ -3,7 +3,7 @@
 **Goal:** Replace the invitespot.app apex placeholder with a real landing
 page that explains InviteSpot as a done-for-you service, personalizes
 itself for guests referred from a specific invitation, and captures leads
-for the founder to follow up with on WhatsApp.
+for the founder to follow up with by email or phone.
 
 ## Context
 
@@ -16,14 +16,26 @@ invitation is a real, if small, source of traffic.
 The business model this page needs to represent is **not** self-serve
 signup — it mirrors how the founder's other product (SiteForOwners) already
 works: the founder builds each customer's page personally, based on details
-collected up front, and follows up over WhatsApp. This matches the existing
-`marketing_leads` / admin "Requests" pattern already shipped for
-SiteForOwners' own lead funnel (`supabase/migrations/030_create_marketing_leads.sql`,
+collected up front, and follows up personally by email or phone. This
+matches the existing `marketing_leads` / admin "Requests" pattern already
+shipped for SiteForOwners' own lead funnel
+(`supabase/migrations/030_create_marketing_leads.sql`,
 `src/app/api/marketing-leads/route.ts`, `src/app/(admin)/requests/`) — this
 design mirrors that pattern closely, with its own dedicated table rather
 than reusing SiteForOwners' (different business line, different fields:
-event type instead of business type, WhatsApp number instead of email,
-guest count, a referral source).
+event type instead of business type, a phone number alongside email, guest
+count, a referral source).
+
+Earlier drafts of this design assumed every lead reaches the founder over
+WhatsApp, since the shared mockup this was built from used it exclusively.
+That assumption doesn't hold — it isn't safe to assume every prospective
+customer uses WhatsApp, and the product's own guest-notification system
+only ever sends email and SMS (confirmed by grep — `InvitationNotificationChannel
+= "email" | "sms"` in `src/lib/invitations/types.ts`, no WhatsApp anywhere
+in the codebase), so a landing page claiming WhatsApp reminders would be
+advertising a capability that doesn't exist. Both the lead form's own
+contact field and the "RSVPs people actually answer" feature copy are
+corrected below to email/phone throughout.
 
 ## Decisions
 
@@ -34,7 +46,7 @@ guest count, a referral source).
 - **No invented pricing.** The three guest-count tiers show what's
   included, not a dollar figure — each tier links to the lead form instead
   of a `[PRICE]` placeholder. Same treatment for turnaround time and data
-  retention: stated as "confirmed on WhatsApp" rather than a specific
+  retention: stated as "confirmed when we reach out" rather than a specific
   number of days/months, since none has been committed to yet. This can be
   swapped for real numbers later by editing the page copy directly — no
   structural change needed.
@@ -47,10 +59,14 @@ guest count, a referral source).
   footer's CTA link carries `?from={slug}`, and the landing page looks up
   just that event's honoree names (nothing else) to render "You came from
   {names}'s page."
-- **No WhatsApp API integration.** Submitting the form persists a lead and
+- **No automated outreach.** Submitting the form persists a lead and
   best-effort emails the founder (identical pattern to `marketing_leads`) —
-  the founder manually opens WhatsApp themselves, matching the existing
-  "manual follow-up, no automation" precedent for the sibling feature.
+  the founder manually emails or calls/texts themselves, matching the
+  existing "manual follow-up, no automation" precedent for the sibling
+  feature.
+- **Contact field is email and/or phone, not WhatsApp-only.** The lead
+  chooses how they'd rather be reached — at least one of the two is
+  required, neither is mandatory on its own.
 
 ## Architecture
 
@@ -68,12 +84,13 @@ to bottom, in the confirmed cream/forest-green direction:
    "Invitations, RSVPs, and guest photos — for weddings, birthdays, naming
    ceremonies, burials, and anniversaries. Nothing to design yourself."
    Primary CTA "Tell us about your event" (anchors to the form). Microcopy:
-   "One reply on WhatsApp with examples and a quote."
+   "We'll reply by email or phone with examples and a quote."
 4. **What you get** (3 cards): "Your own web address" / "RSVPs people
-   actually answer" (mentions WhatsApp + text reminders) / "Every guest's
-   photos, in one place" (mentions the printed-QR-code-on-tables workflow
-   already built for the Memories feature).
-5. **How it works** (3 numbered steps): "Send us the details" (a WhatsApp
+   actually answer" (mentions the product's real reminder channels — text
+   and email, not just one the guest might miss) / "Every guest's photos,
+   in one place" (mentions the printed-QR-code-on-tables workflow already
+   built for the Memories feature).
+5. **How it works** (3 numbered steps): "Send us the details" (a quick
    message is enough) / "We build it and send you the link" (you never
    touch an editor) / "Share it, and we do the chasing" (QR cards +
    reminders before and after the day).
@@ -83,10 +100,19 @@ to bottom, in the confirmed cream/forest-green direction:
    white wedding) / "400 guests and up" (managed guest messaging included).
    One line beneath: "One payment, no subscription — every plan includes
    your page and photo gallery. We'll confirm exact pricing and how long
-   everything stays up on WhatsApp."
+   everything stays up when we reach out."
 7. **Lead capture form** (dark forest-green section, `id="event-form"` for
-   the anchor links above) — see section 3 below for the fields and submit
-   behavior.
+   the anchor links above). Heading "Tell us about your event", subhead "A
+   few questions. We reply by email or phone with a real example and a
+   quote." Fields: **Your name**; **Email** and **Phone number** (two
+   separate fields — at least one required, neither mandatory alone, since
+   the lead picks how they'd rather be reached); **What are you planning?**
+   (single-select chips: Birthday, Wedding, Naming, Burial, Anniversary,
+   Something else); **Roughly when** (free text, not a date picker — most
+   leads this early don't have a locked date) and **Guests** (optional
+   number) side by side; a **Send** button; reassurance line "We reply
+   once. No list, no newsletter." See section 3 below for the backing table,
+   API, and validation.
 8. **Footer** — "InviteSpot" / "invitespot.app".
 
 All copy lives in `messages/en.json` / `messages/es.json` under a new
@@ -134,7 +160,8 @@ next available number as of this spec): `invitespot_leads`, mirroring
 CREATE TABLE IF NOT EXISTS invitespot_leads (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name             text NOT NULL,
-  whatsapp_number  text NOT NULL,
+  email            text,            -- at least one of email/phone required — enforced in parseInvitespotLead, not a DB constraint (matches this codebase's existing validation-at-the-app-layer convention)
+  phone            text,
   event_type       text NOT NULL,   -- 'birthday' | 'wedding' | 'naming' | 'burial' | 'anniversary' | 'other'
   rough_date       text,            -- free text ("March", "next spring") — guests rarely have an exact date yet
   guest_count      integer,
@@ -155,6 +182,9 @@ ALTER TABLE invitespot_leads ENABLE ROW LEVEL SECURITY;
 `src/lib/marketing-lead.ts`: an `EVENT_TYPES` const array (`birthday`,
 `wedding`, `naming`, `burial`, `anniversary`, `other`), a `parseInvitespotLead`
 function, and an `InvitespotLeadRow` type for the admin table.
+`parseInvitespotLead` rejects the submission (a validation error, same as a
+missing name) when both `email` and `phone` are empty — the one piece of
+cross-field validation this form needs beyond per-field checks.
 
 **API route** `src/app/api/invitespot-leads/route.ts` — mirrors
 `src/app/api/marketing-leads/route.ts` exactly: same rate-limit helper
@@ -194,11 +224,11 @@ component listing non-archived leads, newest first, capped at 200). Add
 ## Out of scope
 
 - Real pricing figures, turnaround time, and retention period — the page
-  ships with honest "confirm on WhatsApp" language; swapping in real
-  numbers later is a copy-only change.
-- Any WhatsApp Business API integration (auto-replies, templates) — purely
-  manual follow-up by the founder, matching the sibling feature's own
-  scope.
+  ships with honest "we'll confirm when we reach out" language; swapping in
+  real numbers later is a copy-only change.
+- Any automated outreach integration (auto-reply emails/texts, templated
+  follow-ups) — purely manual follow-up by the founder, matching the
+  sibling feature's own scope.
 - A public detail/edit view for `invitespot_leads` beyond the founder admin
   tab — no self-serve access for leads to see their own submission status.
 - Styling the rest of the InviteSpot brand (favicon, OG image asset,
