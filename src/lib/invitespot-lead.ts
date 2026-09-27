@@ -35,9 +35,16 @@ function cleanString(value: unknown, maxLength = 240): string {
   return value.trim().slice(0, maxLength);
 }
 
+// 100,000 is far beyond any real event this product serves — a value above
+// it is treated as bad input (like <= 0) rather than stored, since
+// guest_count is a plain Postgres integer with no column-level bound of its
+// own and an out-of-range insert would otherwise fail the whole submission
+// silently (the route inserts first, then best-effort emails the founder).
+const MAX_PLAUSIBLE_GUEST_COUNT = 100_000;
+
 function cleanGuestCount(value: unknown): number | null {
   const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n) || n <= 0) return null;
+  if (!Number.isFinite(n) || n <= 0 || n > MAX_PLAUSIBLE_GUEST_COUNT) return null;
   return Math.floor(n);
 }
 

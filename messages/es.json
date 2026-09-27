@@ -1085,7 +1085,10 @@
       "submitting": "Enviando…",
       "reassurance": "Respondemos una sola vez. Sin listas, sin boletines.",
       "success": "Gracias — te contactaremos pronto por correo o teléfono.",
-      "genericError": "Algo salió mal — inténtalo de nuevo."
+      "genericError": "Algo salió mal — inténtalo de nuevo.",
+      "nameRequired": "Por favor ingresa tu nombre.",
+      "contactRequired": "Por favor ingresa tu correo o teléfono.",
+      "eventTypeRequired": "Por favor elige qué estás planeando."
     },
     "footer": { "wordmark": "InviteSpot", "domain": "invitespot.app" }
   }

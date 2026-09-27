@@ -19,15 +19,15 @@ export function InvitespotLeadForm({ referralSlug }: { referralSlug: string | nu
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     if (!name.trim()) {
-      setError(t("genericError"));
+      setError(t("nameRequired"));
       return;
     }
     if (!email.trim() && !phone.trim()) {
-      setError(t("genericError"));
+      setError(t("contactRequired"));
       return;
     }
     if (!eventType) {
-      setError(t("genericError"));
+      setError(t("eventTypeRequired"));
       return;
     }
     setSubmitting(true);
@@ -46,10 +46,13 @@ export function InvitespotLeadForm({ referralSlug }: { referralSlug: string | nu
           referralSlug: referralSlug ?? "",
         }),
       });
-      if (!response.ok) throw new Error("failed");
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof data.error === "string" && data.error ? data.error : t("genericError"));
+      }
       setSuccess(true);
-    } catch {
-      setError(t("genericError"));
+    } catch (err) {
+      setError(err instanceof Error && err.message ? err.message : t("genericError"));
     } finally {
       setSubmitting(false);
     }
@@ -69,38 +72,48 @@ export function InvitespotLeadForm({ referralSlug }: { referralSlug: string | nu
         <h2 className="font-serif text-3xl text-[#F4EEE4]">{t("heading")}</h2>
         <p className="mt-1.5 text-sm text-[#B9C4BC]">{t("subtitle")}</p>
 
-        <label className="mt-6 block text-xs font-semibold text-[#D8E0DA]">{t("nameLabel")}</label>
-        <input
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder={t("namePlaceholder")}
-          className="mt-1.5 min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm text-[#241F1A]"
-        />
+        <label className="mt-6 block text-xs font-semibold text-[#D8E0DA]">
+          {t("nameLabel")}
+          <input
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder={t("namePlaceholder")}
+            className="mt-1.5 min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm font-normal text-[#241F1A]"
+          />
+        </label>
 
-        <label className="mt-4 block text-xs font-semibold text-[#D8E0DA]">{t("contactLabel")}</label>
-        <div className="mt-1.5 flex gap-3">
-          <input
-            type="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            placeholder={t("emailPlaceholder")}
-            className="min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm text-[#241F1A]"
-          />
-          <input
-            type="tel"
-            value={phone}
-            onChange={(event) => setPhone(event.target.value)}
-            placeholder={t("phonePlaceholder")}
-            className="min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm text-[#241F1A]"
-          />
+        <span className="mt-4 block text-xs font-semibold text-[#D8E0DA]">{t("contactLabel")}</span>
+        <div className="mt-1.5 flex flex-col gap-3 sm:flex-row">
+          <label className="flex-1 text-sm">
+            <span className="sr-only">{t("emailPlaceholder")}</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder={t("emailPlaceholder")}
+              className="min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm text-[#241F1A]"
+            />
+          </label>
+          <label className="flex-1 text-sm">
+            <span className="sr-only">{t("phonePlaceholder")}</span>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(event) => setPhone(event.target.value)}
+              placeholder={t("phonePlaceholder")}
+              className="min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm text-[#241F1A]"
+            />
+          </label>
         </div>
 
-        <label className="mt-4 block text-xs font-semibold text-[#D8E0DA]">{t("planningLabel")}</label>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <span className="mt-4 block text-xs font-semibold text-[#D8E0DA]">{t("planningLabel")}</span>
+        <div role="radiogroup" aria-label={t("planningLabel")} className="mt-2 flex flex-wrap gap-2">
           {EVENT_TYPES.map((type) => (
             <button
               key={type}
               type="button"
+              role="radio"
+              aria-checked={eventType === type}
               onClick={() => setEventType(type)}
               className={`min-h-11 rounded-full px-4 py-2 text-sm ${
                 eventType === type
@@ -114,26 +127,27 @@ export function InvitespotLeadForm({ referralSlug }: { referralSlug: string | nu
         </div>
 
         <div className="mt-4 flex gap-3">
-          <div className="flex-1">
-            <label className="block text-xs font-semibold text-[#D8E0DA]">{t("whenLabel")}</label>
+          <label className="flex-1 text-xs font-semibold text-[#D8E0DA]">
+            {t("whenLabel")}
             <input
               value={roughDate}
               onChange={(event) => setRoughDate(event.target.value)}
               placeholder={t("whenPlaceholder")}
-              className="mt-1.5 min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm text-[#241F1A]"
+              className="mt-1.5 min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm font-normal text-[#241F1A]"
             />
-          </div>
-          <div className="flex-1">
-            <label className="block text-xs font-semibold text-[#D8E0DA]">{t("guestsLabel")}</label>
+          </label>
+          <label className="flex-1 text-xs font-semibold text-[#D8E0DA]">
+            {t("guestsLabel")}
             <input
               type="number"
               min="1"
+              max="100000"
               value={guestCount}
               onChange={(event) => setGuestCount(event.target.value)}
               placeholder={t("guestsPlaceholder")}
-              className="mt-1.5 min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm text-[#241F1A]"
+              className="mt-1.5 min-h-11 w-full rounded-lg bg-[#F4EEE4] px-3.5 py-3 text-sm font-normal text-[#241F1A]"
             />
-          </div>
+          </label>
         </div>
 
         {error && <p role="alert" className="mt-4 text-sm text-red-300">{error}</p>}

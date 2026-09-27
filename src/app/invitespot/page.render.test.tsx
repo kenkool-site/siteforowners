@@ -45,3 +45,21 @@ test("the page wires the real getPublicInvitationBySlug into getInvitationReferr
   const lookupCallIndex = source.indexOf("getInvitationReferralDisplayName(referralSlug, getPublicInvitationBySlug)");
   assert.ok(tryIndex < lookupCallIndex && lookupCallIndex < catchIndex, "the lookup call must be inside the try block");
 });
+
+// Structural for the same reason as the test above (page.tsx can't be
+// imported here). This replaces a test the pre-landing-page placeholder
+// had that imported `metadata` directly from ./page — Next.js merges
+// metadata down the tree, so without its own openGraph/twitter this page
+// would silently inherit the root layout's SiteForOwners branding and
+// screenshot in a link preview (see src/app/layout.tsx). Pinning the
+// literal values here keeps that regression caught even though the export
+// can no longer be imported and inspected directly.
+test("the page declares its own InviteSpot-branded canonical/OpenGraph/Twitter metadata, not inherited SiteForOwners values", () => {
+  const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
+  assert.match(source, /canonical:\s*"https:\/\/www\.invitespot\.app\/"/);
+  const openGraphBlock = source.slice(source.indexOf("openGraph:"), source.indexOf("twitter:"));
+  assert.match(openGraphBlock, /siteName:\s*"InviteSpot"/);
+  assert.match(openGraphBlock, /title:\s*"InviteSpot"/);
+  const twitterBlock = source.slice(source.indexOf("twitter:"));
+  assert.match(twitterBlock, /title:\s*"InviteSpot"/);
+});

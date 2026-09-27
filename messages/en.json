@@ -1085,7 +1085,10 @@
       "submitting": "Sending…",
       "reassurance": "We reply once. No list, no newsletter.",
       "success": "Thanks — we'll be in touch by email or phone shortly.",
-      "genericError": "Something went wrong — please try again."
+      "genericError": "Something went wrong — please try again.",
+      "nameRequired": "Please enter your name.",
+      "contactRequired": "Please enter your email or phone number.",
+      "eventTypeRequired": "Please choose what you're planning."
     },
     "footer": { "wordmark": "InviteSpot", "domain": "invitespot.app" }
   }

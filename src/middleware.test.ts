@@ -71,10 +71,31 @@ test("middleware returns a not-found, no-store response for a tenant label reque
 test("middleware rewrites the invitespot.app apex to its dedicated route, before any Supabase client is created", () => {
   const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
   assert.match(source, /host\.kind === "invitespot-root"/);
-  assert.match(source, /NextResponse\.rewrite\(new URL\("\/invitespot", request\.url\)\)/);
   const invitespotRootIndex = source.indexOf('host.kind === "invitespot-root"');
   const supabaseClientIndex = source.indexOf("createClient(supabaseUrl, supabaseKey)");
   assert.ok(invitespotRootIndex > -1 && supabaseClientIndex > -1 && invitespotRootIndex < supabaseClientIndex);
+});
+
+// Behavioral, not structural: a source-regex match on the rewrite
+// expression is exactly how this branch previously shipped (and pinned as
+// "correct") a bug that silently dropped the entire query string —
+// stripping ?from={slug}, the invitation footer's referral link, before
+// the page ever saw it. This calls middleware() directly (no Supabase
+// client is constructed on this path, confirmed by the ordering test
+// above), so it can assert on the real rewrite target instead of the
+// literal source text.
+test("middleware preserves the query string (?from and ?lang) when rewriting the invitespot.app apex to /invitespot, and marks it no-store", async () => {
+  const request = new NextRequest("https://invitespot.app/?from=mia-and-lee&lang=es", {
+    headers: { host: "invitespot.app" },
+  });
+  const response = await middleware(request);
+  const rewriteTarget = response.headers.get("x-middleware-rewrite");
+  assert.ok(rewriteTarget, "expected a rewrite response");
+  const url = new URL(rewriteTarget!);
+  assert.equal(url.pathname, "/invitespot");
+  assert.equal(url.searchParams.get("from"), "mia-and-lee");
+  assert.equal(url.searchParams.get("lang"), "es");
+  assert.equal(response.headers.get("Cache-Control"), "no-store, must-revalidate");
 });
 
 // The invitespot-root branch used to be an unconditional rewrite to /invitespot
@@ -92,7 +113,7 @@ test("the invitespot-root branch only rewrites the bare '/' path to the placehol
     source.indexOf('const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;'),
   );
   assert.match(rootBlock, /if \(pathname === "\/"\)/);
-  assert.match(rootBlock, /NextResponse\.rewrite\(new URL\("\/invitespot", request\.url\)\)/);
+  assert.match(rootBlock, /NextResponse\.rewrite\(invitespotUrl\)/);
 });
 
 test("the invitespot-root branch lets /invite/* paths through with NextResponse.next()", () => {

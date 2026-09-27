@@ -73,6 +73,13 @@ test("guestCount coerces a non-numeric value to null rather than throwing", () =
   assert.equal(result.value.guestCount, null);
 });
 
+test("guestCount above the plausible upper bound coerces to null rather than an out-of-range value the DB insert would reject", () => {
+  const result = parseInvitespotLead(validBody({ guestCount: 99999999999 }));
+  assert.equal(result.ok, true);
+  if (!result.ok) return;
+  assert.equal(result.value.guestCount, null);
+});
+
 test("trims and length-caps free text fields", () => {
   const result = parseInvitespotLead(validBody({ name: "  Chidinma O.  ", roughDate: "x".repeat(300) }));
   assert.equal(result.ok, true);
