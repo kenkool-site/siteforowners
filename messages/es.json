@@ -734,7 +734,7 @@
       "gallery": "Un vistazo a la celebración",
       "galleryAlt": "Foto del evento {number}",
       "videoLabel": "Video del evento",
-      "footer": { "poweredBy": "Creado con SiteForOwners", "hostSignIn": "Acceso del anfitrión" },
+      "footer": { "marketingCta": "¿Organizas tu propio evento? Crea tu invitación con InviteSpot", "poweredBy": "Creado con InviteSpot", "hostSignIn": "Acceso del anfitrión" },
       "guestbook": {
         "title": "Libro de invitados",
         "intro": "Nos emociona celebrar con usted. Deje una nota para los anfitriones.",

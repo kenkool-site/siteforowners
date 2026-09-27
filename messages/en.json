@@ -734,7 +734,7 @@
       "gallery": "A glimpse of the celebration",
       "galleryAlt": "Event photo {number}",
       "videoLabel": "Event video",
-      "footer": { "poweredBy": "Powered by SiteForOwners", "hostSignIn": "Host sign in" },
+      "footer": { "marketingCta": "Hosting your own event? Create your invitation with InviteSpot", "poweredBy": "Powered by InviteSpot", "hostSignIn": "Host sign in" },
       "guestbook": {
         "title": "Guestbook",
         "intro": "We’re excited to celebrate with you. Leave a note for the hosts.",
