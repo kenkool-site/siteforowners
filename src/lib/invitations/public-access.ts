@@ -9,6 +9,7 @@ import {
   type EffectiveEventState,
 } from "./state";
 import { invitationCoverPreviewUrl, invitationPublicUrl } from "./public-url";
+import { getPublicInvitationBySlug } from "./repository";
 
 export type PublicInvitationResolution =
   | { kind: "not_found" }
@@ -75,6 +76,23 @@ export async function resolvePublicInvitationPage(
     media: await dependencies.loadMedia(invitation.event),
     rsvpSummary: invitation.rsvpSummary,
   };
+}
+
+// Powers the invitation footer's "Hosting your own event?" referral banner
+// on the invitespot.app landing page: given the slug of the invitation that
+// sent a visitor there (via ?from=), returns just its honoree names — never
+// anything else about the event, and never for an event a stranger couldn't
+// already see by visiting its own invitation page directly (the exact same
+// state gate resolvePublicInvitationPage itself applies).
+export async function getInvitationReferralDisplayName(
+  slug: string,
+  find: (slug: string) => Promise<PublicInvitationLookup | null> = getPublicInvitationBySlug,
+): Promise<string | null> {
+  const invitation = await find(slug);
+  if (!invitation) return null;
+  const state = getEffectiveEventState(invitation.event, new Date());
+  if (state !== "published" && state !== "rsvp_closed") return null;
+  return invitation.event.honoreeNames;
 }
 
 const PRIVATE_METADATA: Metadata = {

@@ -4,6 +4,7 @@ import {
   invitationPageMetadata,
   resolvePublicInvitationPage,
   resolveInvitationPreview,
+  getInvitationReferralDisplayName,
 } from "./public-access";
 import type { PublicInvitationLookup } from "./repository-core";
 
@@ -173,4 +174,26 @@ test("invitation metadata falls back to the invitation title and avoids duplicat
   }, "published");
   assert.equal(sameTitle.title, "Mia and Lee");
   assert.equal(sameTitle.description, "The Garden — Celebrate with us");
+});
+
+test("getInvitationReferralDisplayName returns the honoree names for a published event", async () => {
+  const name = await getInvitationReferralDisplayName("mia-and-lee", async () => invitation);
+  assert.equal(name, "Mia and Lee");
+});
+
+test("getInvitationReferralDisplayName returns the honoree names for an rsvp_closed event", async () => {
+  const fixture = { ...invitation, event: { ...invitation.event, status: "rsvp_closed" as const } };
+  const name = await getInvitationReferralDisplayName("mia-and-lee", async () => fixture);
+  assert.equal(name, "Mia and Lee");
+});
+
+test("getInvitationReferralDisplayName returns null for a draft event", async () => {
+  const fixture = { ...invitation, event: { ...invitation.event, status: "draft" as const } };
+  const name = await getInvitationReferralDisplayName("mia-and-lee", async () => fixture);
+  assert.equal(name, null);
+});
+
+test("getInvitationReferralDisplayName returns null when the slug doesn't resolve", async () => {
+  const name = await getInvitationReferralDisplayName("no-such-slug", async () => null);
+  assert.equal(name, null);
 });
