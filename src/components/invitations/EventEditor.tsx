@@ -806,7 +806,7 @@ export function EventEditor({
                       onBlur={(event) => void checkPublicSubdomain(event.currentTarget.value)}
                       className="min-h-11 min-w-0 flex-1 rounded-l-md px-3 py-2 text-[16px] outline-none"
                     />
-                    <span className="pr-3 text-sm font-normal text-[#675d6a]">.siteforowners.com</span>
+                    <span className="pr-3 text-sm font-normal text-[#675d6a]">.invitespot.app</span>
                   </span>
                 </label>
                 <p className="mt-2 text-xs leading-5 text-[#675d6a]">{subdomainFeedback || t("publicDomainHelp")}</p>

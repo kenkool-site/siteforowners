@@ -211,3 +211,7 @@ test("a full gallery disables the thirteenth upload", () => {
   assert.match(html, /The gallery is full/);
   assert.equal((html.match(/>Replace</g) ?? []).length, 12);
 });
+
+test("founders see the public subdomain input suffixed with invitespot.app, matching where invitation events now live", () => {
+  assert.match(render("founder"), /\.invitespot\.app</);
+});
