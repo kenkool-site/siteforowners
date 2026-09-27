@@ -1037,5 +1037,56 @@
       "hours": "Hours",
       "closed": "Closed"
     }
+  },
+  "invitespot": {
+    "nav": { "getStarted": "Get started" },
+    "referralBanner": "You came from {names}'s page",
+    "hero": {
+      "title": "You send the details. We build the page.",
+      "subtitle": "Invitations, RSVPs, and guest photos — for weddings, birthdays, naming ceremonies, burials, and anniversaries. Nothing to design yourself.",
+      "cta": "Tell us about your event",
+      "microcopy": "We'll reply by email or phone with examples and a quote."
+    },
+    "whatYouGet": {
+      "heading": "What you get",
+      "address": { "title": "Your own web address", "body": "Your names, not a booking code. Everything lives in one place guests can find again." },
+      "rsvps": { "title": "RSVPs people actually answer", "body": "Reminders go out by text and email, not just one channel a guest might miss." },
+      "photos": { "title": "Every guest's photos, in one place", "body": "One printed QR code on the tables. Guests upload from their phones — no app, no sign-up — and it's all sorted for you after." }
+    },
+    "howItWorks": {
+      "heading": "How it works",
+      "step1": { "title": "Send us the details", "body": "Date, venue, colours, programme, a few photos. A quick message is enough." },
+      "step2": { "title": "We build it and send you the link", "body": "You never touch an editor — we handle the whole build." },
+      "step3": { "title": "Share it, and we do the chasing", "body": "Printed QR cards for the tables, and reminders that go out before and after the day." }
+    },
+    "pricing": {
+      "heading": "What it costs",
+      "tier1": { "title": "Up to 150 guests", "body": "One event · invitation, RSVP, photos" },
+      "tier2": { "title": "150–400 guests", "body": "Two events · traditional and white wedding" },
+      "tier3": { "title": "400 guests and up", "body": "We send the messages and chase the replies" },
+      "cta": "Get a quote",
+      "note": "One payment, no subscription — every plan includes your page and photo gallery. We'll confirm exact pricing and how long everything stays up when we reach out."
+    },
+    "form": {
+      "heading": "Tell us about your event",
+      "subtitle": "A few questions. We reply by email or phone with a real example and a quote.",
+      "nameLabel": "Your name",
+      "namePlaceholder": "Chidinma O.",
+      "contactLabel": "How should we reach you? (at least one)",
+      "emailPlaceholder": "Email",
+      "phonePlaceholder": "Phone",
+      "planningLabel": "What are you planning?",
+      "eventTypes": { "birthday": "Birthday", "wedding": "Wedding", "naming": "Naming", "burial": "Burial", "anniversary": "Anniversary", "other": "Something else" },
+      "whenLabel": "Roughly when",
+      "whenPlaceholder": "March",
+      "guestsLabel": "Guests",
+      "guestsPlaceholder": "300",
+      "submit": "Send",
+      "submitting": "Sending…",
+      "reassurance": "We reply once. No list, no newsletter.",
+      "success": "Thanks — we'll be in touch by email or phone shortly.",
+      "genericError": "Something went wrong — please try again."
+    },
+    "footer": { "wordmark": "InviteSpot", "domain": "invitespot.app" }
   }
 }
