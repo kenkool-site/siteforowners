@@ -33,6 +33,20 @@ test("invitation public URL without a subdomain defaults to invitespot.app, not 
   }
 });
 
+test("invitation public URL without a subdomain honors NEXT_PUBLIC_INVITESPOT_APP_URL when it is set to a custom value", () => {
+  const original = process.env.NEXT_PUBLIC_INVITESPOT_APP_URL;
+  process.env.NEXT_PUBLIC_INVITESPOT_APP_URL = "https://custom.example.com";
+  try {
+    assert.equal(
+      invitationPublicUrl({ slug: "mercy-john-lx9cwn", publicSubdomain: null }),
+      "https://custom.example.com/invite/mercy-john-lx9cwn",
+    );
+  } finally {
+    if (original === undefined) delete process.env.NEXT_PUBLIC_INVITESPOT_APP_URL;
+    else process.env.NEXT_PUBLIC_INVITESPOT_APP_URL = original;
+  }
+});
+
 test("cover previews stay on the shared siteforowners.com app URL, unaffected by the invitespot.app migration", () => {
   assert.equal(
     invitationCoverPreviewUrl({ slug: "mercy-john" }),
