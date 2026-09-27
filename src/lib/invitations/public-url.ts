@@ -20,6 +20,16 @@ export function invitationPublicUrl(
   return new URL(`/invite/${encodeURIComponent(invitation.slug)}`, appUrl).toString();
 }
 
+export function invitationMemoriesUrl(
+  invitation: InvitationPublicUrlInput,
+  appUrl = process.env.NEXT_PUBLIC_INVITESPOT_APP_URL || DEFAULT_INVITESPOT_APP_URL,
+): string {
+  if (invitation.publicSubdomain) {
+    return `https://${invitation.publicSubdomain}.invitespot.app/memories`;
+  }
+  return new URL(`/invite/${encodeURIComponent(invitation.slug)}/memories`, appUrl).toString();
+}
+
 export function invitationCoverPreviewUrl(
   invitation: Pick<InvitationPublicUrlInput, "slug">,
   appUrl = process.env.NEXT_PUBLIC_APP_URL || DEFAULT_APP_URL,

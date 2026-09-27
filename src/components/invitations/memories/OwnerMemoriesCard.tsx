@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import type { MemoriesEventSummary } from "@/lib/invitations/memories/host";
+import { invitationMemoriesUrl } from "@/lib/invitations/public-url";
 
 export type OwnerMemoriesCardData = MemoriesEventSummary & { enabled: boolean; mode: "auto_publish" | "review_required"; findMeEnabled: boolean };
 
-export function OwnerMemoriesCard({ eventId, slug, initial, manageBasePath = "/invitations/manage" }: { eventId: string; slug: string; initial: OwnerMemoriesCardData; manageBasePath?: string }) {
+export function OwnerMemoriesCard({ eventId, slug, publicSubdomain, initial, manageBasePath = "/invitations/manage" }: { eventId: string; slug: string; publicSubdomain: string | null; initial: OwnerMemoriesCardData; manageBasePath?: string }) {
   const t = useTranslations("invitations.manage.dashboard.memories");
   const [enabled, setEnabled] = useState(initial.enabled);
   const [mode, setMode] = useState(initial.mode);
@@ -32,7 +33,7 @@ export function OwnerMemoriesCard({ eventId, slug, initial, manageBasePath = "/i
           {initial.recentThumbnailMediaIds.length > 0 && <div className="mt-3 flex max-w-full gap-1 overflow-hidden">{initial.recentThumbnailMediaIds.map((id) => <img key={id} src={`/api/invitations/events/${eventId}/memories/media/${id}/thumbnail`} alt="" className="size-12 shrink-0 rounded-md object-cover" />)}</div>}
         </div>
         <div className="grid gap-2 sm:grid-cols-2 lg:flex">
-          <Link href={`/invite/${slug}/memories`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#6D456F] px-4 py-2 text-sm font-semibold text-[#55405a]">{t("viewGallery")}</Link>
+          <Link href={invitationMemoriesUrl({ slug, publicSubdomain })} className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#6D456F] px-4 py-2 text-sm font-semibold text-[#55405a]">{t("viewGallery")}</Link>
           <Link href={`${manageBasePath}/${eventId}/memories`} className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#6D456F] px-4 py-2 text-sm font-semibold text-white">{initial.flaggedCount > 0 ? t("reviewFlagged") : t("manage")}</Link>
         </div>
       </div>

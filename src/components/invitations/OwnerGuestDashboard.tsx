@@ -64,7 +64,7 @@ export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled:
         </div>
       </section>
 
-      {memories && <OwnerMemoriesCard eventId={event.id} slug={event.slug} initial={memories} />}
+      {memories && <OwnerMemoriesCard eventId={event.id} slug={event.slug} publicSubdomain={event.publicSubdomain} initial={memories} />}
 
       <section className="mx-auto max-w-6xl px-0 py-6 sm:px-6 sm:py-9" aria-labelledby="guest-ledger-heading">
         <div className="px-4 sm:px-0">
