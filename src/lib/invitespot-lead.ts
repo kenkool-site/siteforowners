@@ -26,7 +26,7 @@ export type InvitespotLead = {
   referralSlug: string;
 };
 
-type ParseResult =
+export type ParseInvitespotLeadResult =
   | { ok: true; value: InvitespotLead }
   | { ok: false; error: string };
 
@@ -45,7 +45,7 @@ function isEventType(value: string): value is EventType {
   return (EVENT_TYPES as readonly string[]).includes(value);
 }
 
-export function parseInvitespotLead(body: unknown): ParseResult {
+export function parseInvitespotLead(body: unknown): ParseInvitespotLeadResult {
   const data = body && typeof body === "object" ? (body as Record<string, unknown>) : {};
   const name = cleanString(data.name);
   const email = cleanString(data.email);
