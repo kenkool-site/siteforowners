@@ -141,7 +141,9 @@ test("only published passcode-free invitations receive authored metadata", () =>
   assert.equal(publicMetadata.twitter?.title, "Mia and Lee");
   assert.equal(publicMetadata.twitter?.description, "Save the Date — The Garden — Celebrate with us");
   assert.deepEqual(publicMetadata.robots, { index: true, follow: true });
-  assert.equal(publicMetadata.alternates?.canonical, "https://mia-lee.siteforowners.com/");
+  assert.equal(publicMetadata.alternates?.canonical, "https://mia-lee.invitespot.app/");
+  // Cover images stay on the shared siteforowners.com app URL — deliberately
+  // unaffected by the invitespot.app migration (invitationCoverPreviewUrl).
   assert.deepEqual(publicMetadata.openGraph?.images, [{ url: "https://www.siteforowners.com/api/invitations/public/mia-and-lee/cover", alt: "Mia and Lee" }]);
   assert.match(JSON.stringify(publicMetadata.twitter), /summary_large_image/);
   assert.doesNotMatch(JSON.stringify(publicMetadata), /Secret Celebration Way|maps\.example/);
