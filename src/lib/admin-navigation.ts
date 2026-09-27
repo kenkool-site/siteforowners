@@ -27,6 +27,7 @@ export const FOUNDER_ADMIN_LINKS: readonly FounderAdminLink[] = [
   { href: "/demos", label: "Demos" },
   { href: "/admin/invitations", label: "Invitations" },
   { href: "/requests", label: "Requests" },
+  { href: "/invitespot-leads", label: "InviteSpot Leads" },
   { href: "/prospects", label: "Prospects" },
   { href: "/clients", label: "Clients" },
 ];

@@ -373,7 +373,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
 
       </article>
       {event.commentWallEnabled && <InvitationCommentWall slug={event.slug} initialPage={initialComments} preview={preview} accent={recipe.palette.accent} surface={recipe.palette.surface} foreground={recipe.palette.text} titleClass={titleFont} />}
-      <InvitationFooter />
+      <InvitationFooter slug={event.slug} />
       <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} deadlineDate={rsvpDeadlineDate} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
     </main>
   );

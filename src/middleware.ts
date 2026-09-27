@@ -12,6 +12,7 @@ const ADMIN_ROUTES = [
   "/clients",
   "/previews",
   "/requests",
+  "/invitespot-leads",
   "/onboard",
 ];
 
@@ -50,7 +51,17 @@ export async function middleware(request: NextRequest) {
 
   if (host.kind === "invitespot-root") {
     if (pathname === "/") {
-      return NextResponse.rewrite(new URL("/invitespot", request.url));
+      // new URL(path, request.url) drops the query string, which would
+      // silently strip ?from={slug} (the invitation footer's referral link)
+      // and ?lang= before the page ever sees them — copy it over explicitly.
+      const invitespotUrl = new URL("/invitespot", request.url);
+      invitespotUrl.search = request.nextUrl.search;
+      const rewritten = NextResponse.rewrite(invitespotUrl);
+      // The page's rendered output varies per-visitor (?from= drives the
+      // referral banner) — without this, an edge cache could serve one
+      // guest's referral banner to another.
+      rewritten.headers.set("Cache-Control", "no-store, must-revalidate");
+      return rewritten;
     }
     if (pathname.startsWith("/invite/")) return NextResponse.next();
     const notFound = NextResponse.rewrite(new URL("/not-found", request.url));

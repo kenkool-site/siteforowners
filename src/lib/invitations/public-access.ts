@@ -77,6 +77,28 @@ export async function resolvePublicInvitationPage(
   };
 }
 
+// Powers the invitation footer's "Hosting your own event?" referral banner
+// on the invitespot.app landing page: given the slug of the invitation that
+// sent a visitor there (via ?from=), returns just its honoree names — never
+// anything else about the event, and never for an event a stranger couldn't
+// already see by visiting its own invitation page directly. A visitor here has
+// no session/cookie context for the OTHER event, so unlike resolvePublicInvitationPage
+// (which can grant passcode access via dependencies.hasPasscodeAccess), any
+// passcode at all must suppress the name entirely.
+// The `find` parameter is required (not defaulted) so this file never imports
+// ./repository, which starts with `import "server-only"` and would break tests.
+export async function getInvitationReferralDisplayName(
+  slug: string,
+  find: (slug: string) => Promise<PublicInvitationLookup | null>,
+): Promise<string | null> {
+  const invitation = await find(slug);
+  if (!invitation) return null;
+  if (invitation.passcodeHash) return null;
+  const state = getEffectiveEventState(invitation.event, new Date());
+  if (state !== "published" && state !== "rsvp_closed") return null;
+  return invitation.event.honoreeNames;
+}
+
 const PRIVATE_METADATA: Metadata = {
   title: "Invitation",
   robots: { index: false, follow: false },

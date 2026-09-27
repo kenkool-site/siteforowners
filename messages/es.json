@@ -1037,5 +1037,59 @@
       "hours": "Horario",
       "closed": "Cerrado"
     }
+  },
+  "invitespot": {
+    "nav": { "getStarted": "Comenzar" },
+    "referralBanner": "Llegaste desde la página de {names}",
+    "hero": {
+      "title": "Tú nos das los detalles. Nosotros creamos la página.",
+      "subtitle": "Invitaciones, confirmaciones de asistencia y fotos de invitados — para bodas, cumpleaños, ceremonias de nombramiento, funerales y aniversarios. No tienes que diseñar nada.",
+      "cta": "Cuéntanos sobre tu evento",
+      "microcopy": "Te responderemos por correo o teléfono con ejemplos y una cotización."
+    },
+    "whatYouGet": {
+      "heading": "Qué obtienes",
+      "address": { "title": "Tu propia dirección web", "body": "Tus nombres, no un código de reserva. Todo vive en un solo lugar que los invitados pueden volver a encontrar." },
+      "rsvps": { "title": "Confirmaciones que la gente sí responde", "body": "Los recordatorios se envían por mensaje de texto y correo, no solo por un canal que un invitado podría pasar por alto." },
+      "photos": { "title": "Las fotos de cada invitado, en un solo lugar", "body": "Un código QR impreso en las mesas. Los invitados suben fotos desde su teléfono — sin apps, sin registro — y todo queda organizado para ti después." }
+    },
+    "howItWorks": {
+      "heading": "Cómo funciona",
+      "step1": { "title": "Envíanos los detalles", "body": "Fecha, lugar, colores, programa, algunas fotos. Un mensaje breve es suficiente." },
+      "step2": { "title": "La creamos y te enviamos el enlace", "body": "Nunca tocas un editor — nosotros hacemos todo el trabajo." },
+      "step3": { "title": "Compártelo, y nosotros damos seguimiento", "body": "Tarjetas con código QR para las mesas, y recordatorios antes y después del evento." }
+    },
+    "pricing": {
+      "heading": "Qué cuesta",
+      "tier1": { "title": "Hasta 150 invitados", "body": "Un evento · invitación, confirmaciones, fotos" },
+      "tier2": { "title": "150–400 invitados", "body": "Dos eventos · boda tradicional y boda de blanco" },
+      "tier3": { "title": "400 invitados o más", "body": "Nosotros enviamos los mensajes y damos seguimiento a las respuestas" },
+      "cta": "Solicitar cotización",
+      "note": "Un solo pago, sin suscripción — cada plan incluye tu página y galería de fotos. Confirmaremos el precio exacto y cuánto tiempo estará todo disponible cuando te contactemos."
+    },
+    "form": {
+      "heading": "Cuéntanos sobre tu evento",
+      "subtitle": "Unas preguntas. Te responderemos por correo o teléfono con un ejemplo real y una cotización.",
+      "nameLabel": "Tu nombre",
+      "namePlaceholder": "Chidinma O.",
+      "contactLabel": "¿Cómo prefieres que te contactemos? (al menos uno)",
+      "emailPlaceholder": "Correo",
+      "phonePlaceholder": "Teléfono",
+      "planningLabel": "¿Qué estás planeando?",
+      "eventTypes": { "birthday": "Cumpleaños", "wedding": "Boda", "naming": "Nombramiento", "burial": "Funeral", "anniversary": "Aniversario", "other": "Otra cosa" },
+      "whenLabel": "Aproximadamente cuándo",
+      "whenPlaceholder": "Marzo",
+      "guestsLabel": "Invitados",
+      "guestsPlaceholder": "300",
+      "submit": "Enviar",
+      "submitting": "Enviando…",
+      "reassurance": "Respondemos una sola vez. Sin listas, sin boletines.",
+      "success": "Gracias — te contactaremos pronto por correo o teléfono.",
+      "genericError": "Algo salió mal — inténtalo de nuevo.",
+      "nameRequired": "Por favor ingresa tu nombre.",
+      "contactRequired": "Por favor ingresa tu correo o teléfono.",
+      "eventTypeRequired": "Por favor elige qué estás planeando."
+    },
+    "footer": { "wordmark": "InviteSpot", "domain": "invitespot.app" }
   }
 }
