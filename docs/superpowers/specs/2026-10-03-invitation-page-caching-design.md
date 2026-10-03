@@ -78,24 +78,40 @@ were the original "make client-facing pages load fast" ask.
   This fully removes the 15-minute-expiry risk, since signing now happens at
   actual view time regardless of how old the cached page is.
 - **Media for non-passcode-protected events becomes genuinely
-  CDN-cacheable, not just re-signed faster.** Today the whole
+  CDN-cacheable, not just re-signed faster — by extending an existing,
+  already-shipped pattern, not inventing a new one.** Today the whole
   `invitation-media` bucket is private (`public = false`,
   `036_invitation_events_foundation.sql`) — every object needs a signed URL
   regardless of whether its event has a passcode, and a freshly-signed URL
   is a fresh cache key every time (new token = cache miss), so no amount of
   moving *when* signing happens makes these objects CDN-friendly on its own.
-  Add a `storage.objects` RLS policy granting anonymous `SELECT` on objects
-  belonging to an event with no `passcode_hash` set — this lets those
-  specific objects be referenced by a **stable, unsigned public URL**
-  (`.../storage/v1/object/public/invitation-media/...`), which is both
-  genuinely cacheable at Vercel/CDN level and compatible with `next/image`'s
-  own optimization layer (already configured for any HTTPS host via
-  `next.config.mjs`'s wildcard `remotePatterns` — confirmed, no config
-  change needed there). The media-fetch endpoint above returns this stable
-  public URL directly for a non-passcode event (no signing call at all,
-  cheaper too) and falls back to today's short-lived signed URL only when
-  the event has a passcode set — preserving the exact security property the
-  signing exists for in the one case that actually needs it.
+
+  `src/app/api/invitations/public/[slug]/cover/route.ts` already solves
+  exactly this problem for one case: it exists today (for social-share
+  link-preview images, via `invitationCoverPreviewUrl` in
+  `public-access.ts`'s OpenGraph metadata), streams the cover image through
+  the admin client (bypassing signing entirely), checks
+  `!invitation.passcodeHash` and published state before serving, and sets
+  `Cache-Control: public, max-age=300, s-maxage=300,
+  stale-while-revalidate=60`. This is a proven, in-production precedent for
+  the exact access rule this design needs (public and cacheable only when
+  no passcode is set) — extend it rather than add a parallel
+  `storage.objects` RLS mechanism:
+  - Add `GET /api/invitations/public/[slug]/video`, identical shape to the
+    existing `/cover` route, serving `invitation_event.video_path`.
+  - Add `GET /api/invitations/public/[slug]/gallery/[mediaId]`, same
+    passcode/state gate, looking up the specific `invitation_media` row
+    (`event_id`, `id`) before streaming its `storage_path`.
+  - Both reuse `isInvitationMediaPathForEvent` (`src/lib/invitations/media.ts`)
+    for the same path-ownership check the `/cover` route already does.
+
+  The media-fetch endpoint (`GET /api/invitations/public/[slug]/media`)
+  returns these three stable proxy-route URLs directly for a non-passcode
+  event (no signing call at all, cheaper too, and they're already
+  `next/image`-compatible via `next.config.mjs`'s wildcard HTTPS
+  `remotePatterns`) and falls back to today's short-lived signed URLs only
+  when the event has a passcode set — preserving the exact security
+  property the signing exists for in the one case that actually needs it.
   `PublicInvitation.tsx`'s image rendering (currently a plain `<img>`,
   confirmed at `PublicInvitation.tsx:138`) switches to `next/image` for the
   now-cacheable public case.
@@ -145,12 +161,17 @@ were the original "make client-facing pages load fast" ask.
 - The new media-signing route: returns signed URLs for a published event,
   404s/empty for an unavailable one, matching `resolvePublicInvitationPage`'s
   own state gate.
-- The new `storage.objects` RLS policy: an anonymous request for a
-  non-passcode event's media object succeeds via the stable public URL; the
-  identical request for a passcode-protected event's object is denied — this
-  is the one test in this plan with real security consequences if it's
-  wrong (a too-broad policy leaks passcode-protected photos), so it gets a
-  dedicated test against both event types, not just a happy-path check.
+- The new `/video` and `/gallery/[mediaId]` public proxy routes: this
+  codebase already tests the `/cover` route they're modeled on structurally
+  (`src/lib/invitations/public-cover-route.contract.test.ts` — reads the
+  route's own source, asserts the passcode and lifecycle checks both occur
+  *before* the storage `.download()` call, and asserts the exact
+  `isInvitationMediaPathForEvent` call shape), since the real check needs
+  live Supabase access this test environment doesn't have. Match that same
+  convention for both new routes — this is the one test in this plan with
+  real security consequences if it's wrong (an inverted or missing
+  ordering check would leak a passcode-protected photo), so get the
+  ordering assertion right, not just a happy-path check.
 - `revalidateInvitationPage` wiring: same scoped-finding approach as the
   tenant-site work — check each candidate write path against what the page
   actually renders before wiring it in, rather than wiring every route that
