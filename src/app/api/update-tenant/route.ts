@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseCustomDomainForStorage } from "@/lib/normalize-custom-domain";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -95,10 +96,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { error: updateError } = await supabase
+  const { data: updated, error: updateError } = await supabase
     .from("tenants")
     .update({ ...allowed, updated_at: new Date().toISOString() })
-    .eq("id", tenantId);
+    .eq("id", tenantId)
+    .select("preview_slug")
+    .maybeSingle();
   if (updateError) {
     console.error("update-tenant failed:", updateError);
     const msg = String(updateError.message || "");
@@ -111,6 +114,9 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
+
+  const updatedSlug = updated?.preview_slug as string | null | undefined;
+  if (updatedSlug) revalidateTenantSite(updatedSlug);
 
   return NextResponse.json({ ok: true });
 }

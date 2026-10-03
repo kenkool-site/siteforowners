@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerSession } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TIME_RE = /^\d{1,2}:\d{2}(\s?(AM|PM))?$/i;
@@ -64,5 +65,6 @@ export async function POST(request: NextRequest) {
     console.error("[admin/bookings/hours] upsert failed", { tenantId: session.tenant.id, error });
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
+  revalidateTenantSite(previewSlug);
   return NextResponse.json({ ok: true });
 }

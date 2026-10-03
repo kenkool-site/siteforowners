@@ -6,6 +6,7 @@ import {
   type OwnerProfileInput,
 } from "@/lib/owner-profile";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -108,6 +109,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Profile save failed" }, { status: 500 });
   }
 
+  revalidateTenantSite(slug);
   return NextResponse.json(
     ownerProfileToEditable(savedProfile.preview, savedProfile.tenant),
   );

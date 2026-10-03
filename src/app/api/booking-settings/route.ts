@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 // GET: Load booking settings by tenant_id or preview_slug
 export async function GET(request: Request) {
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Failed to save" }, { status: 500 });
     }
 
+    revalidateTenantSite(preview_slug);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Booking settings error:", error);

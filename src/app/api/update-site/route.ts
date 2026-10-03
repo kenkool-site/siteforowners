@@ -12,6 +12,7 @@ import {
 } from "@/lib/video/gallery-video";
 import { mergeGeneratedCopy } from "@/lib/generated-copy-merge";
 import { validateHomeServicesConfigUpdate } from "@/lib/home-services/editor-validation";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 function normalizeGalleryVideoTitle(value: unknown): string | null {
   if (value === null || value === undefined) return null;
@@ -315,6 +316,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    revalidateTenantSite(slug);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Update site error:", error);

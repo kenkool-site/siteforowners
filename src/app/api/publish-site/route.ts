@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSubdomain } from "@/lib/subdomain";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 export async function POST(request: Request) {
   try {
@@ -62,6 +63,8 @@ export async function POST(request: Request) {
     }
 
     const siteUrl = `https://${subdomain}.siteforowners.com`;
+
+    if (tenant.preview_slug) revalidateTenantSite(tenant.preview_slug as string);
 
     return NextResponse.json({
       success: true,
