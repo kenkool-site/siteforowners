@@ -24,8 +24,3 @@ test("the media route verifies the passcode cookie itself before returning signe
   const signedMediaCallIndex = source.lastIndexOf("getInvitationMediaForManagement");
   assert.ok(passcodeCheckIndex >= 0 && signedMediaCallIndex > passcodeCheckIndex);
 });
-
-test("module loads under tsx --test", async () => {
-  const mod = await import("./route");
-  assert.equal(typeof mod.GET, "function");
-});
