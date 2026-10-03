@@ -37,7 +37,7 @@ export default async function GuestMemoriesPage({ params, searchParams }: { para
     const signed = cookies().get(getInvitationPasscodeCookieName(invitation.event.id))?.value;
     let hasAccess = false;
     try {
-      hasAccess = Boolean(signed && verifyInvitationPasscodeSession(signed, invitation.event.id));
+      hasAccess = Boolean(signed && (await verifyInvitationPasscodeSession(signed, invitation.event.id)));
     } catch {
       hasAccess = false;
     }

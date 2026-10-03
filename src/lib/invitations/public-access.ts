@@ -25,7 +25,7 @@ export type PublicInvitationResolution =
 
 export type PublicInvitationResolutionDependencies = {
   find(slug: string): Promise<PublicInvitationLookup | null>;
-  hasPasscodeAccess(event: PublicInvitationEvent): boolean;
+  hasPasscodeAccess(event: PublicInvitationEvent): Promise<boolean>;
   loadMedia(event: PublicInvitationEvent): Promise<InvitationMediaSnapshot>;
 };
 
@@ -65,7 +65,7 @@ export async function resolvePublicInvitationPage(
   if (state === "offline") return { kind: "not_found" };
   if (state === "draft") return { kind: "unavailable", event: invitation.event };
   if (state === "expired") return { kind: "ended", event: invitation.event };
-  if (invitation.passcodeHash && !dependencies.hasPasscodeAccess(invitation.event)) {
+  if (invitation.passcodeHash && !(await dependencies.hasPasscodeAccess(invitation.event))) {
     return { kind: "passcode", event: invitation.event };
   }
   return {

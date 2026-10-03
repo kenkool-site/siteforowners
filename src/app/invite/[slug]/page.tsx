@@ -34,10 +34,10 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 export default async function PublicInvitationPage({ params, searchParams }: { params: { slug: string }; searchParams: { next?: string } }) {
   const resolution = await resolvePublicInvitationPage(params.slug, new Date(), {
     find: getPublicInvitationBySlug,
-    hasPasscodeAccess: (event) => {
+    hasPasscodeAccess: async (event) => {
       const signed = cookies().get(getInvitationPasscodeCookieName(event.id))?.value;
       try {
-        return Boolean(signed && verifyInvitationPasscodeSession(signed, event.id));
+        return Boolean(signed && (await verifyInvitationPasscodeSession(signed, event.id)));
       } catch {
         return false;
       }

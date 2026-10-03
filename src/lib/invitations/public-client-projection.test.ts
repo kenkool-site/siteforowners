@@ -44,7 +44,7 @@ const privateCountsInvitation: PublicInvitationLookup = {
 test("the server-to-client invitation projection redacts disabled aggregate counts", async () => {
   const resolution = await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
     find: async () => privateCountsInvitation,
-    hasPasscodeAccess: () => true,
+    hasPasscodeAccess: async () => true,
     loadMedia: async () => ({ designedInvite: null, cover: null, video: null, gallery: [] }),
   });
 

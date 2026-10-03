@@ -70,12 +70,12 @@ test("unknown and offline events resolve as not found before signing media", asy
   };
   assert.deepEqual(await resolvePublicInvitationPage("unknown", new Date("2026-10-01"), {
     find: async () => null,
-    hasPasscodeAccess: () => false,
+    hasPasscodeAccess: async () => false,
     loadMedia,
   }), { kind: "not_found" });
   assert.deepEqual(await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
     find: async () => ({ ...invitation, event: { ...invitation.event, status: "offline" } }),
-    hasPasscodeAccess: () => false,
+    hasPasscodeAccess: async () => false,
     loadMedia,
   }), { kind: "not_found" });
   assert.equal(signed, 0);
@@ -86,7 +86,7 @@ test("draft, expired, and locked invitations reveal no media before their safe s
     let signed = 0;
     const result = await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
       find: async () => ({ ...invitation, event: { ...invitation.event, status } }),
-      hasPasscodeAccess: () => false,
+      hasPasscodeAccess: async () => false,
       loadMedia: async () => {
         signed += 1;
         return emptyMedia;
@@ -99,7 +99,7 @@ test("draft, expired, and locked invitations reveal no media before their safe s
   let signed = 0;
   const locked = await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
     find: async () => ({ ...invitation, passcodeHash: "stored" }),
-    hasPasscodeAccess: () => false,
+    hasPasscodeAccess: async () => false,
     loadMedia: async () => {
       signed += 1;
       return emptyMedia;
@@ -115,7 +115,7 @@ test("published and RSVP-closed invitations sign media only after access", async
     let signed = 0;
     const result = await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
       find: async () => ({ ...invitation, passcodeHash: "stored", event: { ...invitation.event, status } }),
-      hasPasscodeAccess: () => {
+      hasPasscodeAccess: async () => {
         checked += 1;
         return true;
       },
