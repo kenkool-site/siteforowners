@@ -1,25 +1,16 @@
 import type { Metadata } from "next";
-import { cookies, headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
-import { PasscodeGate } from "@/components/invitations/PasscodeGate";
+import { notFound } from "next/navigation";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { InvitationStateView, PublicInvitation } from "@/components/invitations/PublicInvitation";
-import {
-  getInvitationPasscodeCookieName,
-  verifyInvitationPasscodeSession,
-} from "@/lib/invitations/auth";
-import { isLegacySiteforownersApex } from "@/lib/host-routing";
-import { getInvitationMediaForManagement } from "@/lib/invitations/media";
 import {
   invitationPageMetadata,
   resolvePublicInvitationPage,
   toPublicInvitationClientDetails,
 } from "@/lib/invitations/public-access";
-import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import { getPublicInvitationBySlug, listPublicInvitationComments } from "@/lib/invitations/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   try {
@@ -31,52 +22,17 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   }
 }
 
-export default async function PublicInvitationPage({ params, searchParams }: { params: { slug: string }; searchParams: { next?: string } }) {
+export default async function PublicInvitationPage({ params }: { params: { slug: string } }) {
   const resolution = await resolvePublicInvitationPage(params.slug, new Date(), {
     find: getPublicInvitationBySlug,
-    hasPasscodeAccess: async (event) => {
-      const signed = cookies().get(getInvitationPasscodeCookieName(event.id))?.value;
-      try {
-        return Boolean(signed && (await verifyInvitationPasscodeSession(signed, event.id)));
-      } catch {
-        return false;
-      }
-    },
-    // This runs only after lifecycle and passcode checks: signing storage URLs grants detail access.
-    loadMedia: getInvitationMediaForManagement,
   });
   if (resolution.kind === "not_found") notFound();
-
-  // An event with a reserved subdomain now lives on invitespot.app — a
-  // direct hit on the legacy siteforowners.com apex (an old bookmark or
-  // shared link) bounces there instead of serving this page under the old
-  // brand. Checked before any state branching below: which domain serves
-  // this content is independent of the invitation's lifecycle state.
-  if (resolution.event.publicSubdomain && isLegacySiteforownersApex(headers().get("host") ?? "")) {
-    redirect(invitationPublicUrl({ slug: resolution.event.slug, publicSubdomain: resolution.event.publicSubdomain }));
-  }
 
   if (resolution.kind === "unavailable" || resolution.kind === "ended") {
     const state = resolution.kind === "unavailable" ? "draft" : "expired";
     return (
       <InvitationPublicProvider locale={resolution.event.locale} timeZone="UTC">
         <InvitationStateView state={state} />
-      </InvitationPublicProvider>
-    );
-  }
-
-  if (resolution.kind === "passcode") {
-    // Only trust a same-event relative path — anything else (an absolute
-    // URL, a different event's path) is dropped rather than handed to
-    // window.location.href client-side, which would otherwise make ?next=
-    // an open redirect.
-    const redirectTo =
-      typeof searchParams.next === "string" && searchParams.next.startsWith(`/invite/${resolution.event.slug}`)
-        ? searchParams.next
-        : undefined;
-    return (
-      <InvitationPublicProvider locale={resolution.event.locale} timeZone="UTC">
-        <PasscodeGate slug={resolution.event.slug} redirectTo={redirectTo} />
       </InvitationPublicProvider>
     );
   }
@@ -90,7 +46,6 @@ export default async function PublicInvitationPage({ params, searchParams }: { p
       <PublicInvitation
         event={clientDetails.event}
         state={clientDetails.state}
-        media={clientDetails.media}
         rsvpSummary={clientDetails.rsvpSummary}
         initialComments={initialComments}
       />

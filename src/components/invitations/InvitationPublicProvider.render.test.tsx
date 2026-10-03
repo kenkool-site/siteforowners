@@ -42,7 +42,6 @@ test("the actual public client provider supplies event-locale messages without r
       <PublicInvitation
         event={event}
         state="published"
-        media={{ designedInvite: null, cover: null, video: null, gallery: [] }}
         rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }}
       />
     </InvitationPublicProvider>,

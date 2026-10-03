@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import React from "react";
+import React, { act } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { JSDOM } from "jsdom";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
 import esMessages from "../../../messages/es.json";
@@ -11,10 +12,50 @@ import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recip
 
 Object.assign(globalThis, { React });
 
-test("full preview renders private media and locale with the RSVP form initially collapsed", () => {
-  const html = renderToStaticMarkup(<NextIntlClientProvider locale="es" messages={esMessages} timeZone="America/New_York">
-    <PublicInvitation event={{ ...event, locale: "es" }} state="published" media={media} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} preview />
-  </NextIntlClientProvider>);
+// PublicInvitation now fetches its media client-side on mount (so the public
+// invitation page can drop cookies()/headers() and stay cacheable — see
+// src/lib/invitations/public-access.ts). renderToStaticMarkup never runs
+// effects at all, so tests that assert on actual cover/gallery/video content
+// need a real mounted DOM (jsdom + act) with fetch mocked; everything else
+// in this file stays on the plain synchronous renderToStaticMarkup helper
+// below, where media simply never loads (null) — harmless, since those tests
+// don't assert on media.
+const MOUNT_GLOBAL_KEYS = ["window", "document", "HTMLElement", "HTMLButtonElement", "navigator", "IS_REACT_ACT_ENVIRONMENT", "fetch"] as const;
+
+async function renderMounted(node: React.ReactNode, media: InvitationMediaSnapshot): Promise<string> {
+  const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://invite.example.test" });
+  const originals = new Map(MOUNT_GLOBAL_KEYS.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  Object.assign(globalThis, {
+    window: dom.window,
+    document: dom.window.document,
+    HTMLElement: dom.window.HTMLElement,
+    HTMLButtonElement: dom.window.HTMLButtonElement,
+    IS_REACT_ACT_ENVIRONMENT: true,
+    fetch: async () => new Response(JSON.stringify(media)),
+  });
+  Object.defineProperty(globalThis, "navigator", { value: dom.window.navigator, configurable: true });
+  dom.window.scrollTo = (() => undefined) as typeof dom.window.scrollTo;
+  const { createRoot } = await import("react-dom/client");
+  const root = createRoot(dom.window.document.querySelector("#root")!);
+  try {
+    await act(async () => {
+      root.render(node);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+    return dom.window.document.querySelector("#root")!.innerHTML;
+  } finally {
+    await act(async () => root.unmount());
+    originals.forEach((descriptor, key) => (descriptor ? Object.defineProperty(globalThis, key, descriptor) : delete (globalThis as Record<string, unknown>)[key]));
+  }
+}
+
+test("full preview renders private media and locale with the RSVP form initially collapsed", async () => {
+  const html = await renderMounted(
+    <NextIntlClientProvider locale="es" messages={esMessages} timeZone="America/New_York">
+      <PublicInvitation event={{ ...event, locale: "es" }} state="published" rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} preview />
+    </NextIntlClientProvider>,
+    media,
+  );
   assert.match(html, /https:\/\/signed.example.test\/video/);
   assert.match(html, /Mia and Lee/);
   assert.match(html, /<button[^>]*>Responder a esta invitación<\/button>/);
@@ -71,7 +112,6 @@ function render(
         <PublicInvitation
           event={{ ...event, locale, ...overrides }}
           state={state}
-          media={media}
           rsvpSummary={rsvpSummary}
         />
       )}
@@ -162,8 +202,13 @@ test("the three public themes produce structurally different invitation layouts"
   assert.match(celebration, /data-invitation-layout="offset-blocks"/);
 });
 
-test("the cover opens the invitation and the private designed reference is never rendered", () => {
-  const html = render("published");
+test("the cover opens the invitation and the private designed reference is never rendered", async () => {
+  const html = await renderMounted(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
+      <PublicInvitation event={event} state="published" rsvpSummary={{ attendingPeople: 17, declinedParties: 3 }} />
+    </NextIntlClientProvider>,
+    media,
+  );
   assert.match(html, /data-invitation-hero="cover"/);
   assert.match(html, /https:\/\/signed\.example\.test\/cover/);
   assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/invite/);
@@ -194,7 +239,7 @@ test("the cover renders the selected decorative frame with the dynamic accent co
   assert.match(html, /<svg/);
 });
 
-test("gallery photos stack on mobile and balance into two columns on larger screens", () => {
+test("gallery photos stack on mobile and balance into two columns on larger screens", async () => {
   const galleryMedia = {
     ...media,
     gallery: [
@@ -202,9 +247,12 @@ test("gallery photos stack on mobile and balance into two columns on larger scre
       { ...media.gallery[0]!, id: "photo-2", path: "event-1/gallery/b.png", url: "https://signed.example.test/gallery-2", sortOrder: 1 },
     ],
   };
-  const html = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
-    <PublicInvitation event={event} state="published" media={galleryMedia} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
-  </NextIntlClientProvider>);
+  const html = await renderMounted(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
+      <PublicInvitation event={event} state="published" rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
+    </NextIntlClientProvider>,
+    galleryMedia,
+  );
   assert.match(html, /data-invitation-gallery="true"[^>]*class="[^"]*grid-cols-1[^"]*sm:grid-cols-2/);
 });
 
@@ -220,7 +268,7 @@ test("optional travel information highlights one hotel and links guest direction
     },
   } as PublicInvitationEvent;
   const html = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
-    <PublicInvitation event={travelEvent} state="published" media={{ ...media, gallery: [], video: null }} rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
+    <PublicInvitation event={travelEvent} state="published" rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
   </NextIntlClientProvider>);
   for (const expected of ["Travel information", "Closest airports", "Dallas Fort Worth International", "Recommended hotel", "The Grand Hotel", "City Lodge"]) {
     assert.match(html, new RegExp(expected));
