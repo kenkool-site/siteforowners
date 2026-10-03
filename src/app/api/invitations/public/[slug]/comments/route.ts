@@ -26,7 +26,7 @@ async function authorize(request: NextRequest, slug: string) {
   if (invitation.passcodeHash) {
     const signed = request.cookies.get(getInvitationPasscodeCookieName(invitation.event.id))?.value;
     try {
-      if (!signed || !verifyInvitationPasscodeSession(signed, invitation.event.id)) return null;
+      if (!signed || !(await verifyInvitationPasscodeSession(signed, invitation.event.id))) return null;
     } catch { return null; }
   }
   return invitation;

@@ -40,9 +40,9 @@ export async function POST(request: NextRequest) {
     }, {
       // Exact lookup is intentional: invitation slugs are case-sensitive credentials.
       findInvitation: getPublicInvitationBySlug,
-      verifyPasscode: (signed, eventId) => {
+      verifyPasscode: async (signed, eventId) => {
         try {
-          return verifyInvitationPasscodeSession(signed, eventId);
+          return await verifyInvitationPasscodeSession(signed, eventId);
         } catch {
           return false;
         }

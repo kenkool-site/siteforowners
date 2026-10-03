@@ -247,7 +247,7 @@ type ProcessPublicRsvpContext = {
 
 type ProcessPublicRsvpDependencies = {
   findInvitation(slug: string): Promise<PublicRsvpEventLookup | null>;
-  verifyPasscode(signed: string, eventId: string): boolean;
+  verifyPasscode(signed: string, eventId: string): Promise<boolean>;
   allowAttempt(eventId: string, ipHash: string): Promise<boolean>;
   submit(request: SubmitRsvpRequest): Promise<SubmitRsvpResult>;
 };
@@ -349,7 +349,7 @@ export async function processPublicRsvpRequest(
   }
   if (invitation.passcodeHash) {
     const signed = context.readPasscodeCookie(invitation.event.id);
-    if (!signed || !dependencies.verifyPasscode(signed, invitation.event.id)) {
+    if (!signed || !(await dependencies.verifyPasscode(signed, invitation.event.id))) {
       return { status: 403, body: { ok: false, code: "event_unavailable" } };
     }
   }
