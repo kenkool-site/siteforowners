@@ -38,7 +38,10 @@ export async function generateMetadata({
   });
 }
 
-export const revalidate = 0;
+// See src/app/site/[slug]/page.tsx for why this is 3600 rather than 0 —
+// on-demand revalidation via revalidateTenantSite(slug) is the primary
+// freshness mechanism, this is just a safety net.
+export const revalidate = 3600;
 
 export default async function SpanishSitePage({
   params,

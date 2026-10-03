@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireOwnerSession } from "@/lib/admin-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -57,5 +58,6 @@ export async function POST(request: NextRequest) {
     console.error("[admin/bookings/block-date] upsert failed", { tenantId: session.tenant.id, error });
     return NextResponse.json({ error: "Update failed" }, { status: 500 });
   }
+  revalidateTenantSite(previewSlug);
   return NextResponse.json({ ok: true, blocked_dates: next });
 }

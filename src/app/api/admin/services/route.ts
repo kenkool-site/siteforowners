@@ -6,6 +6,7 @@ import { validateCategories } from "@/lib/validation/categories";
 import { validateAddOns } from "@/lib/validation/add-ons";
 import { validateDepositSettings } from "@/lib/validation/deposit-settings";
 import { isValidPersistedServiceImageUrl, PERSISTED_SERVICE_IMAGE_URL_ERROR } from "@/lib/validation/service-image-url";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
@@ -201,7 +202,7 @@ async function saveStateForTenant(
   services: ServiceItem[],
   categories: string[],
   bookingPolicies: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; slug?: string }> {
   const supabase = createAdminClient();
   const { data: tenant } = await supabase
     .from("tenants")
@@ -218,7 +219,7 @@ async function saveStateForTenant(
     console.error("[admin/services] save failed", { tenantId, error });
     return { ok: false, error: "Save failed" };
   }
-  return { ok: true };
+  return { ok: true, slug };
 }
 
 export async function GET(request: NextRequest) {
@@ -298,6 +299,8 @@ export async function POST(request: NextRequest) {
     console.error("[admin/services] deposit save failed", { tenantId: auth.tenantId, error: depositSaveError });
     return NextResponse.json({ error: "Save failed" }, { status: 500 });
   }
+
+  if (saveResult.slug) revalidateTenantSite(saveResult.slug);
 
   return NextResponse.json({
     ok: true,

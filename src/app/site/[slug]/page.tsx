@@ -96,7 +96,12 @@ export async function generateMetadata({
   };
 }
 
-export const revalidate = 0;
+// On-demand ISR: every write that affects this render (profile, services,
+// photos, booking hours/mode, publish/offline toggle, Stripe subscription
+// updates, etc.) calls revalidateTenantSite(slug) after saving — see
+// src/lib/revalidate-tenant-site.ts. This periodic revalidation is just a
+// safety net in case a write path is ever missed.
+export const revalidate = 3600;
 
 export default async function SitePage({
   params,

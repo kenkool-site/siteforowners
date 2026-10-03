@@ -7,6 +7,7 @@ import {
   normalizeGalleryVideoTitle,
 } from "@/lib/video/gallery-video";
 import { isValidPersistedServiceImageUrl } from "@/lib/validation/service-image-url";
+import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
 const MAX_IMAGES = 50;
 
@@ -255,6 +256,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  revalidateTenantSite(slug);
   return NextResponse.json({
     ok: true,
     images,
