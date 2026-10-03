@@ -52,14 +52,20 @@ were the original "make client-facing pages load fast" ask.
   construction and secret — a signature produced by the old implementation
   must still verify under the new one and vice versa, so guests with an
   already-valid passcode cookie at deploy time aren't silently locked out.
-- **Middleware becomes the sole enforcement point for passcode access.**
+- **Middleware becomes the sole enforcement point for passcode access on
+  the page render specifically** — not for every invitation endpoint.
   Once the page stops reading `cookies()`, it cannot re-check passcode
   access itself as a safety net — reading cookies, headers, *or*
   searchParams anywhere in the page forces it back to dynamic, which defeats
   the point. This matches the existing `/site/[slug]` precedent (middleware
   is already the sole enforcement point for subscription-status gating
   there), not a new pattern for this codebase, but it does raise the stakes
-  on middleware correctness for this specific check.
+  on middleware correctness for this specific check. It does **not** extend
+  to any `/api/*` route: middleware's matcher excludes all API routes
+  entirely, so RSVP submission, comment posting, and the new media-fetch
+  endpoint each keep (or, for the new one, gain) their own independent
+  passcode check exactly as before — middleware gating the page is strictly
+  in addition to those, never a replacement for them.
 - **A locked/passcode-prompt state becomes a middleware *rewrite*** (not a
   redirect) to a new internal route (e.g. `/invite/[slug]/locked`) rendering
   the existing `PasscodeGate` UI, preserving the visible URL exactly as
@@ -70,13 +76,22 @@ were the original "make client-facing pages load fast" ask.
 - **Media signing moves client-side.** A new route,
   `GET /api/invitations/public/[slug]/media`, re-checks the invitation's
   lifecycle state (same gate `resolvePublicInvitationPage` already applies)
-  and returns freshly-signed URLs on demand. It needs no passcode check of
-  its own — by the time a guest's browser can call it, middleware has
-  already gated the page that loads it. `PublicInvitation.tsx` fetches media
-  on mount instead of receiving it as a server-passed prop, with a brief
-  loading state for the cover/gallery/video while that first fetch resolves.
-  This fully removes the 15-minute-expiry risk, since signing now happens at
-  actual view time regardless of how old the cached page is.
+  and returns media URLs on demand. **Correction from an earlier draft of
+  this spec:** this route *does* need its own passcode check, matching
+  `src/app/api/invitations/public/[slug]/comments/route.ts`'s own
+  `authorize()` pattern exactly — middleware's `config.matcher` explicitly
+  excludes `/api/*` (`"/((?!api|_next/static|_next/image|favicon.ico).*)"`,
+  and the function body also returns early on
+  `pathname.startsWith("/api/")`), so **no API route is ever touched by the
+  new middleware passcode gating**, regardless of what page loaded it.
+  Treating this endpoint as implicitly protected would have been a real
+  hole: an unauthenticated request to it would leak a passcode-protected
+  event's signed media URLs to anyone who knows the slug, passcode or not.
+  `PublicInvitation.tsx` fetches media on mount instead of receiving it as
+  a server-passed prop, with a brief loading state for the cover/gallery/
+  video while that first fetch resolves. This fully removes the
+  15-minute-expiry risk too, since signing now happens at actual view time
+  regardless of how old the cached page is.
 - **Media for non-passcode-protected events becomes genuinely
   CDN-cacheable, not just re-signed faster — by extending an existing,
   already-shipped pattern, not inventing a new one.** Today the whole
