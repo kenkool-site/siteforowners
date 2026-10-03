@@ -3,7 +3,13 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { isPublicSiteLive, isOwnerAdminReachable } from "@/lib/tenant-access";
-import { classifyHost, invitationRewritePath } from "@/lib/host-routing";
+import { classifyHost, invitationRewritePath, isLegacySiteforownersApex } from "@/lib/host-routing";
+// Imported from ./passcode-session directly, not from ./auth: ./auth has a
+// top-level `node:crypto` import (used by its unrelated owner-session/
+// edit-token functions) that webpack refuses to bundle into this Edge
+// Runtime middleware at all - see the comment atop passcode-session.ts.
+import { getInvitationPasscodeCookieName, verifyInvitationPasscodeSession } from "@/lib/invitations/passcode-session";
+import { invitationMemoriesUrl, invitationPublicUrl } from "@/lib/invitations/public-url";
 
 // Admin routes that require authentication
 const ADMIN_ROUTES = [
@@ -15,6 +21,40 @@ const ADMIN_ROUTES = [
   "/invitespot-leads",
   "/onboard",
 ];
+
+function getMiddlewareSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return null;
+  return createClient(supabaseUrl, supabaseKey);
+}
+
+function invitationLockedRewrite(request: NextRequest, slug: string, pathname: string): NextResponse {
+  const lockedUrl = new URL(`/invite/${encodeURIComponent(slug)}/locked`, request.url);
+  // pathname alone drops any query string the original request carried (e.g.
+  // /invite/{slug}/memories?photo=xyz) - the exact bug class this whole
+  // effort started by fixing for the invitespot-root rewrite. Fold the
+  // original request's own query string into the destination path before
+  // setting it as `next`, so PasscodeGate's post-success redirect lands on
+  // the guest's actual original destination, not a path that silently lost
+  // its query string.
+  const destination = new URL(pathname, request.url);
+  destination.search = request.nextUrl.search;
+  lockedUrl.searchParams.set("next", `${destination.pathname}${destination.search}`);
+  const rewritten = NextResponse.rewrite(lockedUrl);
+  rewritten.headers.set("Cache-Control", "no-store, must-revalidate");
+  return rewritten;
+}
+
+async function hasInvitationPasscodeAccess(request: NextRequest, eventId: string): Promise<boolean> {
+  const signed = request.cookies.get(getInvitationPasscodeCookieName(eventId))?.value;
+  if (!signed) return false;
+  try {
+    return await verifyInvitationPasscodeSession(signed, eventId);
+  } catch {
+    return false;
+  }
+}
 
 export async function middleware(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
@@ -47,7 +87,29 @@ export async function middleware(request: NextRequest) {
   }
 
   const host = classifyHost(hostname);
-  if (host.kind === "root") return NextResponse.next();
+  if (host.kind === "root") {
+    if (!pathname.startsWith("/invite/") || !isLegacySiteforownersApex(hostname)) {
+      return NextResponse.next();
+    }
+    const slugMatch = pathname.match(/^\/invite\/([^/]+)/);
+    const slug = slugMatch?.[1];
+    const supabase = slug ? getMiddlewareSupabaseClient() : null;
+    if (!slug || !supabase) return NextResponse.next();
+    const eventResult = await supabase
+      .from("invitation_events")
+      .select("slug, public_subdomain")
+      .eq("slug", slug)
+      .maybeSingle();
+    const publicSubdomain = eventResult.data?.public_subdomain as string | null | undefined;
+    if (!publicSubdomain) return NextResponse.next();
+    const isMemories = pathname === `/invite/${encodeURIComponent(slug)}/memories`;
+    const target = isMemories
+      ? invitationMemoriesUrl({ slug, publicSubdomain })
+      : invitationPublicUrl({ slug, publicSubdomain });
+    const redirectUrl = new URL(target);
+    redirectUrl.search = request.nextUrl.search;
+    return NextResponse.redirect(redirectUrl, 301);
+  }
 
   if (host.kind === "invitespot-root") {
     if (pathname === "/") {
@@ -63,20 +125,29 @@ export async function middleware(request: NextRequest) {
       rewritten.headers.set("Cache-Control", "no-store, must-revalidate");
       return rewritten;
     }
-    if (pathname.startsWith("/invite/")) return NextResponse.next();
+    if (pathname.startsWith("/invite/")) {
+      const slugMatch = pathname.match(/^\/invite\/([^/]+)/);
+      const slug = slugMatch?.[1];
+      const supabase = slug ? getMiddlewareSupabaseClient() : null;
+      if (!slug || !supabase) return NextResponse.next();
+      const eventResult = await supabase
+        .from("invitation_events")
+        .select("id, passcode_hash")
+        .eq("slug", slug)
+        .maybeSingle();
+      const event = eventResult.error ? null : eventResult.data;
+      if (event?.passcode_hash && !(await hasInvitationPasscodeAccess(request, event.id as string))) {
+        return invitationLockedRewrite(request, slug, pathname);
+      }
+      return NextResponse.next();
+    }
     const notFound = NextResponse.rewrite(new URL("/not-found", request.url));
     notFound.headers.set("Cache-Control", "no-store, must-revalidate");
     return notFound;
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    return NextResponse.next();
-  }
-
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const supabase = getMiddlewareSupabaseClient();
+  if (!supabase) return NextResponse.next();
 
   let tenant: { preview_slug: string | null; site_published: boolean | null; subscription_status: string | null } | null = null;
 
@@ -111,16 +182,21 @@ export async function middleware(request: NextRequest) {
 
       const eventResult = await supabase
         .from("invitation_events")
-        .select("slug")
+        .select("slug, passcode_hash")
         .eq("id", reservation.invitation_event_id)
         .maybeSingle();
-      const rewritePath = eventResult.data?.slug
-        ? invitationRewritePath(eventResult.data.slug, pathname)
-        : null;
-      if (!rewritePath) {
+      const eventSlug = eventResult.data?.slug as string | undefined;
+      const rewritePath = eventSlug ? invitationRewritePath(eventSlug, pathname) : null;
+      if (!rewritePath || !eventSlug) {
         const unavailable = NextResponse.rewrite(new URL("/not-found", request.url));
         unavailable.headers.set("Cache-Control", "no-store, must-revalidate");
         return unavailable;
+      }
+      if (
+        eventResult.data?.passcode_hash
+        && !(await hasInvitationPasscodeAccess(request, reservation.invitation_event_id as string))
+      ) {
+        return invitationLockedRewrite(request, eventSlug, rewritePath);
       }
       const invitationUrl = new URL(rewritePath, request.url);
       invitationUrl.search = request.nextUrl.search;
