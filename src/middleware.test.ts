@@ -222,14 +222,26 @@ test("invitationLockedRewrite folds the original request's query string into the
 test("an invitation with no passcode set is never routed through the locked state", () => {
   // Structural, matching this codebase's convention for the passcode-lookup
   // branches (they need live Supabase access this test environment doesn't
-  // have): confirms both gated branches only call invitationLockedRewrite
+  // have): confirms the gated branches only call invitationLockedRewrite
   // inside an `if (event?.passcode_hash ...)` / `if (eventResult.data?.passcode_hash ...)`
-  // guard, never unconditionally - an event with no passcode_hash at all
-  // must fall through to NextResponse.next() / the real rewrite, not the
-  // locked page.
+  // guard (or the dedicated query-error guard below), never unconditionally -
+  // an event with no passcode_hash at all must fall through to
+  // NextResponse.next() / the real rewrite, not the locked page.
+  //
+  // Five call sites, not three: the root-host and invitespot-root branches
+  // each run their own `invitation_events` lookup directly, so each needs
+  // two separate calls - one for a genuine Supabase query error (fail
+  // closed, matching this file's existing tenant-gating convention a few
+  // dozen lines below) and one for an actual insufficient-passcode check.
+  // The subdomain-reservation branch only needs one: a query error there
+  // already naturally produces `eventSlug === undefined`, which the
+  // existing `if (!rewritePath || !eventSlug)` check catches and routes to
+  // /not-found before passcode is ever considered, so it never reaches
+  // invitationLockedRewrite on that path.
   const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
   const lockedRewriteCalls = source.match(/return invitationLockedRewrite\(/g) ?? [];
-  assert.equal(lockedRewriteCalls.length, 2, "expected exactly one locked-rewrite call for each of the two invitation entry points");
+  assert.equal(lockedRewriteCalls.length, 5, "expected two locked-rewrite calls each for root-host and invitespot-root (query-error + passcode), plus one for subdomain-reservation (passcode only)");
+  assert.match(source, /if \(eventResult\.error\) \{\s*\n\s*return invitationLockedRewrite\(/);
   assert.match(source, /if \(event\?\.passcode_hash && !\(await hasInvitationPasscodeAccess/);
   assert.match(source, /if \(\s*eventResult\.data\?\.passcode_hash/);
 });

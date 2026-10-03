@@ -97,18 +97,32 @@ export async function middleware(request: NextRequest) {
     if (!slug || !supabase) return NextResponse.next();
     const eventResult = await supabase
       .from("invitation_events")
-      .select("slug, public_subdomain")
+      .select("id, public_subdomain, passcode_hash")
       .eq("slug", slug)
       .maybeSingle();
+    if (eventResult.error) {
+      return invitationLockedRewrite(request, slug, pathname);
+    }
     const publicSubdomain = eventResult.data?.public_subdomain as string | null | undefined;
-    if (!publicSubdomain) return NextResponse.next();
-    const isMemories = pathname === `/invite/${encodeURIComponent(slug)}/memories`;
-    const target = isMemories
-      ? invitationMemoriesUrl({ slug, publicSubdomain })
-      : invitationPublicUrl({ slug, publicSubdomain });
-    const redirectUrl = new URL(target);
-    redirectUrl.search = request.nextUrl.search;
-    return NextResponse.redirect(redirectUrl, 301);
+    if (publicSubdomain) {
+      const isMemories = pathname === `/invite/${encodeURIComponent(slug)}/memories`;
+      const target = isMemories
+        ? invitationMemoriesUrl({ slug, publicSubdomain })
+        : invitationPublicUrl({ slug, publicSubdomain });
+      const redirectUrl = new URL(target);
+      redirectUrl.search = request.nextUrl.search;
+      return NextResponse.redirect(redirectUrl, 301);
+    }
+    // No dedicated subdomain - this event's canonical URL is the bare
+    // /invite/{slug} path, which can legitimately be served directly on
+    // this legacy host too (not every invitation has a reserved subdomain) -
+    // so it's not redirected, but it still needs the same passcode gate the
+    // other two invitation entry points enforce.
+    const eventId = eventResult.data?.id as string | undefined;
+    if (eventResult.data?.passcode_hash && eventId && !(await hasInvitationPasscodeAccess(request, eventId))) {
+      return invitationLockedRewrite(request, slug, pathname);
+    }
+    return NextResponse.next();
   }
 
   if (host.kind === "invitespot-root") {
@@ -135,7 +149,10 @@ export async function middleware(request: NextRequest) {
         .select("id, passcode_hash")
         .eq("slug", slug)
         .maybeSingle();
-      const event = eventResult.error ? null : eventResult.data;
+      if (eventResult.error) {
+        return invitationLockedRewrite(request, slug, pathname);
+      }
+      const event = eventResult.data;
       if (event?.passcode_hash && !(await hasInvitationPasscodeAccess(request, event.id as string))) {
         return invitationLockedRewrite(request, slug, pathname);
       }
