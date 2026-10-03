@@ -13,7 +13,11 @@ const CONTENT_TYPES: Record<string, string> = {
 
 export async function GET(_request: Request, { params }: { params: { slug: string; mediaId: string } }) {
   const invitation = await getPublicInvitationBySlug(params.slug);
-  if (!invitation || invitation.passcodeHash || getEffectiveEventState(invitation.event, new Date()) !== "published") {
+  if (!invitation || invitation.passcodeHash) {
+    return new NextResponse(null, { status: 404 });
+  }
+  const state = getEffectiveEventState(invitation.event, new Date());
+  if (state !== "published" && state !== "rsvp_closed") {
     return new NextResponse(null, { status: 404 });
   }
   const supabase = createAdminClient();
