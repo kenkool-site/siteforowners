@@ -15,6 +15,7 @@ import {
 } from "@/lib/invitations/repository";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-fixtures";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 import { NextRequest, NextResponse } from "next/server";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -176,6 +177,7 @@ export async function POST(
     });
     const event = await getInvitationEventForManagement(params.eventId);
     if (!event) throw new Error("Invitation unavailable");
+    revalidateInvitationPage(event.slug);
     return NextResponse.json({ event, media: await loadMediaSnapshot(client, event) });
   } catch (error) {
     const code = error instanceof DirectMediaError ? error.code : "upload_failed";
@@ -274,6 +276,7 @@ export async function DELETE(
     }
     const event = await getInvitationEventForManagement(params.eventId);
     if (!event) throw new Error("Invitation disappeared after media removal");
+    revalidateInvitationPage(event.slug);
     return NextResponse.json({ event, media: await loadMediaSnapshot(client, event) });
   } catch (error) {
     console.error("[invitations/media] delete failed", { eventId: params.eventId, kind, error });

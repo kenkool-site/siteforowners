@@ -6,6 +6,7 @@ import {
 } from "@/lib/invitations/repository";
 import { parseStatusCommand, validateStatusTransition } from "@/lib/invitations/validation";
 import { NextRequest, NextResponse } from "next/server";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 
 export async function POST(
   request: NextRequest,
@@ -38,6 +39,7 @@ export async function POST(
 
   try {
     await updateInvitationEventStatus(params.eventId, parsed.status);
+    revalidateInvitationPage(current.slug);
     return NextResponse.json({ status: parsed.status });
   } catch (error) {
     console.error("[invitations/events/status] update failed", { eventId: params.eventId, error });

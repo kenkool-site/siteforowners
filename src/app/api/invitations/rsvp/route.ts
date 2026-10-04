@@ -12,6 +12,7 @@ import {
   processPublicRsvpRequest,
   submitInvitationRsvp,
 } from "@/lib/invitations/rsvp";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 import {
   dispatchFixtureInvitationRsvpNotifications,
   isInvitationE2EFixturesEnabled,
@@ -72,6 +73,10 @@ export async function POST(request: NextRequest) {
         console.error("[invitations/rsvp] notification dispatch failed", { error });
       }
       result.body.notificationsDelayed = notificationsDelayed;
+    }
+
+    if (result.status === 200 && result.slug) {
+      revalidateInvitationPage(result.slug);
     }
 
     return NextResponse.json(result.body, { status: result.status });
