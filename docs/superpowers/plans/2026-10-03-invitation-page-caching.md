@@ -1050,10 +1050,12 @@ export type PublicInvitationResolution =
 
 export type PublicInvitationResolutionDependencies = {
   find(slug: string): Promise<PublicInvitationLookup | null>;
-  hasPasscodeAccess(event: PublicInvitationEvent): boolean;
+  hasPasscodeAccess(event: PublicInvitationEvent): Promise<boolean>;
   loadMedia(event: PublicInvitationEvent): Promise<InvitationMediaSnapshot>;
 };
 ```
+(Note: `hasPasscodeAccess` returns `Promise<boolean>` here, not `boolean` — Task 1's fix round made it async after this plan text was originally written. The removal is the same either way.)
+
 with:
 ```ts
 export type PublicInvitationResolution =
@@ -1085,7 +1087,7 @@ export async function resolvePublicInvitationPage(
   if (state === "offline") return { kind: "not_found" };
   if (state === "draft") return { kind: "unavailable", event: invitation.event };
   if (state === "expired") return { kind: "ended", event: invitation.event };
-  if (invitation.passcodeHash && !dependencies.hasPasscodeAccess(invitation.event)) {
+  if (invitation.passcodeHash && !(await dependencies.hasPasscodeAccess(invitation.event))) {
     return { kind: "passcode", event: invitation.event };
   }
   return {
@@ -1097,6 +1099,8 @@ export async function resolvePublicInvitationPage(
   };
 }
 ```
+(Same note: the current file has `!(await dependencies.hasPasscodeAccess(...))`, not a bare sync call — Task 1 added the `await`. Match current file content, not this literal text, when locating the block to replace.)
+
 with:
 ```ts
 export async function resolvePublicInvitationPage(
@@ -1120,6 +1124,8 @@ export async function resolvePublicInvitationPage(
 ```
 
 Remove the now-unused `import type { InvitationMediaSnapshot } from "./media";` from this file if nothing else in it still references the type (check first — `PublicInvitationClientDetails`, derived via `Extract<..., { kind: "details" }>`, no longer carries `media` either, so this import may become fully unused).
+
+`getInvitationReferralDisplayName`'s doc comment (just above its signature) contrasts itself against `resolvePublicInvitationPage`, saying the latter "can grant passcode access via dependencies.hasPasscodeAccess" — after this step removes that field, the parenthetical is wrong (middleware grants passcode access now, not this function). Update that one parenthetical to say "(whose passcode gating now lives in middleware, not here)" or similar; leave the rest of the comment, which is still accurate, untouched.
 
 - [ ] **Step 2: Update `public-access.test.ts`**
 
@@ -1351,8 +1357,9 @@ Expected: no errors.
 
 Run:
 ```bash
-find src -type f \( -name "*.test.ts" -o -name "*.test.tsx" \) -not -path "*/node_modules/*" -print0 | xargs -0 npx tsx --test
+npx tsx --test "src/**/*.test.ts" "src/**/*.test.tsx"
 ```
+(Pass the glob as a literal quoted string for tsx's own runner to expand — NOT the `find`/`xargs` form. Node's `--test` CLI treats a `[slug]`-style bracketed path segment as a glob character class, so a pre-expanded file list silently matches zero files inside any `[slug]`/`[eventId]`-style directory — most of this plan's own test surface — with no error and the same exit code. This was discovered mid-plan; this step originally specified the broken form.)
 Expected: no failures anywhere in the project.
 
 - [ ] **Step 9: Commit**
@@ -1407,7 +1414,7 @@ function InvitationImage({
 }
 ```
 
-**Before treating this as done:** `fill` requires every call site's parent to establish a sized, positioned container — walk each of `InvitationImage`'s actual call sites (the hero cover, the gallery grid items) and confirm their surrounding markup already gives the new wrapping `<div>` real height (a `fill`-based image inside a zero-height parent renders invisibly). This is exactly the kind of thing that looks right in isolation and breaks visually in the browser — verify by actually running the dev server and loading a real invitation page with and without a cover photo, not just by reading the JSX.
+**Before treating this as done:** `fill` requires every call site's parent to establish a sized, positioned container. **Correction to this plan's own earlier research:** `InvitationImage` has exactly one call site in the current file — the gallery grid item (`<InvitationImage key={item.id ?? item.path} src={item.url} ... className={\`aspect-[4/5] ${fillsLastRow ? "sm:col-span-2 sm:aspect-[16/9]" : ""}\`} />`). There is no "hero cover" call site: the hero's cover image is passed to `InvitationHero` as a plain `coverUrl` string prop and rendered there as a CSS `background-image` on a `<section>`, never through `<img>` or `InvitationImage` at all — converting it to `next/image` would mean restructuring `InvitationHero` itself (an absolutely-positioned `fill` image layered behind its content), which is a different component, not in this task's file list, and out of scope. Walk the one real call site and confirm its surrounding markup gives the new wrapping `<div>` real height — the existing `aspect-[4/5]`/`aspect-[16/9]` Tailwind classes already do this via CSS `aspect-ratio`, independent of any parent height, which is exactly the modern pattern `next/image fill` expects; confirm this reading holds. This is exactly the kind of thing that looks right in isolation and breaks visually in the browser, so also verify it that way if a real dev environment with live data is available; if it isn't (no Supabase credentials configured), say so explicitly rather than silently skipping verification, and substitute the strongest check actually available — e.g. extending this file's existing jsdom+`act`-based `renderMounted()` test harness (added in Task 5) to mount `PublicInvitation` with gallery media and assert the rendered output has the expected wrapper/image structure.
 
 - [ ] **Step 3: Manual verification**
 
