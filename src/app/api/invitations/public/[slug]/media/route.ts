@@ -8,6 +8,8 @@ import { getEffectiveEventState } from "@/lib/invitations/state";
 import { getInvitationMediaForManagement, type InvitationMediaSnapshot } from "@/lib/invitations/media";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+export const dynamic = "force-dynamic";
+
 // Mirrors the gallery row shape getInvitationMediaForManagement's own
 // listGallery dependency already queries (src/lib/invitations/media.ts) -
 // id/alt_text/sort_order only, no storage_path, since the public case never

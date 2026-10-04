@@ -108,6 +108,7 @@ export async function getInvitationReferralDisplayName(
 const PRIVATE_METADATA: Metadata = {
   title: "Invitation",
   robots: { index: false, follow: false },
+  alternates: { canonical: null },
 };
 
 function invitationShareText(event: PublicInvitationEvent): { title: string; description: string | undefined } {

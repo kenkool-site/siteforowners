@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
 import { requireInvitationAccess } from "@/lib/invitations/access";
 import { updateEventMemoriesSettings } from "@/lib/invitations/memories/repository";
+import { getInvitationEventForManagement } from "@/lib/invitations/repository";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 
 export async function PATCH(request: NextRequest, { params }: { params: { eventId: string } }) {
   if (!isSameOrigin(request)) {
@@ -21,14 +23,20 @@ export async function PATCH(request: NextRequest, { params }: { params: { eventI
     const values = body as { action?: string; enabled?: boolean; mode?: string };
     if (values.action === "set_enabled" && typeof values.enabled === "boolean") {
       await updateEventMemoriesSettings(params.eventId, { memoriesEnabled: values.enabled });
+      const event = await getInvitationEventForManagement(params.eventId);
+      if (event) revalidateInvitationPage(event.slug);
       return NextResponse.json({ ok: true });
     }
     if (values.action === "set_mode" && (values.mode === "auto_publish" || values.mode === "review_required")) {
       await updateEventMemoriesSettings(params.eventId, { memoriesMode: values.mode });
+      const event = await getInvitationEventForManagement(params.eventId);
+      if (event) revalidateInvitationPage(event.slug);
       return NextResponse.json({ ok: true });
     }
     if (values.action === "set_find_me_enabled" && typeof values.enabled === "boolean") {
       await updateEventMemoriesSettings(params.eventId, { findMeEnabled: values.enabled });
+      const event = await getInvitationEventForManagement(params.eventId);
+      if (event) revalidateInvitationPage(event.slug);
       return NextResponse.json({ ok: true });
     }
     return NextResponse.json({ error: "invalid action" }, { status: 400 });

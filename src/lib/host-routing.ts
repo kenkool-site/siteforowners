@@ -8,7 +8,8 @@ function normalizeHostname(host: string): string {
   return host.split(":")[0].toLowerCase().replace(/^www\./, "");
 }
 
-// Used by the invitation pages themselves (not middleware) to redirect a
+// Used by middleware only (the invitation pages themselves no longer call
+// this — Task 5 moved the redirect out of page-level code) to redirect a
 // direct hit on the legacy siteforowners.com apex — e.g. an old bookmarked
 // /invite/{slug} or /invite/{slug}/memories link — to the event's
 // invitespot.app equivalent, for events that have one. Deliberately a
@@ -45,9 +46,10 @@ export function invitationRewritePath(slug: string, pathname: string): string | 
   const encodedSlug = encodeURIComponent(slug);
   if (pathname === "/") return `/invite/${encodedSlug}`;
   if (pathname === "/memories") return `/invite/${encodedSlug}/memories`;
-  // The passcode gate's own internal redirect (src/app/invite/[slug]/memories/page.tsx)
-  // targets this exact path on the same host it was reached on — without this identity
-  // passthrough, that redirect 404s on any platform subdomain, since neither case above
+  // PasscodeGate's post-success navigation (src/components/invitations/PasscodeGate.tsx)
+  // reloads the guest's original destination on the same reserved subdomain it was
+  // reached on, which is already one of these exact paths — without this identity
+  // passthrough, that reload 404s on any platform subdomain, since neither case above
   // matches it.
   if (pathname === `/invite/${encodedSlug}` || pathname === `/invite/${encodedSlug}/memories`) return pathname;
   return null;

@@ -93,8 +93,9 @@ export async function middleware(request: NextRequest) {
     }
     const slugMatch = pathname.match(/^\/invite\/([^/]+)/);
     const slug = slugMatch?.[1];
-    const supabase = slug ? getMiddlewareSupabaseClient() : null;
-    if (!slug || !supabase) return NextResponse.next();
+    if (!slug) return NextResponse.next();
+    const supabase = getMiddlewareSupabaseClient();
+    if (!supabase) return invitationLockedRewrite(request, slug, pathname);
     const eventResult = await supabase
       .from("invitation_events")
       .select("id, public_subdomain, passcode_hash")
@@ -145,8 +146,9 @@ export async function middleware(request: NextRequest) {
     if (pathname.startsWith("/invite/")) {
       const slugMatch = pathname.match(/^\/invite\/([^/]+)/);
       const slug = slugMatch?.[1];
-      const supabase = slug ? getMiddlewareSupabaseClient() : null;
-      if (!slug || !supabase) return NextResponse.next();
+      if (!slug) return NextResponse.next();
+      const supabase = getMiddlewareSupabaseClient();
+      if (!supabase) return invitationLockedRewrite(request, slug, pathname);
       const eventResult = await supabase
         .from("invitation_events")
         .select("id, passcode_hash")

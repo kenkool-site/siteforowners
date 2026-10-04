@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { canRemoveInvitationResponse, requireInvitationAccess } from "@/lib/invitations/access";
 import { isSameOrigin } from "@/lib/invitations/auth";
-import { getInvitationResponsesDashboard, removeInvitationResponse } from "@/lib/invitations/repository";
+import { getInvitationEventForManagement, getInvitationResponsesDashboard, removeInvitationResponse } from "@/lib/invitations/repository";
 import { submitInvitationRsvp, type RsvpErrorCode } from "@/lib/invitations/rsvp";
 import { parseRsvpInput } from "@/lib/invitations/validation";
 import { administrativeRsvpAuditMetadata } from "@/lib/invitations/responses";
 import { isInvitationE2EFixturesEnabled, submitFixtureInvitationRsvp } from "@/lib/invitations/e2e-fixtures";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 
 function queryFrom(request: NextRequest) {
   const search = request.nextUrl.searchParams;
@@ -96,6 +97,8 @@ export async function PATCH(
       partySize: parsed.value.partySize,
       updatedAt: new Date().toISOString(),
     }));
+    const event = await getInvitationEventForManagement(params.eventId);
+    if (event) revalidateInvitationPage(event.slug);
     return NextResponse.json({
       ok: true,
       summary: {
@@ -148,6 +151,8 @@ export async function DELETE(
       actor: "founder",
       removedAt: new Date().toISOString(),
     });
+    const event = await getInvitationEventForManagement(params.eventId);
+    if (event) revalidateInvitationPage(event.slug);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[invitations/responses] removal failed", { eventId: params.eventId, rsvpId, actor: "founder", error });

@@ -1,9 +1,20 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PasscodeGate } from "@/components/invitations/PasscodeGate";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
+import { invitationPageMetadata } from "@/lib/invitations/public-access";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  try {
+    const invitation = await getPublicInvitationBySlug(params.slug);
+    return invitationPageMetadata(invitation, null);
+  } catch {
+    return invitationPageMetadata(null, null);
+  }
+}
 
 export default async function InvitationLockedPage({
   params,

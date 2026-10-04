@@ -112,9 +112,15 @@ test("middleware preserves the query string (?from and ?lang) when rewriting the
 // invitespot.app brand).
 test("the invitespot-root branch only rewrites the bare '/' path to the placeholder", () => {
   const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
+  const start = source.indexOf('host.kind === "invitespot-root"');
+  // getMiddlewareSupabaseClient() is now called at two other sites too (the
+  // root-host branch above this one, and this branch's own /invite/
+  // fail-closed check) - skip past the latter to land on the generic
+  // tenant-site branch's own declaration, which is where this block ends.
+  const ownSupabaseCall = source.indexOf('const supabase = getMiddlewareSupabaseClient();', start);
   const rootBlock = source.slice(
-    source.indexOf('host.kind === "invitespot-root"'),
-    source.indexOf('const supabase = getMiddlewareSupabaseClient();'),
+    start,
+    source.indexOf('const supabase = getMiddlewareSupabaseClient();', ownSupabaseCall + 1),
   );
   assert.match(rootBlock, /if \(pathname === "\/"\)/);
   assert.match(rootBlock, /NextResponse\.rewrite\(invitespotUrl\)/);
@@ -128,9 +134,15 @@ test("the invitespot-root branch only rewrites the bare '/' path to the placehol
 // is already granted, but only after checking.
 test("the invitespot-root branch's /invite/* handling checks passcode access before falling through to NextResponse.next()", () => {
   const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
+  const start = source.indexOf('host.kind === "invitespot-root"');
+  // getMiddlewareSupabaseClient() is now called at two other sites too (the
+  // root-host branch above this one, and this branch's own /invite/
+  // fail-closed check) - skip past the latter to land on the generic
+  // tenant-site branch's own declaration, which is where this block ends.
+  const ownSupabaseCall = source.indexOf('const supabase = getMiddlewareSupabaseClient();', start);
   const rootBlock = source.slice(
-    source.indexOf('host.kind === "invitespot-root"'),
-    source.indexOf('const supabase = getMiddlewareSupabaseClient();'),
+    start,
+    source.indexOf('const supabase = getMiddlewareSupabaseClient();', ownSupabaseCall + 1),
   );
   assert.match(rootBlock, /if \(pathname\.startsWith\("\/invite\/"\)\) \{/);
   assert.match(rootBlock, /hasInvitationPasscodeAccess/);
@@ -139,9 +151,15 @@ test("the invitespot-root branch's /invite/* handling checks passcode access bef
 
 test("the invitespot-root branch denies everything else with a no-store 404, not a bare next()", () => {
   const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
+  const start = source.indexOf('host.kind === "invitespot-root"');
+  // getMiddlewareSupabaseClient() is now called at two other sites too (the
+  // root-host branch above this one, and this branch's own /invite/
+  // fail-closed check) - skip past the latter to land on the generic
+  // tenant-site branch's own declaration, which is where this block ends.
+  const ownSupabaseCall = source.indexOf('const supabase = getMiddlewareSupabaseClient();', start);
   const rootBlock = source.slice(
-    source.indexOf('host.kind === "invitespot-root"'),
-    source.indexOf('const supabase = getMiddlewareSupabaseClient();'),
+    start,
+    source.indexOf('const supabase = getMiddlewareSupabaseClient();', ownSupabaseCall + 1),
   );
   assert.match(rootBlock, /NextResponse\.rewrite\(new URL\("\/not-found", request\.url\)\)/);
   assert.match(rootBlock, /no-store, must-revalidate/);
@@ -245,19 +263,24 @@ test("an invitation with no passcode set is never routed through the locked stat
   // an event with no passcode_hash at all must fall through to
   // NextResponse.next() / the real rewrite, not the locked page.
   //
-  // Five call sites, not three: the root-host and invitespot-root branches
+  // Seven call sites, not three: the root-host and invitespot-root branches
   // each run their own `invitation_events` lookup directly, so each needs
-  // two separate calls - one for a genuine Supabase query error (fail
+  // three separate calls - one for a genuine Supabase query error (fail
   // closed, matching this file's existing tenant-gating convention a few
-  // dozen lines below) and one for an actual insufficient-passcode check.
-  // The subdomain-reservation branch only needs one: a query error there
-  // already naturally produces `eventSlug === undefined`, which the
-  // existing `if (!rewritePath || !eventSlug)` check catches and routes to
+  // dozen lines below), one for a missing Supabase client (fail closed -
+  // getMiddlewareSupabaseClient() returns null when env vars aren't
+  // reachable from Edge middleware, and with the page-level passcode
+  // backstop gone, this is the only enforcement point left, so it must not
+  // fall through to NextResponse.next()), and one for an actual
+  // insufficient-passcode check. The subdomain-reservation branch only
+  // needs one: a query error there already naturally produces
+  // `eventSlug === undefined`, which the existing
+  // `if (!rewritePath || !eventSlug)` check catches and routes to
   // /not-found before passcode is ever considered, so it never reaches
   // invitationLockedRewrite on that path.
   const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
   const lockedRewriteCalls = source.match(/return invitationLockedRewrite\(/g) ?? [];
-  assert.equal(lockedRewriteCalls.length, 5, "expected two locked-rewrite calls each for root-host and invitespot-root (query-error + passcode), plus one for subdomain-reservation (passcode only)");
+  assert.equal(lockedRewriteCalls.length, 7, "expected three locked-rewrite calls each for root-host and invitespot-root (query-error + missing-supabase-client + passcode), plus one for subdomain-reservation (passcode only)");
   assert.match(source, /if \(eventResult\.error\) \{\s*\n\s*return invitationLockedRewrite\(/);
   assert.match(source, /if \(event\?\.passcode_hash && !\(await hasInvitationPasscodeAccess/);
   assert.match(source, /if \(\s*eventResult\.data\?\.passcode_hash/);
