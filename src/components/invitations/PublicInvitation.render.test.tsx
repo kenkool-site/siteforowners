@@ -256,6 +256,31 @@ test("gallery photos stack on mobile and balance into two columns on larger scre
   assert.match(html, /data-invitation-gallery="true"[^>]*class="[^"]*grid-cols-1[^"]*sm:grid-cols-2/);
 });
 
+test("publicly-cacheable gallery media renders through next/image while preserving sizing classes", async () => {
+  const publicMedia: InvitationMediaSnapshot = {
+    ...media,
+    gallery: [
+      { id: "photo-1", kind: "gallery", path: "event-1/gallery/a.png", url: "/api/invitations/public/mia-and-lee/gallery/photo-1", altText: "Mia and Lee outdoors", sortOrder: 0 },
+      { id: "photo-2", kind: "gallery", path: "event-1/gallery/b.png", url: "/api/invitations/public/mia-and-lee/gallery/photo-2", altText: "Mia and Lee dancing", sortOrder: 1 },
+    ],
+  };
+  const html = await renderMounted(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
+      <PublicInvitation event={event} state="published" rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
+    </NextIntlClientProvider>,
+    publicMedia,
+  );
+  // next/image renders a real <img> in the DOM (with its own generated sizes
+  // attribute) directly inside the wrapping div the "fill" layout requires —
+  // confirm that wrapper still carries the aspect-[4/5] sizing class the
+  // gallery grid relies on, i.e. the conversion didn't drop it.
+  const wrapperMatch = html.match(/<div class="[^"]*aspect-\[4\/5\][^"]*"[^>]*>\s*<img[^>]*>/);
+  assert.ok(wrapperMatch, `expected a next/image <img> inside an aspect-[4/5] wrapper; got: ${html}`);
+  assert.match(wrapperMatch![0], /sizes="\(max-width: 768px\) 100vw, 768px"/);
+  assert.match(wrapperMatch![0], /src="\/_next\/image\?url=/, "confirms next/image's optimization pipeline is actually engaged, not just a plain <img>");
+  assert.doesNotMatch(html, /https:\/\/signed\.example\.test\/gallery/, "passcode-only signed gallery URLs should never appear for public media");
+});
+
 test("optional travel information highlights one hotel and links guest directions", () => {
   const travelEvent = {
     ...event,

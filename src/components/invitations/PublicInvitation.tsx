@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Building2, CalendarDays, Clock3, MapPin, Navigation, Plane } from "lucide-react";
 import {
@@ -140,7 +141,19 @@ function InvitationImage({
   className?: string;
   fit?: "contain" | "cover";
 }) {
-  return <img src={src} alt={alt} className={`block w-full ${fit === "contain" ? "h-auto object-contain" : "h-full object-cover"} ${className ?? ""}`} />;
+  const objectFitClass = fit === "contain" ? "h-auto object-contain" : "h-full object-cover";
+  // Publicly-cacheable media (Task 2's stable proxy routes) is a same-origin
+  // relative path and safe to optimize via next/image. Passcode-protected
+  // media is a short-lived signed Supabase Storage URL that changes on every
+  // fetch, so next/image adds no benefit there — keep it a plain <img>.
+  if (src.startsWith("/api/invitations/public/")) {
+    return (
+      <div className={`relative w-full ${fit === "contain" ? "h-auto" : "h-full"} ${className ?? ""}`}>
+        <Image src={src} alt={alt} fill className={objectFitClass} sizes="(max-width: 768px) 100vw, 768px" />
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} className={`block w-full ${objectFitClass} ${className ?? ""}`} />;
 }
 
 function StateView({ children }: { children: ReactNode }) {
