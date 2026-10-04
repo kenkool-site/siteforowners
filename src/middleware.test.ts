@@ -203,6 +203,23 @@ test("middleware's root-host branch bounces a legacy siteforowners.com /invite/ 
   assert.match(rootBlock, /isLegacySiteforownersApex/);
 });
 
+test("middleware's root-host branch enforces the passcode gate on localhost/*.vercel.app too, not just the real apex", () => {
+  // Task 5 removed the page-level passcode check that used to run
+  // unconditionally regardless of hostname. If this branch's early return
+  // were still gated on isLegacySiteforownersApex (as it was before this
+  // fix), a *.vercel.app preview deployment or local dev server would serve
+  // a passcode-protected invitation's full content to anyone who knows its
+  // slug, with no gate at all - the exact "missing authorization" class a
+  // security review flagged on this task's commit.
+  const source = readFileSync(new URL("./middleware.ts", import.meta.url), "utf8");
+  const rootBlock = source.slice(source.indexOf('host.kind === "root"'), source.indexOf('host.kind === "invitespot-root"'));
+  const earlyReturn = rootBlock.slice(0, rootBlock.indexOf("return NextResponse.next();") + 1);
+  assert.doesNotMatch(earlyReturn, /isLegacySiteforownersApex/, "the early return must only check pathname, not hostname - the passcode gate below must still run for localhost/*.vercel.app");
+  // isLegacySiteforownersApex must still gate SOMETHING in this block (the
+  // invitespot.app bounce-redirect) - just not the passcode gate itself.
+  assert.match(rootBlock, /publicSubdomain && isLegacySiteforownersApex\(hostname\)/);
+});
+
 test("invitationLockedRewrite folds the original request's query string into the ?next= it sets, not just the bare pathname", () => {
   // Behavioral: this helper needs no Supabase access at all, so it can be
   // exercised directly rather than via a structural source read - unlike

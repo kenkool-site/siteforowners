@@ -88,7 +88,7 @@ export async function middleware(request: NextRequest) {
 
   const host = classifyHost(hostname);
   if (host.kind === "root") {
-    if (!pathname.startsWith("/invite/") || !isLegacySiteforownersApex(hostname)) {
+    if (!pathname.startsWith("/invite/")) {
       return NextResponse.next();
     }
     const slugMatch = pathname.match(/^\/invite\/([^/]+)/);
@@ -104,7 +104,11 @@ export async function middleware(request: NextRequest) {
       return invitationLockedRewrite(request, slug, pathname);
     }
     const publicSubdomain = eventResult.data?.public_subdomain as string | null | undefined;
-    if (publicSubdomain) {
+    // Only bounce to invitespot.app on the real legacy siteforowners.com apex
+    // — classifyHost's "root" bucket also covers localhost and *.vercel.app,
+    // which must keep serving the content directly for local dev/preview,
+    // not redirect out to a domain those environments can't reach.
+    if (publicSubdomain && isLegacySiteforownersApex(hostname)) {
       const isMemories = pathname === `/invite/${encodeURIComponent(slug)}/memories`;
       const target = isMemories
         ? invitationMemoriesUrl({ slug, publicSubdomain })
@@ -113,11 +117,10 @@ export async function middleware(request: NextRequest) {
       redirectUrl.search = request.nextUrl.search;
       return NextResponse.redirect(redirectUrl, 301);
     }
-    // No dedicated subdomain - this event's canonical URL is the bare
-    // /invite/{slug} path, which can legitimately be served directly on
-    // this legacy host too (not every invitation has a reserved subdomain) -
-    // so it's not redirected, but it still needs the same passcode gate the
-    // other two invitation entry points enforce.
+    // Passcode gate applies regardless of which root host served this
+    // request (apex, localhost, or a *.vercel.app preview) - every one of
+    // them can render the real invitation page, so every one of them must
+    // enforce it the same way the removed page-level check used to.
     const eventId = eventResult.data?.id as string | undefined;
     if (eventResult.data?.passcode_hash && eventId && !(await hasInvitationPasscodeAccess(request, eventId))) {
       return invitationLockedRewrite(request, slug, pathname);
