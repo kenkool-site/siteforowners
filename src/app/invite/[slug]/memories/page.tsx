@@ -20,11 +20,14 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
   const settings = await getEventMemoriesSettings(invitation.event.id);
   if (!settings || !settings.memoriesEnabled) {
     const copy = (invitation.event.locale === "es" ? esMessages : enMessages).invitations.public;
+    const referenceDate = invitation.event.endsAt ?? invitation.event.startsAt;
+    const eventHasPassed = Boolean(referenceDate && Date.parse(referenceDate) <= Date.now());
+    const unavailableCopy = eventHasPassed ? copy.memories.unavailable.past : copy.memories.unavailable.upcoming;
     return (
       <InvitationPublicProvider locale={invitation.event.locale} timeZone="UTC">
         <StateView>
-          <h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{copy.memories.unavailable.title}</h1>
-          <p className="mt-4 text-base leading-7 text-[#665C69]">{copy.memories.unavailable.body}</p>
+          <h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{unavailableCopy.title}</h1>
+          <p className="mt-4 text-base leading-7 text-[#665C69]">{unavailableCopy.body}</p>
           <Link href={`/invite/${params.slug}`} className="mt-6 inline-block text-sm font-semibold text-[#73516F] underline-offset-4 hover:underline">
             {copy.viewInvitation}
           </Link>
