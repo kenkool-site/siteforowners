@@ -36,6 +36,7 @@ const invitation: PublicInvitationLookup = {
     showPublicRsvpCount: true,
     commentWallEnabled: false,
     rsvpDeadline: null,
+    rsvpOverrideOpen: false,
     status: "published",
     expireAt: "2026-10-12T04:00:00.000Z",
   },

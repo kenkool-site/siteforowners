@@ -34,6 +34,7 @@ const privateCountsInvitation: PublicInvitationLookup = {
     showPublicRsvpCount: false,
     commentWallEnabled: false,
     rsvpDeadline: null,
+    rsvpOverrideOpen: false,
     status: "published",
     expireAt: null,
   },

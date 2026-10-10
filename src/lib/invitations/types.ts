@@ -69,6 +69,7 @@ export interface InvitationEvent {
   commentWallReviewedAt: string | null;
   capacity: number | null;
   rsvpDeadline: string | null;
+  rsvpOverrideOpen: boolean;
   submissionLimit: number;
   emailNotificationLimit: number;
   smsNotificationLimit: number;

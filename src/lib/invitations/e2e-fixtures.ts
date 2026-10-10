@@ -166,6 +166,7 @@ function eventRow(input: {
     comment_wall_reviewed_at: null,
     capacity: 8,
     rsvp_deadline: input.deadline ?? null,
+    rsvp_override_open: false,
     submission_limit: 250,
     email_notification_limit: input.emailLimit ?? 250,
     sms_notification_limit: 50,
