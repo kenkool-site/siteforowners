@@ -288,6 +288,7 @@ export function EventEditor({
         passcode: stringValue(data, "passcode") || undefined,
         removePasscode: data.has("removePasscode"),
         showPublicRsvpCount: data.has("showPublicRsvpCount"),
+        rsvpOverrideOpen: data.has("rsvpOverrideOpen"),
         ownerEmailNotifications: data.has("ownerEmailNotifications"),
         notificationEmail: stringValue(data, "notificationEmail"),
         ownerSmsNotifications: data.has("ownerSmsNotifications"),
@@ -998,6 +999,13 @@ export function EventEditor({
                 <label key={String(name)} className="flex min-h-12 items-center justify-between gap-4 py-3 text-sm font-medium"><span>{t(`fields.${label}`)}</span><input type="checkbox" name={String(name)} defaultChecked={Boolean(checked)} className="h-5 w-5 accent-[#6D456F]" /></label>
               ))}
               <label className="block py-3 text-sm font-semibold">{t("fields.removePasscode")}<input type="checkbox" name="removePasscode" className="ml-3 h-5 w-5 align-middle accent-[#6D456F]" /></label>
+              <label className="flex min-h-12 items-start justify-between gap-4 py-3 text-sm font-semibold">
+                <span>
+                  {t("fields.rsvpOverride")}
+                  <span className="mt-1 block text-xs font-normal leading-5 text-[#675d6a]">{t("rsvpOverrideHelp")}</span>
+                </span>
+                <input type="checkbox" name="rsvpOverrideOpen" defaultChecked={Boolean(currentEvent.rsvpOverrideOpen)} className="h-5 w-5 shrink-0 accent-[#6D456F]" />
+              </label>
             </div>
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <label className={labelClass}>{t("fields.notificationEmail")}<input type="email" name="notificationEmail" defaultValue={currentEvent.notificationEmail ?? ""} className={inputClass} /><FieldError name="notificationEmail" errors={errors} /></label>

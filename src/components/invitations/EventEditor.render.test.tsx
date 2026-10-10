@@ -41,6 +41,7 @@ const event: EditorEvent = {
   commentWallReviewedAt: null,
   capacity: 120,
   rsvpDeadline: "2026-10-01T04:00:00.000Z",
+  rsvpOverrideOpen: false,
   submissionLimit: 250,
   emailNotificationLimit: 250,
   smsNotificationLimit: 50,
@@ -214,4 +215,16 @@ test("a full gallery disables the thirteenth upload", () => {
 
 test("founders see the public subdomain input suffixed with invitespot.app, matching where invitation events now live", () => {
   assert.match(render("founder"), /\.invitespot\.app</);
+});
+
+test("the RSVP override toggle renders with a warning and reflects its stored state", () => {
+  const off = new JSDOM(render("owner")).window.document;
+  const offInput = off.querySelector<HTMLInputElement>('input[name="rsvpOverrideOpen"]');
+  assert.ok(offInput);
+  assert.equal(offInput?.hasAttribute("checked"), false);
+  assert.match(off.body.textContent ?? "", /Allow RSVP despite the deadline/);
+  assert.match(off.body.textContent ?? "", /Remember to turn this off when you're done\./);
+
+  const on = new JSDOM(render("owner", undefined, { rsvpOverrideOpen: true })).window.document;
+  assert.equal(on.querySelector<HTMLInputElement>('input[name="rsvpOverrideOpen"]')?.hasAttribute("checked"), true);
 });
