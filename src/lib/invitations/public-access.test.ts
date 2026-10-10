@@ -62,71 +62,30 @@ test("preview authorizes the exact event before details or media and preserves d
   }
 });
 
-test("unknown and offline events resolve as not found before signing media", async () => {
-  let signed = 0;
-  const loadMedia = async () => {
-    signed += 1;
-    return emptyMedia;
-  };
+test("unknown and offline events resolve as not found", async () => {
   assert.deepEqual(await resolvePublicInvitationPage("unknown", new Date("2026-10-01"), {
     find: async () => null,
-    hasPasscodeAccess: () => false,
-    loadMedia,
   }), { kind: "not_found" });
   assert.deepEqual(await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
     find: async () => ({ ...invitation, event: { ...invitation.event, status: "offline" } }),
-    hasPasscodeAccess: () => false,
-    loadMedia,
   }), { kind: "not_found" });
-  assert.equal(signed, 0);
 });
 
-test("draft, expired, and locked invitations reveal no media before their safe state", async () => {
+test("draft and expired invitations resolve to their safe state", async () => {
   for (const [status, kind] of [["draft", "unavailable"], ["expired", "ended"]] as const) {
-    let signed = 0;
     const result = await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
       find: async () => ({ ...invitation, event: { ...invitation.event, status } }),
-      hasPasscodeAccess: () => false,
-      loadMedia: async () => {
-        signed += 1;
-        return emptyMedia;
-      },
     });
     assert.equal(result.kind, kind);
-    assert.equal(signed, 0);
   }
-
-  let signed = 0;
-  const locked = await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
-    find: async () => ({ ...invitation, passcodeHash: "stored" }),
-    hasPasscodeAccess: () => false,
-    loadMedia: async () => {
-      signed += 1;
-      return emptyMedia;
-    },
-  });
-  assert.equal(locked.kind, "passcode");
-  assert.equal(signed, 0);
 });
 
-test("published and RSVP-closed invitations sign media only after access", async () => {
+test("published and RSVP-closed invitations resolve to details regardless of passcode (middleware gates access)", async () => {
   for (const status of ["published", "rsvp_closed"] as const) {
-    let checked = 0;
-    let signed = 0;
     const result = await resolvePublicInvitationPage("mia-and-lee", new Date("2026-10-01"), {
       find: async () => ({ ...invitation, passcodeHash: "stored", event: { ...invitation.event, status } }),
-      hasPasscodeAccess: () => {
-        checked += 1;
-        return true;
-      },
-      loadMedia: async () => {
-        signed += 1;
-        return emptyMedia;
-      },
     });
     assert.equal(result.kind, "details");
-    assert.equal(checked, 1);
-    assert.equal(signed, 1);
   }
 });
 

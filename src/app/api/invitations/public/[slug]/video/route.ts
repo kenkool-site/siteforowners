@@ -5,10 +5,8 @@ import { INVITATION_MEDIA_BUCKET, isInvitationMediaPathForEvent } from "@/lib/in
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const CONTENT_TYPES: Record<string, string> = {
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
+  mp4: "video/mp4",
+  webm: "video/webm",
 };
 
 export async function GET(_request: Request, { params }: { params: { slug: string } }) {
@@ -20,8 +18,8 @@ export async function GET(_request: Request, { params }: { params: { slug: strin
   if (state !== "published" && state !== "rsvp_closed") {
     return new NextResponse(null, { status: 404 });
   }
-  const path = invitation.event.coverImagePath;
-  if (!path || !isInvitationMediaPathForEvent(path, invitation.event.id, "cover")) {
+  const path = invitation.event.videoPath;
+  if (!path || !isInvitationMediaPathForEvent(path, invitation.event.id, "video")) {
     return new NextResponse(null, { status: 404 });
   }
   const extension = path.split(".").pop()?.toLowerCase() ?? "";

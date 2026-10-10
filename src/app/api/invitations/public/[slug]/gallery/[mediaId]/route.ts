@@ -11,7 +11,7 @@ const CONTENT_TYPES: Record<string, string> = {
   webp: "image/webp",
 };
 
-export async function GET(_request: Request, { params }: { params: { slug: string } }) {
+export async function GET(_request: Request, { params }: { params: { slug: string; mediaId: string } }) {
   const invitation = await getPublicInvitationBySlug(params.slug);
   if (!invitation || invitation.passcodeHash) {
     return new NextResponse(null, { status: 404 });
@@ -20,15 +20,22 @@ export async function GET(_request: Request, { params }: { params: { slug: strin
   if (state !== "published" && state !== "rsvp_closed") {
     return new NextResponse(null, { status: 404 });
   }
-  const path = invitation.event.coverImagePath;
-  if (!path || !isInvitationMediaPathForEvent(path, invitation.event.id, "cover")) {
+  const supabase = createAdminClient();
+  const { data: mediaRow } = await supabase
+    .from("invitation_media")
+    .select("storage_path")
+    .eq("event_id", invitation.event.id)
+    .eq("id", params.mediaId)
+    .maybeSingle();
+  const path = mediaRow?.storage_path as string | undefined;
+  if (!path || !isInvitationMediaPathForEvent(path, invitation.event.id, "gallery")) {
     return new NextResponse(null, { status: 404 });
   }
   const extension = path.split(".").pop()?.toLowerCase() ?? "";
   const contentType = CONTENT_TYPES[extension];
   if (!contentType) return new NextResponse(null, { status: 404 });
 
-  const { data, error } = await createAdminClient().storage.from(INVITATION_MEDIA_BUCKET).download(path);
+  const { data, error } = await supabase.storage.from(INVITATION_MEDIA_BUCKET).download(path);
   if (error || !data) return new NextResponse(null, { status: 404 });
   return new NextResponse(data, {
     headers: {

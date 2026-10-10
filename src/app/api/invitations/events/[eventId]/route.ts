@@ -8,6 +8,7 @@ import {
 import { parseEventUpdate } from "@/lib/invitations/validation";
 import { NextRequest, NextResponse } from "next/server";
 import { isPlatformSubdomainTakenError } from "@/lib/invitations/subdomains";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 
 export async function PATCH(
   request: NextRequest,
@@ -36,6 +37,7 @@ export async function PATCH(
     await updateInvitationEvent(params.eventId, parsed.value, passcodeHash);
     const event = await getInvitationEventForManagement(params.eventId);
     if (!event) return NextResponse.json({ error: "Invitation not found" }, { status: 404 });
+    revalidateInvitationPage(event.slug);
     return NextResponse.json({ event });
   } catch (error) {
     if (isPlatformSubdomainTakenError(error)) {

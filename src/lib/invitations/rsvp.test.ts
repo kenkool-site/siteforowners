@@ -213,7 +213,7 @@ test("public RSVP processing uses the exact slug and redacts disabled aggregates
     { body: validBody, ipHash: "a".repeat(64), readPasscodeCookie: () => null, origin: "https://events.example.test", now: new Date("2026-01-01") },
     {
       findInvitation: async (slug) => { lookedUp.push(slug); return publishedEvent; },
-      verifyPasscode: () => false,
+      verifyPasscode: async () => false,
       allowAttempt: async () => true,
       submit: async () => ({
         ok: true,
@@ -246,7 +246,7 @@ test("a protected RSVP requires its event-scoped passcode session before rate li
     { body: validBody, ipHash: "a".repeat(64), readPasscodeCookie: () => "wrong-session", origin: "https://events.example.test", now: new Date("2026-01-01") },
     {
       findInvitation: async () => ({ ...publishedEvent, passcodeHash: "stored-hash" }),
-      verifyPasscode: () => false,
+      verifyPasscode: async () => false,
       allowAttempt: async () => { attempted = true; return true; },
       submit: async () => { submitted = true; throw new Error("must not submit"); },
     },
@@ -262,7 +262,7 @@ test("offline and expired events disclose nothing and a limiter failure rejects 
       { body: validBody, ipHash: "a".repeat(64), readPasscodeCookie: () => null, origin: "https://events.example.test", now: new Date("2026-01-01") },
       {
         findInvitation: async () => ({ ...publishedEvent, event: { ...publishedEvent.event, status } }),
-        verifyPasscode: () => true,
+        verifyPasscode: async () => true,
         allowAttempt: async () => { throw new Error("must not rate limit unavailable events"); },
         submit: async () => { throw new Error("must not submit"); },
       },
@@ -274,7 +274,7 @@ test("offline and expired events disclose nothing and a limiter failure rejects 
     { body: validBody, ipHash: "a".repeat(64), readPasscodeCookie: () => null, origin: "https://events.example.test", now: new Date("2026-01-01") },
     {
       findInvitation: async () => publishedEvent,
-      verifyPasscode: () => true,
+      verifyPasscode: async () => true,
       allowAttempt: async () => false,
       submit: async () => { throw new Error("must not submit"); },
     },

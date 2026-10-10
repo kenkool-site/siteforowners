@@ -17,6 +17,7 @@ import {
   submitInvitationComment,
 } from "@/lib/invitations/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 
 async function authorize(request: NextRequest, slug: string) {
   const invitation = await getPublicInvitationBySlug(slug);
@@ -26,7 +27,7 @@ async function authorize(request: NextRequest, slug: string) {
   if (invitation.passcodeHash) {
     const signed = request.cookies.get(getInvitationPasscodeCookieName(invitation.event.id))?.value;
     try {
-      if (!signed || !verifyInvitationPasscodeSession(signed, invitation.event.id)) return null;
+      if (!signed || !(await verifyInvitationPasscodeSession(signed, invitation.event.id))) return null;
     } catch { return null; }
   }
   return invitation;
@@ -69,6 +70,9 @@ export async function POST(request: NextRequest, { params }: { params: { slug: s
     if (!result.ok) {
       const status = result.code === "rate_limited" ? 429 : result.code === "comment_wall_closed" ? 409 : 500;
       return NextResponse.json(result, { status });
+    }
+    if (result.ok) {
+      revalidateInvitationPage(params.slug);
     }
     return NextResponse.json(result, { status: result.outcome === "created" ? 201 : 200 });
   } catch (error) {

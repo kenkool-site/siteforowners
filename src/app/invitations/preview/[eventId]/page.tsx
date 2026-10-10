@@ -24,6 +24,6 @@ export default async function InvitationPreviewPage({ params }: { params: { even
   });
   if (!preview) notFound();
   return <InvitationPublicProvider locale={preview.event.locale} timeZone={preview.event.timezone}>
-    <PublicInvitation event={preview.event} state={preview.state} media={preview.media} rsvpSummary={preview.rsvpSummary} preview />
+    <PublicInvitation event={preview.event} state={preview.state} initialMedia={preview.media} rsvpSummary={preview.rsvpSummary} preview />
   </InvitationPublicProvider>;
 }

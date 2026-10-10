@@ -1,56 +1,17 @@
-import { cookies, headers } from "next/headers";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { GuestMemoriesApp } from "@/components/invitations/memories/GuestMemoriesApp";
-import { getInvitationPasscodeCookieName, verifyInvitationPasscodeSession } from "@/lib/invitations/auth";
-import { isLegacySiteforownersApex } from "@/lib/host-routing";
-import { invitationMemoriesUrl } from "@/lib/invitations/public-url";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
 import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recipe";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
-export default async function GuestMemoriesPage({ params, searchParams }: { params: { slug: string }; searchParams: { photo?: string } }) {
+export default async function GuestMemoriesPage({ params }: { params: { slug: string } }) {
   const invitation = await getPublicInvitationBySlug(params.slug);
   if (!invitation) notFound();
 
-  // Same legacy-apex redirect as the root invite page (src/app/invite/[slug]/page.tsx)
-  // — an old siteforowners.com bookmark/share for an event with a reserved
-  // subdomain bounces to its invitespot.app equivalent instead of serving here.
-  if (invitation.event.publicSubdomain && isLegacySiteforownersApex(headers().get("host") ?? "")) {
-    redirect(invitationMemoriesUrl({ slug: invitation.event.slug, publicSubdomain: invitation.event.publicSubdomain }));
-  }
-
-  // A host taking the event fully offline is an explicit kill switch — Memories
-  // must not stay reachable just because memories_enabled is still true.
-  // Deliberately narrower than resolvePublicInvitationPage's full state machine:
-  // "draft"/"expired"/"rsvp_closed" govern the RSVP lifecycle, not this page —
-  // Memories has its own independent 14-day upload-window mechanic and a
-  // 12-month post-event browsing window by design, so only "offline" (a literal,
-  // explicit status the host sets) gates this page.
   if (invitation.event.status === "offline") notFound();
-
-  // Matches resolvePublicInvitationPage's own gate (src/lib/invitations/public-access.ts):
-  // passcodeHash lives on the invitation itself, not on invitation.event.
-  if (invitation.passcodeHash) {
-    const signed = cookies().get(getInvitationPasscodeCookieName(invitation.event.id))?.value;
-    let hasAccess = false;
-    try {
-      hasAccess = Boolean(signed && verifyInvitationPasscodeSession(signed, invitation.event.id));
-    } catch {
-      hasAccess = false;
-    }
-    if (!hasAccess) {
-      // Preserve where the guest was actually headed (e.g. a shared photo
-      // link's ?photo= param) through the passcode challenge — PasscodeGate
-      // reads this back via the general invite page and navigates here again
-      // on success, instead of stranding the guest on the general invite page.
-      const photoParam = typeof searchParams.photo === "string" ? `?photo=${encodeURIComponent(searchParams.photo)}` : "";
-      const next = encodeURIComponent(`/invite/${params.slug}/memories${photoParam}`);
-      redirect(`/invite/${params.slug}?next=${next}`); // same passcode gate the public page itself enforces
-    }
-  }
 
   const settings = await getEventMemoriesSettings(invitation.event.id);
   if (!settings || !settings.memoriesEnabled) notFound();

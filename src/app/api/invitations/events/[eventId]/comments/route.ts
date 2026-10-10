@@ -10,6 +10,7 @@ import {
   setInvitationCommentHidden,
   setInvitationCommentWallEnabled,
 } from "@/lib/invitations/repository";
+import { revalidateInvitationPage } from "@/lib/invitations/revalidate-invitation-page";
 
 async function access(request: NextRequest, eventId: string) {
   return requireInvitationAccess(request, eventId);
@@ -45,6 +46,8 @@ export async function PATCH(request: NextRequest, { params }: { params: { eventI
       if (!changed) return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     } else return NextResponse.json({ error: "Invalid request" }, { status: 400 });
     console.info("[invitations/comments] management update", { eventId: params.eventId, action: values.action, actor: actor.kind });
+    const event = await getInvitationEventForManagement(params.eventId);
+    if (event) revalidateInvitationPage(event.slug);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[invitations/comments] management update failed", { eventId: params.eventId, action: values.action, actor: actor.kind, error });
@@ -64,6 +67,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { event
     const removed = await removeInvitationComment(params.eventId, values.commentId);
     if (!removed) return NextResponse.json({ error: "Comment not found" }, { status: 404 });
     console.info("[invitations/comments] comment removed", { eventId: params.eventId, commentId: values.commentId, actor: actor.kind });
+    const event = await getInvitationEventForManagement(params.eventId);
+    if (event) revalidateInvitationPage(event.slug);
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[invitations/comments] removal failed", { eventId: params.eventId, commentId: values.commentId, actor: actor.kind, error });

@@ -89,24 +89,36 @@ test("same-origin checks require an exact forwarded scheme and host", () => {
   assert.equal(isSameOrigin(missingOrigin), false);
 });
 
-test("passcode sessions are signed, event-scoped, and reject cross-event replay", () => {
-  const signed = signInvitationPasscodeSession(
+test("passcode sessions are signed, event-scoped, and reject cross-event replay", async () => {
+  const signed = await signInvitationPasscodeSession(
     { eventId: "event-1", expiresAt: 2_000 },
     "x".repeat(32),
   );
-  assert.equal(verifyInvitationPasscodeSession(signed, "event-1", "x".repeat(32), 1_999), true);
-  assert.equal(verifyInvitationPasscodeSession(signed, "event-2", "x".repeat(32), 1_999), false);
-  assert.equal(verifyInvitationPasscodeSession(`${signed}x`, "event-1", "x".repeat(32), 1_999), false);
-  assert.equal(verifyInvitationPasscodeSession(signed, "event-1", "x".repeat(32), 2_000), false);
+  assert.equal(await verifyInvitationPasscodeSession(signed, "event-1", "x".repeat(32), 1_999), true);
+  assert.equal(await verifyInvitationPasscodeSession(signed, "event-2", "x".repeat(32), 1_999), false);
+  assert.equal(await verifyInvitationPasscodeSession(`${signed}x`, "event-1", "x".repeat(32), 1_999), false);
+  assert.equal(await verifyInvitationPasscodeSession(signed, "event-1", "x".repeat(32), 2_000), false);
 });
 
-test("passcode cookies are HTTP-only and never outlive the event expiry", () => {
+test("Web Crypto passcode signatures are byte-identical to the node:crypto implementation they replace", async () => {
+  // A fixed, known-good signature produced by the OLD node:crypto
+  // implementation for this exact session+secret, captured before the
+  // rewrite below. If the rewrite produces a different signature for the
+  // same input, every guest cookie signed before this deploy stops
+  // verifying - this pins that it can't happen.
+  const legacySignature = "eyJldmVudElkIjoiZXZlbnQtMSIsImV4cGlyZXNBdCI6MjAwMH0.1614xLyAiJw2UgAHpSBJPM8vHzbanSX4q7dvTt48Ylw";
+  const signed = await signInvitationPasscodeSession({ eventId: "event-1", expiresAt: 2_000 }, "x".repeat(32));
+  assert.equal(signed, legacySignature);
+  assert.equal(await verifyInvitationPasscodeSession(legacySignature, "event-1", "x".repeat(32), 1_999), true);
+});
+
+test("passcode cookies are HTTP-only and never outlive the event expiry", async () => {
   const originalSecret = process.env.SESSION_COOKIE_SECRET;
   process.env.SESSION_COOKIE_SECRET = "x".repeat(32);
   try {
     const now = new Date("2026-10-10T20:00:00.000Z");
     const response = NextResponse.json({ ok: true });
-    setInvitationPasscodeCookie(
+    await setInvitationPasscodeCookie(
       response,
       { id: "event-1", slug: "mia-and-lee", expireAt: "2026-10-10T21:00:00.000Z" },
       now,
@@ -124,12 +136,12 @@ test("passcode cookies are HTTP-only and never outlive the event expiry", () => 
   }
 });
 
-test("passcode cookies have a twelve-hour ceiling when an event has no earlier expiry", () => {
+test("passcode cookies have a twelve-hour ceiling when an event has no earlier expiry", async () => {
   const originalSecret = process.env.SESSION_COOKIE_SECRET;
   process.env.SESSION_COOKIE_SECRET = "x".repeat(32);
   try {
     const response = NextResponse.json({ ok: true });
-    setInvitationPasscodeCookie(
+    await setInvitationPasscodeCookie(
       response,
       { id: "event-1", slug: "mia-and-lee", expireAt: null },
       new Date("2026-10-10T20:00:00.000Z"),

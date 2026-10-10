@@ -14,33 +14,43 @@ export type PublicInvitationResolution =
   | { kind: "not_found" }
   | { kind: "unavailable"; event: PublicInvitationEvent }
   | { kind: "ended"; event: PublicInvitationEvent }
-  | { kind: "passcode"; event: PublicInvitationEvent }
   | {
       kind: "details";
       event: PublicInvitationEvent;
       state: "published" | "rsvp_closed";
-      media: InvitationMediaSnapshot;
       rsvpSummary: PublicInvitationLookup["rsvpSummary"];
     };
 
 export type PublicInvitationResolutionDependencies = {
   find(slug: string): Promise<PublicInvitationLookup | null>;
-  hasPasscodeAccess(event: PublicInvitationEvent): boolean;
-  loadMedia(event: PublicInvitationEvent): Promise<InvitationMediaSnapshot>;
 };
 
 export type PublicInvitationClientDetails = Extract<PublicInvitationResolution, { kind: "details" }>;
+
+// The founder/owner preview (src/app/invitations/preview/[eventId]/page.tsx)
+// stays on server-loaded media rather than PublicInvitation's client-side
+// fetch: it previews events that are often still in "draft" state, and the
+// public media endpoint (GET /api/invitations/public/[slug]/media) 404s for
+// anything that isn't published/rsvp_closed — that gate is exactly why
+// preview needs its own signed media up front, via PublicInvitation's
+// `initialMedia` override prop.
+export type PublicInvitationPreviewDetails = PublicInvitationClientDetails & { media: InvitationMediaSnapshot };
 
 export async function resolveInvitationPreview(eventId: string, dependencies: {
   authorize(eventId: string): Promise<boolean>;
   find(eventId: string): Promise<PublicInvitationLookup | null>;
   loadMedia(event: PublicInvitationEvent): Promise<InvitationMediaSnapshot>;
-}): Promise<PublicInvitationClientDetails | null> {
+}): Promise<PublicInvitationPreviewDetails | null> {
   if (!await dependencies.authorize(eventId)) return null;
   const invitation = await dependencies.find(eventId);
   if (!invitation || invitation.event.id !== eventId) return null;
-  return toPublicInvitationClientDetails({ kind: "details", event: invitation.event,
-    state: "published", media: await dependencies.loadMedia(invitation.event), rsvpSummary: invitation.rsvpSummary });
+  const details = toPublicInvitationClientDetails({
+    kind: "details",
+    event: invitation.event,
+    state: "published",
+    rsvpSummary: invitation.rsvpSummary,
+  });
+  return { ...details, media: await dependencies.loadMedia(invitation.event) };
 }
 
 export function toPublicInvitationClientDetails(
@@ -65,14 +75,10 @@ export async function resolvePublicInvitationPage(
   if (state === "offline") return { kind: "not_found" };
   if (state === "draft") return { kind: "unavailable", event: invitation.event };
   if (state === "expired") return { kind: "ended", event: invitation.event };
-  if (invitation.passcodeHash && !dependencies.hasPasscodeAccess(invitation.event)) {
-    return { kind: "passcode", event: invitation.event };
-  }
   return {
     kind: "details",
     event: invitation.event,
     state,
-    media: await dependencies.loadMedia(invitation.event),
     rsvpSummary: invitation.rsvpSummary,
   };
 }
@@ -83,7 +89,7 @@ export async function resolvePublicInvitationPage(
 // anything else about the event, and never for an event a stranger couldn't
 // already see by visiting its own invitation page directly. A visitor here has
 // no session/cookie context for the OTHER event, so unlike resolvePublicInvitationPage
-// (which can grant passcode access via dependencies.hasPasscodeAccess), any
+// (whose passcode gating now lives in middleware, not here), any
 // passcode at all must suppress the name entirely.
 // The `find` parameter is required (not defaulted) so this file never imports
 // ./repository, which starts with `import "server-only"` and would break tests.
@@ -102,6 +108,7 @@ export async function getInvitationReferralDisplayName(
 const PRIVATE_METADATA: Metadata = {
   title: "Invitation",
   robots: { index: false, follow: false },
+  alternates: { canonical: null },
 };
 
 function invitationShareText(event: PublicInvitationEvent): { title: string; description: string | undefined } {

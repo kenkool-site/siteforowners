@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
     }
 
     const response = NextResponse.json({ ok: true });
-    setInvitationPasscodeCookie(response, invitation.event);
+    await setInvitationPasscodeCookie(response, invitation.event);
     return response;
   } catch (error) {
     console.error("[invitations/passcode] verification failed", { slug: input.slug, error });

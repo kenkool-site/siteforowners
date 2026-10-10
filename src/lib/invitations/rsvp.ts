@@ -247,7 +247,7 @@ type ProcessPublicRsvpContext = {
 
 type ProcessPublicRsvpDependencies = {
   findInvitation(slug: string): Promise<PublicRsvpEventLookup | null>;
-  verifyPasscode(signed: string, eventId: string): boolean;
+  verifyPasscode(signed: string, eventId: string): Promise<boolean>;
   allowAttempt(eventId: string, ipHash: string): Promise<boolean>;
   submit(request: SubmitRsvpRequest): Promise<SubmitRsvpResult>;
 };
@@ -269,6 +269,13 @@ export type PublicRsvpResponse = {
     mutation: RsvpMutationResult;
     editUrl: string | null;
   };
+  /**
+   * Set only on a successful mutation (status 200). Lets the route
+   * on-demand revalidate the guest-facing invitation pages for this event
+   * without unsafely re-parsing the raw request body. Never part of
+   * `body`, so it never reaches the JSON response sent to the guest.
+   */
+  slug?: string;
 };
 
 type ParsedPublicRsvpRequest = {
@@ -349,7 +356,7 @@ export async function processPublicRsvpRequest(
   }
   if (invitation.passcodeHash) {
     const signed = context.readPasscodeCookie(invitation.event.id);
-    if (!signed || !dependencies.verifyPasscode(signed, invitation.event.id)) {
+    if (!signed || !(await dependencies.verifyPasscode(signed, invitation.event.id))) {
       return { status: 403, body: { ok: false, code: "event_unavailable" } };
     }
   }
@@ -388,6 +395,7 @@ export async function processPublicRsvpRequest(
   return {
     status: 200,
     body: response,
+    slug: request.slug,
     ...(result.value.outcome === "unchanged" ? {} : { notification: {
       eventId: invitation.event.id,
       mutation: result.value,

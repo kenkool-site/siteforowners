@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Building2, CalendarDays, Clock3, MapPin, Navigation, Plane } from "lucide-react";
 import {
@@ -56,7 +57,12 @@ type PublicInvitationProps = {
   preview?: boolean;
   event: PublicInvitationEvent;
   state: Extract<EffectiveEventState, "published" | "rsvp_closed">;
-  media: InvitationMediaSnapshot;
+  // Server-provided media, used only by the founder/owner preview page
+  // (src/app/invitations/preview/[eventId]/page.tsx), which can preview
+  // draft events the public media endpoint would reject. The public
+  // invitation page never passes this — it fetches media itself below so
+  // that this page can drop cookies()/headers() and stay cacheable.
+  initialMedia?: InvitationMediaSnapshot;
   rsvpSummary: { attendingPeople: number; declinedParties: number };
   initialComments?: InvitationCommentPage;
 };
@@ -135,7 +141,19 @@ function InvitationImage({
   className?: string;
   fit?: "contain" | "cover";
 }) {
-  return <img src={src} alt={alt} className={`block w-full ${fit === "contain" ? "h-auto object-contain" : "h-full object-cover"} ${className ?? ""}`} />;
+  const objectFitClass = fit === "contain" ? "h-auto object-contain" : "h-full object-cover";
+  // Publicly-cacheable media (Task 2's stable proxy routes) is a same-origin
+  // relative path and safe to optimize via next/image. Passcode-protected
+  // media is a short-lived signed Supabase Storage URL that changes on every
+  // fetch, so next/image adds no benefit there — keep it a plain <img>.
+  if (src.startsWith("/api/invitations/public/")) {
+    return (
+      <div className={`relative w-full ${fit === "contain" ? "h-auto" : "h-full"} ${className ?? ""}`}>
+        <Image src={src} alt={alt} fill className={objectFitClass} sizes="(max-width: 768px) 100vw, 768px" />
+      </div>
+    );
+  }
+  return <img src={src} alt={alt} className={`block w-full ${objectFitClass} ${className ?? ""}`} />;
 }
 
 function StateView({ children }: { children: ReactNode }) {
@@ -174,8 +192,19 @@ export function InvitationStateView({ state }: { state: "draft" | "expired" }) {
   return <StateView><h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{t("ended.title")}</h1><p className="mt-4 text-base leading-7 text-[#665C69]">{t("ended.body")}</p></StateView>;
 }
 
-export function PublicInvitation({ event, state, media, rsvpSummary, preview = false, initialComments = { comments: [], nextCursor: null } }: PublicInvitationProps) {
+export function PublicInvitation({ event, state, initialMedia, rsvpSummary, preview = false, initialComments = { comments: [], nextCursor: null } }: PublicInvitationProps) {
   const t = useTranslations("invitations.public");
+
+  const [media, setMedia] = useState<InvitationMediaSnapshot | null>(initialMedia ?? null);
+  useEffect(() => {
+    if (initialMedia) return;
+    let cancelled = false;
+    fetch(`/api/invitations/public/${encodeURIComponent(event.slug)}/media`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => { if (!cancelled) setMedia(data); })
+      .catch(() => { if (!cancelled) setMedia(null); });
+    return () => { cancelled = true; };
+  }, [event.slug, initialMedia]);
 
   const theme = themeFor(event.themeKey);
   const recipe = event.designRecipe ?? DEFAULT_INVITATION_DESIGN_RECIPE;
@@ -246,7 +275,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
       className={`min-h-screen overflow-x-hidden pb-24 sm:pb-28 ${bodyFont} ${theme.page}`}
       style={variables}
     >
-      <InvitationHero coverUrl={media.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} venueName={event.venueName} venueUrl={event.venueUrl} recipe={recipe} />
+      <InvitationHero coverUrl={media?.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} venueName={event.venueName} venueUrl={event.venueUrl} recipe={recipe} />
       <article id="invitation-content" className={`${recreated ? "mx-auto flex flex-col px-4 py-8 sm:px-8 sm:py-14" : theme.stage}`} style={recreated ? { maxWidth: recipe.composition.maxWidth } : undefined}>
 
         {event.description && (
@@ -358,7 +387,7 @@ export function PublicInvitation({ event, state, media, rsvpSummary, preview = f
           </section>
         )}
 
-        {(media.gallery.length > 0 || media.video) && (
+        {media && (media.gallery.length > 0 || media.video) && (
           <section className={`${recreated ? "" : theme.media} ${rhythm}`} style={{ order: sectionOrder("gallery") }} aria-labelledby="invitation-gallery-heading">
             <h2 id="invitation-gallery-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("gallery")}</h2>
             {media.gallery.length > 0 && <div data-invitation-gallery="true" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{media.gallery.map((item, index) => {
