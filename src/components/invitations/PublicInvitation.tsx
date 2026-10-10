@@ -156,7 +156,7 @@ function InvitationImage({
   return <img src={src} alt={alt} className={`block w-full ${objectFitClass} ${className ?? ""}`} />;
 }
 
-function StateView({ children }: { children: ReactNode }) {
+export function StateView({ children }: { children: ReactNode }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#F2EEF4] px-5 py-12 text-[#2B2231]">
       <section className="w-full max-w-lg border-y border-[#BFB3C4] py-14 text-center">

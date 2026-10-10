@@ -880,6 +880,10 @@
           "tooManyAttempts": "You've reached the search limit for now. Try again tomorrow.",
           "tryAgain": "Try another selfie",
           "close": "Close"
+        },
+        "unavailable": {
+          "title": "Memories isn't available for this event",
+          "body": "The host hasn't turned on guest photo sharing yet."
         }
       }
     },
