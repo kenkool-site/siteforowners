@@ -880,6 +880,10 @@
           "tooManyAttempts": "Has alcanzado el límite de búsquedas por ahora. Inténtalo de nuevo mañana.",
           "tryAgain": "Probar con otra selfie",
           "close": "Cerrar"
+        },
+        "unavailable": {
+          "title": "Los recuerdos no están disponibles para este evento",
+          "body": "El anfitrión aún no ha activado la opción para compartir fotos."
         }
       }
     },
