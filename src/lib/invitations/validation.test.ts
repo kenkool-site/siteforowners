@@ -248,6 +248,21 @@ test("raw event updates reject direct media path assignment", () => {
   });
 });
 
+test("the RSVP override toggle parses as a plain boolean field", () => {
+  assert.deepEqual(parseEventUpdate({ rsvpOverrideOpen: true }, "owner"), {
+    ok: true,
+    value: { rsvpOverrideOpen: true },
+  });
+  assert.deepEqual(parseEventUpdate({ rsvpOverrideOpen: false }, "owner"), {
+    ok: true,
+    value: { rsvpOverrideOpen: false },
+  });
+  assert.deepEqual(parseEventUpdate({ rsvpOverrideOpen: "yes" }, "owner"), {
+    ok: false,
+    errors: { rsvpOverrideOpen: "Choose on or off." },
+  });
+});
+
 test("status commands are allowlisted and map to persisted states", () => {
   assert.deepEqual(parseStatusCommand({ command: "close" }), { ok: true, command: "close", status: "rsvp_closed" });
   assert.deepEqual(parseStatusCommand({ command: "reopen" }), { ok: true, command: "reopen", status: "published" });

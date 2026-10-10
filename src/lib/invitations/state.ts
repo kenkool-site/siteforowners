@@ -9,6 +9,7 @@ export interface EventStateInput {
   status: InvitationEventStatus;
   rsvpDeadline: string | null;
   expireAt: string | null;
+  rsvpOverrideOpen: boolean;
 }
 
 export function getEffectiveEventState(
@@ -18,6 +19,7 @@ export function getEffectiveEventState(
   if (event.status === "offline" || event.status === "draft") return event.status;
   if (event.status === "expired") return "expired";
   if (event.expireAt && Date.parse(event.expireAt) <= now.getTime()) return "expired";
+  if (event.rsvpOverrideOpen) return "published";
   if (event.status === "rsvp_closed") return "rsvp_closed";
   if (event.rsvpDeadline && Date.parse(event.rsvpDeadline) <= now.getTime()) {
     return "rsvp_closed";

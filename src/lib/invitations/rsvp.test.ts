@@ -9,6 +9,7 @@ import {
   submitRsvp,
   type SubmitRsvpRpcInput,
 } from "./rsvp";
+import { getEffectiveEventState } from "./state";
 
 test("an increase consumes only the additional seats", () => {
   assert.equal(capacityDelta({ oldAttending: true, oldPartySize: 2, attending: true, partySize: 4 }), 2);
@@ -25,6 +26,21 @@ test("closed events allow token-authenticated edits but not creates", () => {
     assert.equal(canMutateRsvp(state, "create"), false);
     assert.equal(canMutateRsvp(state, "update"), false);
   }
+});
+
+test("the host RSVP override's published state allows both new and edited RSVPs", () => {
+  const state = getEffectiveEventState(
+    {
+      status: "rsvp_closed",
+      rsvpDeadline: "2020-01-01T00:00:00Z",
+      expireAt: null,
+      rsvpOverrideOpen: true,
+    },
+    new Date("2026-01-01T00:00:00Z"),
+  );
+  assert.equal(state, "published");
+  assert.equal(canMutateRsvp(state, "create"), true);
+  assert.equal(canMutateRsvp(state, "update"), true);
 });
 
 test("stable database exception codes map without parsing provider prose", () => {
@@ -191,6 +207,7 @@ const publishedEvent = {
     status: "published" as const,
     rsvpDeadline: null,
     expireAt: null,
+    rsvpOverrideOpen: false,
     showPublicRsvpCount: false,
   },
   passcodeHash: null,
@@ -280,4 +297,39 @@ test("offline and expired events disclose nothing and a limiter failure rejects 
     },
   );
   assert.deepEqual(limited, { status: 429, body: { ok: false, code: "rate_limited" } });
+});
+
+test("the host RSVP override lets a new submission through despite a passed deadline and an explicit close", async () => {
+  const overriddenEvent = {
+    ...publishedEvent,
+    event: {
+      ...publishedEvent.event,
+      status: "rsvp_closed" as const,
+      rsvpDeadline: "2020-01-01T00:00:00.000Z",
+      rsvpOverrideOpen: true,
+    },
+  };
+  const result = await processPublicRsvpRequest(
+    { body: validBody, ipHash: "a".repeat(64), readPasscodeCookie: () => null, origin: "https://events.example.test", now: new Date("2026-01-01") },
+    {
+      findInvitation: async () => overriddenEvent,
+      verifyPasscode: async () => true,
+      allowAttempt: async () => true,
+      submit: async () => ({
+        ok: true,
+        value: {
+          rsvp: { id: "rsvp-1", eventId: "event-1", ...normalizedInput },
+          rsvpId: "rsvp-1",
+          created: true,
+          outcome: "created",
+          attendingTotal: 2,
+          declinedPartyTotal: 0,
+          remainingCapacity: null,
+          editToken: "secret-token",
+        },
+      }),
+    },
+  );
+  assert.equal(result.status, 200);
+  assert.equal(result.body.outcome, "created");
 });

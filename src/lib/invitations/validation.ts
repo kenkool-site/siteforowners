@@ -59,6 +59,7 @@ export type InvitationEventUpdate = {
   showPublicRsvpCount?: boolean;
   capacity?: number | null;
   rsvpDeadline?: string | null;
+  rsvpOverrideOpen?: boolean;
   submissionLimit?: number;
   emailNotificationLimit?: number;
   smsNotificationLimit?: number;
@@ -285,6 +286,7 @@ export function parseEventUpdate(
 
   for (const key of [
     "showPublicRsvpCount",
+    "rsvpOverrideOpen",
     "ownerEmailNotifications",
     "ownerSmsNotifications",
     "guestEmailConfirmations",

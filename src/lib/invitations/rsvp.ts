@@ -232,6 +232,7 @@ type PublicRsvpEventLookup = {
     status: InvitationEventStatus;
     rsvpDeadline: string | null;
     expireAt: string | null;
+    rsvpOverrideOpen: boolean;
     showPublicRsvpCount: boolean;
   };
   passcodeHash: string | null;

@@ -43,6 +43,7 @@ const baseEvent: EditorEvent = {
   commentWallReviewedAt: null,
   capacity: 120,
   rsvpDeadline: null,
+  rsvpOverrideOpen: false,
   submissionLimit: 250,
   emailNotificationLimit: 250,
   smsNotificationLimit: 50,
@@ -223,6 +224,27 @@ test("founder save submits the editable public subdomain", async () => {
       await Promise.resolve();
     });
     assert.equal(submitted?.publicSubdomain, "ana-luis");
+  });
+});
+
+test("save submits the RSVP override toggle's checked state", async () => {
+  let submitted: Record<string, unknown> | null = null;
+  await withEditor("owner", async (_url, init) => {
+    submitted = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    return response({ event: { ...baseEvent, rsvpOverrideOpen: true } });
+  }, async (container, dom) => {
+    const checkbox = container.querySelector<HTMLInputElement>('input[name="rsvpOverrideOpen"]')!;
+    const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "checked")?.set;
+    await act(async () => {
+      setter?.call(checkbox, true);
+      checkbox.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+    });
+    await act(async () => {
+      submit(dom, checkbox.form!);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.equal(submitted?.rsvpOverrideOpen, true);
   });
 });
 

@@ -187,6 +187,7 @@ test("management projection omits owner PIN and event passcode hashes", async ()
       show_public_rsvp_count: false,
       capacity: null,
       rsvp_deadline: null,
+      rsvp_override_open: false,
       submission_limit: 250,
       email_notification_limit: 250,
       sms_notification_limit: 50,
@@ -270,6 +271,7 @@ test("public lookup preserves the exact slug and returns only presentation field
         passcode_hash: "stored-passcode-hash",
         show_public_rsvp_count: true,
         rsvp_deadline: null,
+        rsvp_override_open: false,
         status: "published",
         expire_at: null,
         invitation_rsvps: [
@@ -325,6 +327,7 @@ test("public lookup exposes the event schedule", async () => {
       passcode_hash: "stored-passcode-hash",
       show_public_rsvp_count: true,
       rsvp_deadline: null,
+      rsvp_override_open: false,
       status: "published",
       expire_at: null,
       invitation_rsvps: [
@@ -364,6 +367,11 @@ test("event update rows map editable fields without inventing passcode changes",
   assert.equal("passcode_hash" in row, false);
   assert.equal(buildInvitationEventUpdateRow({ removePasscode: true }).passcode_hash, null);
   assert.equal(buildInvitationEventUpdateRow({ passcode: "secret" }, "hashed").passcode_hash, "hashed");
+});
+
+test("the RSVP override toggle maps onto its persisted column", () => {
+  assert.equal(buildInvitationEventUpdateRow({ rsvpOverrideOpen: true }).rsvp_override_open, true);
+  assert.equal(buildInvitationEventUpdateRow({ rsvpOverrideOpen: false }).rsvp_override_open, false);
 });
 
 test("owner credential rows persist only founder-normalized values and a supplied PIN hash", () => {
