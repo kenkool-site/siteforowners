@@ -882,8 +882,14 @@
           "close": "Cerrar"
         },
         "unavailable": {
-          "title": "Los recuerdos no están disponibles para este evento",
-          "body": "El anfitrión aún no ha activado la opción para compartir fotos."
+          "upcoming": {
+            "title": "Los recuerdos aún no están disponibles",
+            "body": "El anfitrión aún no ha activado la opción para compartir fotos en este evento."
+          },
+          "past": {
+            "title": "Los recuerdos ya no están disponibles",
+            "body": "La opción para compartir fotos está desactivada para este evento."
+          }
         }
       }
     },

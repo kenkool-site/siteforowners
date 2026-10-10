@@ -882,8 +882,14 @@
           "close": "Close"
         },
         "unavailable": {
-          "title": "Memories isn't available for this event",
-          "body": "The host hasn't turned on guest photo sharing yet."
+          "upcoming": {
+            "title": "Memories isn't available yet",
+            "body": "The host hasn't turned on guest photo sharing for this event yet."
+          },
+          "past": {
+            "title": "Memories isn't available",
+            "body": "Guest photo sharing is now turned off for this event."
+          }
         }
       }
     },
