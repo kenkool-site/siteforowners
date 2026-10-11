@@ -1055,15 +1055,25 @@
     "referralBanner": "Llegaste desde la página de {names}",
     "hero": {
       "title": "Tú nos das los detalles. Nosotros creamos la página.",
-      "subtitle": "Invitaciones, confirmaciones de asistencia y fotos de invitados — para bodas, cumpleaños, ceremonias de nombramiento, funerales y aniversarios. No tienes que diseñar nada.",
+      "subtitle": "Una página de invitación personalizada, confirmaciones que la gente realmente responde, y las fotos de cada invitado en un solo lugar — para bodas, cumpleaños, ceremonias de nombramiento, funerales y aniversarios.",
       "cta": "Cuéntanos sobre tu evento",
       "microcopy": "Te responderemos por correo o teléfono con ejemplos y una cotización."
     },
-    "whatYouGet": {
-      "heading": "Qué obtienes",
-      "address": { "title": "Tu propia dirección web", "body": "Tus nombres, no un código de reserva. Todo vive en un solo lugar que los invitados pueden volver a encontrar." },
-      "rsvps": { "title": "Confirmaciones que la gente sí responde", "body": "Los recordatorios se envían por mensaje de texto y correo, no solo por un canal que un invitado podría pasar por alto." },
-      "photos": { "title": "Las fotos de cada invitado, en un solo lugar", "body": "Un código QR impreso en las mesas. Los invitados suben fotos desde su teléfono — sin apps, sin registro — y todo queda organizado para ti después." }
+    "invites": {
+      "heading": "Una página tan especial como tu invitación",
+      "body": "Diseñamos una página personalizada con tus nombres, tus colores, tu historia. Los invitados confirman su asistencia en segundos.",
+      "bullet1": "Tu propia dirección web — no un código de reserva",
+      "bullet2": "Confirmaciones que la gente sí responde, con recordatorios automáticos",
+      "bullet3": "Define una fecha límite, o haz una excepción para los rezagados — tú decides",
+      "imageAlt": "Una página de invitación personalizada de InviteSpot"
+    },
+    "memories": {
+      "heading": "Las fotos de cada invitado, sin tener que perseguirlas",
+      "body": "Un código QR impreso en las mesas. Los invitados suben fotos desde su teléfono — sin apps, sin registro — y cada foto llega a una galería compartida que podrás recordar para siempre.",
+      "bullet1": "Sin apps ni cuentas para los invitados — solo escanear y compartir",
+      "bullet2": "Las fotos aparecen en vivo, durante el evento",
+      "bullet3": "Tú eliges quién puede verla — pública o protegida con clave",
+      "imageAlt": "Una galería de fotos compartida de un evento real en InviteSpot"
     },
     "howItWorks": {
       "heading": "Cómo funciona",

@@ -1055,15 +1055,25 @@
     "referralBanner": "You came from {names}'s page",
     "hero": {
       "title": "You send the details. We build the page.",
-      "subtitle": "Invitations, RSVPs, and guest photos — for weddings, birthdays, naming ceremonies, burials, and anniversaries. Nothing to design yourself.",
+      "subtitle": "A custom invitation page, RSVPs people actually answer, and every guest's photos in one place — for weddings, birthdays, naming ceremonies, burials, and anniversaries.",
       "cta": "Tell us about your event",
       "microcopy": "We'll reply by email or phone with examples and a quote."
     },
-    "whatYouGet": {
-      "heading": "What you get",
-      "address": { "title": "Your own web address", "body": "Your names, not a booking code. Everything lives in one place guests can find again." },
-      "rsvps": { "title": "RSVPs people actually answer", "body": "Reminders go out by text and email, not just one channel a guest might miss." },
-      "photos": { "title": "Every guest's photos, in one place", "body": "One printed QR code on the tables. Guests upload from their phones — no app, no sign-up — and it's all sorted for you after." }
+    "invites": {
+      "heading": "A page as special as your invitation",
+      "body": "We design a custom page with your names, your colors, your story. Guests RSVP in seconds.",
+      "bullet1": "Your own web address — not a booking code",
+      "bullet2": "RSVPs people actually answer, with automatic reminders",
+      "bullet3": "Set a deadline, or make an exception for latecomers — your call",
+      "imageAlt": "A custom InviteSpot invitation page"
+    },
+    "memories": {
+      "heading": "Every guest's photos, without the chasing",
+      "body": "One printed QR code on the tables. Guests upload straight from their phones — no app, no sign-up — and every photo lands in one shared gallery you can look back on forever.",
+      "bullet1": "No app or account for guests — just scan and share",
+      "bullet2": "Photos appear live, during the event",
+      "bullet3": "You choose who can see it — public or passcode-protected",
+      "imageAlt": "A shared InviteSpot photo gallery from a real event"
     },
     "howItWorks": {
       "heading": "How it works",
