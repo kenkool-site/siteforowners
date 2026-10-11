@@ -2,6 +2,8 @@
 
 import { useTranslations } from "next-intl";
 import { InvitespotLeadForm } from "./InvitespotLeadForm";
+import { InviteSpotHowItWorks } from "./InviteSpotHowItWorks";
+import { InviteSpotPricing } from "./InviteSpotPricing";
 
 export function InviteSpotLandingContent({ referralName, referralSlug }: { referralName: string | null; referralSlug: string | null }) {
   const t = useTranslations("invitespot");
@@ -42,32 +44,9 @@ export function InviteSpotLandingContent({ referralName, referralSlug }: { refer
         </div>
       </section>
 
-      <section className="mx-auto max-w-5xl px-6 py-12">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7f70]">{t("howItWorks.heading")}</p>
-        <div className="mt-5 grid gap-6 sm:grid-cols-3">
-          {(["step1", "step2", "step3"] as const).map((key, index) => (
-            <div key={key}>
-              <div className="flex size-8 items-center justify-center rounded-full bg-[#1F3A2E] text-sm font-semibold text-[#F4EEE4]">{index + 1}</div>
-              <h3 className="mt-3 font-semibold">{t(`howItWorks.${key}.title`)}</h3>
-              <p className="mt-2 text-sm text-[#5b5147]">{t(`howItWorks.${key}.body`)}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <InviteSpotHowItWorks />
 
-      <section className="mx-auto max-w-5xl px-6 py-12">
-        <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7f70]">{t("pricing.heading")}</p>
-        <div className="mt-5 grid gap-4 sm:grid-cols-3">
-          {(["tier1", "tier2", "tier3"] as const).map((key) => (
-            <div key={key} className="rounded-xl border border-[#e5dfd0] bg-white p-5">
-              <h3 className="font-semibold">{t(`pricing.${key}.title`)}</h3>
-              <p className="mt-1.5 text-sm text-[#5b5147]">{t(`pricing.${key}.body`)}</p>
-              <a href="#event-form" className="mt-3 inline-block text-sm font-semibold text-[#1F3A2E] underline underline-offset-4">{t("pricing.cta")}</a>
-            </div>
-          ))}
-        </div>
-        <p className="mt-5 text-sm text-[#5b5147]">{t("pricing.note")}</p>
-      </section>
+      <InviteSpotPricing />
 
       <InvitespotLeadForm referralSlug={referralSlug} />
 
