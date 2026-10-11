@@ -12,7 +12,7 @@ export function InviteSpotHowItWorks() {
           <div key={key}>
             <div className="flex size-8 items-center justify-center rounded-full bg-[#6B2F3A] text-sm font-semibold text-[#FBF3F0]">{index + 1}</div>
             <h3 className="mt-3 font-semibold text-[#2E1A1E]">{t(`howItWorks.${key}.title`)}</h3>
-            <p className="mt-2 text-sm text-[#5b5147]">{t(`howItWorks.${key}.body`)}</p>
+            <p className="mt-2 text-sm text-[#8C6B6F]">{t(`howItWorks.${key}.body`)}</p>
           </div>
         ))}
       </div>

@@ -19,8 +19,8 @@ export function InviteSpotInvitesShowcase() {
         </div>
         <div className="sm:order-2">
           <h2 className="font-serif text-2xl font-bold text-[#2E1A1E] sm:text-3xl">{t("invites.heading")}</h2>
-          <p className="mt-3 text-base text-[#5b4f3f]">{t("invites.body")}</p>
-          <ul className="mt-5 space-y-2.5 text-sm text-[#5b4f3f]">
+          <p className="mt-3 text-base text-[#8C6B6F]">{t("invites.body")}</p>
+          <ul className="mt-5 space-y-2.5 text-sm text-[#8C6B6F]">
             {(["bullet1", "bullet2", "bullet3"] as const).map((key) => (
               <li key={key} className="flex gap-2.5">
                 <span aria-hidden="true" className="mt-0.5 text-[#C98A8F]">♥</span>
