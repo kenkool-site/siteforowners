@@ -14,6 +14,15 @@
     "close": "Close"
   },
   "marketing": {
+    "seo": {
+      "title": "Websites for Stylists & Salons | SiteForOwners",
+      "description": "Done-for-you websites for hair stylists, salons, braiders and barbers. Showcase your work, connect online booking and manage leads. Get a free preview.",
+      "imageAlt": "SiteForOwners — websites and booking for stylists and salons",
+      "shareTitle": "Your work deserves",
+      "shareAccent": "a website that books.",
+      "shareSummary": "Done-for-you websites for stylists & salons",
+      "shareFeatures": "Your portfolio · Online booking · Owner dashboard"
+    },
     "hero": {
       "title": "Your website, built for you",
       "subtitle": "See it free in 5 minutes",

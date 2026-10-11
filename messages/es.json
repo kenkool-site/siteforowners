@@ -14,6 +14,15 @@
     "close": "Cerrar"
   },
   "marketing": {
+    "seo": {
+      "title": "Webs para estilistas y salones | SiteForOwners",
+      "description": "Creamos tu web para estilistas, salones, trenzadores y barberos. Muestra tu trabajo, conecta reservas online y gestiona consultas. Pide una vista previa gratis.",
+      "imageAlt": "SiteForOwners — webs y reservas para estilistas y salones",
+      "shareTitle": "Tu trabajo merece",
+      "shareAccent": "una web que reserve.",
+      "shareSummary": "Webs hechas por nosotros para estilistas y salones",
+      "shareFeatures": "Tu portafolio · Reservas online · Panel de gestión"
+    },
     "hero": {
       "title": "Tu sitio web, hecho para ti",
       "subtitle": "Véalo gratis en 5 minutos",

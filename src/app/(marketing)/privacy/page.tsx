@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
+  alternates: { canonical: "https://www.siteforowners.com/privacy" },
   title: "Privacy Policy — SiteForOwners",
   description: "Privacy Policy for SiteForOwners.",
 };
