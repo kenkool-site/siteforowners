@@ -1,30 +1,22 @@
-# Memories Gallery Redesign — Design QA
+# InviteSpot marketing redesign — Design QA
 
-- Source visual truth: `/Users/aws/.codex/generated_images/01a09d70-ce94-7c32-a0ac-18ca59f130dc/exec-f4fe6ece-5d91-4cb0-96fa-cd0440bacbac.png`
-- Source dimensions: 853 × 1844 px
-- Intended implementation viewport: 390 × 844 CSS px, 2× device scale
-- Target state: guest gallery with recent photos and one upload publishing
-- Implementation screenshot: unavailable
+- Source visual: `/Users/aws/.codex/generated_images/01a12c64-1014-73c1-9455-230b0ce4406a/exec-48467037-3234-4af8-a9c4-6e3ec79fd996.png`, with approved privacy/AI moderation copy.
+- Intended desktop viewport: 1440 CSS pixels wide; mobile: 375 CSS pixels wide.
+- Implementation screenshot: unavailable.
+- Browser connection fails before setup (`sandboxPolicy` metadata missing). Permission to use a separate Playwright browser was requested and remains pending.
 
-## Evidence
+## Implemented scope
 
-- Gallery is now the default view and the upload action no longer occupies a navigation tab.
-- Automated interaction coverage verifies the event title, gallery-first navigation, and the `Add your photos` action.
-- Upload queue coverage verifies completed-item dismissal and persistence behavior.
-- Presentation coverage verifies optimistic previews are replaced by published gallery media and stale transient items disappear.
-- All 51 Memories tests pass and the Next.js production build succeeds.
+Wedding hero with overlapping invitation/gallery interfaces; equal wedding, birthday and naming ceremony samples; inclusive occasion list; Memories preview; six-feature grid including AI moderation; existing packages and quote form; English and Spanish copy. Real Unsplash photography replaces generated sample people; source records are in `public/invitespot/photos/PROVENANCE.md`.
 
-## Findings
+## Verification limits
 
-- **Blocker — visual comparison unavailable:** the in-app browser bootstrap failed with `codex/sandbox-state-meta: missing field sandboxPolicy`, so no browser-rendered implementation screenshot, full-view comparison, focused-region comparison, responsive interaction pass, or console inspection could be completed in this session.
-- No automated functional regressions were detected.
+No browser-rendered comparison has been possible. Typography, spacing, colors, image crops, responsive layout, focus handling and interactive dialogs require visual/browser verification. No full-view or focused-region visual comparisons are claimed. Automated render/content tests, type checking, lint and asset existence checks do not substitute for this review.
 
-## Comparison history
+## Remaining checklist
 
-1. Initial implementation completed against the selected celebration-timeline mockup.
-2. Automated tests and production build completed successfully.
-3. Visual comparison attempted but blocked before browser connection.
+- Capture desktop and 375px mobile views and compare against approved source.
+- Verify navigation, example RSVP dialog, gallery lightbox, album tabs, upload explanation and quote form validation without submitting a lead.
+- Verify Spanish layout and console errors.
 
-## Final result
-
-blocked
+final result: blocked

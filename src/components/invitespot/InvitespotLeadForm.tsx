@@ -118,7 +118,7 @@ export function InvitespotLeadForm({ referralSlug }: { referralSlug: string | nu
               className={`min-h-11 rounded-full px-4 py-2 text-sm ${
                 eventType === type
                   ? "border-2 border-[#FBF3F0] bg-[#FBF3F0] font-bold text-[#6B2F3A]"
-                  : "border border-[#8C6B6F] bg-transparent text-[#FBF3F0]"
+                  : "border border-[#70575C] bg-transparent text-[#FBF3F0]"
               }`}
             >
               {t(`eventTypes.${type}`)}
@@ -159,7 +159,7 @@ export function InvitespotLeadForm({ referralSlug }: { referralSlug: string | nu
         >
           {submitting ? t("submitting") : t("submit")}
         </button>
-        <p className="mt-3.5 text-center text-xs text-[#C98A8F]">{t("reassurance")}</p>
+        <p className="mt-3.5 text-center text-xs text-[#EAD9D3]">{t("reassurance")}</p>
       </form>
     </section>
   );

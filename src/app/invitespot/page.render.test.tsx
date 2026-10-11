@@ -19,10 +19,10 @@ function render(referralName: string | null, referralSlug: string | null): strin
 
 test("the invitespot.app landing page renders the hero and form without a referral name", () => {
   const html = render(null, null);
-  assert.match(html, /You send the details\. We build the page\./);
-  assert.match(html, /A custom invitation page, RSVPs people actually answer/);
-  assert.match(html, /A page as special as your invitation/);
-  assert.match(html, /Every guest&#x27;s photos, without the chasing/);
+  assert.match(html, /A beautiful invitation/);
+  assert.match(html, /Every memory together/);
+  assert.match(html, /Made for your kind of gathering/);
+  assert.match(html, /Every guest’s photos, together/);
   assert.match(html, /Tell us about your event/);
   assert.doesNotMatch(html, /You came from/);
   assert.doesNotMatch(html, /What you get/); // the old "what you get" section heading must be gone
@@ -67,3 +67,13 @@ test("the page declares its own InviteSpot-branded canonical/OpenGraph/Twitter m
   const twitterBlock = source.slice(source.indexOf("twitter:"));
   assert.match(twitterBlock, /title:\s*"InviteSpot"/);
 });
+
+ test("marketing examples include other occasions and privacy explains AI moderation", () => {
+ const html = render(null, null);
+ assert.match(html, /Naming ceremony/);
+ assert.match(html, /Birthday/);
+ assert.match(html, /AI smart albums/);
+ assert.match(html, /Privacy &amp; AI moderation/);
+ assert.match(html, /automatically removes inappropriate images/);
+ assert.doesNotMatch(html, /invites-showcase\.jpg|memories-showcase\.jpg/);
+ });

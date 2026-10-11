@@ -1051,41 +1051,72 @@
     }
   },
   "invitespot": {
-    "nav": { "getStarted": "Comenzar" },
+    "nav": {
+      "getStarted": "Pide una cotización",
+      "invitations": "Invitaciones",
+      "memories": "Recuerdos",
+      "language": "English"
+    },
     "referralBanner": "Llegaste desde la página de {names}",
     "hero": {
-      "title": "Tú nos das los detalles. Nosotros creamos la página.",
-      "subtitle": "Una página de invitación personalizada, confirmaciones que la gente realmente responde, y las fotos de cada invitado en un solo lugar — para bodas, cumpleaños, ceremonias de nombramiento, funerales y aniversarios.",
+      "eyebrow": "Páginas web para tus eventos",
+      "title": "Una invitación especial.",
+      "accent": "Todos los recuerdos juntos.",
+      "subtitle": "Páginas personalizadas, confirmaciones fáciles y fotos de tus invitados en un solo lugar. Nosotros nos encargamos.",
       "cta": "Cuéntanos sobre tu evento",
-      "microcopy": "Te responderemos por correo o teléfono con ejemplos y una cotización."
+      "secondary": "Explora los ejemplos",
+      "microcopy": "Te responderemos con ejemplos y una cotización.",
+      "occasions": "Bodas · Cumpleaños · Ceremonias de nombre · Aniversarios · Homenajes"
     },
     "invites": {
-      "heading": "Una página tan especial como tu invitación",
-      "body": "Diseñamos una página personalizada con tus nombres, tus colores, tu historia. Los invitados confirman su asistencia en segundos.",
-      "bullet1": "Tu propia dirección web — no un código de reserva",
-      "bullet2": "Confirmaciones que la gente sí responde, con recordatorios automáticos",
-      "bullet3": "Define una fecha límite, o haz una excepción para los rezagados — tú decides",
-      "imageAlt": "Una página de invitación personalizada de InviteSpot"
+      "eyebrow": "Ejemplos de invitaciones",
+      "heading": "Para tu tipo de celebración.",
+      "body": "Una página para tu ocasión, tu gente y tu estilo.",
+      "highlights": "Confirmaciones · Novedades por SMS y email",
+      "sampleLabel": "Evento de ejemplo",
+      "wedding": "Boda",
+      "birthday": "Cumpleaños",
+      "naming": "Ceremonia de nombre",
+      "weddingCaption": "Tu historia, compartida con familiares y amigos.",
+      "birthdayCaption": "Momentos especiales con quienes más importan.",
+      "namingCaption": "Un nuevo comienzo junto a tus seres queridos."
     },
     "memories": {
-      "heading": "Las fotos de cada invitado, sin tener que perseguirlas",
-      "body": "Un código QR impreso en las mesas. Los invitados suben fotos desde su teléfono — sin apps, sin registro — y cada foto llega a una galería compartida que podrás recordar para siempre.",
-      "bullet1": "Sin apps ni cuentas para los invitados — solo escanear y compartir",
-      "bullet2": "Las fotos aparecen en vivo, durante el evento",
-      "bullet3": "Tú eliges quién puede verla — pública o protegida con clave",
-      "imageAlt": "Una galería de fotos compartida de un evento real en InviteSpot"
+      "eyebrow": "Galerías de invitados",
+      "heading": "Las fotos de todos, juntas.",
+      "body": "Tus invitados escanean, suben y comparten. Tú disfrutas cada perspectiva en una sola galería.",
+      "highlights": "Fotos de invitados · Álbumes inteligentes con IA",
+      "note": "Sin descargar apps ni crear cuentas."
     },
     "howItWorks": {
       "heading": "Cómo funciona",
-      "step1": { "title": "Envíanos los detalles", "body": "Fecha, lugar, colores, programa, algunas fotos. Un mensaje breve es suficiente." },
-      "step2": { "title": "La creamos y te enviamos el enlace", "body": "Nunca tocas un editor — nosotros hacemos todo el trabajo." },
-      "step3": { "title": "Compártelo, y nosotros damos seguimiento", "body": "Tarjetas con código QR para las mesas, y recordatorios antes y después del evento." }
+      "step1": {
+        "title": "Envíanos los detalles",
+        "body": "Fecha, lugar, colores, programa, algunas fotos. Un mensaje breve es suficiente."
+      },
+      "step2": {
+        "title": "La creamos y te enviamos el enlace",
+        "body": "Nunca tocas un editor — nosotros hacemos todo el trabajo."
+      },
+      "step3": {
+        "title": "Compártelo, y nosotros damos seguimiento",
+        "body": "Tarjetas con código QR para las mesas, y recordatorios antes y después del evento."
+      }
     },
     "pricing": {
-      "heading": "Qué cuesta",
-      "tier1": { "title": "Hasta 150 invitados", "body": "Un evento · invitación, confirmaciones, fotos" },
-      "tier2": { "title": "150–400 invitados", "body": "Dos eventos · boda tradicional y boda de blanco" },
-      "tier3": { "title": "400 invitados o más", "body": "Nosotros enviamos los mensajes y damos seguimiento a las respuestas" },
+      "heading": "Elige el paquete de tu evento",
+      "tier1": {
+        "title": "Hasta 150 invitados",
+        "body": "Un evento · invitación, confirmaciones, fotos"
+      },
+      "tier2": {
+        "title": "150–400 invitados",
+        "body": "Dos eventos · boda tradicional y boda de blanco"
+      },
+      "tier3": {
+        "title": "400 invitados o más",
+        "body": "Nosotros enviamos los mensajes y damos seguimiento a las respuestas"
+      },
       "cta": "Solicitar cotización",
       "note": "Un solo pago, sin suscripción — cada plan incluye tu página y galería de fotos. Confirmaremos el precio exacto y cuánto tiempo estará todo disponible cuando te contactemos."
     },
@@ -1098,7 +1129,14 @@
       "emailPlaceholder": "Correo",
       "phonePlaceholder": "Teléfono",
       "planningLabel": "¿Qué estás planeando?",
-      "eventTypes": { "birthday": "Cumpleaños", "wedding": "Boda", "naming": "Nombramiento", "burial": "Funeral", "anniversary": "Aniversario", "other": "Otra cosa" },
+      "eventTypes": {
+        "birthday": "Cumpleaños",
+        "wedding": "Boda",
+        "naming": "Nombramiento",
+        "burial": "Funeral",
+        "anniversary": "Aniversario",
+        "other": "Otra cosa"
+      },
       "whenLabel": "Aproximadamente cuándo",
       "whenPlaceholder": "Marzo",
       "guestsLabel": "Invitados",
@@ -1112,6 +1150,59 @@
       "contactRequired": "Por favor ingresa tu correo o teléfono.",
       "eventTypeRequired": "Por favor elige qué estás planeando."
     },
-    "footer": { "wordmark": "InviteSpot", "domain": "invitespot.app" }
+    "footer": {
+      "wordmark": "InviteSpot",
+      "domain": "invitespot.app"
+    },
+    "preview": {
+      "weddingTitle": "Amara y Tunde",
+      "birthdayTitle": "Ada cumple 50",
+      "namingTitle": "Bienvenida, Kemi",
+      "weddingIntro": "Junto a nuestras familias",
+      "birthdayIntro": "Te invitamos a celebrar",
+      "namingIntro": "Acompáñanos a dar la bienvenida",
+      "weddingMessage": "Nos alegra invitarte a celebrar nuestra boda.",
+      "birthdayMessage": "Buena comida. Buena compañía. Una noche inolvidable.",
+      "namingMessage": "Un nuevo comienzo rodeado de amor.",
+      "date": "12 de junio de 2027",
+      "weddingVenue": "The Lantern · Lagos",
+      "birthdayVenue": "The Culture Hub · Lagos",
+      "namingVenue": "The Oak Centre · Ibadan",
+      "rsvp": "Confirmar asistencia",
+      "galleryTitle": "Recuerdos de la boda",
+      "addPhotos": "Añadir fotos",
+      "scan": "Escanea para compartir",
+      "sample": "Vista de un evento de ejemplo",
+      "photoAlt": "Foto de una celebración de boda",
+      "weddingAlt": "Una pareja celebrando su boda",
+      "birthdayAlt": "Una celebración de cumpleaños",
+      "namingAlt": "Una familia con su bebé",
+      "album": "Todos los momentos",
+      "smartAlbum": "Álbumes con IA",
+      "albumName": "La celebración",
+      "sampleHelp": "Este es un ejemplo. Tu evento tendrá su propia invitación y galería compartida.",
+      "rsvpHelp": "Tus invitados pueden confirmar en la página de tu evento. Diseñamos la invitación y configuramos todo por ti.",
+      "uploadHelp": "Los invitados suben fotos y videos desde sus teléfonos, sin apps ni cuentas.",
+      "close": "Cerrar vista previa",
+      "next": "Foto siguiente",
+      "previous": "Foto anterior",
+      "viewPhoto": "Ver foto {number}"
+    },
+    "features": {
+      "eyebrow": "Funciones principales",
+      "heading": "Nos encargamos de los detalles.",
+      "siteTitle": "Tu web, hecha por nosotros",
+      "siteBody": "Creamos tu página para tu ocasión y tu estilo.",
+      "rsvpTitle": "Confirmaciones de invitados",
+      "rsvpBody": "Recibe respuestas y lleva el control de quién viene.",
+      "commsTitle": "Comunicación por SMS y email",
+      "commsBody": "Envía recordatorios, novedades y mensajes a tus invitados.",
+      "mediaTitle": "Fotos y videos compartidos",
+      "mediaBody": "Los invitados escanean un QR y suben desde su teléfono.",
+      "aiTitle": "Álbumes inteligentes con IA",
+      "aiBody": "Agrupa momentos relacionados para explorar la galería fácilmente.",
+      "privacyTitle": "Privacidad y moderación con IA",
+      "privacyBody": "Controla quién accede a tu página y recuerdos. La moderación con IA elimina automáticamente las imágenes inapropiadas."
+    }
   }
 }

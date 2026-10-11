@@ -1,17 +1,12 @@
 "use client";
-
 import { useTranslations } from "next-intl";
-
+import { GalleryPreview, InvitationPreview } from "./InviteSpotPreview";
+import styles from "./styles";
 export function InviteSpotHero() {
-  const t = useTranslations("invitespot");
-  return (
-    <section className="mx-auto max-w-3xl px-6 py-16 text-center">
-      <h1 className="font-serif text-4xl font-bold leading-tight text-[#2E1A1E] sm:text-5xl">{t("hero.title")}</h1>
-      <p className="mx-auto mt-5 max-w-xl text-base text-[#8C6B6F]">{t("hero.subtitle")}</p>
-      <a href="#event-form" className="mt-8 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#6B2F3A] px-8 py-3.5 text-base font-semibold text-[#FBF3F0] hover:bg-[#5a2630]">
-        {t("hero.cta")}
-      </a>
-      <p className="mt-3 text-xs text-[#8C6B6F]">{t("hero.microcopy")}</p>
-    </section>
-  );
+  const t = useTranslations("invitespot.hero");
+  const preview = useTranslations("invitespot.preview");
+  return <section className={styles.hero}>
+    <div className={styles.heroCopy}><p className={styles.eyebrow}>{t("eyebrow")}</p><h1>{t("title")} <span>{t("accent")}</span></h1><p className={styles.body}>{t("subtitle")}</p><div className={styles.actions}><a href="#event-form" className={styles.primary}>{t("cta")}</a><a href="#invitations" className={styles.secondary}>{t("secondary")}</a></div><p className={styles.occasions}>{t("occasions")}</p></div>
+    <div><div className={styles.heroVisual}><InvitationPreview hero /><GalleryPreview compact /></div><p className={styles.previewLabel}>{preview("sample")}</p></div>
+  </section>;
 }

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import { Fraunces } from "next/font/google";
 import "./globals.css";
+import "@/components/invitespot/invitespot.css";
 import { cn } from "@/lib/utils";
 
 const geistSans = localFont({
