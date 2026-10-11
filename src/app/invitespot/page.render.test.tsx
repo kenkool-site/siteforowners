@@ -21,8 +21,11 @@ test("the invitespot.app landing page renders the hero and form without a referr
   const html = render(null, null);
   assert.match(html, /You send the details\. We build the page\./);
   assert.match(html, /A custom invitation page, RSVPs people actually answer/);
+  assert.match(html, /A page as special as your invitation/);
+  assert.match(html, /Every guest&#x27;s photos, without the chasing/);
   assert.match(html, /Tell us about your event/);
   assert.doesNotMatch(html, /You came from/);
+  assert.doesNotMatch(html, /What you get/); // the old "what you get" section heading must be gone
 });
 
 test("the invitespot.app landing page shows the referral banner with the honoree names when a name is resolved", () => {
