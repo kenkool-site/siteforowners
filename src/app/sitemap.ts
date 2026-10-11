@@ -1,3 +1,4 @@
+import { buildSiteForOwnersSitemap } from "@/lib/siteforowners-seo";
 import { headers } from "next/headers";
 import type { MetadataRoute } from "next";
 import { classifyHost } from "@/lib/host-routing";
@@ -12,7 +13,11 @@ export function buildInvitespotSitemap(host: string | null): MetadataRoute.Sitem
   }));
 }
 
+export function buildMarketingSitemap(host: string | null): MetadataRoute.Sitemap {
+  return [...buildInvitespotSitemap(host), ...buildSiteForOwnersSitemap(host)];
+}
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const host = headers().get("host");
-  return buildInvitespotSitemap(host);
+  return buildMarketingSitemap(host);
 }

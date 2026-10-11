@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 export const metadata = {
+  alternates: { canonical: "https://www.siteforowners.com/terms" },
   title: "Terms of Service — SiteForOwners",
   description: "Terms of Service for SiteForOwners website subscription.",
 };

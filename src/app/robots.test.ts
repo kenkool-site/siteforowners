@@ -8,8 +8,8 @@ test("robots.txt allows all crawlers and points at the invitespot.app sitemap wh
   assert.equal(result.sitemap, "https://www.invitespot.app/sitemap.xml");
 });
 
-test("robots.txt still allows all crawlers but omits the invitespot.app sitemap for any other host", () => {
+test("robots.txt advertises the SiteForOwners sitemap on its own domain", () => {
   const result = buildInvitespotRobots("siteforowners.com");
   assert.deepEqual(result.rules, { userAgent: "*", allow: "/" });
-  assert.equal(result.sitemap, undefined);
+  assert.equal(result.sitemap, "https://www.siteforowners.com/sitemap.xml");
 });
