@@ -6,7 +6,7 @@ import { InviteSpotLandingContent } from "@/components/invitespot/InviteSpotLand
 
 export const metadata: Metadata = {
   title: "InviteSpot",
-  description: "Digital invitations and shared photos for your event.",
+  description: "Custom invitation pages, RSVPs people actually answer, and every guest's photos in one place.",
   applicationName: "InviteSpot",
   // Hardcoded (not NEXT_PUBLIC_INVITESPOT_APP_URL-driven) deliberately — a
   // canonical/OG URL should stay stable regardless of env config, unlike
@@ -20,13 +20,13 @@ export const metadata: Metadata = {
     url: "https://www.invitespot.app/",
     siteName: "InviteSpot",
     title: "InviteSpot",
-    description: "Digital invitations and shared photos for your event.",
+    description: "Custom invitation pages, RSVPs people actually answer, and every guest's photos in one place.",
     images: [],
   },
   twitter: {
     card: "summary",
     title: "InviteSpot",
-    description: "Digital invitations and shared photos for your event.",
+    description: "Custom invitation pages, RSVPs people actually answer, and every guest's photos in one place.",
     images: [],
   },
 };

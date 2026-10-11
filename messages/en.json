@@ -1051,31 +1051,72 @@
     }
   },
   "invitespot": {
-    "nav": { "getStarted": "Get started" },
+    "nav": {
+      "getStarted": "Get a quote",
+      "invitations": "Invitations",
+      "memories": "Memories",
+      "language": "Español"
+    },
     "referralBanner": "You came from {names}'s page",
     "hero": {
-      "title": "You send the details. We build the page.",
-      "subtitle": "Invitations, RSVPs, and guest photos — for weddings, birthdays, naming ceremonies, burials, and anniversaries. Nothing to design yourself.",
+      "eyebrow": "Custom event invitation websites",
+      "title": "A beautiful invitation.",
+      "accent": "Every memory together.",
+      "subtitle": "Custom event pages, easy RSVPs, and guest photos in one place. We handle the setup.",
       "cta": "Tell us about your event",
-      "microcopy": "We'll reply by email or phone with examples and a quote."
+      "secondary": "Explore examples",
+      "microcopy": "We’ll reply with examples and a quote.",
+      "occasions": "Weddings · Birthdays · Naming ceremonies · Anniversaries · Memorials"
     },
-    "whatYouGet": {
-      "heading": "What you get",
-      "address": { "title": "Your own web address", "body": "Your names, not a booking code. Everything lives in one place guests can find again." },
-      "rsvps": { "title": "RSVPs people actually answer", "body": "Reminders go out by text and email, not just one channel a guest might miss." },
-      "photos": { "title": "Every guest's photos, in one place", "body": "One printed QR code on the tables. Guests upload from their phones — no app, no sign-up — and it's all sorted for you after." }
+    "invites": {
+      "eyebrow": "Event invitation examples",
+      "heading": "Made for your kind of gathering.",
+      "body": "A page that fits your occasion, your people, and your style.",
+      "highlights": "Guest RSVPs · SMS & email updates",
+      "sampleLabel": "Sample event",
+      "wedding": "Wedding",
+      "birthday": "Birthday",
+      "naming": "Naming ceremony",
+      "weddingCaption": "Your story, shared with family and friends.",
+      "birthdayCaption": "Milestone moments with the people who matter.",
+      "namingCaption": "A special beginning, with those who mean the most."
+    },
+    "memories": {
+      "eyebrow": "Guest photo galleries",
+      "heading": "Every guest’s photos, together.",
+      "body": "Guests scan, upload, and share. You get everyone’s perspective in one gallery.",
+      "highlights": "Guest uploads · AI smart albums",
+      "note": "No app download. No guest account."
     },
     "howItWorks": {
       "heading": "How it works",
-      "step1": { "title": "Send us the details", "body": "Date, venue, colours, programme, a few photos. A quick message is enough." },
-      "step2": { "title": "We build it and send you the link", "body": "You never touch an editor — we handle the whole build." },
-      "step3": { "title": "Share it, and we do the chasing", "body": "Printed QR cards for the tables, and reminders that go out before and after the day." }
+      "step1": {
+        "title": "Send us the details",
+        "body": "Date, venue, colours, programme, a few photos. A quick message is enough."
+      },
+      "step2": {
+        "title": "We build it and send you the link",
+        "body": "You never touch an editor — we handle the whole build."
+      },
+      "step3": {
+        "title": "Share it, and we do the chasing",
+        "body": "Printed QR cards for the tables, and reminders that go out before and after the day."
+      }
     },
     "pricing": {
-      "heading": "What it costs",
-      "tier1": { "title": "Up to 150 guests", "body": "One event · invitation, RSVP, photos" },
-      "tier2": { "title": "150–400 guests", "body": "Two events · traditional and white wedding" },
-      "tier3": { "title": "400 guests and up", "body": "We send the messages and chase the replies" },
+      "heading": "Choose your event package",
+      "tier1": {
+        "title": "Up to 150 guests",
+        "body": "One event · invitation, RSVP, photos"
+      },
+      "tier2": {
+        "title": "150–400 guests",
+        "body": "Two events · traditional and white wedding"
+      },
+      "tier3": {
+        "title": "400 guests and up",
+        "body": "We send the messages and chase the replies"
+      },
       "cta": "Get a quote",
       "note": "One payment, no subscription — every plan includes your page and photo gallery. We'll confirm exact pricing and how long everything stays up when we reach out."
     },
@@ -1088,7 +1129,14 @@
       "emailPlaceholder": "Email",
       "phonePlaceholder": "Phone",
       "planningLabel": "What are you planning?",
-      "eventTypes": { "birthday": "Birthday", "wedding": "Wedding", "naming": "Naming", "burial": "Burial", "anniversary": "Anniversary", "other": "Something else" },
+      "eventTypes": {
+        "birthday": "Birthday",
+        "wedding": "Wedding",
+        "naming": "Naming",
+        "burial": "Burial",
+        "anniversary": "Anniversary",
+        "other": "Something else"
+      },
       "whenLabel": "Roughly when",
       "whenPlaceholder": "March",
       "guestsLabel": "Guests",
@@ -1102,6 +1150,59 @@
       "contactRequired": "Please enter your email or phone number.",
       "eventTypeRequired": "Please choose what you're planning."
     },
-    "footer": { "wordmark": "InviteSpot", "domain": "invitespot.app" }
+    "footer": {
+      "wordmark": "InviteSpot",
+      "domain": "invitespot.app"
+    },
+    "preview": {
+      "weddingTitle": "Amara & Tunde",
+      "birthdayTitle": "Ada turns 50",
+      "namingTitle": "Welcome, Kemi",
+      "weddingIntro": "Together with our families",
+      "birthdayIntro": "You’re invited to celebrate",
+      "namingIntro": "Join us for a naming ceremony",
+      "weddingMessage": "We joyfully invite you to celebrate our wedding.",
+      "birthdayMessage": "Good food. Great company. A night to remember.",
+      "namingMessage": "A new beginning, surrounded by love.",
+      "date": "June 12, 2027",
+      "weddingVenue": "The Lantern · Lagos",
+      "birthdayVenue": "The Culture Hub · Lagos",
+      "namingVenue": "The Oak Centre · Ibadan",
+      "rsvp": "RSVP",
+      "galleryTitle": "Wedding memories",
+      "addPhotos": "Add photos",
+      "scan": "Scan to share",
+      "sample": "Illustrative event preview",
+      "photoAlt": "Wedding celebration photo",
+      "weddingAlt": "A couple celebrating their wedding",
+      "birthdayAlt": "A birthday celebration",
+      "namingAlt": "A family with their baby",
+      "album": "All moments",
+      "smartAlbum": "AI smart albums",
+      "albumName": "The celebration",
+      "sampleHelp": "This is a sample preview. Your event will have its own invitation and shared gallery.",
+      "rsvpHelp": "Guests can RSVP on your event page. We’ll design the invitation and set it up for you.",
+      "uploadHelp": "Guests upload photos and videos from their phones. No app or guest account needed.",
+      "close": "Close preview",
+      "next": "Next photo",
+      "previous": "Previous photo",
+      "viewPhoto": "View photo {number}"
+    },
+    "features": {
+      "eyebrow": "Key features",
+      "heading": "We handle the details.",
+      "siteTitle": "Done-for-you website",
+      "siteBody": "We build your event page around your occasion and style.",
+      "rsvpTitle": "Guest RSVPs",
+      "rsvpBody": "Collect replies and keep track of who’s coming.",
+      "commsTitle": "SMS & email communication",
+      "commsBody": "Send reminders, updates, and messages to your guests.",
+      "mediaTitle": "Shared photos & videos",
+      "mediaBody": "Guests scan a QR code and upload from their phones.",
+      "aiTitle": "AI smart albums",
+      "aiBody": "Group related moments for an easier-to-explore gallery.",
+      "privacyTitle": "Privacy & AI moderation",
+      "privacyBody": "Control who can access your page and memories. AI moderation automatically removes inappropriate images."
+    }
   }
 }
