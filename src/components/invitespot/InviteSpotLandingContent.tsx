@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import { InvitespotLeadForm } from "./InvitespotLeadForm";
+import { InviteSpotHero } from "./InviteSpotHero";
 import { InviteSpotHowItWorks } from "./InviteSpotHowItWorks";
 import { InviteSpotPricing } from "./InviteSpotPricing";
 
@@ -23,14 +24,7 @@ export function InviteSpotLandingContent({ referralName, referralSlug }: { refer
         </div>
       )}
 
-      <section className="mx-auto max-w-3xl px-6 py-16 text-center">
-        <h1 className="font-serif text-4xl font-bold leading-tight sm:text-5xl">{t("hero.title")}</h1>
-        <p className="mx-auto mt-5 max-w-xl text-base text-[#5b5147]">{t("hero.subtitle")}</p>
-        <a href="#event-form" className="mt-8 inline-flex min-h-11 items-center justify-center rounded-lg bg-[#1F3A2E] px-8 py-3.5 text-base font-semibold text-[#F4EEE4]">
-          {t("hero.cta")}
-        </a>
-        <p className="mt-3 text-xs text-[#8a7f70]">{t("hero.microcopy")}</p>
-      </section>
+      <InviteSpotHero />
 
       <section className="mx-auto max-w-5xl px-6 py-12">
         <p className="text-xs font-semibold uppercase tracking-wider text-[#8a7f70]">{t("whatYouGet.heading")}</p>

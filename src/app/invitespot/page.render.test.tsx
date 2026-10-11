@@ -20,6 +20,7 @@ function render(referralName: string | null, referralSlug: string | null): strin
 test("the invitespot.app landing page renders the hero and form without a referral name", () => {
   const html = render(null, null);
   assert.match(html, /You send the details\. We build the page\./);
+  assert.match(html, /A custom invitation page, RSVPs people actually answer/);
   assert.match(html, /Tell us about your event/);
   assert.doesNotMatch(html, /You came from/);
 });
