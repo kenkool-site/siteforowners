@@ -1051,6 +1051,14 @@
     }
   },
   "invitespot": {
+    "seo": {
+      "title": "InviteSpot | Custom Event Websites, RSVPs & Shared Photos",
+      "description": "Done-for-you websites for weddings, birthdays and more. Manage guest RSVPs, send SMS and email updates, and share photos with AI smart albums.",
+      "imageAlt": "InviteSpot — custom event websites, guest RSVPs and shared memories",
+      "shareTitle": "A beautiful invitation.",
+      "shareAccent": "Every memory together.",
+      "shareSummary": "Event websites · Guest RSVPs · Shared photos"
+    },
     "nav": {
       "getStarted": "Get a quote",
       "invitations": "Invitations",
