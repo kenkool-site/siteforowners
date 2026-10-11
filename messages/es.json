@@ -1051,6 +1051,14 @@
     }
   },
   "invitespot": {
+    "seo": {
+      "title": "InviteSpot | Webs para eventos, confirmaciones y fotos",
+      "description": "Creamos tu web para bodas, cumpleaños y más. Gestiona confirmaciones, envía SMS y emails y comparte fotos con álbumes inteligentes con IA.",
+      "imageAlt": "InviteSpot — webs para eventos, confirmaciones y recuerdos compartidos",
+      "shareTitle": "Una invitación especial.",
+      "shareAccent": "Todos los recuerdos juntos.",
+      "shareSummary": "Webs para eventos · Confirmaciones · Fotos compartidas"
+    },
     "nav": {
       "getStarted": "Pide una cotización",
       "invitations": "Invitaciones",

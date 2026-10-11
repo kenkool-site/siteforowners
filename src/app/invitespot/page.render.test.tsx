@@ -58,14 +58,10 @@ test("the page wires the real getPublicInvitationBySlug into getInvitationReferr
 // screenshot in a link preview (see src/app/layout.tsx). Pinning the
 // literal values here keeps that regression caught even though the export
 // can no longer be imported and inspected directly.
-test("the page declares its own InviteSpot-branded canonical/OpenGraph/Twitter metadata, not inherited SiteForOwners values", () => {
+test("the page generates localized InviteSpot metadata from the language query", () => {
   const source = readFileSync(new URL("./page.tsx", import.meta.url), "utf8");
-  assert.match(source, /canonical:\s*"https:\/\/www\.invitespot\.app\/"/);
-  const openGraphBlock = source.slice(source.indexOf("openGraph:"), source.indexOf("twitter:"));
-  assert.match(openGraphBlock, /siteName:\s*"InviteSpot"/);
-  assert.match(openGraphBlock, /title:\s*"InviteSpot"/);
-  const twitterBlock = source.slice(source.indexOf("twitter:"));
-  assert.match(twitterBlock, /title:\s*"InviteSpot"/);
+  assert.match(source, /export function generateMetadata/);
+  assert.match(source, /buildInvitespotMetadata\(searchParams.lang\)/);
 });
 
  test("marketing examples include other occasions and privacy explains AI moderation", () => {

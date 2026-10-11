@@ -13,7 +13,7 @@ export function InviteSpotLandingContent({ referralName, referralSlug }: { refer
  const locale = useLocale();
  const languageParams = new URLSearchParams({lang:locale === "es" ? "en" : "es"});
  if(referralSlug) languageParams.set("from",referralSlug);
- return <main className={styles.page}>
+ return <main className={styles.page} lang={locale}>
   <header className={styles.header}><a className={styles.wordmark} href="#">InviteSpot</a><nav className={styles.nav}><a href="#invitations">{t("nav.invitations")}</a><a href="#memories">{t("nav.memories")}</a><a className={styles.primary} href="#event-form">{t("nav.getStarted")}</a></nav></header>
   {referralName && <div className="mx-auto max-w-7xl px-5 pt-5"><p className="rounded-lg bg-[#F6E8E2] px-4 py-2.5 text-sm text-[#6B4850]">{t("referralBanner",{names:referralName})}</p></div>}
   <InviteSpotHero /><InviteSpotInvitesShowcase /><InviteSpotMemoriesShowcase /><InviteSpotFeatures /><InviteSpotHowItWorks /><InviteSpotPricing /><InvitespotLeadForm referralSlug={referralSlug} />

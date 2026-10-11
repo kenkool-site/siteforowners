@@ -1,38 +1,18 @@
 import type { Metadata } from "next";
+import { buildInvitespotMetadata, invitespotLocale } from "@/lib/invitespot-seo";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { getInvitationReferralDisplayName } from "@/lib/invitations/public-access";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { InviteSpotLandingContent } from "@/components/invitespot/InviteSpotLandingContent";
 
-export const metadata: Metadata = {
-  title: "InviteSpot",
-  description: "Custom invitation pages, RSVPs people actually answer, and every guest's photos in one place.",
-  applicationName: "InviteSpot",
-  // Hardcoded (not NEXT_PUBLIC_INVITESPOT_APP_URL-driven) deliberately — a
-  // canonical/OG URL should stay stable regardless of env config, unlike
-  // invitationPublicUrl's no-subdomain fallback in
-  // src/lib/invitations/public-url.ts.
-  alternates: {
-    canonical: "https://www.invitespot.app/",
-  },
-  openGraph: {
-    type: "website",
-    url: "https://www.invitespot.app/",
-    siteName: "InviteSpot",
-    title: "InviteSpot",
-    description: "Custom invitation pages, RSVPs people actually answer, and every guest's photos in one place.",
-    images: [],
-  },
-  twitter: {
-    card: "summary",
-    title: "InviteSpot",
-    description: "Custom invitation pages, RSVPs people actually answer, and every guest's photos in one place.",
-    images: [],
-  },
-};
+type LandingProps = { searchParams: { from?: string; lang?: string } };
 
-export default async function InviteSpotLandingPage({ searchParams }: { searchParams: { from?: string; lang?: string } }) {
-  const locale = searchParams.lang === "es" ? "es" : "en";
+export function generateMetadata({ searchParams }: LandingProps): Metadata {
+  return buildInvitespotMetadata(searchParams.lang);
+}
+
+export default async function InviteSpotLandingPage({ searchParams }: LandingProps) {
+  const locale = invitespotLocale(searchParams.lang);
   const referralSlug = typeof searchParams.from === "string" ? searchParams.from : null;
   let referralName: string | null = null;
   if (referralSlug) {
