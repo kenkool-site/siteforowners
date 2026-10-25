@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { MarketingBrandLogo } from "@/components/MarketingBrandLogo";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +22,11 @@ export default function AdminLoginPage() {
         setError("Wrong password");
         return;
       }
-      router.push("/prospects");
+      // Full navigation, not router.push: AdminHeader's <Link>s prefetch
+      // /prospects while logged out, and the client router cache replays that
+      // prefetched middleware redirect back to /login after sign-in.
+      window.location.assign("/prospects");
+      return;
     } catch {
       setError("Something went wrong");
     } finally {
