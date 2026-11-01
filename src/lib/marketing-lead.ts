@@ -31,6 +31,12 @@ export interface MarketingLeadRow {
   status: MarketingLeadStatus;
   preview_group_id: string | null;
   created_at: string;
+  sms_consent?: boolean | null;
+  sms_consent_at?: string | null;
+  sms_consent_text?: string | null;
+  sms_consent_version?: string | null;
+  sms_consent_ip?: string | null;
+  sms_consent_user_agent?: string | null;
 }
 
 export type MarketingLead = {
@@ -43,6 +49,7 @@ export type MarketingLead = {
   instagramUrl: string;
   notes: string;
   source: LeadSource;
+  smsConsent: boolean;
 };
 
 type ParseResult =
@@ -154,6 +161,8 @@ export function parseMarketingLead(body: unknown): ParseResult {
   const instagramUrl = cleanString(data.instagramUrl, 500);
   const notes = cleanString(data.notes, 1200);
   const source = parseSource(cleanString(data.source, 40));
+  // Only an explicit boolean true counts. Missing, "on", or "true" stay opted out.
+  const smsConsent = data.smsConsent === true;
 
   if (!businessName || !email || !phone || !isBusinessType(businessType)) {
     return {
@@ -174,6 +183,7 @@ export function parseMarketingLead(body: unknown): ParseResult {
       instagramUrl,
       notes,
       source,
+      smsConsent,
     },
   };
 }

@@ -72,6 +72,24 @@ export function RequestDetailModal({
           <Detail label="Phone">
             <a href={`tel:${lead.phone}`} className="text-blue-600 hover:underline">{lead.phone}</a>
           </Detail>
+          <Detail label="SMS">
+            {lead.sms_consent ? (
+              <>
+                Opted in
+                {lead.sms_consent_at && (
+                  <span className="mt-0.5 block text-xs text-gray-500">
+                    {new Date(lead.sms_consent_at).toLocaleString("en-US", {
+                      dateStyle: "medium",
+                      timeStyle: "short",
+                    })}
+                    {lead.sms_consent_version ? ` · ${lead.sms_consent_version}` : ""}
+                  </span>
+                )}
+              </>
+            ) : (
+              "No SMS consent"
+            )}
+          </Detail>
           {lead.business_address && <Detail label="Address">{lead.business_address}</Detail>}
           {lead.instagram_url && (
             <Detail label="Instagram">

@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { checkRateLimit, getClientIp, hashIp } from "@/lib/api-rate-limit";
 import { escapeHtml, instagramHref, externalHref, parseMarketingLead } from "@/lib/marketing-lead";
+import {
+  buildStoredSmsConsent,
+  isMissingSmsConsentColumn,
+} from "@/lib/request-site-sms-consent";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const LEAD_WINDOW_SECONDS = 60 * 60;
@@ -51,12 +55,19 @@ export async function POST(request: NextRequest) {
     instagramUrl,
     notes,
     source,
+    smsConsent,
   } = parsed.value;
+
+  const smsConsentRecord = buildStoredSmsConsent({
+    smsConsent,
+    ip: getClientIp(request.headers),
+    userAgent: request.headers.get("user-agent"),
+  });
 
   // 1) Persist the lead first so it is captured even if email is unconfigured
   //    or Resend fails. Service-role insert bypasses RLS (matches /api/leads).
   const supabase = createAdminClient();
-  const { error: insertError } = await supabase.from("marketing_leads").insert({
+  const leadRow = {
     business_name: businessName,
     email,
     phone,
@@ -66,7 +77,19 @@ export async function POST(request: NextRequest) {
     instagram_url: instagramUrl || null,
     notes: notes || null,
     source,
+  };
+  let consentPersisted = true;
+  let { error: insertError } = await supabase.from("marketing_leads").insert({
+    ...leadRow,
+    ...smsConsentRecord,
   });
+  if (insertError && isMissingSmsConsentColumn(insertError.message ?? "")) {
+    // Migration not applied yet: keep accepting the lead without the new columns.
+    consentPersisted = false;
+    console.error("marketing_leads sms consent columns missing; saving lead without them", insertError);
+    const retry = await supabase.from("marketing_leads").insert(leadRow);
+    insertError = retry.error;
+  }
   if (insertError) {
     // Don't lose the lead to the user — log and continue to email.
     console.error("marketing_leads insert failed", insertError);
@@ -76,7 +99,7 @@ export async function POST(request: NextRequest) {
   if (!resend || !ADMIN_EMAIL) {
     console.log(
       "Skipping marketing lead email — RESEND_API_KEY or ADMIN_EMAIL not set",
-      { businessName, email, phone, businessType, source },
+      { businessName, email, phone, businessType, source, smsConsent },
     );
     return NextResponse.json({ ok: true });
   }
@@ -92,6 +115,22 @@ export async function POST(request: NextRequest) {
   const safeBookingHref = externalHref(bookingUrl) ? escapeHtml(externalHref(bookingUrl)) : "";
   const safeNotes = notes ? escapeHtml(notes) : "";
   const safeSource = escapeHtml(source);
+  const safeSmsConsent = smsConsentRecord.sms_consent ? "Yes" : "No";
+  const safeSmsConsentAt = smsConsentRecord.sms_consent_at
+    ? escapeHtml(smsConsentRecord.sms_consent_at)
+    : "";
+  const safeSmsConsentVersion = smsConsentRecord.sms_consent_version
+    ? escapeHtml(smsConsentRecord.sms_consent_version)
+    : "";
+  const safeSmsConsentText = smsConsentRecord.sms_consent_text
+    ? escapeHtml(smsConsentRecord.sms_consent_text)
+    : "";
+  const safeSmsConsentIp = smsConsentRecord.sms_consent_ip
+    ? escapeHtml(smsConsentRecord.sms_consent_ip)
+    : "";
+  const safeSmsConsentUserAgent = smsConsentRecord.sms_consent_user_agent
+    ? escapeHtml(smsConsentRecord.sms_consent_user_agent)
+    : "";
 
   try {
     await resend.emails.send({
@@ -150,6 +189,38 @@ export async function POST(request: NextRequest) {
                   <td style="padding: 8px 0; color: #111827;">${safeNotes}</td>
                 </tr>
               ` : ""}
+              <tr>
+                <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">SMS consent</td>
+                <td style="padding: 8px 0; color: #111827; font-weight: 700;">${safeSmsConsent}</td>
+              </tr>
+              ${safeSmsConsentAt ? `
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Consented at</td>
+                  <td style="padding: 8px 0; color: #111827;">${safeSmsConsentAt}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Consent version</td>
+                  <td style="padding: 8px 0; color: #111827;">${safeSmsConsentVersion}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px; vertical-align: top;">Consent text</td>
+                  <td style="padding: 8px 0; color: #111827; white-space: pre-wrap;">${safeSmsConsentText}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Consent IP</td>
+                  <td style="padding: 8px 0; color: #111827;">${safeSmsConsentIp}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px; vertical-align: top;">User agent</td>
+                  <td style="padding: 8px 0; color: #111827;">${safeSmsConsentUserAgent}</td>
+                </tr>
+              ` : ""}
+              ${consentPersisted ? "" : `
+                <tr>
+                  <td style="padding: 8px 0; color: #6b7280; font-size: 14px;">Storage</td>
+                  <td style="padding: 8px 0; color: #111827;">SMS consent columns were missing, so this consent is recorded in this email only.</td>
+                </tr>
+              `}
             </table>
             <p style="margin: 20px 0 0; color: #6b7280; font-size: 13px;">Reply to this email to contact the lead directly. View it in the admin Requests tab.</p>
           </div>

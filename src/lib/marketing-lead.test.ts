@@ -35,6 +35,7 @@ test("parseMarketingLead accepts the existing homepage payload", () => {
   assert.equal(result.value.businessAddress, "123 Main St");
   assert.equal(result.value.businessType, "Nails");
   assert.equal(result.value.source, "homepage");
+  assert.equal(result.value.smsConsent, false);
 });
 
 test("parseMarketingLead accepts the /demo portfolio payload", () => {
@@ -93,6 +94,32 @@ test("parseMarketingLead trims long optional notes to the accepted maximum", () 
   assert.equal(result.ok, true);
   if (!result.ok) return;
   assert.equal(result.value.notes.length, 1200);
+});
+
+test("parseMarketingLead records SMS consent only for an explicit boolean true", () => {
+  const optedIn = parseMarketingLead({
+    businessName: "Crown Nails",
+    email: "owner@example.com",
+    phone: "555-123-4567",
+    businessType: "Nails",
+    smsConsent: true,
+  });
+  assert.equal(optedIn.ok, true);
+  if (!optedIn.ok) return;
+  assert.equal(optedIn.value.smsConsent, true);
+
+  for (const smsConsent of ["true", "on", 1, false, null]) {
+    const result = parseMarketingLead({
+      businessName: "Crown Nails",
+      email: "owner@example.com",
+      phone: "555-123-4567",
+      businessType: "Nails",
+      smsConsent,
+    });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.value.smsConsent, false);
+  }
 });
 
 test("escapeHtml escapes email body values", () => {

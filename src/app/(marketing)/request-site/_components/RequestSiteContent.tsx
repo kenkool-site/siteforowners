@@ -1,8 +1,13 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import {
+  REQUEST_SITE_SMS_CONSENT,
+  type RequestSiteSmsConsentLocale,
+} from "@/lib/request-site-sms-consent";
 import { useFadeUp } from "../../_components/_motion";
 
 const BUSINESS_TYPES = [
@@ -119,6 +124,7 @@ function RequestSiteForm() {
       phone: String(formData.get("phone") ?? ""),
       businessAddress: String(formData.get("businessAddress") ?? ""),
       businessType: String(formData.get("businessType") ?? ""),
+      smsConsent: formData.get("smsConsent") === "on",
     };
 
     try {
@@ -154,6 +160,7 @@ function RequestSiteForm() {
           <Field label="Email" name="email" type="email" autoComplete="email" required />
           <Field label="Phone number" name="phone" type="tel" autoComplete="tel" required />
         </div>
+        <SmsConsentField />
         <Field
           label="Business address (optional)"
           name="businessAddress"
@@ -200,6 +207,54 @@ function RequestSiteForm() {
         </p>
       )}
     </motion.form>
+  );
+}
+
+function SmsConsentField() {
+  return (
+    <div className="flex items-start gap-3">
+      <input
+        id="smsConsent"
+        name="smsConsent"
+        type="checkbox"
+        className="mt-1 h-4 w-4 shrink-0 accent-pop-pink"
+      />
+      <label htmlFor="smsConsent" className="text-sm leading-relaxed text-warm-textMuted">
+        <ConsentSentence locale="en" />
+        <span className="mt-2 block">
+          <ConsentSentence locale="es" />
+        </span>
+      </label>
+    </div>
+  );
+}
+
+function ConsentSentence({ locale }: { locale: RequestSiteSmsConsentLocale }) {
+  const copy = REQUEST_SITE_SMS_CONSENT[locale];
+  const linkClass =
+    "font-semibold text-warm-accent underline underline-offset-2 hover:text-warm-text";
+  return (
+    <>
+      {copy.lead}
+      <Link
+        href="/privacy"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+      >
+        {copy.privacyLabel}
+      </Link>
+      {copy.joiner}
+      <Link
+        href="/terms"
+        target="_blank"
+        rel="noopener noreferrer"
+        className={linkClass}
+      >
+        {copy.termsLabel}
+      </Link>
+      {copy.end}
+    </>
   );
 }
 

@@ -1,4 +1,10 @@
 import Link from "next/link";
+import {
+  PRIVACY_SMS_OPT_IN_EXCLUSION,
+  PRIVACY_SMS_OPT_IN_EXCLUSION_ES,
+  PRIVACY_SMS_PREVIEW_COPY,
+  PRIVACY_SMS_PREVIEW_OPT_IN,
+} from "@/lib/request-site-sms-consent";
 
 export const metadata = {
   alternates: { canonical: "https://www.siteforowners.com/privacy" },
@@ -13,7 +19,7 @@ export default function PrivacyPage() {
         ← Back to home
       </Link>
       <h1 className="mt-6 text-4xl font-bold">Privacy Policy</h1>
-      <p className="mt-2 text-sm text-gray-500">Last updated: May 2, 2026</p>
+      <p className="mt-2 text-sm text-gray-500">Last updated: November 1, 2026</p>
 
       <section className="mt-10 space-y-6 leading-relaxed">
         <p>
@@ -92,6 +98,7 @@ export default function PrivacyPage() {
             <strong>Plausible</strong> — privacy-friendly analytics
           </li>
         </ul>
+        <p>{PRIVACY_SMS_OPT_IN_EXCLUSION}</p>
         <p>
           We do not sell your personal information to third parties.
         </p>
@@ -161,7 +168,14 @@ export default function PrivacyPage() {
           email or on the website at least 14 days before they take effect.
         </p>
 
-        <h2 className="text-2xl font-semibold">11. SMS Messaging</h2>
+        <h2 className="text-2xl font-semibold">11. SMS / Text messaging</h2>
+        <p>{PRIVACY_SMS_PREVIEW_COPY.en}</p>
+        <p>{PRIVACY_SMS_PREVIEW_OPT_IN.en}</p>
+        <p>
+          <strong>Español.</strong> {PRIVACY_SMS_PREVIEW_COPY.es}
+        </p>
+        <p>{PRIVACY_SMS_PREVIEW_OPT_IN.es}</p>
+        <p>{PRIVACY_SMS_OPT_IN_EXCLUSION_ES}</p>
         <p>
           When an end customer books an appointment on a website hosted by
           SiteForOwners and ticks the SMS opt-in checkbox during the booking
@@ -182,10 +196,7 @@ export default function PrivacyPage() {
         </p>
         <p>
           No mobile information will be shared with third parties or
-          affiliates for marketing or promotional purposes. All categories
-          listed above exclude text messaging originator opt-in data and
-          consent; this information will not be shared with any third
-          parties.
+          affiliates for marketing or promotional purposes. {PRIVACY_SMS_OPT_IN_EXCLUSION}
         </p>
         <p>
           <strong>How customers opt in:</strong> An end customer provides
