@@ -4,6 +4,7 @@ import Script from "next/script";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { tenantUrl } from "@/lib/tenant-url";
 import { buildSharePreviewTitle } from "@/lib/share-preview-title";
+import { pickSharePreviewImage } from "@/lib/share-preview-image";
 import type { GeneratedCopy } from "@/lib/ai/types";
 import {
   buildHomeServicesHomepageMetadata,
@@ -69,7 +70,7 @@ export async function generateMetadata({
     en?.seo_description?.trim() ||
     en?.hero_subheadline?.trim() ||
     `${name} — book online, see services, and get in touch.`;
-  const image = data?.images?.[0];
+  const image = pickSharePreviewImage(copy, data?.images);
   const imageBlock = image ? { images: [{ url: image, alt: name }] } : {};
 
   return {
