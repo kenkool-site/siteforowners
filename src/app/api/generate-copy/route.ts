@@ -26,9 +26,12 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand';
+type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand' | 'maison';
 
-const ALL_TEMPLATES: TemplateName[] = ['classic', 'bold', 'elegant', 'vibrant', 'warm', 'runway', 'grand'];
+const ALL_TEMPLATES: TemplateName[] = ['classic', 'bold', 'elegant', 'vibrant', 'warm', 'runway', 'grand', 'maison'];
+// Maison stays opt-in. Auto-picked pairs keep the previous mix so existing
+// preview generation does not start assigning a template nobody selected.
+const AUTO_TEMPLATES: TemplateName[] = ALL_TEMPLATES.filter((template) => template !== 'maison');
 
 const CONTRAST_PAIRS: Record<TemplateName, TemplateName[]> = {
   classic: ['bold', 'vibrant'],
@@ -38,10 +41,11 @@ const CONTRAST_PAIRS: Record<TemplateName, TemplateName[]> = {
   warm: ['bold', 'vibrant'],
   runway: ['elegant', 'warm'],
   grand: ['elegant', 'warm'],
+  maison: ['classic', 'warm'],
 };
 
 function pickTwoTemplates(): [TemplateName, TemplateName] {
-  const a = ALL_TEMPLATES[Math.floor(Math.random() * ALL_TEMPLATES.length)];
+  const a = AUTO_TEMPLATES[Math.floor(Math.random() * AUTO_TEMPLATES.length)];
   const pairs = CONTRAST_PAIRS[a];
   const b = pairs[Math.floor(Math.random() * pairs.length)];
   return [a, b];
@@ -142,6 +146,7 @@ function pickThemeForTemplate<T extends { id: string; name: string }>(
     warm: ["warm", "peach", "mocha", "terracotta", "earth", "tan"],
     runway: ["runway", "noir", "black", "midnight"],
     grand: ["runway", "noir", "black", "midnight"],
+    maison: ["gold", "champagne", "ivory", "rose", "mocha", "peach", "warm"],
   };
   const keywords = keywordsByTemplate[template];
   const ranked = themes.filter((theme) => {

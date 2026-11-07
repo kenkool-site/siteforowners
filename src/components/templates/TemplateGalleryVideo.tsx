@@ -4,7 +4,7 @@ import type { ThemeColors } from "@/lib/templates/themes";
 import { ensureReadable } from "@/lib/templates/contrast";
 import { AnimateSection } from "./shared/AnimateSection";
 
-type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand";
+type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand" | "maison";
 
 interface TemplateGalleryVideoProps {
   src: string;
@@ -21,6 +21,7 @@ const defaultTitles: Record<TemplateName, string> = {
   warm: "A Closer Look",
   runway: "Runway In Motion",
   grand: "Grand In Motion",
+  maison: "In Motion",
 };
 
 export function TemplateGalleryVideo({ src, galleryVideoTitle, colors, template }: TemplateGalleryVideoProps) {

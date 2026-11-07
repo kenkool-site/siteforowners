@@ -25,6 +25,7 @@ const TEMPLATE_LABELS: Record<string, string> = {
   warm: "Warm",
   runway: "Runway",
   grand: "Grand",
+  maison: "Maison",
 };
 
 function timeAgo(dateStr: string): string {

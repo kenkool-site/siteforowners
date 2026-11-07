@@ -20,7 +20,8 @@ function generateGroupId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm", "runway", "grand"] as const;
+const ALL_TEMPLATES = ["classic", "bold", "elegant", "vibrant", "warm", "runway", "grand", "maison"] as const;
+const AUTO_TEMPLATES = ALL_TEMPLATES.filter((template) => template !== "maison");
 type TemplateName = typeof ALL_TEMPLATES[number];
 
 function buildSocialProofSummary(
@@ -81,6 +82,7 @@ function pickThemeForTemplate<T extends { id: string; name: string }>(
     warm: ["warm", "peach", "mocha", "terracotta", "earth", "tan"],
     runway: ["runway", "noir", "black", "midnight"],
     grand: ["runway", "noir", "black", "midnight"],
+    maison: ["gold", "champagne", "ivory", "rose", "mocha", "peach", "warm"],
   };
   const keywords = keywordsByTemplate[template];
   const ranked = themes.filter((theme) => {
@@ -115,14 +117,17 @@ export async function POST(request: Request) {
     const currentCopy = (preview.generated_copy || {}) as Record<string, unknown>;
 
     // Pick templates — use requested or pick 2 different ones
-    const selectedTemplates = templates && templates.length > 0
+    const requested = templates && templates.length > 0
       ? templates.filter((t: string): t is TemplateName => ALL_TEMPLATES.includes(t as TemplateName))
-      : [
-          (preview.template_variant || "classic") as TemplateName,
-          ALL_TEMPLATES.filter((t) => t !== (preview.template_variant || "classic"))[
-            Math.floor(Math.random() * (ALL_TEMPLATES.length - 1))
-          ],
-        ];
+      : [];
+    const currentRaw = preview.template_variant || "classic";
+    const currentTemplate: TemplateName = (ALL_TEMPLATES as readonly string[]).includes(currentRaw)
+      ? (currentRaw as TemplateName)
+      : "classic";
+    const autoCompanion = AUTO_TEMPLATES.filter((template) => template !== currentTemplate);
+    const selectedTemplates = requested.length > 0
+      ? requested
+      : [currentTemplate, autoCompanion[Math.floor(Math.random() * autoCompanion.length)]];
 
     // Generate enough fresh copy variants for every selected design.
     const variants = await generateWebsiteCopyVariants({

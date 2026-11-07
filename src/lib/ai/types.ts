@@ -21,7 +21,7 @@ export type ColorTheme =
   // Home services
   | 'home_services_neighborhood';
 
-export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand';
+export type TemplateName = 'classic' | 'bold' | 'elegant' | 'vibrant' | 'warm' | 'runway' | 'grand' | 'maison';
 
 /**
  * Customer-selectable extra applied to a single service. Persisted in
