@@ -62,7 +62,7 @@ export function LeadsSlide() {
           <div className="flex-1 overflow-hidden bg-white px-2 pt-2 pb-1">
             {/* Page heading */}
             <div className="flex items-baseline justify-between">
-              <h1 className="text-[11px] font-bold text-gray-900">Leads</h1>
+              <p className="text-[11px] font-bold text-gray-900">Leads</p>
               <span className="text-[7px] text-gray-400">5 total</span>
             </div>
 

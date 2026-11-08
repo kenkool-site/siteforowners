@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import type { BookingModePolicy } from "@/lib/admin-auth";
+import { buildPreviewShareMetadata } from "@/lib/preview-share-metadata";
 import { PreviewClient } from "./PreviewClient";
 
 interface PreviewPageData {
@@ -63,26 +64,14 @@ export async function generateMetadata({
   const subheadline = enCopy?.hero_subheadline?.trim();
   const title = headline ? `${name} — ${headline}` : name;
   const description = subheadline || `${name} — book online, see services, and get in touch.`;
-  const image = data?.images?.[0];
-  const imageBlock = image ? { images: [{ url: image, alt: name }] } : {};
 
-  return {
+  return buildPreviewShareMetadata({
+    slug: params.slug,
+    name,
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      type: "website",
-      siteName: name,
-      ...imageBlock,
-    },
-    twitter: {
-      card: "summary_large_image",
-      title,
-      description,
-      ...imageBlock,
-    },
-  };
+    image: data?.images?.[0] ?? null,
+  });
 }
 
 export const revalidate = 0;

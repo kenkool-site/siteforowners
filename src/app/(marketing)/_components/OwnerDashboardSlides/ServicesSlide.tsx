@@ -38,7 +38,7 @@ export function ServicesSlide() {
           <div className="flex-1 overflow-hidden bg-white px-2 pt-2 pb-1">
             {/* Page heading */}
             <div className="flex items-baseline justify-between">
-              <h1 className="text-[11px] font-bold text-gray-900">Services</h1>
+              <p className="text-[11px] font-bold text-gray-900">Services</p>
               <span className="text-[7px] text-gray-400">34 services</span>
             </div>
 

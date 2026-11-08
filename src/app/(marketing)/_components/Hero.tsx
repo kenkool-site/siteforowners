@@ -15,6 +15,7 @@ export function Hero() {
               <MarketingBrandLogo
                 href="/"
                 heightClass="h-[4.75rem] sm:h-24 md:h-28 lg:h-32 xl:h-36"
+                displayWidth={144}
                 linkClassName="rounded-xl ring-offset-pop-cream"
               />
             </div>
@@ -23,9 +24,12 @@ export function Hero() {
             For salons, barbers, nail shops
           </p>
           <h1 className="font-sans text-4xl font-black leading-[0.98] tracking-tight md:text-6xl">
-            Get booked without the back-and-forth.
+            Done-for-you websites and booking for hair stylists and braiders
           </h1>
-          <p className="mt-4 text-base leading-snug opacity-95 md:text-lg">
+          <p className="mt-4 text-xl font-bold leading-snug md:text-2xl">
+            Get booked without the back-and-forth.
+          </p>
+          <p className="mt-3 text-base leading-snug opacity-95 md:text-lg">
             We build your website + booking and get you live in 24 hours.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">

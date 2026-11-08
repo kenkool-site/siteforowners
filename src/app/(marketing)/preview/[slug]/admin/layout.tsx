@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -6,6 +7,13 @@ import { buildMockAdminData } from "@/lib/preview-admin-mock";
 import { PreviewAdminShell } from "./_components/PreviewAdminShell";
 
 export const dynamic = "force-dynamic";
+
+export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
+  return {
+    robots: { index: false, follow: false },
+    alternates: { canonical: `/preview/${params.slug}/admin` },
+  };
+}
 
 export default async function PreviewAdminLayout({
   children,

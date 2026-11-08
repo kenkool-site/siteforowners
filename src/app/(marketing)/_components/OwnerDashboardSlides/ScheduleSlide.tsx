@@ -50,7 +50,7 @@ export function ScheduleSlide() {
           {/* Content area */}
           <div className="flex-1 overflow-hidden bg-white px-2 pt-2 pb-1">
             {/* Page heading */}
-            <h1 className="text-[11px] font-bold text-gray-900">Schedule</h1>
+            <p className="text-[11px] font-bold text-gray-900">Schedule</p>
 
             {/* Day card */}
             <div className="mt-1.5 flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-2 py-1">

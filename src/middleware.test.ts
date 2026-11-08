@@ -254,6 +254,74 @@ test("invitationLockedRewrite folds the original request's query string into the
   assert.match(functionBody, /searchParams\.set\("next", `\$\{destination\.pathname\}\$\{destination\.search\}`\)/);
 });
 
+test("unauthenticated /demos fails closed when the founder secret is missing", async () => {
+  const originalPassword = process.env.ADMIN_PASSWORD;
+  delete process.env.ADMIN_PASSWORD;
+  try {
+    const request = new NextRequest("http://localhost/demos/extra", {
+      headers: { host: "localhost", cookie: "admin_session=anything" },
+    });
+    const response = await middleware(request);
+    assert.equal(response.status, 307);
+    assert.equal(response.headers.get("location"), "http://localhost/login");
+  } finally {
+    if (originalPassword === undefined) delete process.env.ADMIN_PASSWORD;
+    else process.env.ADMIN_PASSWORD = originalPassword;
+  }
+});
+
+test("unauthenticated /demos and descendants redirect to the admin login", async () => {
+  const originalPassword = process.env.ADMIN_PASSWORD;
+  process.env.ADMIN_PASSWORD = "founder-secret";
+  try {
+    for (const path of ["/demos", "/demos/extra"]) {
+      const request = new NextRequest(`http://localhost${path}`, {
+        headers: { host: "localhost" },
+      });
+      const response = await middleware(request);
+      assert.equal(response.status, 307);
+      assert.equal(response.headers.get("location"), "http://localhost/login");
+    }
+  } finally {
+    if (originalPassword === undefined) delete process.env.ADMIN_PASSWORD;
+    else process.env.ADMIN_PASSWORD = originalPassword;
+  }
+});
+
+test("a founder session can open /demos", async () => {
+  const originalPassword = process.env.ADMIN_PASSWORD;
+  process.env.ADMIN_PASSWORD = "founder-secret";
+  try {
+    const request = new NextRequest("http://localhost/demos", {
+      headers: { host: "localhost", cookie: "admin_session=founder-secret" },
+    });
+    const response = await middleware(request);
+    assert.equal(response.headers.get("location"), null);
+    assert.notEqual(response.status, 307);
+  } finally {
+    if (originalPassword === undefined) delete process.env.ADMIN_PASSWORD;
+    else process.env.ADMIN_PASSWORD = originalPassword;
+  }
+});
+
+test("the bare siteforowners.com apex permanently redirects to www and keeps the path and query", async () => {
+  const request = new NextRequest("http://siteforowners.com/demos?tab=live", {
+    headers: { host: "siteforowners.com" },
+  });
+  const response = await middleware(request);
+  assert.equal(response.status, 308);
+  assert.equal(response.headers.get("location"), "https://www.siteforowners.com/demos?tab=live");
+});
+
+test("www.siteforowners.com is not redirected again", async () => {
+  const request = new NextRequest("https://www.siteforowners.com/pricing", {
+    headers: { host: "www.siteforowners.com" },
+  });
+  const response = await middleware(request);
+  assert.notEqual(response.status, 308);
+  assert.equal(response.headers.get("location"), null);
+});
+
 test("an invitation with no passcode set is never routed through the locked state", () => {
   // Structural, matching this codebase's convention for the passcode-lookup
   // branches (they need live Supabase access this test environment doesn't

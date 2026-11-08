@@ -1,4 +1,4 @@
-import { buildSiteForOwnersMetadata } from "@/lib/siteforowners-seo";
+import { buildSiteForOwnersMetadata, siteForOwnersJsonLdScript } from "@/lib/siteforowners-seo";
 import { Nav } from "./_components/Nav";
 import { Hero } from "./_components/Hero";
 import { HowItWorks } from "./_components/HowItWorks";
@@ -10,12 +10,17 @@ import { Pricing } from "./_components/Pricing";
 import { FAQ } from "./_components/FAQ";
 import { FinalCTA } from "./_components/FinalCTA";
 import { Footer } from "./_components/Footer";
+import { NicheGuideLinks } from "./_components/NicheGuideLinks";
 
 export const metadata = buildSiteForOwnersMetadata();
 
 export default function MarketingPage() {
   return (
     <main className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: siteForOwnersJsonLdScript() }}
+      />
       <Nav />
       <Hero />
       <HowItWorks />
@@ -25,6 +30,7 @@ export default function MarketingPage() {
       <WhatsIncluded />
       <Pricing />
       <FAQ />
+      <NicheGuideLinks />
       <FinalCTA />
       <Footer />
     </main>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { cookies, headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { verifySession } from "@/lib/admin-auth";
@@ -10,6 +11,10 @@ import { PinEntry } from "./_components/PinEntry";
 import { AdminShell } from "./_components/AdminShell";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+};
 
 const AUTH_BYPASS_PATHS = ["/admin/forgot-pin", "/admin/pin-reset"];
 

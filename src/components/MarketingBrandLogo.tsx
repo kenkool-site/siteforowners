@@ -8,6 +8,11 @@ type MarketingBrandLogoProps = {
   className?: string;
   /** Tailwind height class, e.g. h-8, h-9 */
   heightClass?: string;
+  /**
+   * Largest rendered CSS width in pixels. The file is square. Next requests
+   * this width and 2x — a missing value used to fall through to a 1920px src.
+   */
+  displayWidth?: number;
   priority?: boolean;
   /** When set, wraps the logo in a link */
   href?: string;
@@ -17,6 +22,7 @@ type MarketingBrandLogoProps = {
 export function MarketingBrandLogo({
   className,
   heightClass = "h-11",
+  displayWidth = 144,
   priority = false,
   href,
   linkClassName,
@@ -25,8 +31,8 @@ export function MarketingBrandLogo({
     <Image
       src={LOGO}
       alt="Site For Owners — websites and booking for stylists"
-      width={800}
-      height={800}
+      width={displayWidth}
+      height={displayWidth}
       className={cn(heightClass, "w-auto", className)}
       priority={priority}
     />

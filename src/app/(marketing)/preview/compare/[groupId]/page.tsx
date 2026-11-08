@@ -1,7 +1,16 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { PreviewData } from "@/lib/ai/types";
 import { CompareClient } from "./CompareClient";
+
+export function generateMetadata({ params }: { params: { groupId: string } }): Metadata {
+  return {
+    title: "Compare previews — SiteForOwners",
+    robots: { index: false, follow: false },
+    alternates: { canonical: `/preview/compare/${params.groupId}` },
+  };
+}
 
 async function getGroupPreviews(groupId: string): Promise<PreviewData[]> {
   const supabase = createAdminClient();
