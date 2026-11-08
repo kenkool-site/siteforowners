@@ -14,6 +14,7 @@ export function Nav() {
         href="/"
         priority
         heightClass="h-12 sm:h-14 md:h-[3.75rem]"
+        displayWidth={60}
         linkClassName="ring-offset-white"
       />
 

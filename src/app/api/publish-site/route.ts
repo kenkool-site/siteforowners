@@ -1,9 +1,20 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { generateSubdomain } from "@/lib/subdomain";
 import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
 
-export async function POST(request: Request) {
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "";
+
+function requireFounder(request: NextRequest): boolean {
+  const cookie = request.cookies.get("admin_session")?.value;
+  return !!ADMIN_PASSWORD && cookie === ADMIN_PASSWORD;
+}
+
+export async function POST(request: NextRequest) {
+  if (!requireFounder(request)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { tenant_id, subdomain: customSubdomain } = await request.json();
 

@@ -17,7 +17,7 @@ export function AdminHeader() {
               href="/prospects"
               className="inline-flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500/40 focus-visible:ring-offset-2"
             >
-              <MarketingBrandLogo heightClass="h-10 sm:h-11" />
+              <MarketingBrandLogo heightClass="h-10 sm:h-11" displayWidth={44} />
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
                 Admin
               </span>

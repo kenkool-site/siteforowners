@@ -3,6 +3,7 @@ import test from "node:test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { Footer } from "./Footer";
+import { MARKETING_GUIDES } from "@/lib/marketing-guides";
 
 Object.assign(globalThis, { React });
 
@@ -10,4 +11,8 @@ test("the public footer provides a subtle invitation owner sign-in entry point",
   const html = renderToStaticMarkup(<Footer />);
   assert.match(html, /href="\/invitations\/login"/);
   assert.match(html, />Invitation sign in<\/a>/);
+  for (const guide of MARKETING_GUIDES) {
+    assert.match(html, new RegExp(`href="${guide.path}"`));
+    assert.match(html, new RegExp(guide.label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
 });

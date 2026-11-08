@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { buildSiteForOwnersMetadata, buildSiteForOwnersSitemap, SITEFOROWNERS_SOCIAL_IMAGE } from "./siteforowners-seo";
+import { buildSiteForOwnersJsonLd, buildSiteForOwnersMetadata, buildSiteForOwnersSitemap, SITEFOROWNERS_SOCIAL_IMAGE } from "./siteforowners-seo";
 import { buildMarketingSitemap } from "../app/sitemap";
 import { buildInvitespotRobots } from "../app/robots";
+import { MARKETING_GUIDES } from "./marketing-guides";
 
 test("SiteForOwners metadata targets stylists and salons with its own sharing image", () => {
   const metadata = buildSiteForOwnersMetadata();
@@ -15,17 +18,49 @@ test("SiteForOwners metadata targets stylists and salons with its own sharing im
   assert.ok(!JSON.stringify(metadata).includes("invitespot"));
 });
 
-test("SiteForOwners sitemap lists only its public marketing pages", () => {
+test("SiteForOwners sitemap lists public marketing pages and guide URLs with git lastmod", () => {
+  const guideUrls = MARKETING_GUIDES.map((guide) => `https://www.siteforowners.com${guide.path}`);
+  const privacyIso = execFileSync(
+    "git",
+    ["log", "-1", "--format=%cI", "--", "src/app/(marketing)/privacy/page.tsx"],
+    { encoding: "utf8" },
+  ).trim();
   for (const host of ["siteforowners.com", "www.siteforowners.com", "www.siteforowners.com:443"]) {
     const entries = buildSiteForOwnersSitemap(host);
-    assert.deepEqual(entries.map(entry => entry.url), ["https://www.siteforowners.com/", "https://www.siteforowners.com/demo", "https://www.siteforowners.com/request-site", "https://www.siteforowners.com/privacy", "https://www.siteforowners.com/terms"]);
-    assert.equal(entries[0].lastModified, "2026-10-11");
+    assert.deepEqual(entries.map(entry => entry.url), [
+      "https://www.siteforowners.com/",
+      "https://www.siteforowners.com/demo",
+      "https://www.siteforowners.com/request-site",
+      "https://www.siteforowners.com/privacy",
+      "https://www.siteforowners.com/terms",
+      ...guideUrls,
+    ]);
+    assert.ok(entries.every(entry => entry.lastModified instanceof Date && !Number.isNaN(entry.lastModified.getTime())));
+    const privacy = entries.find(entry => entry.url.endsWith("/privacy"));
+    assert.ok(privacy?.lastModified instanceof Date);
+    assert.equal(privacy.lastModified.toISOString(), new Date(privacyIso).toISOString());
     assert.ok(entries.every(entry => !entry.alternates));
   }
 });
 
+test("homepage JSON-LD uses the published $50 price and no ratings", () => {
+  const pricing = readFileSync(new URL("../app/(marketing)/_components/Pricing.tsx", import.meta.url), "utf8");
+  const terms = readFileSync(new URL("../app/(marketing)/terms/page.tsx", import.meta.url), "utf8");
+  assert.match(pricing, /\$50/);
+  assert.match(terms, /\$50 per month/);
+  const json = JSON.stringify(buildSiteForOwnersJsonLd());
+  assert.match(json, /"@type":"Organization"/);
+  assert.match(json, /"@type":"SoftwareApplication"/);
+  assert.match(json, /"@type":"Service"/);
+  assert.match(json, /"price":"50"/);
+  assert.doesNotMatch(json, /aggregateRating|reviewCount|\$65|\$99|\$149/);
+});
+
 test("marketing sitemap and robots keep each brand isolated from tenants and previews", () => {
-  assert.equal(buildMarketingSitemap("www.siteforowners.com").length, 5);
+  assert.equal(buildMarketingSitemap("www.siteforowners.com").length, 8);
+  const robots = JSON.stringify(buildInvitespotRobots("www.siteforowners.com"));
+  assert.equal(robots.includes("Disallow"), false);
+  assert.equal(robots.includes("/preview"), false);
   assert.equal(buildMarketingSitemap("www.invitespot.app").length, 2);
   for (const host of ["mariamhair.com", "salon.siteforowners.com", "event.invitespot.app", "localhost", "preview.vercel.app", null]) {
     assert.deepEqual(buildMarketingSitemap(host), []);
