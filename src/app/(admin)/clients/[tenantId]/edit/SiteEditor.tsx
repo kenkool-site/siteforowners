@@ -1133,6 +1133,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
                 <option value="warm">Warm</option>
                 <option value="runway">Runway</option>
                 <option value="grand">Grand</option>
+                <option value="maison">Maison</option>
               </select>
             </div>
 

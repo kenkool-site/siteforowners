@@ -16,6 +16,7 @@ import { VibrantHero } from "./heroes/VibrantHero";
 import { WarmHero } from "./heroes/WarmHero";
 import { RunwayHero } from "./heroes/RunwayHero";
 import { GrandHero } from "./heroes/GrandHero";
+import { MaisonSite } from "./maison/MaisonSite";
 
 // Services
 import { ClassicServices } from "./services/ClassicServices";
@@ -63,7 +64,7 @@ import { TemplateMotionTextBand } from "./TemplateMotionTextBand";
 import { TemplateGalleryVideo } from "./TemplateGalleryVideo";
 import { TemplateSocialLinks } from "./TemplateSocialLinks";
 
-type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand";
+type TemplateName = "classic" | "bold" | "elegant" | "vibrant" | "warm" | "runway" | "grand" | "maison";
 
 export interface TemplateOrchestratorProps {
   data: PreviewData;
@@ -91,7 +92,7 @@ export interface TemplateOrchestratorProps {
 
 function getTemplateName(data: PreviewData): TemplateName {
   const variant = data.template_variant;
-  if (variant && ["classic", "bold", "elegant", "vibrant", "warm", "runway", "grand"].includes(variant)) {
+  if (variant && ["classic", "bold", "elegant", "vibrant", "warm", "runway", "grand", "maison"].includes(variant)) {
     return variant as TemplateName;
   }
   return "classic";
@@ -463,6 +464,46 @@ export function TemplateOrchestrator({
   // Template-specific section rendering
   const renderTemplate = () => {
   switch (template) {
+    case "maison":
+      return (
+        <MaisonSite
+          businessName={data.business_name}
+          businessType={data.business_type}
+          headline={headline}
+          subheadline={subheadline}
+          aboutParagraphs={aboutParagraphs}
+          heroImage={heroImage}
+          heroVideo={heroVideo}
+          galleryImages={galleryImages}
+          galleryVideoUrl={galleryVideoUrl}
+          galleryVideoTitle={galleryVideoTitle}
+          address={data.address}
+          phone={data.phone}
+          hours={data.hours}
+          bookingHours={bookingHours}
+          showHours={showHours}
+          socialLinks={socialLinks}
+          colors={colors}
+          locale={locale}
+          onLocaleChange={setLocale}
+          services={services}
+          bookingMode={bookingMode}
+          showServices={showServices}
+          showGallery={hasGallerySection}
+          showAbout={showAbout}
+          aboutImage={showAbout && showAboutImage ? (aboutImageOverride || data.images?.[1]) : undefined}
+          showBooking={!!bookingSection}
+          showContact={showContact}
+          showMap={showMap}
+          contactPreview={!isLive}
+          navItems={navItems}
+          booking={bookingSection}
+          products={productsSection}
+          proof={testimonialsSection || ratingSection}
+          footerTagline={copy?.footer_tagline}
+        />
+      );
+
     case "runway":
     case "grand": {
       const Hero = template === "grand" ? GrandHero : RunwayHero;

@@ -219,6 +219,11 @@ function PreviewWizard() {
       name: "Grand",
       description: "Runway luxury styling with a full-bleed cinematic hero like Bold & Classic",
     },
+    {
+      id: "maison",
+      name: "Maison",
+      description: "Ivory editorial layout with a full-bleed hero, photo service cards, and the full service menu",
+    },
   ];
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>(["classic", "bold"]);
   const [keepColors, setKeepColors] = useState(false); // default OFF for new, ON for edit
