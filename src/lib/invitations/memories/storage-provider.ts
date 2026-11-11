@@ -7,9 +7,10 @@ export interface StorageProvider {
   deleteObject(objectKey: string): Promise<void>;
   objectExists(objectKey: string): Promise<boolean>;
   // Optional: only R2StorageProvider's real callers (upload/complete's video
-  // poster-size check) need this, so existing test fakes across the codebase
-  // that implement StorageProvider don't all need updating for it.
+  // poster-size check, and guests-of-honor reference storage) need these, so
+  // existing test fakes that implement StorageProvider don't all need updating.
   getObjectSizeBytes?(objectKey: string): Promise<number | null>;
+  putObject?(objectKey: string, bytes: Uint8Array, contentType: string): Promise<void>;
 }
 
 export class R2StorageProvider implements StorageProvider {
@@ -60,6 +61,15 @@ export class R2StorageProvider implements StorageProvider {
       if (status === 404) return false;
       throw error;
     }
+  }
+
+  async putObject(objectKey: string, bytes: Uint8Array, contentType: string): Promise<void> {
+    await this.client.send(new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: objectKey,
+      Body: bytes,
+      ContentType: contentType,
+    }));
   }
 
   async getObjectSizeBytes(objectKey: string): Promise<number | null> {

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
 import { requireInvitationAccess } from "@/lib/invitations/access";
 import { requestHighlightGeneration } from "@/lib/invitations/memories/highlight-service";
+import { matchApprovedMediaIds } from "@/lib/invitations/memories/honor-service";
 import { moderateMemoryMediaForHost } from "@/lib/invitations/memories/repository";
 import type { HostModerationAction } from "@/lib/invitations/memories/host";
 import { permanentlyDeleteMemoryMedia } from "./permanent-delete";
@@ -31,6 +32,11 @@ export async function PATCH(request: NextRequest, { params }: { params: { eventI
         await requestHighlightGeneration(params.eventId, false);
       } catch (err) {
         console.error("[memories/moderation] failed to queue highlight generation (non-fatal)", { eventId: params.eventId, error: err });
+      }
+      try {
+        await matchApprovedMediaIds(params.eventId, updatedIds);
+      } catch (err) {
+        console.error("[memories/moderation] guests-of-honor match failed (non-fatal)", { eventId: params.eventId, error: err });
       }
     }
 

@@ -14,6 +14,7 @@ import { GuestMomentsView } from "./GuestMomentsView";
 import { GuestUploadView } from "./GuestUploadView";
 import { FindMeFlow } from "./FindMeFlow";
 import { AboutInviteSpotSheet, MemoriesTabBar, MemoriesTopBar, type MemoriesTab } from "./MemoriesChrome";
+import type { PublicHonorView } from "@/lib/invitations/memories/guests-of-honor";
 import type { MediaImageSrc } from "./media-src";
 
 function rsvpCredentialFromUrl(): { rsvpId: string; editToken: string } | null {
@@ -44,6 +45,7 @@ export function GuestMemoriesApp({
   locale = "en",
   brandingEnabled = true,
   schedule = [],
+  viewerIsHost = false,
   preview,
 }: {
   eventId: string;
@@ -62,6 +64,7 @@ export function GuestMemoriesApp({
   locale?: string;
   brandingEnabled?: boolean;
   schedule?: GuestMemoriesContext["schedule"];
+  viewerIsHost?: boolean;
   preview?: {
     now?: number;
     media?: PublicMemoryMedia[];
@@ -76,6 +79,8 @@ export function GuestMemoriesApp({
     screen?: string;
     uploadStep?: "name" | "source" | "review" | "uploading" | "browsing" | "success";
     uploadPreviews?: string[];
+    honor?: PublicHonorView | null;
+    viewerIsHost?: boolean;
   } | null;
 }) {
   const tUpload = useTranslations("invitations.public.memories.upload");
@@ -96,6 +101,7 @@ export function GuestMemoriesApp({
   const [editingName, setEditingName] = useState(false);
   const [uploads, setUploads] = useState<GuestUploadPreview[]>([]);
   const [aboutOpen, setAboutOpen] = useState(Boolean(preview?.openAbout));
+  const [honor, setHonor] = useState<PublicHonorView | null>(preview?.honor ?? null);
   const [findOpen, setFindOpen] = useState(Boolean(preview?.openFind || preview?.screen === "find" || preview?.findResults?.length));
   const openUpload = useRef<(momentId?: string) => void>(() => undefined);
   const handleUploadsChange = useCallback((items: GuestUploadPreview[]) => setUploads(items), []);
@@ -147,6 +153,10 @@ export function GuestMemoriesApp({
       }
     } catch { /* private mode */ }
     if (preview) return;
+    void fetch(`/api/memories/events/${eventId}/guests-of-honor`)
+      .then(async (response) => (response.ok ? response.json() as Promise<{ honor: PublicHonorView | null }> : null))
+      .then((body) => { if (body) setHonor(body.honor); })
+      .catch(() => undefined);
     void mintSession().finally(() => setSessionReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
@@ -186,6 +196,8 @@ export function GuestMemoriesApp({
               imageSrc={preview?.imageSrc}
               preview={previewGallery}
               openViewer={preview?.openViewer}
+              honor={honor}
+              viewerIsHost={preview?.viewerIsHost ?? viewerIsHost}
             />
           )}
           {tab === "moments" && (
@@ -209,6 +221,7 @@ export function GuestMemoriesApp({
               previewGroups={preview?.screen === "highlights-loading" ? undefined : preview?.highlights}
               forceLoading={preview?.screen === "highlights-loading"}
               imageSrc={preview?.imageSrc}
+              honor={honor}
             />
           )}
           {tab === "find" && !findOpen && (

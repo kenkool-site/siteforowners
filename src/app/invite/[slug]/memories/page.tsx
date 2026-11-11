@@ -4,6 +4,10 @@ import { notFound } from "next/navigation";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { StateView } from "@/components/invitations/PublicInvitation";
 import { GuestMemoriesApp } from "@/components/invitations/memories/GuestMemoriesApp";
+import { cookies } from "next/headers";
+import { INVITATION_OWNER_SESSION_COOKIE, verifyOwnerSession } from "@/lib/invitations/auth";
+import { invitationOwnerOwnsEvent } from "@/lib/invitations/access";
+import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
 import { formatInTimeZone, venueLine } from "@/lib/invitations/memories/guest-presentation";
@@ -66,6 +70,17 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
     );
   }
 
+  let viewerIsHost = hasFounderInvitationSession(process.env.ADMIN_PASSWORD, cookies().get("admin_session")?.value);
+  if (!viewerIsHost) {
+    try {
+      const signed = cookies().get(INVITATION_OWNER_SESSION_COOKIE)?.value;
+      const ownerId = signed ? verifyOwnerSession(signed)?.ownerId ?? null : null;
+      if (ownerId) viewerIsHost = await invitationOwnerOwnsEvent(ownerId, invitation.event.id);
+    } catch {
+      viewerIsHost = false;
+    }
+  }
+
   return (
     <InvitationPublicProvider locale={invitation.event.locale} timeZone={invitation.event.timezone || "UTC"}>
       <GuestMemoriesApp
@@ -85,6 +100,7 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
         eventType={invitation.event.eventType}
         locale={invitation.event.locale}
         schedule={invitation.event.eventSchedule ?? []}
+        viewerIsHost={viewerIsHost}
       />
     </InvitationPublicProvider>
   );

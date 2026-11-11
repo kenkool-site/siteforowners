@@ -22,6 +22,8 @@ import {
 import { visibleOptimisticUploads, type GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import type { PublicHonorView } from "@/lib/invitations/memories/guests-of-honor";
+import { HonorCreamLabel, HonorGlyph } from "./HonorMark";
 import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
 import { MadeWithFooter, PlanningEndCard } from "./MemoriesChrome";
 import { MediaLightbox } from "./MediaLightbox";
@@ -39,6 +41,8 @@ export function GuestGalleryView({
   imageSrc = defaultMediaSrc,
   preview,
   openViewer,
+  honor = null,
+  viewerIsHost = false,
 }: {
   context: GuestMemoriesContext;
   accent: string;
@@ -49,9 +53,12 @@ export function GuestGalleryView({
   imageSrc?: MediaImageSrc;
   preview?: { media: PublicMemoryMedia[]; moments: MemoryMoment[]; viewerMediaIds?: string[]; viewerKnown?: boolean; now?: number } | null;
   openViewer?: boolean;
+  honor?: PublicHonorView | null;
+  viewerIsHost?: boolean;
 }) {
   const t = useTranslations("invitations.public.memories.gallery");
   const tr = useTranslations("invitations.public.memories.redesign");
+  const th = useTranslations("invitations.public.memories.honorees");
   const [media, setMedia] = useState<PublicMemoryMedia[]>(preview?.media ?? []);
   const [moments, setMoments] = useState<MemoryMoment[]>(preview?.moments ?? []);
   const [viewerMediaIds, setViewerMediaIds] = useState<string[]>(preview?.viewerMediaIds ?? []);
@@ -60,7 +67,7 @@ export function GuestGalleryView({
   const [error, setError] = useState(false);
   const [newCount, setNewCount] = useState(0);
   const [now, setNow] = useState(() => preview?.now ?? Date.now());
-  const [filter, setFilter] = useState<GalleryFilter>("all");
+  const [filter, setFilter] = useState<GalleryFilter | "honor">("all");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(openViewer ? 0 : null);
   const previousIds = useRef<Set<string>>(new Set());
   const searchParams = useSearchParams();
@@ -110,11 +117,17 @@ export function GuestGalleryView({
     ...viewerMediaIds,
     ...uploads.map((item) => item.mediaId).filter((id): id is string => Boolean(id)),
   ]);
-  const filtered = filterGalleryMedia(media, filter, localMine);
-  const sections = useMemo(
+  const honorTitle = honor ? (honor.fixedKey ? th(honor.fixedKey) : honor.name ?? th("guestsOfHonor")) : "";
+  const filtered = filter === "honor"
+    ? media.filter((item) => Boolean(honor?.labels[item.id]))
+    : filterGalleryMedia(media, filter, localMine);
+  const timeSections = useMemo(
     () => buildGallerySections(filtered, moments, context.timeZone, context.locale),
     [filtered, moments, context.timeZone, context.locale],
   );
+  const sections = filter === "honor"
+    ? [{ id: "honor", title: honorTitle, whenLabel: "", items: filtered }]
+    : timeSections;
   const lightboxMedia = sections.flatMap((section) => section.items);
   const videoCount = media.filter((item) => item.mediaKind === "video").length;
   const showMine = viewerKnown || localMine.size > 0;
@@ -147,7 +160,7 @@ export function GuestGalleryView({
       {newCount > 0 && <button type="button" onClick={() => setNewCount(0)} className="sticky top-3 z-10 mx-auto mb-3 block min-h-10 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg" style={{ backgroundColor: accent }}>{t("newPhotos", { count: newCount })}</button>}
 
       <section className="relative overflow-hidden rounded-3xl px-5 pb-4 pt-5 text-white shadow-lg" style={{ background: `radial-gradient(120% 90% at 100% 0%, ${accent} 0%, #163824 70%)` }}>
-        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#e9d6af]">{memoriesOverline(context.eventType) === "wedding" ? tr("weddingMemories") : tr("eventMemories")}</p>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#e9d6af]">{memoriesOverline(context.eventType) === "wedding" ? tr("weddingMemories") : memoriesOverline(context.eventType) === "birthday" ? tr("birthdayMemories") : tr("eventMemories")}</p>
         {days !== null && (
           <div className="absolute right-4 top-4 rounded-2xl border border-[#e9d6af]/40 bg-white/10 px-3 py-2 text-center">
             <b className="block font-serif text-2xl font-medium leading-none">{days}</b>
@@ -196,6 +209,7 @@ export function GuestGalleryView({
       {!empty && (
         <div className="mt-3.5 flex gap-2 overflow-x-auto">
           <FilterChip label={tr("filterAll")} count={media.length} active={filter === "all"} onClick={() => setFilter("all")} accent={accent} surface={surface} />
+          {honor && honor.count > 0 && <FilterChip label={honorTitle} count={honor.count} active={filter === "honor"} onClick={() => setFilter("honor")} accent={accent} surface={surface} />}
           {videoCount > 0 && <FilterChip label={tr("filterVideos")} count={videoCount} active={filter === "videos"} onClick={() => setFilter("videos")} accent={accent} surface={surface} />}
           {showMine && <FilterChip label={tr("filterMine")} count={filterGalleryMedia(media, "mine", localMine).length} active={filter === "mine"} onClick={() => setFilter("mine")} accent={accent} surface={surface} />}
         </div>
@@ -216,6 +230,16 @@ export function GuestGalleryView({
 
       {empty ? (
         <>
+          {viewerIsHost && honor && !started && (
+            <div className="mt-4 flex gap-3 rounded-[20px] border border-[#e4d6b0] bg-gradient-to-b from-[#f7f1e3] to-[#f0e6d0] p-3.5">
+              <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-white/70 text-[#8a6d32]"><HonorGlyph icon={honor.icon} className="size-5" /></span>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8a6d32]">{th("visibleOnly")}</p>
+                <p className="text-sm font-semibold">{honor.names.length === 1 ? th("bannerOne", { name: honor.names[0] ?? "" }) : honor.names.length === 2 ? th("bannerTwo", { first: honor.names[0] ?? "", second: honor.names[1] ?? "" }) : th("bannerMany", { names: honor.names.join(", ") })}</p>
+                <p className="mt-0.5 text-xs leading-5 text-[#6d5c3a]">{th("bannerBody")}</p>
+              </div>
+            </div>
+          )}
           <div className="mt-4 rounded-3xl border px-5 py-6 text-center" style={{ backgroundColor: surface, borderColor: `${accent}22` }}>
             <h3 className="font-serif text-xl font-semibold" style={{ color: accent }}>{tr("emptyTitle")}</h3>
             <p className="mt-1 text-sm opacity-70">{tr("emptyBody")}</p>
@@ -245,8 +269,8 @@ export function GuestGalleryView({
         sections.map((section) => (
           <section key={section.id} className="mt-5">
             <div className="mb-2.5 flex items-baseline gap-2">
-              <h3 className="font-serif text-lg font-semibold" style={{ color: accent }}>{section.title}</h3>
-              <span className="text-xs opacity-60">{[section.whenLabel, String(section.items.length)].filter(Boolean).join(" · ")}</span>
+              <h3 className="font-serif text-lg font-semibold" style={{ color: accent }}>{filter === "honor" ? honorTitle : section.title}</h3>
+              <span className="text-xs opacity-60">{[filter === "honor" ? null : section.whenLabel, String(section.items.length)].filter(Boolean).join(" · ")}</span>
               <span className="h-px flex-1" style={{ backgroundColor: `${accent}22` }} />
             </div>
             <div className="columns-2 gap-2.5">
@@ -258,8 +282,9 @@ export function GuestGalleryView({
                   <figure key={item.id} className="relative mb-2.5 break-inside-avoid overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
                     <button type="button" onClick={() => setLightboxIndex(index)} className="relative block w-full">
                       <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt={name ? t("photoBy", { name }) : ""} className="h-auto w-full" loading="lazy" />
+                      {honor?.labels[item.id] && <HonorCreamLabel label={honor.labels[item.id] ?? ""} icon={honor.icon} className="absolute left-2 top-2 z-[1]" />}
                       {item.mediaKind === "video" && (
-                        <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute left-2 top-2 inline-flex h-6 items-center gap-1 rounded-full bg-black/50 px-2 text-[11px] font-semibold text-white">
+                        <span aria-hidden="true" data-play-badge="true" className={`pointer-events-none absolute top-2 inline-flex h-6 items-center gap-1 rounded-full bg-black/50 px-2 text-[11px] font-semibold text-white ${honor?.labels[item.id] ? "right-2" : "left-2"}`}>
                           <Play className="size-2.5 fill-current" />{length}
                         </span>
                       )}
@@ -289,6 +314,8 @@ export function GuestGalleryView({
           moments={moments}
           imageSrc={imageSrc}
           onFindMe={context.findMeEnabled ? onFindMe : undefined}
+          honorLabels={honor?.labels}
+          honorIcon={honor?.icon}
           onClose={() => setLightboxIndex(null)}
           onNavigate={setLightboxIndex}
         />

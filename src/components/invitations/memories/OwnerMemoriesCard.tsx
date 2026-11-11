@@ -44,6 +44,7 @@ export function OwnerMemoriesCard({ eventId, slug, publicSubdomain, initial, man
         <label className={`flex min-h-11 items-center gap-3 text-sm font-medium ${enabled ? "" : "opacity-50"}`}><input type="checkbox" checked={findMeEnabled} disabled={saving || !enabled} onChange={(event) => { const previous = findMeEnabled; const next = event.target.checked; setFindMeEnabled(next); void save({ action: "set_find_me_enabled", enabled: next }, () => setFindMeEnabled(previous)); }} className="size-5 accent-[#6D456F]" />{t("findMeEnableLabel")}</label>
         <label className={`flex min-h-11 items-center gap-3 text-sm font-medium ${enabled ? "" : "opacity-50"}`}><input type="checkbox" checked={brandingEnabled} disabled={saving || !enabled} onChange={(event) => { const previous = brandingEnabled; const next = event.target.checked; setBrandingEnabled(next); void save({ action: "set_branding_enabled", enabled: next }, () => setBrandingEnabled(previous)); }} className="size-5 accent-[#6D456F]" />{t("brandingLabel")}</label>
         {error && <p role="alert" className="text-sm font-medium text-red-700 sm:col-span-2">{t("saveError")}</p>}
+        <Link href={`${manageBasePath}/${eventId}/memories/guests-of-honor`} className="inline-flex min-h-11 items-center text-sm font-semibold text-[#1f4a2c] underline-offset-4 hover:underline sm:col-span-2">{t("honorLink")}</Link>
       </div>
     </div>
   </section>;

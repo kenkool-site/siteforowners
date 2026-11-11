@@ -36,6 +36,7 @@ import {
   updateMemoryMediaModeration,
   upsertMemoryMediaDescriptor,
 } from "@/lib/invitations/memories/repository";
+import { matchApprovedMediaAgainstHonorees } from "@/lib/invitations/memories/honor-service";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 import type { StorageProvider } from "@/lib/invitations/memories/storage-provider";
 
@@ -59,6 +60,7 @@ export interface ModerateMediaDependencies {
   updateMemoryMediaHasFaces?: typeof updateMemoryMediaHasFaces;
   upsertMemoryMediaDescriptor?: typeof upsertMemoryMediaDescriptor;
   requestHighlightGeneration?: typeof requestHighlightGeneration;
+  matchApprovedMedia?: typeof matchApprovedMediaAgainstHonorees;
   storage?: StorageProvider;
   aiProvider?: AIProvider;
 }
@@ -76,6 +78,7 @@ export async function moderateMedia(
   const updateHasFaces = dependencies.updateMemoryMediaHasFaces ?? updateMemoryMediaHasFaces;
   const upsertDescriptor = dependencies.upsertMemoryMediaDescriptor ?? upsertMemoryMediaDescriptor;
   const requestGeneration = dependencies.requestHighlightGeneration ?? requestHighlightGeneration;
+  const matchHonorees = dependencies.matchApprovedMedia ?? matchApprovedMediaAgainstHonorees;
   const storage = dependencies.storage ?? new R2StorageProvider();
   const provider = dependencies.aiProvider ?? new RekognitionAIProvider();
 
@@ -143,6 +146,18 @@ export async function moderateMedia(
       }
     } catch (err) {
       console.error("[memories/moderate] AI Highlight descriptor extraction failed (non-fatal)", { mediaId, error: err });
+    }
+  }
+
+  // After moderation approves a photo, compare it with the host's guests of
+  // honor. Awaiting-review uploads wait until the host approves them (that
+  // path calls matchApprovedMediaIds). Failures here never change the
+  // moderation result. No-ops when tagging is not set.
+  if (outcome.moderationStatus === "approved") {
+    try {
+      await matchHonorees(media.eventId, mediaId, bytes);
+    } catch (matchError) {
+      console.error("[memories/moderate] guests-of-honor match failed (non-fatal)", { mediaId, error: matchError });
     }
   }
 

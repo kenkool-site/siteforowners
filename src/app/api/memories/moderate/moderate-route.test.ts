@@ -408,6 +408,34 @@ test("has_faces is computed even for flagged/rejected content, since a flagged i
 // src/lib/invitations/*-route*.test.ts and settings-route.test.ts: this
 // guards against the old, unrelated Moment classifier this task's predecessor
 // replaced ever creeping back into the extracted moderation logic.
+test("approved media is matched to guests of honor after moderation, and rejected media is not", async () => {
+  const matched: string[] = [];
+  const approved = await withStubbedFetch(() =>
+    moderateMedia("media-1", baseDependencies({
+      getMemoryMediaById: async () => media({ id: "media-1" }),
+      matchApprovedMedia: async (eventId, mediaId) => { matched.push(`${eventId}:${mediaId}`); },
+    })),
+  );
+  assert.equal(approved.status, 200);
+  assert.deepEqual(matched, ["event-1:media-1"]);
+
+  matched.length = 0;
+  const rejected = await withStubbedFetch(() =>
+    moderateMedia("media-1", baseDependencies({
+      getMemoryMediaById: async () => media({ id: "media-1" }),
+      aiProvider: {
+        moderateImage: async () => ({ highestConfidence: 0.99, categories: ["Explicit Nudity"] }),
+        detectLabels: async () => [],
+        detectFaces: async () => false,
+        compareFaces: async () => 0,
+      },
+      matchApprovedMedia: async () => { matched.push("rejected"); },
+    })),
+  );
+  assert.equal(rejected.body.moderationStatus, "rejected");
+  assert.deepEqual(matched, []);
+});
+
 test("moderate-media wires in the AI Highlight pipeline instead of the old Moment classifier", () => {
   const source = readFileSync(new URL("./moderate-media.ts", import.meta.url), "utf8");
   assert.match(source, /detectLabels\(/);
