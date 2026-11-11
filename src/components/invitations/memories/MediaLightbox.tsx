@@ -9,6 +9,8 @@ import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { knownContributorName } from "@/lib/invitations/memories/guest-presentation";
 import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import type { HonorIcon } from "@/lib/invitations/memories/guests-of-honor";
+import { HonorCreamLabel } from "./HonorMark";
 import { defaultMediaSrc, type MediaImageSrc } from "./media-src";
 
 export interface MediaLightboxProps {
@@ -19,6 +21,8 @@ export interface MediaLightboxProps {
   moments?: MemoryMoment[];
   imageSrc?: MediaImageSrc;
   onFindMe?: () => void;
+  honorLabels?: Record<string, string>;
+  honorIcon?: HonorIcon;
 }
 
 const SWIPE_THRESHOLD_PX = 50;
@@ -99,7 +103,7 @@ type NavigationTarget = { kind: "list"; index: number } | { kind: "detour"; medi
 // touch/pointer swipe support. Also shows "Every Perspective": other
 // gallery-visible media captured around the same instant as the item being
 // viewed.
-export function MediaLightbox({ media, index, onClose, onNavigate, moments = [], imageSrc = defaultMediaSrc, onFindMe }: MediaLightboxProps) {
+export function MediaLightbox({ media, index, onClose, onNavigate, moments = [], imageSrc = defaultMediaSrc, onFindMe, honorLabels, honorIcon = "rings" }: MediaLightboxProps) {
   const t = useTranslations("invitations.public.memories.lightbox");
   const tr = useTranslations("invitations.public.memories.redesign");
   // Reuses the gallery namespace's existing "Photo shared by {name}" copy —
@@ -457,6 +461,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
             className="relative z-[1] size-full touch-pan-y select-none object-contain"
           />
         )}
+        {honorLabels?.[item.id] && <HonorCreamLabel label={honorLabels[item.id] ?? ""} icon={honorIcon} className="absolute bottom-16 left-3.5 z-[6] h-7 px-2.5 text-[12.5px]" />}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-8">
           {!isDragging && !suppressTransition && item.mediaKind !== "video" && nearby.length > 0 && (
             <div className="pointer-events-auto mb-2.5" onClick={(event) => event.stopPropagation()}>
@@ -496,10 +501,10 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
             </span>
           </div>
         )}
-        <div className="mt-3 grid grid-cols-4 text-center text-[11px]">
+        <div className={`mt-3 grid text-center text-[11px] ${onFindMe ? "grid-cols-3" : "grid-cols-2"}`}>
           <button type="button" className="flex flex-col items-center gap-1 text-[#9fd0ab]" onClick={() => void downloadCurrent()}><Download className="size-5" />{tr("download")}</button>
           <button type="button" aria-label={t("share")} className="flex flex-col items-center gap-1" onClick={() => void handleShare()}><Share2 className="size-5" />{t("share")}</button>
-          {onFindMe ? <button type="button" className="flex flex-col items-center gap-1" onClick={onFindMe}><ScanFace className="size-5" />{tr("findMeAction")}</button> : <span />}
+          {onFindMe && <button type="button" className="flex flex-col items-center gap-1" onClick={onFindMe}><ScanFace className="size-5" />{tr("findMeAction")}</button>}
         </div>
       </div>
     </div>

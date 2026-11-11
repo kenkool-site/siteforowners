@@ -36,11 +36,22 @@ export function resolveModerationOutcome(
   return { ...base, moderationStatus: mode === "auto_publish" ? "approved" : "awaiting_host_review" };
 }
 
+export interface DetectedFaceBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  confidence: number;
+}
+
 export interface AIProvider {
   moderateImage(bytes: Uint8Array): Promise<ModerationResult>;
   detectLabels(bytes: Uint8Array): Promise<DetectedLabel[]>;
   detectFaces(bytes: Uint8Array): Promise<boolean>;
   compareFaces(sourceBytes: Uint8Array, targetBytes: Uint8Array, similarityThreshold: number): Promise<number>;
+  // Optional so existing test fakes keep type-checking. Guests of honor uses
+  // it to place each face from one group photo; Find Me only needs a boolean.
+  detectFaceBoxes?(bytes: Uint8Array): Promise<DetectedFaceBox[]>;
 }
 
 export class RekognitionAIProvider implements AIProvider {
@@ -66,9 +77,22 @@ export class RekognitionAIProvider implements AIProvider {
   }
 
   async detectFaces(bytes: Uint8Array): Promise<boolean> {
+    const faces = await this.detectFaceBoxes(bytes);
+    return faces.length > 0;
+  }
+
+  async detectFaceBoxes(bytes: Uint8Array): Promise<DetectedFaceBox[]> {
     const client = new RekognitionClient({ region: process.env.AWS_REGION ?? "us-east-1" });
     const response = await client.send(new DetectFacesCommand({ Image: { Bytes: bytes } }));
-    return (response.FaceDetails ?? []).length > 0;
+    return (response.FaceDetails ?? [])
+      .map((face) => ({
+        left: face.BoundingBox?.Left ?? 0,
+        top: face.BoundingBox?.Top ?? 0,
+        width: face.BoundingBox?.Width ?? 0,
+        height: face.BoundingBox?.Height ?? 0,
+        confidence: (face.Confidence ?? 0) / 100,
+      }))
+      .filter((box) => box.width > 0.01 && box.height > 0.01);
   }
 
   async compareFaces(sourceBytes: Uint8Array, targetBytes: Uint8Array, similarityThreshold: number): Promise<number> {

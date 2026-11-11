@@ -259,6 +259,9 @@ export function viewerMediaIdsForSession(
     .map((item) => item.id);
 }
 
-export function memoriesOverline(eventType: string | null | undefined): "wedding" | "event" {
-  return eventType === "wedding" ? "wedding" : "event";
+export function memoriesOverline(eventType: string | null | undefined): "wedding" | "birthday" | "event" {
+  const kind = (eventType ?? "").trim().toLowerCase();
+  if (kind === "wedding" || kind === "boda") return "wedding";
+  if (kind === "birthday" || kind === "cumpleaños" || kind === "cumpleanos" || kind === "cumple") return "birthday";
+  return "event";
 }
