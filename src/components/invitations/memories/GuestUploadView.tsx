@@ -1,10 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Camera, Check, X } from "lucide-react";
+import { Camera, Check, ChevronRight, Images, Plus, Shield, Sparkles, Upload, User, Video, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
+import { guestNameSkippedKey, suggestMomentId } from "@/lib/invitations/memories/guest-presentation";
+import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import { createUploadQueue, type QueueItem, type UploadQueue } from "@/lib/invitations/memories/upload-queue";
+import { PlanningSoftLink } from "./MemoriesChrome";
+
+const videoDurations = new WeakMap<File, number>();
 
 const UNSUPPORTED_TYPES = new Set(["image/heic", "image/heif"]);
 const VIDEO_CONTENT_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
@@ -197,7 +202,7 @@ async function uploadOne(eventId: string, file: File, posterFile: File | undefin
   const initRes = await fetch(`/api/memories/events/${eventId}/upload/init`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ mediaKind, contentType: file.type, sizeBytes: file.size }),
+    body: JSON.stringify({ mediaKind, contentType: file.type, sizeBytes: file.size, ...(videoDurations.has(file) ? { durationSeconds: videoDurations.get(file) } : {}) }),
   });
   if (!initRes.ok) {
     if (initRes.status === 429) throw new Error(ERROR_QUOTA);
@@ -254,19 +259,51 @@ function failureMessageKey(
   return "failed";
 }
 
-export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: string; accent: string; onItemsChange: (items: GuestUploadPreview[]) => void }) {
+type UploadStep = "closed" | "name" | "source" | "review" | "uploading" | "browsing" | "success";
+type StagedUpload = { key: string; file: File; poster?: File; previewUrl: string; durationSeconds?: number };
+
+export function GuestUploadView({
+  eventId,
+  accent,
+  onItemsChange,
+  eventTitle = "",
+  guestName = "",
+  onGuestName,
+  moments = [],
+  branding = false,
+  slug = "",
+  onSeeGallery,
+  onBind,
+  demo = null,
+}: {
+  eventId: string;
+  accent: string;
+  onItemsChange: (items: GuestUploadPreview[]) => void;
+  eventTitle?: string;
+  guestName?: string;
+  onGuestName?: (name: string) => void;
+  moments?: MemoryMoment[];
+  branding?: boolean;
+  slug?: string;
+  onSeeGallery?: () => void;
+  onBind?: (api: { open: (momentId?: string) => void }) => void;
+  demo?: { step: UploadStep; name?: string; previews?: string[] } | null;
+}) {
   const t = useTranslations("invitations.public.memories.upload");
-  const tLanding = useTranslations("invitations.public.memories.landing");
+  const tr = useTranslations("invitations.public.memories.redesign");
   const [items, setItems] = useState<GuestUploadPreview[]>([]);
   const [rejectionError, setRejectionError] = useState<string | null>(null);
   const [successCount, setSuccessCount] = useState(0);
-  // Collapses the CTA to an icon-only button once the guest scrolls past the
-  // header, so it stops competing visually with the bottom tab bar directly
-  // beneath it. Full pill only while near the top, where there's no nav
-  // crowding yet.
-  const [scrolled, setScrolled] = useState(false);
+  const [step, setStep] = useState<UploadStep>(demo?.step ?? "closed");
+  const [staged, setStaged] = useState<StagedUpload[]>([]);
+  const [nameDraft, setNameDraft] = useState(guestName);
+  const [momentId, setMomentId] = useState<string | null>(null);
+  const [batchIds, setBatchIds] = useState<string[]>([]);
+  const [batchTotal, setBatchTotal] = useState(0);
   const queueRef = useRef<UploadQueue | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLInputElement>(null);
   const previewsRef = useRef(new Map<string, string>());
   const completedAtRef = useRef(new Map<string, number>());
   const statusRef = useRef(new Map<string, QueueItem["status"]>());
@@ -318,18 +355,51 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
     };
   }, [eventId, publishItems]);
 
+  const demoApplied = useRef(false);
   useEffect(() => {
-    function onScroll() {
-      setScrolled(window.scrollY > 80);
+    if (!demo?.previews?.length || demoApplied.current) return;
+    demoApplied.current = true;
+    const file = new File([new Uint8Array([1])], "photo.jpg", { type: "image/jpeg" });
+    setNameDraft(demo.name ?? "");
+    setStaged(demo.previews.map((previewUrl, index) => ({ key: `demo-${index}`, file, previewUrl, durationSeconds: index === 2 ? 24 : undefined })));
+    setBatchTotal(demo.previews.length);
+    setBatchIds(demo.previews.map((_, index) => `demo-${index}`));
+    if (demo.step === "uploading" || demo.step === "browsing" || demo.step === "success") {
+      const statuses = ["done", "done", "uploading", "queued"] as const;
+      setItems(demo.previews.map((previewUrl, index) => ({
+        id: `demo-${index}`,
+        fileName: index === 2 ? "Video · 0:24" : `Photo ${index + 1}`,
+        contentType: "image/jpeg",
+        sizeBytes: 1,
+        status: demo.step === "success" ? "done" : statuses[index] ?? "queued",
+        progress: demo.step === "success" ? 100 : index === 2 ? 62 : index < 2 ? 100 : 0,
+        previewUrl,
+      })));
     }
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => window.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [demo]);
 
-  async function handleFiles(fileList: FileList | null) {
-    if (!fileList || !queueRef.current) return;
+  useEffect(() => {
+    onBind?.({
+      open: () => {
+        let skipped = false;
+        try { skipped = window.localStorage.getItem(guestNameSkippedKey(eventId)) === "1"; } catch { skipped = false; }
+        setStep(!guestName.trim() && !skipped ? "name" : "source");
+      },
+    });
+  }, [eventId, guestName, onBind]);
+
+  useEffect(() => {
+    if (batchIds.length === 0) return;
+    const batch = items.filter((item) => batchIds.includes(item.id));
+    if (batch.length < batchIds.length) return;
+    const pending = batch.some((item) => item.status === "queued" || item.status === "uploading");
+    if (!pending && (step === "uploading" || step === "browsing") && batch.some((item) => item.status === "done")) setStep("success");
+  }, [items, batchIds, step]);
+
+  async function stageFiles(fileList: FileList | null) {
+    if (!fileList) return;
     setRejectionError(null);
+    const next: StagedUpload[] = [];
     for (const file of Array.from(fileList)) {
       if (UNSUPPORTED_TYPES.has(file.type)) {
         setRejectionError(t("heicError"));
@@ -343,55 +413,163 @@ export function GuestUploadView({ eventId, accent, onItemsChange }: { eventId: s
             continue;
           }
           const poster = await capturePosterFrame(file);
-          const id = await queueRef.current.enqueue(file, poster);
-          previewsRef.current.set(id, URL.createObjectURL(file));
-          publishItems(queueRef.current.getItems());
+          videoDurations.set(file, duration);
+          next.push({ key: `${file.name}-${file.size}-${file.lastModified}-${next.length}`, file, poster, previewUrl: URL.createObjectURL(file), durationSeconds: duration });
         } catch {
           setRejectionError(t("genericError"));
         }
         continue;
       }
-      const id = await queueRef.current.enqueue(file);
-      previewsRef.current.set(id, URL.createObjectURL(file));
-      publishItems(queueRef.current.getItems());
+      next.push({ key: `${file.name}-${file.size}-${file.lastModified}-${next.length}`, file, previewUrl: URL.createObjectURL(file) });
+    }
+    if (next.length > 0) {
+      setStaged((current) => [...current, ...next]);
+      setMomentId(suggestMomentId(next.map((item) => item.file.lastModified), moments));
+      setStep("review");
     }
     if (inputRef.current) inputRef.current.value = "";
+    if (photoRef.current) photoRef.current.value = "";
+    if (videoRef.current) videoRef.current.value = "";
+  }
+
+  async function confirmUpload() {
+    if (!queueRef.current || staged.length === 0) return;
+    const ids: string[] = [];
+    for (const item of staged) {
+      if (item.durationSeconds != null) videoDurations.set(item.file, item.durationSeconds);
+      const id = await queueRef.current.enqueue(item.file, item.poster);
+      previewsRef.current.set(id, item.previewUrl);
+      ids.push(id);
+    }
+    setBatchIds(ids);
+    setBatchTotal(ids.length);
+    setStaged([]);
+    setStep("uploading");
+    if (nameDraft.trim()) onGuestName?.(nameDraft.trim());
+    publishItems(queueRef.current.getItems());
   }
 
   const active = items.filter((item) => item.status === "queued" || item.status === "uploading");
   const failed = items.filter((item) => item.status === "failed");
-  const overallProgress = active.length ? Math.round(active.reduce((total, item) => total + item.progress, 0) / active.length) : 0;
+
+  const batchItems = items.filter((item) => batchIds.includes(item.id));
+  const doneCount = batchItems.filter((item) => item.status === "done").length;
+  const momentName = moments.find((moment) => moment.id === momentId)?.name;
+  const accept = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime";
 
   return (
     <>
-      <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime" multiple className="hidden" onChange={(event) => void handleFiles(event.target.files)} />
+      <input ref={inputRef} type="file" accept={accept} multiple className="hidden" onChange={(event) => void stageFiles(event.target.files)} />
+      <input ref={photoRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" capture="environment" className="hidden" onChange={(event) => void stageFiles(event.target.files)} />
+      <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={(event) => void stageFiles(event.target.files)} />
 
-      <div className="pointer-events-none fixed inset-x-4 bottom-[9.25rem] z-40 mx-auto flex max-w-xl flex-col items-center gap-2">
-        {rejectionError && <div role="alert" className="pointer-events-auto flex w-full items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-red-700 shadow-lg ring-1 ring-black/5"><span>{rejectionError}</span><button type="button" aria-label={t("dismiss")} onClick={() => setRejectionError(null)}><X className="size-4" /></button></div>}
-        {failed.slice(0, 1).map((item) => <div key={item.id} role="alert" className="pointer-events-auto flex w-full items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-black/5">
-          <p className="min-w-0 flex-1 text-sm"><span className="block truncate font-medium">{item.fileName}</span><span className="text-red-700">{t(failureMessageKey(item.error))}</span></p>
-          {!TERMINAL_UPLOAD_ERRORS.has(item.error ?? "") && <button type="button" onClick={() => queueRef.current?.retry(item.id)} className="text-sm font-semibold" style={{ color: accent }}>{t("retry")}</button>}
-          <button type="button" aria-label={t("dismiss")} onClick={() => queueRef.current?.dismiss(item.id)}><X className="size-4" /></button>
-        </div>)}
-        {active.length > 0 && <div className="w-full rounded-2xl bg-white px-4 py-3 shadow-lg ring-1 ring-black/5">
-          <div className="flex items-center justify-between gap-4 text-sm font-medium"><span>{t("uploadingCount", { count: active.length })}</span><span>{overallProgress}%</span></div>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/10"><div className="h-full rounded-full transition-[width]" style={{ width: `${overallProgress}%`, backgroundColor: accent }} /></div>
-        </div>}
-        {successCount > 0 && active.length === 0 && <div role="status" className="flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-semibold shadow-lg ring-1 ring-black/5"><span className="grid size-6 place-items-center rounded-full text-white" style={{ backgroundColor: accent }}><Check className="size-4" /></span>{t("added", { count: successCount })}</div>}
-      </div>
+      {(rejectionError || failed[0]) && (
+        <div className="fixed inset-x-4 bottom-28 z-50 mx-auto max-w-xl">
+          {rejectionError && <div role="alert" className="flex items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-red-700 shadow-lg"><span>{rejectionError}</span><button type="button" aria-label={t("dismiss")} onClick={() => setRejectionError(null)}><X className="size-4" /></button></div>}
+          {failed.slice(0, 1).map((item) => <div key={item.id} role="alert" className="mt-2 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
+            <p className="min-w-0 flex-1 text-sm"><span className="block truncate font-medium">{item.fileName}</span><span className="text-red-700">{t(failureMessageKey(item.error))}</span></p>
+            {!TERMINAL_UPLOAD_ERRORS.has(item.error ?? "") && <button type="button" onClick={() => queueRef.current?.retry(item.id)} className="text-sm font-semibold" style={{ color: accent }}>{t("retry")}</button>}
+            <button type="button" aria-label={t("dismiss")} onClick={() => queueRef.current?.dismiss(item.id)}><X className="size-4" /></button>
+          </div>)}
+        </div>
+      )}
 
-      <div className={`fixed inset-x-4 bottom-[4.75rem] z-30 mx-auto flex max-w-xl ${scrolled ? "justify-end" : ""}`}>
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          aria-label={scrolled ? tLanding("addPhotos") : undefined}
-          className={`flex min-h-14 items-center justify-center gap-3 rounded-full text-base font-semibold text-white shadow-[0_8px_30px_rgba(0,0,0,0.16)] transition-[width,padding] duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 ${scrolled ? "w-14 px-0" : "w-full px-6 py-3"}`}
-          style={{ backgroundColor: accent, outlineColor: accent }}
-        >
-          <Camera className="size-5" />
-          {!scrolled && tLanding("addPhotos")}
+      {step === "browsing" && active.length > 0 && (
+        <button type="button" onClick={() => setStep("uploading")} className="fixed inset-x-4 bottom-24 z-40 mx-auto flex h-12 max-w-xl items-center gap-2 rounded-full bg-[#1c2a20] px-3 text-sm font-semibold text-white shadow-lg">
+          <span className="grid size-7 place-items-center rounded-full border-2 border-[#9fd0ab] text-[10px]">{doneCount}</span>
+          {tr("addingPill")} <small className="font-medium text-[#b9cdbf]">{tr("pillCount", { done: doneCount, total: batchTotal || active.length })}</small>
+          <span className="ml-auto rounded-full bg-white/15 px-3 py-1 text-xs">{tr("viewProgress")}</span>
         </button>
-      </div>
+      )}
+
+      {step !== "closed" && step !== "browsing" && (
+        <div className="fixed inset-0 z-40 flex items-end bg-black/55" role="presentation" onClick={() => step !== "uploading" && setStep("closed")}>
+          <div role="dialog" aria-modal="true" className="mx-auto max-h-[92vh] w-full max-w-2xl overflow-y-auto rounded-t-3xl bg-[#fbfaf6] px-5 pb-8 pt-3 text-[#1c2a20]" onClick={(event) => event.stopPropagation()}>
+            <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-black/10" />
+            {step === "name" && (
+              <div className="text-center">
+                <div className="mx-auto grid size-14 place-items-center rounded-full" style={{ backgroundColor: `${accent}14`, color: accent }}><User className="size-7" /></div>
+                <h2 className="mt-3 font-serif text-2xl font-semibold" style={{ color: accent }}>{tr("nameTitle")}</h2>
+                <p className="mt-1 text-sm opacity-70">{tr("nameBody", { event: eventTitle })}</p>
+                <input value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder={tr("namePlaceholder")} className="mt-4 h-12 w-full rounded-2xl border px-4" style={{ borderColor: accent }} />
+                <button type="button" className="mt-4 h-14 w-full rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }} onClick={() => { if (nameDraft.trim()) onGuestName?.(nameDraft.trim()); setStep("source"); }}>{tr("continue")}</button>
+                <button type="button" className="mt-3 text-sm font-semibold opacity-60" onClick={() => { try { window.localStorage.setItem(guestNameSkippedKey(eventId), "1"); } catch { /* private mode */ } setStep("source"); }}>{tr("skip")}</button>
+              </div>
+            )}
+            {step === "source" && (
+              <div>
+                <div className="flex items-start justify-between"><div><h2 className="font-serif text-2xl font-semibold" style={{ color: accent }}>{tr("sourceTitle")}</h2><p className="text-xs opacity-60">{tr("sourceMeta", { event: eventTitle })}</p></div><button type="button" aria-label={tr("cancel")} onClick={() => setStep("closed")} className="grid size-9 place-items-center rounded-full bg-black/5"><X className="size-4" /></button></div>
+                <div className="mt-4 grid gap-2.5">
+                  <button type="button" onClick={() => photoRef.current?.click()} className="flex items-center gap-3 rounded-2xl border bg-white p-3 text-left"><span className="grid size-11 place-items-center rounded-xl" style={{ backgroundColor: `${accent}14`, color: accent }}><Camera className="size-5" /></span><span><b className="block">{tr("takePhoto")}</b><small className="opacity-60">{tr("takePhotoHint")}</small></span><ChevronRight className="ml-auto size-4 opacity-40" /></button>
+                  <button type="button" onClick={() => videoRef.current?.click()} className="flex items-center gap-3 rounded-2xl border bg-white p-3 text-left"><span className="grid size-11 place-items-center rounded-xl" style={{ backgroundColor: `${accent}14`, color: accent }}><Video className="size-5" /></span><span><b className="block">{tr("recordVideo")}</b><small className="opacity-60">{tr("recordVideoHint")}</small></span><ChevronRight className="ml-auto size-4 opacity-40" /></button>
+                  <button type="button" onClick={() => inputRef.current?.click()} className="flex items-center gap-3 rounded-2xl border bg-white p-3 text-left"><span className="grid size-11 place-items-center rounded-xl" style={{ backgroundColor: `${accent}14`, color: accent }}><Images className="size-5" /></span><span><b className="block">{tr("library")}</b><small className="opacity-60">{tr("libraryHint")}</small></span><ChevronRight className="ml-auto size-4 opacity-40" /></button>
+                </div>
+                <button type="button" onClick={() => setStep("closed")} className="mt-3 h-12 w-full rounded-2xl bg-[#f1ede3] font-semibold">{tr("cancel")}</button>
+              </div>
+            )}
+            {step === "review" && (
+              <div>
+                <h2 className="font-serif text-2xl font-semibold" style={{ color: accent }}>{tr("reviewTitle", { count: staged.length })}</h2>
+                <p className="text-sm opacity-60">{tr("reviewMeta", { event: eventTitle })}</p>
+                <div className="mt-4 grid grid-cols-4 gap-2">
+                  {staged.map((item) => (
+                    <div key={item.key} className="relative aspect-square overflow-hidden rounded-xl">
+                      <img src={item.previewUrl} alt="" className="size-full object-cover" />
+                      <button type="button" aria-label={t("dismiss")} className="absolute -right-1 -top-1 grid size-6 place-items-center rounded-full bg-[#1c2a20] text-white" onClick={() => setStaged((current) => current.filter((entry) => entry.key !== item.key))}><X className="size-3" /></button>
+                      {item.durationSeconds != null && <span className="absolute bottom-1 left-1 rounded bg-black/50 px-1 text-[10px] text-white">{Math.floor(item.durationSeconds / 60)}:{String(Math.round(item.durationSeconds % 60)).padStart(2, "0")}</span>}
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="mt-3 inline-flex items-center gap-1 text-sm font-semibold" style={{ color: accent }} onClick={() => inputRef.current?.click()}><Plus className="size-4" />{tr("addMore")}</button>
+                {moments.length > 0 && (
+                  <>
+                    <p className="mt-4 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide opacity-60">{tr("momentLabel")}<span className="inline-flex items-center gap-1 normal-case tracking-normal text-[#b8955a]"><Sparkles className="size-3" />{tr("suggested")}</span></p>
+                    <div className="mt-2 flex flex-wrap gap-2">{moments.map((moment) => <button key={moment.id} type="button" onClick={() => setMomentId(moment.id)} className="h-8 rounded-full px-3 text-xs font-semibold" style={{ backgroundColor: momentId === moment.id ? "#1c2a20" : "#fff", color: momentId === moment.id ? "#fff" : "#1c2a20" }}>{moment.name}</button>)}</div>
+                  </>
+                )}
+                <label className="mt-4 block text-[11px] font-semibold uppercase tracking-wide opacity-60">{tr("yourName")} <span className="normal-case tracking-normal">{tr("optional")}</span>
+                  <input value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} className="mt-2 h-12 w-full rounded-2xl border bg-white px-3 text-base font-medium normal-case" style={{ borderColor: accent }} />
+                </label>
+                <p className="mt-1 text-xs opacity-60">{tr("nameHint")}</p>
+                <p className="mt-3 rounded-2xl px-3 py-2 text-xs leading-5" style={{ backgroundColor: `${accent}12` }}><b>{tr("whoSees")}</b> {tr("whoSeesBody", { event: eventTitle })}</p>
+                <button type="button" onClick={() => void confirmUpload()} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }}><Upload className="size-4" />{tr("addCount", { count: staged.length })}</button>
+                <p className="mt-2 flex items-center justify-center gap-1 text-center text-[11px] opacity-60"><Shield className="size-3.5" />{tr("finePrint")}</p>
+              </div>
+            )}
+            {step === "uploading" && (
+              <div>
+                <h2 className="font-serif text-2xl font-semibold" style={{ color: accent }}>{tr("uploadingTitle", { count: batchTotal })}</h2>
+                <p className="text-xs opacity-60">{momentName ? tr("uploadingMeta", { done: doneCount, total: batchTotal, moment: momentName }) : tr("uploadingMetaPlain", { done: doneCount, total: batchTotal })}</p>
+                <ul className="mt-4 grid gap-2.5">
+                  {batchItems.map((item, index) => (
+                    <li key={item.id} className="flex items-center gap-3">
+                      <span className="size-11 overflow-hidden rounded-xl bg-black/5">{item.previewUrl && <img src={item.previewUrl} alt="" className="size-full object-cover" />}</span>
+                      <span className="min-w-0 flex-1 text-sm font-semibold">{item.fileName}<small className="block font-medium opacity-60">{item.status === "done" ? tr("addedStatus") : item.status === "uploading" ? tr("uploadingStatus", { percent: item.progress }) : tr("waiting")}</small>
+                        {item.status === "uploading" && <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-black/10"><i className="block h-full rounded-full" style={{ width: `${item.progress}%`, backgroundColor: accent }} /></span>}
+                      </span>
+                      {item.status === "done" && <span className="grid size-6 place-items-center rounded-full text-white" style={{ backgroundColor: accent }}><Check className="size-3.5" /></span>}
+                      {item.status !== "done" && <span className="text-xs opacity-50">{index + 1}</span>}
+                    </li>
+                  ))}
+                </ul>
+                <button type="button" onClick={() => setStep("browsing")} className="mt-4 h-14 w-full rounded-full border text-base font-semibold" style={{ color: accent, borderColor: `${accent}33` }}>{tr("keepBrowsing")}</button>
+                <p className="mt-2 text-center text-[11px] opacity-60">{tr("keepBrowsingNote")}</p>
+              </div>
+            )}
+            {step === "success" && (
+              <div className="text-center">
+                <div className="mx-auto grid size-16 place-items-center rounded-full text-white" style={{ backgroundColor: accent }}><Check className="size-8" /></div>
+                <h2 className="mt-4 font-serif text-3xl font-semibold" style={{ color: accent }}>{nameDraft.trim() ? tr("thanks", { name: nameDraft.trim() }) : tr("thanksAnon")}</h2>
+                <p className="text-sm opacity-70">{tr("thanksMeta", { count: successCount || doneCount || batchTotal, event: eventTitle })}</p>
+                <p className="mt-4 flex gap-2 rounded-2xl px-3 py-3 text-left text-xs leading-5" style={{ backgroundColor: `${accent}12` }}><Shield className="size-4 shrink-0" style={{ color: accent }} />{tr("moderationNote")}</p>
+                <button type="button" onClick={() => { setStep("closed"); onSeeGallery?.(); }} className="mt-4 h-14 w-full rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }}>{tr("seeGallery")}</button>
+                <button type="button" onClick={() => setStep("source")} className="mt-2 h-12 w-full rounded-full border text-sm font-semibold" style={{ color: accent, borderColor: `${accent}33` }}><Plus className="mr-1 inline size-4" />{tr("addMore")}</button>
+                {branding && <PlanningSoftLink slug={slug} accent={accent} surface="#fff" text="#1c2a20" content="success" />}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }

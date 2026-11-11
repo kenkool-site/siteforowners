@@ -1,15 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { Images, Sparkles, Users } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
+import type { GuestMemoriesContext } from "@/lib/invitations/memories/guest-presentation";
+import { guestNameStorageKey } from "@/lib/invitations/memories/guest-presentation";
 import type { GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
-import { GuestUploadView } from "./GuestUploadView";
+import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
+import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import type { GuestHighlightGroup } from "./GuestAiHighlightView";
+import { GuestAiHighlightView } from "./GuestAiHighlightView";
 import { GuestGalleryView } from "./GuestGalleryView";
 import { GuestMomentsView } from "./GuestMomentsView";
-import { GuestAiHighlightView } from "./GuestAiHighlightView";
-
-type Tab = "gallery" | "moments" | "highlights";
+import { GuestUploadView } from "./GuestUploadView";
+import { FindMeFlow } from "./FindMeFlow";
+import { AboutInviteSpotSheet, MemoriesTabBar, MemoriesTopBar, type MemoriesTab } from "./MemoriesChrome";
+import type { MediaImageSrc } from "./media-src";
 
 function rsvpCredentialFromUrl(): { rsvpId: string; editToken: string } | null {
   try {
@@ -30,6 +35,16 @@ export function GuestMemoriesApp({
   text,
   surface,
   findMeEnabled,
+  slug = "",
+  startsAt = null,
+  timeZone = "UTC",
+  venueName = null,
+  address = null,
+  eventType = "event",
+  locale = "en",
+  brandingEnabled = true,
+  schedule = [],
+  preview,
 }: {
   eventId: string;
   eventTitle: string;
@@ -38,17 +53,67 @@ export function GuestMemoriesApp({
   text: string;
   surface: string;
   findMeEnabled: boolean;
+  slug?: string;
+  startsAt?: string | null;
+  timeZone?: string;
+  venueName?: string | null;
+  address?: string | null;
+  eventType?: string;
+  locale?: string;
+  brandingEnabled?: boolean;
+  schedule?: GuestMemoriesContext["schedule"];
+  preview?: {
+    now?: number;
+    media?: PublicMemoryMedia[];
+    moments?: MemoryMoment[];
+    highlights?: GuestHighlightGroup[];
+    viewerMediaIds?: string[];
+    imageSrc?: MediaImageSrc;
+    openViewer?: boolean;
+    openFind?: boolean;
+    findResults?: PublicMemoryMedia[];
+    openAbout?: boolean;
+    screen?: string;
+    uploadStep?: "name" | "source" | "review" | "uploading" | "browsing" | "success";
+    uploadPreviews?: string[];
+  } | null;
 }) {
-  const t = useTranslations("invitations.public.memories.landing");
   const tUpload = useTranslations("invitations.public.memories.upload");
-  const [tab, setTab] = useState<Tab>("gallery");
-  const [sessionReady, setSessionReady] = useState(false);
+  const tLanding = useTranslations("invitations.public.memories.landing");
+  const tr = useTranslations("invitations.public.memories.redesign");
+  const initialTab: MemoriesTab = preview?.screen === "highlights" || preview?.screen === "highlights-empty" || preview?.screen === "highlights-loading"
+    ? "highlights"
+    : preview?.screen === "moments"
+      ? "moments"
+      : preview?.screen === "find"
+        ? "find"
+        : "gallery";
+  const [tab, setTab] = useState<MemoriesTab>(initialTab);
+  const [sessionReady, setSessionReady] = useState(Boolean(preview));
   const [sessionError, setSessionError] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [greeting, setGreeting] = useState<string | null>(null);
   const [editingName, setEditingName] = useState(false);
   const [uploads, setUploads] = useState<GuestUploadPreview[]>([]);
+  const [aboutOpen, setAboutOpen] = useState(Boolean(preview?.openAbout));
+  const [findOpen, setFindOpen] = useState(Boolean(preview?.openFind || preview?.screen === "find" || preview?.findResults?.length));
+  const openUpload = useRef<(momentId?: string) => void>(() => undefined);
   const handleUploadsChange = useCallback((items: GuestUploadPreview[]) => setUploads(items), []);
+
+  const context: GuestMemoriesContext = {
+    eventId,
+    slug,
+    title: eventTitle,
+    eventType,
+    startsAt,
+    timeZone,
+    venueName,
+    address,
+    locale,
+    findMeEnabled,
+    brandingEnabled,
+    schedule,
+  };
 
   async function mintSession(name?: string) {
     const credential = rsvpCredentialFromUrl();
@@ -74,70 +139,115 @@ export function GuestMemoriesApp({
   }
 
   useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(guestNameStorageKey(eventId));
+      if (stored) {
+        setGuestName(stored);
+        setGreeting(stored);
+      }
+    } catch { /* private mode */ }
+    if (preview) return;
     void mintSession().finally(() => setSessionReady(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventId]);
 
+  function rememberName(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setGuestName(trimmed);
+    setGreeting(trimmed);
+    try { window.localStorage.setItem(guestNameStorageKey(eventId), trimmed); } catch { /* private mode */ }
+    void mintSession(trimmed);
+  }
+
   if (!sessionReady) return null;
 
   const displayName = greeting || guestName.trim();
-  const initial = displayName ? Array.from(displayName)[0]?.toUpperCase() : "+";
-  // Only Gallery keeps the generic landing copy — it's the tab a guest lands
-  // on first. Moments/Highlights swap the heading to their own tab label so
-  // the header reflects where the guest actually is, instead of a static
-  // title that never changes across tabs.
-  const headerTitle = tab === "gallery" ? t("title") : t(`tabs.${tab}`);
+  const previewGallery = preview?.media ? { media: preview.media, moments: preview.moments ?? [], viewerMediaIds: preview.viewerMediaIds, viewerKnown: Boolean(preview.viewerMediaIds?.length), now: preview.now } : null;
 
   return (
-    <div style={{ backgroundColor: background, color: text }} className="min-h-screen pb-20">
+    <div style={{ backgroundColor: background, color: text }} className="min-h-screen">
       <div className="mx-auto min-h-screen max-w-2xl">
-        <header className="flex items-start justify-between gap-4 px-5 pb-5 pt-6 sm:px-7">
-          <div className="min-w-0">
-            <h1 className="font-serif text-[2.15rem] font-semibold leading-[0.95] tracking-[-0.035em] sm:text-5xl">{headerTitle}</h1>
-            <p className="mt-2 truncate font-serif text-xl sm:text-2xl" style={{ color: accent }}>{eventTitle}</p>
-          </div>
-          {!editingName && (
-            <button type="button" onClick={() => setEditingName(true)} className="flex min-h-11 shrink-0 items-center gap-2 rounded-full px-2.5 py-1.5 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2" style={{ backgroundColor: surface, outlineColor: accent }}>
-              <span className="grid size-8 place-items-center rounded-full font-semibold" style={{ backgroundColor: `${accent}18`, color: accent }}>{initial}</span>
-              <span className="max-w-[8rem] truncate">{displayName ? t("identity", { name: displayName }) : t("addName")}</span>
-            </button>
-          )}
-        </header>
-
-        {editingName && <div className="mx-5 mb-5 flex items-center gap-2 sm:mx-7">
-          <input autoFocus type="text" value={guestName} onChange={(event) => setGuestName(event.target.value)} onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              if (guestName.trim()) void mintSession(guestName);
-              setEditingName(false);
-            }
-          }} placeholder={t("namePlaceholder")} aria-label={t("nameLabel")} maxLength={80} className="min-h-11 flex-1 rounded-full border bg-white/80 px-4 text-sm" style={{ borderColor: `${accent}40` }} />
-          <button type="button" onClick={() => { if (guestName.trim()) void mintSession(guestName); setEditingName(false); }} className="min-h-11 rounded-full px-4 text-sm font-semibold text-white" style={{ backgroundColor: accent }}>{t("saveName")}</button>
+        <MemoriesTopBar branding={brandingEnabled} displayName={displayName} accent={accent} surface={surface} text={text} onAbout={() => setAboutOpen(true)} onEditName={() => setEditingName(true)} />
+        {editingName && <div className="mx-4 mb-4 flex items-center gap-2">
+          <input autoFocus type="text" value={guestName} onChange={(event) => setGuestName(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { rememberName(guestName); setEditingName(false); } }} maxLength={80} className="min-h-11 flex-1 rounded-full border bg-white/80 px-4 text-sm" style={{ borderColor: `${accent}40` }} />
+          <button type="button" onClick={() => { rememberName(guestName); setEditingName(false); }} className="min-h-11 rounded-full px-4 text-sm font-semibold text-white" style={{ backgroundColor: accent }}>{tLanding("saveName")}</button>
         </div>}
-
-        {sessionError && <p role="alert" className="mx-5 mb-3 text-sm text-red-700 sm:mx-7">{tUpload("genericError")}</p>}
-
+        {sessionError && <p role="alert" className="mx-4 mb-3 text-sm text-red-700">{tUpload("genericError")}</p>}
         <main>
-          {tab === "gallery" && <GuestGalleryView eventId={eventId} accent={accent} surface={surface} uploads={uploads} findMeEnabled={findMeEnabled} />}
-          {tab === "moments" && <GuestMomentsView eventId={eventId} accent={accent} surface={surface} />}
-          {tab === "highlights" && <GuestAiHighlightView eventId={eventId} accent={accent} surface={surface} />}
+          {tab === "gallery" && (
+            <GuestGalleryView
+              context={context}
+              accent={accent}
+              surface={surface}
+              uploads={uploads}
+              onAddPhotos={() => openUpload.current()}
+              onFindMe={() => setFindOpen(true)}
+              imageSrc={preview?.imageSrc}
+              preview={previewGallery}
+              openViewer={preview?.openViewer}
+            />
+          )}
+          {tab === "moments" && (
+            <GuestMomentsView
+              eventId={eventId}
+              accent={accent}
+              surface={surface}
+              timeZone={timeZone}
+              locale={locale}
+              onAddPhotos={() => openUpload.current()}
+              onShowGallery={() => setTab("gallery")}
+              imageSrc={preview?.imageSrc}
+              preview={preview?.media ? { media: preview.media, moments: preview.moments ?? [], now: preview.now } : null}
+            />
+          )}
+          {tab === "highlights" && (
+            <GuestAiHighlightView
+              eventId={eventId}
+              accent={accent}
+              surface={surface}
+              previewGroups={preview?.screen === "highlights-loading" ? undefined : preview?.highlights}
+              forceLoading={preview?.screen === "highlights-loading"}
+              imageSrc={preview?.imageSrc}
+            />
+          )}
+          {tab === "find" && !findOpen && (
+            <div className="px-4 pb-36">
+              <button type="button" onClick={() => findMeEnabled && setFindOpen(true)} className="font-serif text-3xl font-semibold" style={{ color: accent }}>{tr("navFind")}</button>
+            </div>
+          )}
         </main>
-
-        {tab === "gallery" && <GuestUploadView eventId={eventId} accent={accent} onItemsChange={handleUploadsChange} />}
+        <GuestUploadView
+          eventId={eventId}
+          accent={accent}
+          eventTitle={eventTitle}
+          guestName={displayName}
+          onGuestName={rememberName}
+          moments={preview?.moments}
+          branding={brandingEnabled}
+          slug={slug}
+          onSeeGallery={() => setTab("gallery")}
+          onItemsChange={handleUploadsChange}
+          onBind={(api) => { openUpload.current = api.open; }}
+          demo={preview?.uploadStep ? { step: preview.uploadStep, name: "Chanelle", previews: preview.uploadPreviews } : null}
+        />
       </div>
-
-      <nav aria-label={t("navigationLabel")} className="fixed inset-x-0 bottom-0 z-20 border-t bg-white/95 backdrop-blur" style={{ borderColor: `${accent}20` }}>
-        <div className="mx-auto grid h-[4.25rem] max-w-2xl grid-cols-3">
-          {(["gallery", "highlights", "moments"] as const).map((value) => {
-            const Icon = value === "gallery" ? Images : value === "moments" ? Users : Sparkles;
-            const active = tab === value;
-            return <button key={value} type="button" onClick={() => setTab(value)} aria-current={active ? "page" : undefined} className="relative flex min-h-14 flex-col items-center justify-center gap-0.5 text-xs font-semibold" style={{ color: active ? accent : `${text}88` }}>
-              <Icon className="size-5" strokeWidth={active ? 2.25 : 1.75} />
-              {t(`tabs.${value}`)}
-              {active && <span className="absolute inset-x-[30%] bottom-0 h-0.5 rounded-full" style={{ backgroundColor: accent }} />}
-            </button>;
-          })}
-        </div>
-      </nav>
+      <MemoriesTabBar tab={tab} accent={accent} background={background} text={text} onTab={(next) => { setTab(next); if (next === "find" && findMeEnabled) setFindOpen(true); }} onAdd={() => openUpload.current()} />
+      {aboutOpen && brandingEnabled && <AboutInviteSpotSheet eventTitle={eventTitle} slug={slug} accent={accent} surface={surface} text={text} onClose={() => setAboutOpen(false)} />}
+      {findOpen && findMeEnabled && (
+        <FindMeFlow
+          eventId={eventId}
+          accent={accent}
+          surface={surface}
+          eventTitle={eventTitle}
+          photoCount={preview?.media?.length ?? 0}
+          slug={slug}
+          branding={brandingEnabled}
+          previewResults={preview?.findResults}
+          imageSrc={preview?.imageSrc}
+          onClose={() => { setFindOpen(false); if (tab === "find") setTab("gallery"); }}
+        />
+      )}
     </div>
   );
 }

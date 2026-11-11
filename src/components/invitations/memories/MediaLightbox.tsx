@@ -4,13 +4,21 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { ChevronLeft, ChevronRight, Play, Share2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Download, ScanFace } from "lucide-react";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
+import { knownContributorName } from "@/lib/invitations/memories/guest-presentation";
+import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
+import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import { defaultMediaSrc, type MediaImageSrc } from "./media-src";
 
 export interface MediaLightboxProps {
   media: PublicMemoryMedia[];
   index: number;
   onClose: () => void;
   onNavigate: (index: number) => void;
+  moments?: MemoryMoment[];
+  imageSrc?: MediaImageSrc;
+  onFindMe?: () => void;
 }
 
 const SWIPE_THRESHOLD_PX = 50;
@@ -91,8 +99,9 @@ type NavigationTarget = { kind: "list"; index: number } | { kind: "detour"; medi
 // touch/pointer swipe support. Also shows "Every Perspective": other
 // gallery-visible media captured around the same instant as the item being
 // viewed.
-export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightboxProps) {
+export function MediaLightbox({ media, index, onClose, onNavigate, moments = [], imageSrc = defaultMediaSrc, onFindMe }: MediaLightboxProps) {
   const t = useTranslations("invitations.public.memories.lightbox");
+  const tr = useTranslations("invitations.public.memories.redesign");
   // Reuses the gallery namespace's existing "Photo shared by {name}" copy —
   // today only rendered as alt text on gallery thumbnails — rather than
   // duplicating an equivalent string under the lightbox namespace.
@@ -123,6 +132,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
   const nearbyCache = useRef<Map<string, PublicMemoryMedia[]>>(new Map());
   const [nearby, setNearby] = useState<PublicMemoryMedia[]>([]);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
+  const [loadedId, setLoadedId] = useState<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -218,8 +228,21 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
   }, [activeIndex, activeMedia.length, onClose, detour]);
 
   if (!item) return null;
+  const fullLoaded = loadedId === item.id;
 
   const capturedLabel = item.capturedAt ? formatCapturedAt(item.capturedAt) : null;
+  const contributor = knownContributorName(item.uploaderDisplayName);
+  const momentName = momentForMedia(item, moments)?.name ?? null;
+  async function downloadCurrent() {
+    const response = await fetch(imageSrc(item.id, "display"));
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `memory-${item.id}`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  }
   const itemMetaLabel = capturedLabel
     ? item.uploaderDisplayName
       ? `${tGallery("photoBy", { name: item.uploaderDisplayName })} · ${capturedLabel}`
@@ -354,31 +377,21 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
   }
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-2" onClick={onClose}>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.stopPropagation();
-          void handleShare();
-        }}
-        aria-label={t("share")}
-        className="absolute left-3 top-3 z-10 grid size-11 place-items-center rounded-full bg-white/10 text-white"
-      >
-        <Share2 className="size-5" />
-      </button>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex flex-col bg-[#0b0d0c] text-white" onClick={onClose}>
+      <div className="flex items-center justify-between px-4 pb-2 pt-4" onClick={(event) => event.stopPropagation()}>
+        <button type="button" onClick={onClose} aria-label={t("close")} className="grid size-10 place-items-center rounded-full bg-white/15"><X className="size-5" /></button>
+        <p className="text-sm font-semibold">
+          {detour
+            ? t("nearbyDetourLabel", { current: activeIndex + 1, total: activeMedia.length })
+            : t("viewerLabel", { current: activeIndex + 1, total: activeMedia.length })}
+        </p>
+        <span className="size-10" />
+      </div>
       {showCopiedToast && (
         <p role="status" className="absolute left-1/2 top-16 z-10 -translate-x-1/2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-black shadow-lg">
           {t("linkCopied")}
         </p>
       )}
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={t("close")}
-        className="absolute right-3 top-3 z-10 grid size-11 place-items-center rounded-full bg-white/10 text-white"
-      >
-        <X className="size-6" />
-      </button>
 
       {activeIndex > 0 && (
         <button
@@ -388,7 +401,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
             navigateWithSlide(stepTarget(activeIndex - 1), 1);
           }}
           aria-label={t("previous")}
-          className="absolute left-2 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white"
+          className="absolute left-3 top-[42%] z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
         >
           <ChevronLeft className="size-6" />
         </button>
@@ -401,81 +414,93 @@ export function MediaLightbox({ media, index, onClose, onNavigate }: MediaLightb
             navigateWithSlide(stepTarget(activeIndex + 1), -1);
           }}
           aria-label={t("next")}
-          className="absolute right-2 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white/10 text-white"
+          className="absolute right-3 top-[42%] z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
         >
           <ChevronRight className="size-6" />
         </button>
       )}
 
-      {item.mediaKind === "video" ? (
-        <video
-          src={`/api/memories/media/${item.id}/display`}
-          poster={`/api/memories/media/${item.id}/thumbnail`}
-          controls
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
-          className="max-h-full max-w-full touch-pan-y object-contain"
-        />
-      ) : (
-        <img
-          src={`/api/memories/media/${item.id}/display`}
-          alt=""
-          onClick={(event) => event.stopPropagation()}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
-          className="max-h-full max-w-full touch-pan-y select-none object-contain"
-        />
-      )}
-
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-8">
-        {!isDragging && !suppressTransition && item.mediaKind !== "video" && nearby.length > 0 && (
-          <div className="pointer-events-auto mb-2.5" onClick={(event) => event.stopPropagation()}>
-            <p className="mb-2 text-[11px] font-semibold tracking-wide text-white/90">{t("nearbyCount", { count: nearby.length })}</p>
-            <div className="flex gap-2 overflow-x-auto">
-              {nearby.map((match) => (
-                <button
-                  key={match.id}
-                  type="button"
-                  onClick={() => handleNearbyTap(match.id)}
-                  aria-label={match.uploaderDisplayName ?? t("nearbyThumbnailLabel")}
-                  className="flex-none text-center"
-                >
-                  <span className="relative block">
-                    <img
-                      src={`/api/memories/media/${match.id}/thumbnail`}
-                      alt=""
-                      className="size-[52px] rounded-xl border border-white/40 object-cover"
-                      loading="lazy"
-                    />
-                    {match.mediaKind === "video" && (
-                      <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
-                        <span className="grid size-[22px] place-items-center rounded-full bg-black/55 text-white">
-                          <Play className="size-2.5 fill-current" />
-                        </span>
-                      </span>
-                    )}
-                  </span>
-                  {match.uploaderDisplayName && (
-                    <span className="mt-0.5 block max-w-[52px] truncate text-[9px] text-white/75">{match.uploaderDisplayName}</span>
-                  )}
-                </button>
-              ))}
-            </div>
+      <div className="relative h-[52vh] overflow-hidden bg-[#151917]" onClick={(event) => event.stopPropagation()}>
+        <div aria-hidden="true" className="absolute inset-0 scale-110 bg-cover opacity-80 blur-md" style={{ backgroundImage: `url(${imageSrc(item.id, "thumbnail")})` }} />
+        {!fullLoaded && (
+          <div className="absolute left-1/2 top-1/2 z-[2] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 rounded-2xl bg-black/40 px-4 py-3 text-xs font-medium">
+            <span className="size-7 animate-spin rounded-full border-[3px] border-white/30 border-t-white motion-reduce:animate-none" />
+            {tr("loadingFull")}
           </div>
         )}
-        {itemMetaLabel && <p className="mb-1 text-center text-xs text-white/70">{itemMetaLabel}</p>}
-        <p className="text-center text-xs font-medium text-white/80">
-          {detour
-            ? t("nearbyDetourLabel", { current: activeIndex + 1, total: activeMedia.length })
-            : t("viewerLabel", { current: activeIndex + 1, total: activeMedia.length })}
-        </p>
+        {item.mediaKind === "video" ? (
+          <video
+            src={imageSrc(item.id, "display")}
+            poster={imageSrc(item.id, "thumbnail")}
+            controls
+            onLoadedData={() => setLoadedId(item.id)}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
+            className="relative z-[1] size-full touch-pan-y object-contain"
+          />
+        ) : (
+          <img
+            src={imageSrc(item.id, "display")}
+            alt=""
+            ref={(node) => { if (node?.complete) setLoadedId(item.id); }}
+            onLoad={() => setLoadedId(item.id)}
+            onClick={(event) => event.stopPropagation()}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
+            className="relative z-[1] size-full touch-pan-y select-none object-contain"
+          />
+        )}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-8">
+          {!isDragging && !suppressTransition && item.mediaKind !== "video" && nearby.length > 0 && (
+            <div className="pointer-events-auto mb-2.5" onClick={(event) => event.stopPropagation()}>
+              <p className="mb-2 text-[11px] font-semibold tracking-wide text-white/90">{t("nearbyCount", { count: nearby.length })}</p>
+              <div className="flex gap-2 overflow-x-auto">
+                {nearby.map((match) => (
+                  <button key={match.id} type="button" onClick={() => handleNearbyTap(match.id)} aria-label={match.uploaderDisplayName ?? t("nearbyThumbnailLabel")} className="flex-none text-center">
+                    <span className="relative block">
+                      <img src={imageSrc(match.id, "thumbnail")} alt="" className="size-[52px] rounded-xl border border-white/40 object-cover" loading="lazy" />
+                      {match.mediaKind === "video" && (
+                        <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+                          <span className="grid size-[22px] place-items-center rounded-full bg-black/55 text-white"><Play className="size-2.5 fill-current" /></span>
+                        </span>
+                      )}
+                    </span>
+                    {match.uploaderDisplayName && <span className="mt-0.5 block max-w-[52px] truncate text-[9px] text-white/75">{match.uploaderDisplayName}</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {itemMetaLabel && <p className="mb-1 text-center text-xs text-white/70">{itemMetaLabel}</p>}
+          <p className="text-center text-xs font-medium text-white/80">
+            {detour
+              ? t("nearbyDetourLabel", { current: activeIndex + 1, total: activeMedia.length })
+              : t("viewerLabel", { current: activeIndex + 1, total: activeMedia.length })}
+          </p>
+        </div>
+      </div>
+      <div className="px-4 pt-4" onClick={(event) => event.stopPropagation()}>
+        {contributor && (
+          <div className="flex items-center gap-2.5 text-sm">
+            <span className="grid size-8 place-items-center rounded-full bg-[#e9d6af] text-sm font-bold text-[#1c2a20]">{Array.from(contributor)[0]?.toUpperCase()}</span>
+            <span>
+              <span className="block font-semibold">{tr("sharedThis", { name: contributor })}</span>
+              <span className="block text-xs text-white/65">{[capturedLabel, momentName].filter(Boolean).join(" · ")}</span>
+            </span>
+          </div>
+        )}
+        <div className="mt-3 grid grid-cols-4 text-center text-[11px]">
+          <button type="button" className="flex flex-col items-center gap-1 text-[#9fd0ab]" onClick={() => void downloadCurrent()}><Download className="size-5" />{tr("download")}</button>
+          <button type="button" aria-label={t("share")} className="flex flex-col items-center gap-1" onClick={() => void handleShare()}><Share2 className="size-5" />{t("share")}</button>
+          {onFindMe ? <button type="button" className="flex flex-col items-center gap-1" onClick={onFindMe}><ScanFace className="size-5" />{tr("findMeAction")}</button> : <span />}
+        </div>
       </div>
     </div>
   );

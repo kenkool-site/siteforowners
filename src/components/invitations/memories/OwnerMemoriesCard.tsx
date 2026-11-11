@@ -6,13 +6,14 @@ import { useTranslations } from "next-intl";
 import type { MemoriesEventSummary } from "@/lib/invitations/memories/host";
 import { invitationMemoriesUrl } from "@/lib/invitations/public-url";
 
-export type OwnerMemoriesCardData = MemoriesEventSummary & { enabled: boolean; mode: "auto_publish" | "review_required"; findMeEnabled: boolean };
+export type OwnerMemoriesCardData = MemoriesEventSummary & { enabled: boolean; mode: "auto_publish" | "review_required"; findMeEnabled: boolean; brandingEnabled?: boolean };
 
 export function OwnerMemoriesCard({ eventId, slug, publicSubdomain, initial, manageBasePath = "/invitations/manage" }: { eventId: string; slug: string; publicSubdomain: string | null; initial: OwnerMemoriesCardData; manageBasePath?: string }) {
   const t = useTranslations("invitations.manage.dashboard.memories");
   const [enabled, setEnabled] = useState(initial.enabled);
   const [mode, setMode] = useState(initial.mode);
   const [findMeEnabled, setFindMeEnabled] = useState(initial.findMeEnabled);
+  const [brandingEnabled, setBrandingEnabled] = useState(initial.brandingEnabled !== false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(false);
 
@@ -41,6 +42,7 @@ export function OwnerMemoriesCard({ eventId, slug, publicSubdomain, initial, man
         <label className="flex min-h-11 items-center gap-3 text-sm font-medium"><input type="checkbox" checked={enabled} disabled={saving} onChange={(event) => { const previous = enabled; const next = event.target.checked; setEnabled(next); void save({ action: "set_enabled", enabled: next }, () => setEnabled(previous)); }} className="size-5 accent-[#6D456F]" />{t("enableLabel")}</label>
         <label className={`flex min-h-11 items-center gap-3 text-sm font-medium ${enabled ? "" : "opacity-50"}`}><input type="checkbox" checked={mode === "review_required"} disabled={saving || !enabled} onChange={(event) => { const previous = mode; const next = event.target.checked ? "review_required" : "auto_publish"; setMode(next); void save({ action: "set_mode", mode: next }, () => setMode(previous)); }} className="size-5 accent-[#6D456F]" />{t("modeLabel")}</label>
         <label className={`flex min-h-11 items-center gap-3 text-sm font-medium ${enabled ? "" : "opacity-50"}`}><input type="checkbox" checked={findMeEnabled} disabled={saving || !enabled} onChange={(event) => { const previous = findMeEnabled; const next = event.target.checked; setFindMeEnabled(next); void save({ action: "set_find_me_enabled", enabled: next }, () => setFindMeEnabled(previous)); }} className="size-5 accent-[#6D456F]" />{t("findMeEnableLabel")}</label>
+        <label className={`flex min-h-11 items-center gap-3 text-sm font-medium ${enabled ? "" : "opacity-50"}`}><input type="checkbox" checked={brandingEnabled} disabled={saving || !enabled} onChange={(event) => { const previous = brandingEnabled; const next = event.target.checked; setBrandingEnabled(next); void save({ action: "set_branding_enabled", enabled: next }, () => setBrandingEnabled(previous)); }} className="size-5 accent-[#6D456F]" />{t("brandingLabel")}</label>
         {error && <p role="alert" className="text-sm font-medium text-red-700 sm:col-span-2">{t("saveError")}</p>}
       </div>
     </div>
