@@ -166,7 +166,7 @@ test("downloadCandidates respects a concurrency cap without dropping any candida
 
 function baseSearchDependencies(overrides: Parameters<typeof searchFindMe>[3] = {}): Parameters<typeof searchFindMe>[3] {
   return {
-    getEventMemoriesSettings: async () => ({ memoriesEnabled: true, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: true }),
+    getEventMemoriesSettings: async () => ({ memoriesEnabled: true, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: true, brandingEnabled: true }),
     listGalleryVisibleMediaWithFaces: async () => [],
     allowFindMeAttempt: async () => "allowed",
     storage: {
@@ -190,7 +190,7 @@ test("searchFindMe 404s when find_me_enabled is false", async () => {
     "event-1",
     "session-1",
     SELFIE,
-    baseSearchDependencies({ getEventMemoriesSettings: async () => ({ memoriesEnabled: true, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: false }) }),
+    baseSearchDependencies({ getEventMemoriesSettings: async () => ({ memoriesEnabled: true, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: false, brandingEnabled: true }) }),
   );
   assert.equal(result.status, 404);
 });
@@ -200,7 +200,7 @@ test("searchFindMe 404s when memories itself is disabled, even if find_me_enable
     "event-1",
     "session-1",
     SELFIE,
-    baseSearchDependencies({ getEventMemoriesSettings: async () => ({ memoriesEnabled: false, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: true }) }),
+    baseSearchDependencies({ getEventMemoriesSettings: async () => ({ memoriesEnabled: false, memoriesMode: "auto_publish", startsAt: null, findMeEnabled: true, brandingEnabled: true }) }),
   );
   assert.equal(result.status, 404);
 });

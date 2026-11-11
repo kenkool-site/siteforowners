@@ -201,6 +201,12 @@ function pickFiles(dom: JSDOM, files: File[]): void {
   Object.defineProperty(input, "files", { configurable: true, value: files });
 }
 
+function confirmButton(dom: JSDOM): HTMLButtonElement {
+  const button = Array.from(dom.window.document.querySelectorAll("button")).find((candidate) => /^Add \d+ photo/.test(candidate.textContent ?? ""));
+  assert.ok(button, "expected the review button that starts the upload");
+  return button as HTMLButtonElement;
+}
+
 test("module loads under tsx --test", async () => {
   const mod = await import("./GuestUploadView");
   assert.equal(typeof mod.GuestUploadView, "function");
@@ -226,6 +232,10 @@ test("a picked video file is enqueued with mediaKind video and its captured post
       await act(async () => {
         pickFiles(dom, [video]);
         dom.window.document.querySelector('input[type="file"]')!.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+        await flush();
+      });
+      await act(async () => {
+        confirmButton(dom).click();
         await flush();
       });
 
@@ -291,6 +301,10 @@ test("an oversized video surfaces the server's specific 'too large' error, not t
         dom.window.document.querySelector('input[type="file"]')!.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
         await flush();
       });
+      await act(async () => {
+        confirmButton(dom).click();
+        await flush();
+      });
 
       const alertText = dom.window.document.querySelector('[role="alert"]')?.textContent ?? "";
       assert.match(alertText, /too large — videos can be up to 200MB/);
@@ -326,6 +340,10 @@ test("a video rejected for an unsupported type surfaces that specific error, not
         dom.window.document.querySelector('input[type="file"]')!.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
         await flush();
       });
+      await act(async () => {
+        confirmButton(dom).click();
+        await flush();
+      });
 
       const alertText = dom.window.document.querySelector('[role="alert"]')?.textContent ?? "";
       assert.match(alertText, /This file type isn't supported/);
@@ -354,6 +372,8 @@ test("a picked photo file is still enqueued with mediaKind photo and no poster, 
       await act(async () => {
         pickFiles(dom, [heic, jpeg]);
         dom.window.document.querySelector('input[type="file"]')!.dispatchEvent(new dom.window.Event("change", { bubbles: true }));
+        await flush();
+        confirmButton(dom).click();
         await flush();
       });
 

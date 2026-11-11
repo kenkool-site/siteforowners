@@ -39,6 +39,12 @@ export async function PATCH(request: NextRequest, { params }: { params: { eventI
       if (event) revalidateInvitationPage(event.slug);
       return NextResponse.json({ ok: true });
     }
+    if (values.action === "set_branding_enabled" && typeof values.enabled === "boolean") {
+      await updateEventMemoriesSettings(params.eventId, { brandingEnabled: values.enabled });
+      const event = await getInvitationEventForManagement(params.eventId);
+      if (event) revalidateInvitationPage(event.slug);
+      return NextResponse.json({ ok: true });
+    }
     return NextResponse.json({ error: "invalid action" }, { status: 400 });
   } catch (error) {
     console.error("[memories/settings] update failed", { error });

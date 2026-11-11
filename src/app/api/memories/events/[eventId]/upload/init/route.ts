@@ -58,7 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
 
   try {
     const { eventId } = params;
-    const parsedBody = body as { mediaKind?: string; contentType?: string; sizeBytes?: number };
+    const parsedBody = body as { mediaKind?: string; contentType?: string; sizeBytes?: number; durationSeconds?: number };
 
     if (!ALLOWED_KINDS.includes(parsedBody.mediaKind as MediaKind)) {
       return NextResponse.json({ error: "invalid mediaKind" }, { status: 400 });
@@ -108,6 +108,9 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       uploaderRsvpId: session?.rsvpId ?? null,
       uploaderSessionId: session?.sessionId ?? null,
       uploaderDisplayName: session?.guestName ?? null,
+      durationSeconds: mediaKind === "video" && typeof parsedBody.durationSeconds === "number" && parsedBody.durationSeconds >= 0 && parsedBody.durationSeconds <= 60
+        ? parsedBody.durationSeconds
+        : null,
     });
 
     if (isInvitationE2EFixturesEnabled()) {

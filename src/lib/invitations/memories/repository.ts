@@ -34,6 +34,7 @@ export function mapRow(row: Record<string, unknown>): MemoryMedia {
     aiStatus: row.ai_status as MemoryMedia["aiStatus"],
     moderationScore: (row.moderation_score as number | null) ?? null,
     moderationCategories: (row.moderation_categories as string[] | null) ?? null,
+    durationSeconds: typeof row.duration_seconds === "number" ? row.duration_seconds : null,
   };
 }
 
@@ -46,6 +47,7 @@ export async function createPendingMemoryMedia(input: {
   uploaderRsvpId: string | null;
   uploaderSessionId: string | null;
   uploaderDisplayName: string | null;
+  durationSeconds?: number | null;
 }): Promise<void> {
   const client = createAdminClient();
   const { error } = await client.from("memory_media").insert({
@@ -57,6 +59,7 @@ export async function createPendingMemoryMedia(input: {
     uploader_rsvp_id: input.uploaderRsvpId,
     uploader_session_id: input.uploaderSessionId,
     uploader_display_name: input.uploaderDisplayName,
+    ...(typeof input.durationSeconds === "number" ? { duration_seconds: Math.round(input.durationSeconds) } : {}),
   });
   if (error) throw new Error(`failed to create memory_media row: ${error.message}`);
 }
@@ -135,11 +138,11 @@ export async function simulateFixtureMediaReady(mediaId: string): Promise<void> 
 
 export async function getEventMemoriesSettings(
   eventId: string,
-): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null; findMeEnabled: boolean } | null> {
+): Promise<{ memoriesEnabled: boolean; memoriesMode: "auto_publish" | "review_required"; startsAt: string | null; findMeEnabled: boolean; brandingEnabled: boolean } | null> {
   const client = createAdminClient();
   const { data, error } = await client
     .from("invitation_events")
-    .select("memories_enabled,memories_mode,starts_at,find_me_enabled")
+    .select("memories_enabled,memories_mode,starts_at,find_me_enabled,memories_branding_enabled")
     .eq("id", eventId)
     .maybeSingle();
   if (error || !data) return null;
@@ -148,6 +151,8 @@ export async function getEventMemoriesSettings(
     memoriesMode: data.memories_mode as "auto_publish" | "review_required",
     startsAt: (data.starts_at as string | null) ?? null,
     findMeEnabled: data.find_me_enabled as boolean,
+    // Missing or null stays ON — branding is the default for every event.
+    brandingEnabled: data.memories_branding_enabled !== false,
   };
 }
 
@@ -164,13 +169,14 @@ export async function getEventSchedule(eventId: string): Promise<EventScheduleIt
 
 export async function updateEventMemoriesSettings(
   eventId: string,
-  updates: { memoriesEnabled?: boolean; memoriesMode?: "auto_publish" | "review_required"; findMeEnabled?: boolean },
+  updates: { memoriesEnabled?: boolean; memoriesMode?: "auto_publish" | "review_required"; findMeEnabled?: boolean; brandingEnabled?: boolean },
 ): Promise<void> {
   const client = createAdminClient();
   const patch: Record<string, unknown> = {};
   if (updates.memoriesEnabled !== undefined) patch.memories_enabled = updates.memoriesEnabled;
   if (updates.memoriesMode !== undefined) patch.memories_mode = updates.memoriesMode;
   if (updates.findMeEnabled !== undefined) patch.find_me_enabled = updates.findMeEnabled;
+  if (updates.brandingEnabled !== undefined) patch.memories_branding_enabled = updates.brandingEnabled;
   const { error } = await client.from("invitation_events").update(patch).eq("id", eventId);
   if (error) throw new Error(`failed to update memories settings: ${error.message}`);
 }

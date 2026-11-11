@@ -6,7 +6,7 @@ import type { MemoryMedia } from "./types";
 export type PublicMemoryMedia = Pick<
   MemoryMedia,
   "id" | "mediaKind" | "uploaderDisplayName" | "objectKeyDisplay" | "objectKeyThumbnail" | "capturedAt" | "uploadedAt"
->;
+> & { durationSeconds?: number | null };
 
 export function toPublicMemoryMedia(media: MemoryMedia): PublicMemoryMedia {
   return {
@@ -17,6 +17,7 @@ export function toPublicMemoryMedia(media: MemoryMedia): PublicMemoryMedia {
     objectKeyThumbnail: media.objectKeyThumbnail,
     capturedAt: media.capturedAt,
     uploadedAt: media.uploadedAt,
+    durationSeconds: media.durationSeconds ?? null,
   };
 }
 

@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import type { MemoryHighlightGroup } from "@/lib/invitations/memories/highlight-types";
 import { MediaLightbox } from "./MediaLightbox";
+import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
 
 // The guest-facing shape returned by GET /api/memories/events/[eventId]/highlights
 // — Task 4's independent, multi-group AI Highlight system. A photo can appear
@@ -18,14 +19,17 @@ export interface GuestAiHighlightViewProps {
   eventId: string;
   accent: string;
   surface: string;
+  previewGroups?: GuestHighlightGroup[];
+  forceLoading?: boolean;
+  imageSrc?: MediaImageSrc;
 }
 
-export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighlightViewProps) {
+export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, forceLoading = false, imageSrc = defaultMediaSrc }: GuestAiHighlightViewProps) {
   const t = useTranslations("invitations.public.memories.aiHighlight");
-  const [groups, setGroups] = useState<GuestHighlightGroup[]>([]);
+  const [groups, setGroups] = useState<GuestHighlightGroup[]>(previewGroups ?? []);
   const [selected, setSelected] = useState<string | null>(null);
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(Boolean(previewGroups) && !forceLoading);
   // Where the grid was scrolled to before entering a category — a plain
   // state swap loses this (the browser clamps scroll to whatever the new,
   // usually shorter, content allows), so it's restored explicitly on Back
@@ -33,6 +37,7 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
   const gridScrollY = useRef(0);
 
   useEffect(() => {
+    if (previewGroups || forceLoading) return;
     let cancelled = false;
     void fetch(`/api/memories/events/${eventId}/highlights`)
       .then(async (response) => {
@@ -49,7 +54,7 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
     return () => {
       cancelled = true;
     };
-  }, [eventId]);
+  }, [eventId, previewGroups, forceLoading]);
 
   useEffect(() => {
     if (selected === null) window.scrollTo(0, gridScrollY.current);
@@ -66,7 +71,17 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
     setLightboxIndex(null);
   }
 
-  if (!loaded) return <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>;
+  const tr = useTranslations("invitations.public.memories.redesign");
+  const [chip, setChip] = useState<string>("all");
+
+  if (!loaded) return (
+    <div className="px-4 pb-36">
+      <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>
+      <div className="grid grid-cols-2 gap-3">
+        {[0, 1].map((slot) => <div key={slot} className="overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}><div className="h-32 animate-pulse bg-black/5" /><div className="h-4 w-2/3 m-3 animate-pulse rounded bg-black/5" /></div>)}
+      </div>
+    </div>
+  );
 
   const selectedGroup = selected ? groups.find((group) => group.id === selected) : undefined;
 
@@ -96,7 +111,7 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
               onClick={() => setLightboxIndex(index)}
               className="relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl"
             >
-              <img src={`/api/memories/media/${item.id}/${item.mediaKind === "video" ? "thumbnail" : "display"}`} alt="" className="h-auto w-full" loading="lazy" />
+              <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt="" className="h-auto w-full" loading="lazy" />
               {item.mediaKind === "video" && (
                 <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
                   <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white">
@@ -108,17 +123,51 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
           ))}
         </div>
         {lightboxIndex !== null && (
-          <MediaLightbox media={selectedGroup.media} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
+          <MediaLightbox media={selectedGroup.media} index={lightboxIndex} imageSrc={imageSrc} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
         )}
       </div>
     );
   }
 
-  if (groups.length === 0) return <p className="p-8 text-center text-sm" style={{ color: accent }}>{t("empty")}</p>;
+  if (groups.length === 0) return (
+    <div className="px-4 pb-36">
+      <h2 className="font-serif text-3xl font-semibold" style={{ color: accent }}>{tr("navHighlights")}</h2>
+      <p className="mt-4 text-sm" style={{ color: accent }}>{t("empty")}</p>
+      <p className="mt-2 text-sm opacity-70">{tr("highlightsEmpty")}</p>
+    </div>
+  );
+
+  const visible = chip === "all" ? groups : groups.filter((group) => group.id === chip);
+  const featured = visible[0] ?? groups[0];
+  const totalPhotos = groups.reduce((sum, group) => sum + group.media.length, 0);
 
   return (
-    <div className="p-4">
-      <p className="mb-5 text-sm" style={{ color: accent }}>
+    <div className="px-4 pb-36">
+      <h2 className="font-serif text-3xl font-semibold" style={{ color: accent }}>{tr("navHighlights")}</h2>
+      <p className="mt-1 flex items-center gap-2 text-sm opacity-70">
+        <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: `${accent}18`, color: accent }}>{tr("aiCurated")}</span>
+        {tr("highlightsFrom", { count: totalPhotos })}
+      </p>
+      <div className="mt-3 flex gap-2 overflow-x-auto">
+        <button type="button" onClick={() => setChip("all")} className="h-8 shrink-0 rounded-full px-3 text-xs font-semibold" style={{ backgroundColor: chip === "all" ? "#1c2a20" : surface, color: chip === "all" ? "#fff" : accent }}>{tr("filterAll")}</button>
+        {groups.map((group) => (
+          <button key={group.id} type="button" onClick={() => setChip(group.id)} className="h-8 shrink-0 rounded-full px-3 text-xs font-semibold" style={{ backgroundColor: chip === group.id ? "#1c2a20" : surface, color: chip === group.id ? "#fff" : accent }}>
+            {group.name} <small className="opacity-70">{group.media.length}</small>
+          </button>
+        ))}
+      </div>
+      {featured && (
+        <button type="button" onClick={() => openGroup(featured.id)} className="relative mt-4 block h-56 w-full overflow-hidden rounded-3xl text-left text-white shadow-lg">
+          {featured.media[0] && <span aria-hidden="true" className="absolute inset-0 bg-cover" style={{ backgroundImage: `url(${imageSrc(featured.media[0].id, "thumbnail")})` }} />}
+          <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+          <span className="absolute left-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-semibold" style={{ color: accent }}>{tr("aiCurated")}</span>
+          <span className="absolute bottom-4 left-4 right-4">
+            <span className="block font-serif text-2xl">{tr("photoCount", { count: featured.media.length })}</span>
+            <span className="text-xs text-white/80">{featured.name}</span>
+          </span>
+        </button>
+      )}
+      <p className="mb-5 mt-4 text-sm" style={{ color: accent }}>
         {t("description")}
       </p>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -137,7 +186,7 @@ export function GuestAiHighlightView({ eventId, accent, surface }: GuestAiHighli
               // whole screen. The full, uncropped photo is always one tap away
               // inside the group's own detail view (and now the lightbox).
               <div className="relative">
-                <img src={`/api/memories/media/${group.media[0].id}/thumbnail`} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
+                <img src={imageSrc(group.media[0].id, "thumbnail")} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
                 {group.media[0].mediaKind === "video" && (
                   <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
                     <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white">

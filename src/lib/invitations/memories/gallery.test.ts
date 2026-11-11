@@ -56,6 +56,7 @@ test("public gallery projection excludes original keys, RSVP ids, and moderation
     objectKeyThumbnail: "thumbnails/event-1/media-1.webp",
     capturedAt: null,
     uploadedAt: "2026-09-21T00:00:00Z",
+    durationSeconds: null,
   });
 });
 

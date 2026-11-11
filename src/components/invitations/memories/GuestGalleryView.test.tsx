@@ -92,7 +92,14 @@ async function withMountedGallery(media: PublicMemoryMedia[], callback: (ctx: { 
     await act(async () => {
       root.render(
         <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-          <GuestGalleryView eventId="event-1" accent="#6D456F" surface="#ffffff" uploads={[]} findMeEnabled={findMeEnabled} />
+          <GuestGalleryView
+            context={{ eventId: "event-1", slug: "event", title: "Mercy & John", eventType: "wedding", startsAt: "2020-01-01T00:00:00.000Z", timeZone: "UTC", venueName: null, address: null, locale: "en", findMeEnabled, brandingEnabled: false, schedule: [] }}
+            accent="#6D456F"
+            surface="#ffffff"
+            uploads={[]}
+            onAddPhotos={() => undefined}
+            onFindMe={() => undefined}
+          />
         </NextIntlClientProvider>,
       );
       await flush();
@@ -232,6 +239,6 @@ test("shows the Find Me banner when findMeEnabled is true, and nothing when it's
   }, false);
 
   await withMountedGallery([mediaItem("m1")], async ({ dom }) => {
-    assert.match(dom.window.document.body.textContent ?? "", /Find yourself in these photos/);
+    assert.match(dom.window.document.body.textContent ?? "", /Find yourself/);
   }, true);
 });

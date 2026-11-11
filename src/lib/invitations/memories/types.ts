@@ -40,4 +40,6 @@ export interface MemoryMedia {
   aiStatus: AiStatus;
   moderationScore: number | null;
   moderationCategories: string[] | null;
+  // Null for photos and for videos uploaded before duration was stored.
+  durationSeconds?: number | null;
 }

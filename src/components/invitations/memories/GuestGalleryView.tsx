@@ -1,34 +1,69 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Play } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Calendar, Camera, MapPin, Play, ScanFace } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
+import type { GuestMemoriesContext } from "@/lib/invitations/memories/guest-presentation";
+import {
+  buildGallerySections,
+  contributorSummary,
+  countdownDays,
+  eventHasStarted,
+  filterGalleryMedia,
+  formatInTimeZone,
+  formatVideoDuration,
+  knownContributorName,
+  memoriesOverline,
+  shotSuggestions,
+  venueLine,
+  type GalleryFilter,
+} from "@/lib/invitations/memories/guest-presentation";
 import { visibleOptimisticUploads, type GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
-import { groupMediaByTime } from "@/lib/invitations/memories/gallery-view";
+import type { MemoryMoment } from "@/lib/invitations/memories/repository";
+import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
+import { MadeWithFooter, PlanningEndCard } from "./MemoriesChrome";
 import { MediaLightbox } from "./MediaLightbox";
-import { FindMeFlow } from "./FindMeFlow";
 
 const IDLE_POLL_MS = 15_000;
 const PUBLISHING_POLL_MS = 2_000;
 
-export function GuestGalleryView({ eventId, accent, surface, uploads, findMeEnabled }: { eventId: string; accent: string; surface: string; uploads: GuestUploadPreview[]; findMeEnabled: boolean }) {
+export function GuestGalleryView({
+  context,
+  accent,
+  surface,
+  uploads,
+  onAddPhotos,
+  onFindMe,
+  imageSrc = defaultMediaSrc,
+  preview,
+  openViewer,
+}: {
+  context: GuestMemoriesContext;
+  accent: string;
+  surface: string;
+  uploads: GuestUploadPreview[];
+  onAddPhotos: () => void;
+  onFindMe: () => void;
+  imageSrc?: MediaImageSrc;
+  preview?: { media: PublicMemoryMedia[]; moments: MemoryMoment[]; viewerMediaIds?: string[]; viewerKnown?: boolean; now?: number } | null;
+  openViewer?: boolean;
+}) {
   const t = useTranslations("invitations.public.memories.gallery");
-  const tFindMe = useTranslations("invitations.public.memories.findMe");
-  const [media, setMedia] = useState<PublicMemoryMedia[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const tr = useTranslations("invitations.public.memories.redesign");
+  const [media, setMedia] = useState<PublicMemoryMedia[]>(preview?.media ?? []);
+  const [moments, setMoments] = useState<MemoryMoment[]>(preview?.moments ?? []);
+  const [viewerMediaIds, setViewerMediaIds] = useState<string[]>(preview?.viewerMediaIds ?? []);
+  const [viewerKnown, setViewerKnown] = useState(Boolean(preview?.viewerKnown));
+  const [loaded, setLoaded] = useState(Boolean(preview));
   const [error, setError] = useState(false);
   const [newCount, setNewCount] = useState(0);
-  const [now, setNow] = useState(() => Date.now());
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
-  const [findMeOpen, setFindMeOpen] = useState(false);
+  const [now, setNow] = useState(() => preview?.now ?? Date.now());
+  const [filter, setFilter] = useState<GalleryFilter>("all");
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(openViewer ? 0 : null);
   const previousIds = useRef<Set<string>>(new Set());
   const searchParams = useSearchParams();
-  // A shared photo link (see MediaLightbox's share button) lands here as
-  // ?photo=<mediaId>. Applied at most once per mount, once the gallery has
-  // actually loaded — otherwise a guest who closes the lightbox would find
-  // it reopening on every re-render/poll while the param is still present.
   const appliedPhotoParam = useRef(false);
   const hasPublishing = uploads.some((item) => item.status === "queued" || item.status === "uploading" || item.status === "done");
 
@@ -39,12 +74,13 @@ export function GuestGalleryView({ eventId, accent, surface, uploads, findMeEnab
   }, [hasPublishing]);
 
   useEffect(() => {
+    if (preview) return;
     let cancelled = false;
     async function poll() {
       try {
-        const response = await fetch(`/api/memories/events/${eventId}/gallery`);
+        const response = await fetch(`/api/memories/events/${context.eventId}/gallery`);
         if (!response.ok) throw new Error(`gallery ${response.status}`);
-        const payload = (await response.json()) as { media: PublicMemoryMedia[] };
+        const payload = (await response.json()) as { media: PublicMemoryMedia[]; moments?: MemoryMoment[]; viewerMediaIds?: string[]; viewerKnown?: boolean };
         if (cancelled) return;
         const ids = new Set(payload.media.map((item) => item.id));
         if (previousIds.current.size) {
@@ -53,6 +89,9 @@ export function GuestGalleryView({ eventId, accent, surface, uploads, findMeEnab
         }
         previousIds.current = ids;
         setMedia(payload.media);
+        setMoments(payload.moments ?? []);
+        setViewerMediaIds(payload.viewerMediaIds ?? []);
+        setViewerKnown(Boolean(payload.viewerKnown));
         setError(false);
       } catch {
         if (!cancelled) setError(true);
@@ -63,21 +102,31 @@ export function GuestGalleryView({ eventId, accent, surface, uploads, findMeEnab
     void poll();
     const interval = window.setInterval(poll, hasPublishing ? PUBLISHING_POLL_MS : IDLE_POLL_MS);
     return () => { cancelled = true; window.clearInterval(interval); };
-  }, [eventId, hasPublishing]);
+  }, [context.eventId, hasPublishing, preview]);
 
   const publishedIds = new Set(media.map((item) => item.id));
   const optimistic = visibleOptimisticUploads(uploads, publishedIds, now);
-  const recent = media.filter((item) => now - Date.parse(item.uploadedAt) < 20 * 60 * 1000);
-  const recentIds = new Set(recent.map((item) => item.id));
-  const olderMedia = media.filter((item) => !recentIds.has(item.id));
-  const olderGroups = groupMediaByTime(olderMedia, new Date(now));
-  const hasJustAdded = optimistic.length > 0 || recent.length > 0;
-  // Flat, on-screen-order list of every real (non-optimistic) photo, for the
-  // lightbox's prev/next — optimistic uploads are excluded since they have
-  // no server media id yet, only a local preview blob.
-  const olderFlat = (["tonight", "thisAfternoon", "earlier"] as const).flatMap((section) => olderGroups[section]);
-  const recentVisible = recent.slice(0, 8);
-  const lightboxMedia = [...recentVisible, ...olderFlat];
+  const localMine = new Set<string>([
+    ...viewerMediaIds,
+    ...uploads.map((item) => item.mediaId).filter((id): id is string => Boolean(id)),
+  ]);
+  const filtered = filterGalleryMedia(media, filter, localMine);
+  const sections = useMemo(
+    () => buildGallerySections(filtered, moments, context.timeZone, context.locale),
+    [filtered, moments, context.timeZone, context.locale],
+  );
+  const lightboxMedia = sections.flatMap((section) => section.items);
+  const videoCount = media.filter((item) => item.mediaKind === "video").length;
+  const showMine = viewerKnown || localMine.size > 0;
+  const contributors = contributorSummary(media.map((item) => item.uploaderDisplayName));
+  const place = venueLine(context.venueName, context.address);
+  const started = eventHasStarted(context.startsAt, new Date(now));
+  const days = countdownDays(context.startsAt, new Date(now));
+  const when = formatInTimeZone(context.startsAt, context.timeZone, context.locale, started
+    ? { month: "short", day: "numeric", year: "numeric" }
+    : { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  const shots = shotSuggestions(moments, context.schedule, context.timeZone, context.locale);
+  const heroPhotos = media.slice(0, 3);
 
   useEffect(() => {
     if (appliedPhotoParam.current || !loaded) return;
@@ -90,55 +139,168 @@ export function GuestGalleryView({ eventId, accent, surface, uploads, findMeEnab
 
   if (!loaded && optimistic.length === 0) return <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>;
   if (error && media.length === 0 && optimistic.length === 0) return <p role="alert" className="p-8 text-center text-sm text-red-700">{t("error")}</p>;
-  if (media.length === 0 && optimistic.length === 0) return <p className="px-6 py-16 text-center font-serif text-xl" style={{ color: accent }}>{t("empty")}</p>;
 
-  return <div className="space-y-8 px-3 pb-48 pt-2 sm:px-5">
-    {newCount > 0 && <button type="button" onClick={() => setNewCount(0)} className="sticky top-3 z-10 mx-auto block min-h-10 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg" style={{ backgroundColor: accent }}>{t("newPhotos", { count: newCount })}</button>}
+  const empty = media.length === 0 && optimistic.length === 0;
 
-    {findMeEnabled && <button type="button" onClick={() => setFindMeOpen(true)} className="mx-auto block min-h-11 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-md" style={{ backgroundColor: accent }}>{tFindMe("banner")}</button>}
+  return (
+    <div className="px-4 pb-36">
+      {newCount > 0 && <button type="button" onClick={() => setNewCount(0)} className="sticky top-3 z-10 mx-auto mb-3 block min-h-10 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg" style={{ backgroundColor: accent }}>{t("newPhotos", { count: newCount })}</button>}
 
-    {hasJustAdded && <section aria-labelledby="just-added-heading">
-      <div className="mb-3 flex items-center gap-3">
-        <h2 id="just-added-heading" className="shrink-0 text-lg font-semibold" style={{ color: accent }}>{t("justAdded")}</h2>
-        <span className="h-px flex-1 opacity-15" style={{ backgroundColor: accent }} />
-        <span className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: accent }}>{t("live")}<span className="size-2 rounded-full opacity-70" style={{ backgroundColor: accent }} /></span>
-      </div>
-      <div className="flex snap-x gap-2.5 overflow-x-auto pb-1" aria-label={t("recentLabel")}>
-        {optimistic.map((item) => <figure key={item.id} className="relative aspect-[4/5] w-[38%] min-w-[8.5rem] max-w-[11rem] shrink-0 snap-start overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
-          <img src={item.previewUrl} alt="" className="size-full object-cover" />
-          <div className="absolute inset-0 grid place-items-center bg-black/45 px-3 text-center text-white">
-            <div><span className="mx-auto mb-3 block size-9 animate-spin rounded-full border-[3px] border-white/40 border-t-white motion-reduce:animate-none" /><span className="text-sm font-semibold">{item.status === "done" ? t("processing") : t("publishing", { percent: item.progress })}</span></div>
+      <section className="relative overflow-hidden rounded-3xl px-5 pb-4 pt-5 text-white shadow-lg" style={{ background: `radial-gradient(120% 90% at 100% 0%, ${accent} 0%, #163824 70%)` }}>
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[#e9d6af]">{memoriesOverline(context.eventType) === "wedding" ? tr("weddingMemories") : tr("eventMemories")}</p>
+        {days !== null && (
+          <div className="absolute right-4 top-4 rounded-2xl border border-[#e9d6af]/40 bg-white/10 px-3 py-2 text-center">
+            <b className="block font-serif text-2xl font-medium leading-none">{days}</b>
+            <small className="text-[10px] uppercase tracking-wider text-[#e9d6af]">{tr("daysToGo", { count: days })}</small>
           </div>
-        </figure>)}
-        {recentVisible.map((item, index) => <figure key={item.id} className="aspect-[4/5] w-[38%] min-w-[8.5rem] max-w-[11rem] shrink-0 snap-start overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
-          <button type="button" onClick={() => setLightboxIndex(index)} className="relative block size-full">
-            <img src={`/api/memories/media/${item.id}/thumbnail`} alt={item.uploaderDisplayName ? t("photoBy", { name: item.uploaderDisplayName }) : t("photoAlt")} className="size-full object-cover" />
-            {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
-              <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
-            </span>}
+        )}
+        {!empty && heroPhotos.length > 0 && (
+          <div className="pointer-events-none absolute right-3 top-3 flex">
+            {heroPhotos.map((item, index) => (
+              <span key={item.id} className="h-16 w-12 rounded-lg border-2 border-[#fbfaf6] bg-cover shadow-md" style={{ backgroundImage: `url(${imageSrc(item.id, "thumbnail")})`, transform: `rotate(${[-8, 3, 10][index] ?? 0}deg)`, marginLeft: index ? -18 : 0 }} />
+            ))}
+          </div>
+        )}
+        <h2 className="mt-14 font-serif text-4xl font-medium leading-none">{context.title}</h2>
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-white/90">
+          {when && <span className="inline-flex items-center gap-1"><Calendar className="size-3.5" />{when}</span>}
+          {place && <span className="inline-flex items-center gap-1"><MapPin className="size-3.5" />{place}</span>}
+        </div>
+        {!empty && (
+          <div className="mt-3 flex items-center gap-2 border-t border-white/20 pt-3 text-xs">
+            <span className="font-semibold">{tr("photoCount", { count: media.length })}</span>
+            {contributors.named.length > 0 && (
+              <span>
+                {contributors.more > 0
+                  ? tr("fromNamedMore", { names: contributors.named.join(", "), more: contributors.more })
+                  : tr("fromNamed", { names: contributors.named.join(", ") })}
+              </span>
+            )}
+          </div>
+        )}
+      </section>
+
+      {!empty && (
+        <div className="mt-3.5 flex gap-2.5">
+          <button type="button" onClick={onAddPhotos} className="inline-flex h-[3.1rem] flex-1 items-center justify-center gap-2 rounded-full text-[15px] font-semibold text-white shadow-md" style={{ backgroundColor: accent }}>
+            <Camera className="size-4" />{tr("addPhotos")}
           </button>
-        </figure>)}
-      </div>
-    </section>}
+          {context.findMeEnabled && (
+            <button type="button" onClick={onFindMe} className="inline-flex h-[3.1rem] items-center justify-center gap-2 rounded-full border px-4 text-[15px] font-semibold" style={{ color: accent, backgroundColor: surface, borderColor: `${accent}22` }}>
+              <ScanFace className="size-4" />{tr("findYourself")}
+            </button>
+          )}
+        </div>
+      )}
 
-    {olderMedia.length > 0 && <section aria-labelledby="earlier-heading">
-      <div className="mb-3 flex items-center gap-3"><h2 id="earlier-heading" className="shrink-0 text-lg font-semibold" style={{ color: accent }}>{t("earlierToday")}</h2><span className="h-px flex-1 opacity-15" style={{ backgroundColor: accent }} /></div>
-      <div className="columns-2 gap-2 sm:columns-3">
-        {olderFlat.map((item, index) => <figure key={item.id} className="mb-2 break-inside-avoid overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
-          <button type="button" onClick={() => setLightboxIndex(recentVisible.length + index)} className="relative block w-full">
-            <img src={`/api/memories/media/${item.id}/${item.mediaKind === "video" ? "thumbnail" : "display"}`} alt={item.uploaderDisplayName ? t("photoBy", { name: item.uploaderDisplayName }) : t("photoAlt")} className="h-auto w-full" loading="lazy" />
-            {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
-              <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
-            </span>}
-          </button>
-        </figure>)}
-      </div>
-    </section>}
+      {!empty && (
+        <div className="mt-3.5 flex gap-2 overflow-x-auto">
+          <FilterChip label={tr("filterAll")} count={media.length} active={filter === "all"} onClick={() => setFilter("all")} accent={accent} surface={surface} />
+          {videoCount > 0 && <FilterChip label={tr("filterVideos")} count={videoCount} active={filter === "videos"} onClick={() => setFilter("videos")} accent={accent} surface={surface} />}
+          {showMine && <FilterChip label={tr("filterMine")} count={filterGalleryMedia(media, "mine", localMine).length} active={filter === "mine"} onClick={() => setFilter("mine")} accent={accent} surface={surface} />}
+        </div>
+      )}
 
-    {lightboxIndex !== null && (
-      <MediaLightbox media={lightboxMedia} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
-    )}
+      {optimistic.length > 0 && (
+        <div className="mt-4 flex gap-2 overflow-x-auto" aria-label={t("recentLabel")}>
+          {optimistic.map((item) => (
+            <figure key={item.id} className="relative aspect-[4/5] w-32 shrink-0 overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
+              {item.previewUrl && <img src={item.previewUrl} alt="" className="size-full object-cover" />}
+              <div className="absolute inset-0 grid place-items-center bg-black/45 px-2 text-center text-xs font-semibold text-white">
+                {item.status === "done" ? t("processing") : t("publishing", { percent: item.progress })}
+              </div>
+            </figure>
+          ))}
+        </div>
+      )}
 
-    {findMeOpen && <FindMeFlow eventId={eventId} accent={accent} surface={surface} onClose={() => setFindMeOpen(false)} />}
-  </div>;
+      {empty ? (
+        <>
+          <div className="mt-4 rounded-3xl border px-5 py-6 text-center" style={{ backgroundColor: surface, borderColor: `${accent}22` }}>
+            <h3 className="font-serif text-xl font-semibold" style={{ color: accent }}>{tr("emptyTitle")}</h3>
+            <p className="mt-1 text-sm opacity-70">{tr("emptyBody")}</p>
+            <button type="button" onClick={onAddPhotos} className="mt-4 inline-flex h-12 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-white" style={{ backgroundColor: accent }}>
+              <Camera className="size-4" />{tr("addYourPhotos")}
+            </button>
+          </div>
+          {shots.length > 0 && (
+            <div className="mt-3 rounded-3xl border p-4" style={{ backgroundColor: surface, borderColor: `${accent}22` }}>
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider opacity-60">{tr("shotListTitle")}</h3>
+              <ul className="mt-3 grid gap-3">
+                {shots.map((shot) => (
+                  <li key={shot.id} className="flex items-center gap-3">
+                    <span className="size-9 shrink-0 rounded-xl" style={{ backgroundColor: `${accent}18` }} />
+                    <span>
+                      <span className="block text-sm font-semibold">{shot.title}</span>
+                      {shot.hint && <span className="block text-xs opacity-60">{tr("shotHint", { time: shot.hint })}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {context.findMeEnabled && <p className="mt-3 flex gap-2 rounded-2xl px-3 py-3 text-xs leading-5" style={{ backgroundColor: `${accent}12` }}><ScanFace className="mt-0.5 size-4 shrink-0" style={{ color: accent }} />{tr("findLater")}</p>}
+        </>
+      ) : (
+        sections.map((section) => (
+          <section key={section.id} className="mt-5">
+            <div className="mb-2.5 flex items-baseline gap-2">
+              <h3 className="font-serif text-lg font-semibold" style={{ color: accent }}>{section.title}</h3>
+              <span className="text-xs opacity-60">{[section.whenLabel, String(section.items.length)].filter(Boolean).join(" · ")}</span>
+              <span className="h-px flex-1" style={{ backgroundColor: `${accent}22` }} />
+            </div>
+            <div className="columns-2 gap-2.5">
+              {section.items.map((item) => {
+                const name = knownContributorName(item.uploaderDisplayName);
+                const length = item.mediaKind === "video" ? formatVideoDuration(item.durationSeconds) : null;
+                const index = lightboxMedia.findIndex((candidate) => candidate.id === item.id);
+                return (
+                  <figure key={item.id} className="relative mb-2.5 break-inside-avoid overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
+                    <button type="button" onClick={() => setLightboxIndex(index)} className="relative block w-full">
+                      <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt={name ? t("photoBy", { name }) : ""} className="h-auto w-full" loading="lazy" />
+                      {item.mediaKind === "video" && (
+                        <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute left-2 top-2 inline-flex h-6 items-center gap-1 rounded-full bg-black/50 px-2 text-[11px] font-semibold text-white">
+                          <Play className="size-2.5 fill-current" />{length}
+                        </span>
+                      )}
+                      {name && (
+                        <span className="pointer-events-none absolute bottom-2 left-2 inline-flex h-6 max-w-[90%] items-center gap-1 rounded-full bg-black/50 pl-0.5 pr-2 text-[11px] font-semibold text-white">
+                          <i className="grid size-5 place-items-center rounded-full bg-[#e9d6af] text-[10px] not-italic text-[#1c2a20]">{Array.from(name)[0]?.toUpperCase()}</i>
+                          <span className="truncate">{name}</span>
+                        </span>
+                      )}
+                    </button>
+                  </figure>
+                );
+              })}
+            </div>
+          </section>
+        ))
+      )}
+
+      {!empty && <p className="mt-6 text-center text-xs opacity-60">{tr("caughtUp", { count: media.length })}</p>}
+      {!empty && context.brandingEnabled && <PlanningEndCard slug={context.slug} accent={accent} surface={surface} text={accent} />}
+      {context.brandingEnabled && <MadeWithFooter slug={context.slug} accent={accent} />}
+
+      {lightboxIndex !== null && lightboxMedia[lightboxIndex] && (
+        <MediaLightbox
+          media={lightboxMedia}
+          index={lightboxIndex}
+          moments={moments}
+          imageSrc={imageSrc}
+          onFindMe={context.findMeEnabled ? onFindMe : undefined}
+          onClose={() => setLightboxIndex(null)}
+          onNavigate={setLightboxIndex}
+        />
+      )}
+    </div>
+  );
+}
+
+function FilterChip({ label, count, active, onClick, accent, surface }: { label: string; count: number; active: boolean; onClick: () => void; accent: string; surface: string }) {
+  return (
+    <button type="button" onClick={onClick} className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full px-3 text-xs font-semibold" style={{ backgroundColor: active ? "#1c2a20" : surface, color: active ? "#fff" : accent, boxShadow: active ? undefined : `inset 0 0 0 1px ${accent}22` }}>
+      {label} <small className="font-medium opacity-70">{count}</small>
+    </button>
+  );
 }
