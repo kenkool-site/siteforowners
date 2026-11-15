@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { EventSiteFonts } from "@/components/invitations/EventSiteFonts";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { InvitationStateView, PublicInvitation } from "@/components/invitations/PublicInvitation";
 import {
@@ -8,6 +9,7 @@ import {
   toPublicInvitationClientDetails,
 } from "@/lib/invitations/public-access";
 import { getPublicInvitationBySlug, listPublicInvitationComments } from "@/lib/invitations/repository";
+import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 
 export const revalidate = 3600;
@@ -41,14 +43,25 @@ export default async function PublicInvitationPage({ params }: { params: { slug:
   const initialComments = clientDetails.event.commentWallEnabled
     ? await listPublicInvitationComments(clientDetails.event.id)
     : { comments: [], nextCursor: null };
+  let brandingEnabled = true;
+  try {
+    const settings = await getEventMemoriesSettings(clientDetails.event.id);
+    if (settings) brandingEnabled = settings.brandingEnabled;
+  } catch {
+    brandingEnabled = true;
+  }
   return (
-    <InvitationPublicProvider locale={clientDetails.event.locale} timeZone={clientDetails.event.timezone}>
-      <PublicInvitation
-        event={clientDetails.event}
-        state={clientDetails.state}
-        rsvpSummary={clientDetails.rsvpSummary}
-        initialComments={initialComments}
-      />
-    </InvitationPublicProvider>
+    <EventSiteFonts>
+      <InvitationPublicProvider locale={clientDetails.event.locale} timeZone={clientDetails.event.timezone}>
+        <PublicInvitation
+          event={clientDetails.event}
+          state={clientDetails.state}
+          rsvpSummary={clientDetails.rsvpSummary}
+          initialComments={initialComments}
+          nowIso={new Date().toISOString()}
+          brandingEnabled={brandingEnabled}
+        />
+      </InvitationPublicProvider>
+    </EventSiteFonts>
   );
 }

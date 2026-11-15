@@ -4,7 +4,6 @@ import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
-import { DEFAULT_INVITATION_DESIGN_RECIPE } from "@/lib/invitations/design-recipe";
 
 (globalThis as Record<string, unknown>).React = React;
 
@@ -38,7 +37,7 @@ async function withHero(url: string, run: (container: HTMLElement, dom: JSDOM, s
   try {
     await act(async () => root.render(
       <NextIntlClientProvider locale="en" messages={enMessages} timeZone="UTC">
-        <InvitationHero coverUrl={null} title="You're invited" honoreeNames="Mia and Lee" date="October 10, 2026" venueName="The Garden" venueUrl={null} recipe={DEFAULT_INVITATION_DESIGN_RECIPE} />
+        <InvitationHero coverUrl={null} coverAlt="Cover" honoreeNames="Mia and Lee" whenLabel="October 10, 2026" venueLine="The Garden" eyebrow="The wedding of" />
       </NextIntlClientProvider>,
     ));
     await run(container, dom, scrolls);
@@ -50,7 +49,7 @@ async function withHero(url: string, run: (container: HTMLElement, dom: JSDOM, s
 
 test("View invitation scrolls to the details without adding a refresh-persistent hash", async () => {
   await withHero("https://example.test/invite/mia-and-lee", async (container, dom) => {
-    const action = Array.from(container.querySelectorAll<HTMLElement>("a,button")).find((element) => element.textContent?.includes("View invitation"));
+    const action = Array.from(container.querySelectorAll<HTMLElement>("a,button")).find((element) => element.textContent?.includes("The invitation"));
     assert.ok(action);
     await act(async () => action.click());
     assert.equal(dom.window.location.hash, "");

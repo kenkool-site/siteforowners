@@ -5,8 +5,9 @@ import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { RsvpForm } from "./RsvpForm";
 import { readableTextColor } from "@/lib/invitations/design-recipe";
+import { eventDisplayClass } from "./event-display";
 
-export function InvitationRsvpDialog({ slug, state, preview, deadlineDate, showPublicRsvpCount, accent, background, foreground }: {
+export function InvitationRsvpDialog({ slug, state, preview, deadlineDate, showPublicRsvpCount, accent, background, foreground, whenLabel = null, googleCalendarUrl = null, icsHref = null, icsFilename, memoriesHref = null, brandingEnabled = true, initialSuccess = null, defaultOpen = false }: {
   slug: string;
   state: "published" | "rsvp_closed";
   preview: boolean;
@@ -15,10 +16,18 @@ export function InvitationRsvpDialog({ slug, state, preview, deadlineDate, showP
   accent: string;
   background: string;
   foreground: string;
+  whenLabel?: string | null;
+  googleCalendarUrl?: string | null;
+  icsHref?: string | null;
+  icsFilename?: string;
+  memoriesHref?: string | null;
+  brandingEnabled?: boolean;
+  initialSuccess?: { name: string; attending: boolean } | null;
+  defaultOpen?: boolean;
 }) {
   const t = useTranslations("invitations.public.rsvp");
   const tPublic = useTranslations("invitations.public");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -49,13 +58,16 @@ export function InvitationRsvpDialog({ slug, state, preview, deadlineDate, showP
   }, [open]);
 
   const title = state === "rsvp_closed" ? t("closedTitle") : t("title");
+  const closed = state === "rsvp_closed";
   return (
-    <>
+    <div className="px-6">
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed inset-x-5 bottom-5 z-40 mx-auto min-h-12 max-w-sm rounded-full px-6 py-3 text-base font-semibold shadow-[0_12px_35px_rgba(0,0,0,0.28)] outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 motion-reduce:transform-none"
-        style={{ backgroundColor: accent, color: readableTextColor(accent) }}
+        className={closed
+          ? "inline-flex items-center rounded-full border border-[#E4DCCE] bg-[#FBF8F2] px-3 py-1.5 text-[11px] font-medium uppercase tracking-[0.08em] text-[#5E6F61]"
+          : "inline-flex min-h-12 w-full items-center justify-center rounded-full px-6 py-3 text-base font-medium outline-none transition-transform hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-offset-2 motion-reduce:transform-none"}
+        style={closed ? undefined : { backgroundColor: accent, color: readableTextColor(accent) }}
       >
         {title}
       </button>
@@ -63,15 +75,31 @@ export function InvitationRsvpDialog({ slug, state, preview, deadlineDate, showP
         <div className="fixed inset-0 z-50 flex items-end overflow-y-auto overscroll-contain bg-black/55 p-0 backdrop-blur-sm sm:items-center sm:justify-center sm:p-6" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setOpen(false); }}>
           <section role="dialog" aria-modal="true" aria-labelledby="invitation-rsvp-title" className="max-h-[100dvh] w-full overflow-y-auto overscroll-contain rounded-t-3xl px-5 pb-8 shadow-2xl sm:max-h-[92dvh] sm:max-w-xl sm:rounded-2xl sm:px-8" style={{ backgroundColor: background, color: foreground }}>
             <div className="sticky top-0 z-10 -mx-5 flex items-start justify-between gap-4 px-5 pb-3 pt-5 sm:-mx-8 sm:px-8 sm:pt-7" style={{ backgroundColor: background }}>
-              <h2 id="invitation-rsvp-title" className="font-[family-name:var(--font-fraunces)] text-3xl sm:text-4xl">{title}</h2>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#B3945C]">{t("replyKicker")}</p>
+                <h2 id="invitation-rsvp-title" className={`${eventDisplayClass} text-3xl font-medium text-[#1A3D24] sm:text-4xl`}>{title}</h2>
+              </div>
               <button ref={closeRef} type="button" onClick={() => setOpen(false)} aria-label={t("close")} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-current/25 outline-none focus-visible:ring-2 focus-visible:ring-current"><X aria-hidden="true" className="size-5" /></button>
             </div>
             {state === "published" && deadlineDate && <p className="mt-4 text-sm font-semibold">{tPublic("rsvpDeadline", { date: deadlineDate })}</p>}
             {preview && <p className="mt-4" role="status">{tPublic("previewNotice")}</p>}
-            <RsvpForm preview={preview} slug={slug} allowCreate={state === "published"} showPublicRsvpCount={showPublicRsvpCount} accent={accent} />
+            <RsvpForm
+              preview={preview}
+              slug={slug}
+              allowCreate={state === "published"}
+              showPublicRsvpCount={showPublicRsvpCount}
+              accent={accent}
+              whenLabel={whenLabel}
+              googleCalendarUrl={googleCalendarUrl}
+              icsHref={icsHref}
+              icsFilename={icsFilename}
+              memoriesHref={memoriesHref}
+              brandingEnabled={brandingEnabled}
+              initialSuccess={initialSuccess}
+            />
           </section>
         </div>
       )}
-    </>
+    </div>
   );
 }

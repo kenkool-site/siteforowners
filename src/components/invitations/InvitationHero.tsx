@@ -1,23 +1,47 @@
 "use client";
 
-import { useEffect, type CSSProperties } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect } from "react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { neutralOverlayColor, type InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
-import { InvitationFrame } from "./InvitationFrame";
+import { eventDisplayClass } from "./event-display";
 
-function comparableHeading(value: string): string {
-  return value.toLocaleLowerCase().replaceAll("&", "and").replace(/[^a-z0-9]+/g, " ").trim();
+function HonoreeTitle({ name }: { name: string }) {
+  const pieces = name.split(/(\s*&\s*)/);
+  return (
+    <>
+      {pieces.map((piece, index) => piece.trim() === "&" || piece.includes("&")
+        ? <span key={index} className={`${eventDisplayClass} italic font-medium`}>{piece}</span>
+        : <span key={index}>{piece}</span>)}
+    </>
+  );
 }
 
-export function InvitationHero({ coverUrl, title, honoreeNames, date, venueName, venueUrl, recipe }: {
+export function InvitationHero({
+  coverUrl,
+  coverAlt,
+  honoreeNames,
+  whenLabel,
+  venueLine,
+  eyebrow,
+  supportingTitle,
+  phase = "upcoming",
+  thanksTitle,
+  thanksBody,
+  thanksAction,
+  memoriesHref,
+}: {
   coverUrl: string | null;
-  title: string;
+  coverAlt: string;
   honoreeNames: string;
-  date: string;
-  venueName: string | null;
-  venueUrl: string | null;
-  recipe: InvitationDesignRecipe;
+  whenLabel: string | null;
+  venueLine: string | null;
+  eyebrow: string;
+  supportingTitle?: string;
+  phase?: "upcoming" | "thanks";
+  thanksTitle?: string;
+  thanksBody?: string;
+  thanksAction?: string;
+  memoriesHref?: string;
 }) {
   const t = useTranslations("invitations.public");
 
@@ -29,39 +53,71 @@ export function InvitationHero({ coverUrl, title, honoreeNames, date, venueName,
   }, []);
 
   function viewInvitation() {
-    document.getElementById("invitation-content")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const reduceMotion = typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    document.getElementById("invitation-content")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
   }
 
-  const placement = recipe.composition.heroTextPlacement === "top" ? "justify-start pt-24" : recipe.composition.heroTextPlacement === "bottom" ? "justify-end pb-56" : "justify-center pb-48 pt-16";
-  const alignment = recipe.composition.alignment === "left" ? "items-start text-left" : "items-center text-center";
-  const displayStyle = recipe.typography.display === "formal-script" ? "italic" : "normal";
-  const motif = ({ botanical: "❦", floral: "✿", geometric: "◆", ribbon: "〰", ornamental: "✦" } as const)[recipe.decoration.motif as Exclude<typeof recipe.decoration.motif, "none">] ?? "";
-  const mainTitle = honoreeNames.trim() || title;
-  const supportingTitle = comparableHeading(title) !== comparableHeading(mainTitle) ? title : "";
-  const overlayColor = coverUrl ? neutralOverlayColor(recipe.palette.overlay) : recipe.palette.overlay;
-  const style = {
-    minHeight: `${recipe.hero.minHeightVh}dvh`,
-    backgroundColor: recipe.palette.overlay,
-    backgroundImage: coverUrl ? `url("${coverUrl.replaceAll('"', "%22")}")` : undefined,
-    backgroundPosition: `${recipe.hero.focalX * 100}% ${recipe.hero.focalY * 100}%`,
-  } as CSSProperties;
+  const optimizedCover = coverUrl?.startsWith("/api/invitations/public/") ?? false;
+
   return (
-    <section data-invitation-hero={coverUrl ? "cover" : "palette"} className={`relative flex flex-col bg-cover bg-no-repeat px-6 ${placement}`} style={style}>
-      <div className="absolute inset-0" aria-hidden="true" style={{ backgroundColor: overlayColor, opacity: coverUrl ? recipe.hero.overlayStrength : 0 }} />
-      <InvitationFrame style={recipe.frame.style} color={recipe.palette.accent} width={recipe.frame.width} radius={recipe.frame.radius} />
-      <div className={`relative z-10 mx-auto flex w-full max-w-4xl flex-col ${alignment}`} style={{ color: recipe.hero.textColor }}>
-        {motif && <div aria-hidden="true" className="mb-6 text-3xl" style={{ color: recipe.palette.accent }}>{motif}</div>}
-        {supportingTitle && <p data-invitation-kicker="true" className="mb-4 text-base font-medium tracking-[0.12em] sm:text-xl">{supportingTitle}</p>}
-        <h1 className="font-[family-name:var(--font-fraunces)] text-[clamp(3.4rem,12vw,8rem)] leading-[0.88]" style={{ fontStyle: displayStyle, fontWeight: recipe.typography.weight, letterSpacing: `${recipe.typography.tracking}em` }}>{mainTitle}</h1>
-      </div>
-      <div className="absolute inset-x-8 bottom-24 z-20 flex flex-col items-center text-center" style={{ color: recipe.hero.textColor }}>
-        <p className="text-[clamp(1rem,2.5vw,1.35rem)] font-medium tracking-[0.04em]">{date}</p>
-        {venueName && (venueUrl
-          ? <a data-invitation-venue="true" href={venueUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-sm font-medium tracking-[0.04em] underline decoration-current/60 underline-offset-4 opacity-90 sm:text-base">{venueName}</a>
-          : <p data-invitation-venue="true" className="mt-2 text-sm font-medium tracking-[0.04em] opacity-90 sm:text-base">{venueName}</p>)}
-        <button type="button" onClick={viewInvitation} className="mt-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-current px-5 py-2 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2">
-          {t("viewInvitation")}<ChevronDown className="size-4" aria-hidden="true" />
-        </button>
+    <section
+      id="invitation-hero"
+      data-invitation-hero={coverUrl ? "cover" : "palette"}
+      data-invitation-phase={phase}
+      className="relative flex min-h-[100dvh] flex-col justify-end bg-[#14261A] text-white"
+    >
+      {coverUrl && (
+        optimizedCover ? (
+          <Image
+            src={coverUrl}
+            alt={coverAlt}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover object-[center_20%]"
+          />
+        ) : (
+          // Signed cover URLs change on every fetch, so next/image cannot cache them.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={coverUrl} alt={coverAlt} decoding="async" className="absolute inset-0 h-full w-full object-cover object-[center_20%]" />
+        )
+      )}
+      <div
+        className="absolute inset-0"
+        aria-hidden="true"
+        style={{ background: "linear-gradient(180deg, rgba(10,16,12,.35) 0%, rgba(10,16,12,.12) 38%, rgba(10,16,12,.55) 72%, rgba(10,16,12,.82) 100%)" }}
+      />
+      <div data-invitation-frame="gold" className="pointer-events-none absolute inset-3.5 z-[1] border border-[#D4C2A0]/45 sm:inset-5" />
+      <div className="relative z-10 mx-auto w-full max-w-lg px-7 pb-16 pt-24 text-center sm:pb-20" style={{ textShadow: "0 1px 16px rgba(0,0,0,.45)" }}>
+        {phase === "thanks" ? (
+          <>
+            {whenLabel && <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#D4C2A0]">{whenLabel}</p>}
+            <h1 className={`${eventDisplayClass} mt-2 text-[clamp(2.6rem,10vw,3.4rem)] font-medium leading-[1.05]`}>{thanksTitle}</h1>
+            {thanksBody && <p className="mt-3 text-sm text-white/90">{thanksBody}</p>}
+            {memoriesHref && thanksAction && (
+              <a href={memoriesHref} className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-medium text-[#1A3D24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#14261A]">
+                {thanksAction}
+                <span aria-hidden="true">→</span>
+              </a>
+            )}
+          </>
+        ) : (
+          <>
+            <p data-invitation-kicker="true" className="mb-2.5 text-[11px] font-medium uppercase tracking-[0.22em] text-[#D4C2A0]">{eyebrow}</p>
+            <h1 className={`${eventDisplayClass} text-[clamp(3.2rem,12vw,4.6rem)] font-medium leading-[0.95] tracking-[-0.02em]`}>
+              <HonoreeTitle name={honoreeNames} />
+            </h1>
+            {supportingTitle && <p data-invitation-supporting="true" className="mt-3 text-sm tracking-wide text-white/85">{supportingTitle}</p>}
+            {whenLabel && <p className="mt-3.5 text-[13.5px] tracking-[0.04em] text-white/95">{whenLabel}</p>}
+            {venueLine && <p data-invitation-venue="true" className="mt-1.5 text-[13px] text-[#D4C2A0]">{venueLine}</p>}
+            <button type="button" onClick={viewInvitation} className="mt-6 inline-flex flex-col items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-white/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+              {t("scrollCue")}
+              <span aria-hidden="true" className="relative h-6 w-4 rounded-full border border-white/50">
+                <span className="absolute left-1/2 top-1.5 h-1.5 w-0.5 -translate-x-1/2 rounded-full bg-white motion-safe:animate-bounce motion-reduce:animate-none" />
+              </span>
+            </button>
+          </>
+        )}
       </div>
     </section>
   );

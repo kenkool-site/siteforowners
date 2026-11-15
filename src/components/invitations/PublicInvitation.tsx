@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { Building2, CalendarDays, Clock3, MapPin, Navigation, Plane } from "lucide-react";
@@ -11,17 +11,27 @@ import {
 } from "@/lib/invitations/calendar";
 import { InvitationRsvpDialog } from "./InvitationRsvpDialog";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
-import { DEFAULT_INVITATION_DESIGN_RECIPE, readableTextColor } from "@/lib/invitations/design-recipe";
 import { hotelMapUrl } from "@/lib/invitations/travel";
 import { InvitationHero } from "./InvitationHero";
 import { InvitationFooter } from "./InvitationFooter";
 import { InvitationStyleGuide } from "./InvitationStyleGuide";
-import type {
-  EffectiveEventState,
-} from "@/lib/invitations/state";
+import type { EffectiveEventState } from "@/lib/invitations/state";
 import type { PublicInvitationEvent as RepositoryPublicInvitationEvent } from "@/lib/invitations/repository-core";
 import type { InvitationCommentPage } from "@/lib/invitations/comments";
 import { InvitationCommentWall } from "./InvitationCommentWall";
+import {
+  countdownParts,
+  directionsHref,
+  eventKind,
+  eventPhase,
+  formatEventDay,
+  formatEventTime,
+  formatEventWhen,
+  memoriesPath,
+  untilDateLabel,
+  type CountdownParts,
+} from "@/lib/invitations/event-site";
+import { eventDisplayClass } from "./event-display";
 
 export type PublicInvitationEvent = Pick<
   RepositoryPublicInvitationEvent,
@@ -57,103 +67,104 @@ type PublicInvitationProps = {
   preview?: boolean;
   event: PublicInvitationEvent;
   state: Extract<EffectiveEventState, "published" | "rsvp_closed">;
-  // Server-provided media, used only by the founder/owner preview page
-  // (src/app/invitations/preview/[eventId]/page.tsx), which can preview
-  // draft events the public media endpoint would reject. The public
-  // invitation page never passes this — it fetches media itself below so
-  // that this page can drop cookies()/headers() and stay cacheable.
   initialMedia?: InvitationMediaSnapshot;
   rsvpSummary: { attendingPeople: number; declinedParties: number };
   initialComments?: InvitationCommentPage;
+  /** Server render time. The clock ticks after hydration so the markup matches. */
+  nowIso?: string;
+  /** Keep the supplied instant. The public page lets the clock tick after hydration. */
+  freezeClock?: boolean;
+  brandingEnabled?: boolean;
+  rsvpStartsOpen?: boolean;
+  rsvpInitialSuccess?: { name: string; attending: boolean } | null;
 };
 
-type ThemeKey = "classic" | "romantic" | "celebration";
-type InvitationLayout = "centered-frame" | "image-asymmetry" | "offset-blocks";
+const GREEN = "#1A3D24";
+const PAPER = "#FBF8F2";
+const INK = "#14261A";
 
-type ThemeDefinition = {
-  layout: InvitationLayout;
-  page: string;
-  stage: string;
-  opening: string;
-  designedOpening: string;
-  title: string;
-  message: string;
-  details: string;
-  media: string;
-  count: string;
-  rsvp: string;
-};
+function comparableHeading(value: string): string {
+  return value.toLocaleLowerCase().replaceAll("&", "and").replace(/[^a-z0-9]+/g, " ").trim();
+}
 
-const THEMES: Record<ThemeKey, ThemeDefinition> = {
-  classic: {
-    layout: "centered-frame",
-    page: "bg-[#F7F5EF] text-[#172238]",
-    stage: "mx-auto max-w-5xl px-4 py-5 sm:px-8 sm:py-10",
-    opening: "border border-[#B9B5AB] bg-[#FCFBF7] p-3 text-center shadow-[inset_0_0_0_7px_#F7F5EF] sm:p-8",
-    designedOpening: "border border-[#B9B5AB] bg-[#FCFBF7] p-3 text-center shadow-[inset_0_0_0_7px_#F7F5EF] sm:p-8",
-    title: "mx-auto max-w-3xl text-center",
-    message: "mx-auto max-w-2xl text-center",
-    details: "mx-auto max-w-3xl border-y border-[#C9C5BB]",
-    media: "mx-auto max-w-4xl",
-    count: "mx-auto max-w-2xl border border-[#C9C5BB] bg-[#FCFBF7]",
-    rsvp: "mx-auto max-w-2xl bg-[#172238] text-white",
-  },
-  romantic: {
-    layout: "image-asymmetry",
-    page: "bg-[#E8DEEC] text-[#341D3B]",
-    stage: "mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-10",
-    opening: "overflow-hidden rounded-[4rem_1.25rem_4rem_1.25rem] bg-[#D8C5DF] p-2 shadow-[0_28px_90px_rgba(72,39,82,0.18)] md:mr-[12%]",
-    designedOpening: "bg-[#D8C5DF] p-2 shadow-[0_28px_90px_rgba(72,39,82,0.18)] md:mr-[12%]",
-    title: "relative z-10 -mt-8 ml-auto max-w-3xl rounded-[2.75rem_0.75rem_2.75rem_0.75rem] bg-[#F6F0F7] px-6 py-9 text-left shadow-[0_20px_60px_rgba(72,39,82,0.14)] sm:px-10 md:-mt-24 md:w-[58%]",
-    message: "max-w-2xl px-2 md:ml-[8%]",
-    details: "ml-auto max-w-3xl rounded-[2.5rem_0.75rem_2.5rem_0.75rem] bg-[#F6F0F7] shadow-[0_18px_55px_rgba(72,39,82,0.12)]",
-    media: "max-w-5xl md:mr-auto md:w-[86%]",
-    count: "ml-auto max-w-2xl rounded-[2rem_0.75rem_2rem_0.75rem] bg-[#D5C0DD]",
-    rsvp: "max-w-2xl rounded-[0.75rem_2.5rem_0.75rem_2.5rem] bg-[#432448] text-white md:ml-[8%]",
-  },
-  celebration: {
-    layout: "offset-blocks",
-    page: "bg-[#F4F0E8] text-[#132765]",
-    stage: "mx-auto max-w-6xl px-4 py-5 sm:px-8 sm:py-10",
-    opening: "relative ml-auto border-[10px] border-[#2753C7] bg-white p-1 shadow-[-18px_18px_0_#F06449] md:w-[82%]",
-    designedOpening: "relative ml-auto border-[10px] border-[#2753C7] bg-white p-1 shadow-[-18px_18px_0_#F06449] md:w-[82%]",
-    title: "relative max-w-4xl bg-[#2753C7] px-6 py-9 text-left text-white sm:px-10 md:-mt-12 md:w-[70%]",
-    message: "ml-auto max-w-3xl border-l-[10px] border-[#F06449] pl-6",
-    details: "max-w-4xl border-2 border-[#2753C7] bg-white shadow-[14px_14px_0_#F4C849]",
-    media: "ml-auto max-w-5xl",
-    count: "max-w-2xl bg-[#F4C849] text-[#14255A]",
-    rsvp: "ml-auto max-w-2xl bg-[#F06449] text-[#24152D]",
-  },
-};
-
-function themeFor(key: string): ThemeDefinition {
-  return key === "romantic" || key === "celebration" ? THEMES[key] : THEMES.classic;
+function useEventClock(nowIso?: string, freeze = false): number | null {
+  const seeded = nowIso && Number.isFinite(Date.parse(nowIso)) ? Date.parse(nowIso) : null;
+  const [now, setNow] = useState<number | null>(seeded);
+  useEffect(() => {
+    if (freeze) return;
+    const tick = () => setNow(Date.now());
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [freeze]);
+  return now;
 }
 
 function InvitationImage({
   src,
   alt,
   className,
-  fit = "cover",
+  priority = false,
 }: {
   src: string;
   alt: string;
   className?: string;
-  fit?: "contain" | "cover";
+  priority?: boolean;
 }) {
-  const objectFitClass = fit === "contain" ? "h-auto object-contain" : "h-full object-cover";
-  // Publicly-cacheable media (Task 2's stable proxy routes) is a same-origin
-  // relative path and safe to optimize via next/image. Passcode-protected
-  // media is a short-lived signed Supabase Storage URL that changes on every
-  // fetch, so next/image adds no benefit there — keep it a plain <img>.
+  const frame = `relative w-full ${className ?? ""}`;
   if (src.startsWith("/api/invitations/public/")) {
     return (
-      <div className={`relative w-full ${fit === "contain" ? "h-auto" : "h-full"} ${className ?? ""}`}>
-        <Image src={src} alt={alt} fill className={objectFitClass} sizes="(max-width: 768px) 100vw, 768px" />
+      <div className={frame}>
+        <Image src={src} alt={alt} fill priority={priority} className="object-cover" sizes="(max-width: 768px) 100vw, 768px" />
       </div>
     );
   }
-  return <img src={src} alt={alt} className={`block w-full ${objectFitClass} ${className ?? ""}`} />;
+  return (
+    <div className={frame}>
+      {/* Signed gallery URLs change on every fetch, so next/image cannot cache them. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} className="absolute inset-0 h-full w-full object-cover" />
+    </div>
+  );
+}
+
+function Kicker({ children }: { children: ReactNode }) {
+  return <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-[#B3945C]">{children}</p>;
+}
+
+function CountdownCard({ parts, until, pendingLabel }: { parts: CountdownParts | null; until: string | null; pendingLabel: string }) {
+  const t = useTranslations("invitations.public.countdown");
+  const cells = parts
+    ? [
+        [parts.days, t("days"), false],
+        [parts.hours, t("hours"), true],
+        [parts.minutes, t("minutes"), true],
+        [parts.seconds, t("seconds"), true],
+      ] as const
+    : [];
+  return (
+    <section
+      data-countdown={parts ? "live" : "pending"}
+      aria-busy={parts ? undefined : true}
+      aria-label={t("label")}
+      className="relative z-[2] mx-auto -mt-10 w-[calc(100%-2.5rem)] max-w-lg border border-[#E4DCCE] bg-[#FBF8F2] px-3.5 py-4 text-center shadow-[0_16px_40px_rgba(20,38,26,.12)]"
+    >
+      <Kicker>{t("label")}</Kicker>
+      {parts ? (
+        <div className="mt-2.5 grid grid-cols-4">
+          {cells.map(([value, label, pad], index) => (
+            <div key={label} className={index > 0 ? "border-l border-[#E4DCCE]" : undefined}>
+              <b className={`${eventDisplayClass} block text-4xl font-medium leading-none text-[#1A3D24]`}>{pad ? String(value).padStart(2, "0") : String(value)}</b>
+              <small className="mt-1 block text-[9px] font-medium uppercase tracking-[0.14em] text-[#5E6F61]">{label}</small>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="py-3 text-sm text-[#5E6F61]">{pendingLabel}</p>
+      )}
+      {until && <p className="mt-2.5 text-[11px] text-[#5E6F61]">{t("until", { date: until })}</p>}
+    </section>
+  );
 }
 
 export function StateView({ children }: { children: ReactNode }) {
@@ -179,7 +190,8 @@ export function PublicRsvpAggregate({
   const t = useTranslations("invitations.public");
   return (
     <section className={`${className ?? ""} px-5 py-8 text-center sm:px-9 sm:py-10`} aria-label={t("countsLabel")}>
-      <p className={`${titleClass} text-3xl leading-tight sm:text-4xl`}>{t("celebrating", { count: summary.attendingPeople })}</p>
+      <p className={`${titleClass} text-[3.5rem] font-medium leading-none text-[#1A3D24]`}>{summary.attendingPeople}</p>
+      <p className={`${eventDisplayClass} mt-1.5 text-xl italic text-[#14261A]`}>{t("celebrating", { count: summary.attendingPeople })}</p>
     </section>
   );
 }
@@ -192,8 +204,26 @@ export function InvitationStateView({ state }: { state: "draft" | "expired" }) {
   return <StateView><h1 className="font-[family-name:var(--font-fraunces)] text-4xl">{t("ended.title")}</h1><p className="mt-4 text-base leading-7 text-[#665C69]">{t("ended.body")}</p></StateView>;
 }
 
-export function PublicInvitation({ event, state, initialMedia, rsvpSummary, preview = false, initialComments = { comments: [], nextCursor: null } }: PublicInvitationProps) {
+const ghostButton = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#1A3D24] px-3 py-2 text-[13.5px] font-medium text-[#1A3D24] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3D24]";
+const solidButton = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-[#1A3D24] px-3 py-2 text-[13.5px] font-medium text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1A3D24] focus-visible:ring-offset-2";
+
+export function PublicInvitation({
+  event,
+  state,
+  initialMedia,
+  rsvpSummary,
+  preview = false,
+  initialComments = { comments: [], nextCursor: null },
+  nowIso,
+  freezeClock = false,
+  brandingEnabled = true,
+  rsvpStartsOpen = false,
+  rsvpInitialSuccess = null,
+}: PublicInvitationProps) {
   const t = useTranslations("invitations.public");
+  const clock = useEventClock(nowIso, freezeClock);
+  const phase = clock == null ? (event.startsAt ? "upcoming" : "undated") : eventPhase(event.startsAt, new Date(clock));
+  const parts = clock == null || phase !== "upcoming" ? null : countdownParts(event.startsAt, new Date(clock));
 
   const [media, setMedia] = useState<InvitationMediaSnapshot | null>(initialMedia ?? null);
   useEffect(() => {
@@ -206,53 +236,14 @@ export function PublicInvitation({ event, state, initialMedia, rsvpSummary, prev
     return () => { cancelled = true; };
   }, [event.slug, initialMedia]);
 
-  const theme = themeFor(event.themeKey);
-  const recipe = event.designRecipe ?? DEFAULT_INVITATION_DESIGN_RECIPE;
-  const recreated = event.designRecipe !== null;
-  const displayStyles = {
-    "formal-script": "font-[family-name:var(--font-fraunces)] italic",
-    "editorial-serif": "font-[family-name:var(--font-fraunces)]",
-    "classic-serif": "font-[family-name:var(--font-fraunces)]",
-    "geometric-sans": "font-sans uppercase",
-    "humanist-sans": "font-sans",
-  } as const;
-  const titleFont = recreated
-    ? displayStyles[recipe.typography.display]
-    : event.fontPairKey === "fraunces-geist" ? "font-[family-name:var(--font-fraunces)]" : "font-sans";
-  const bodyFont = recipe.typography.body === "classic-serif" ? "font-[family-name:var(--font-fraunces)]" : "font-sans";
-  const alignment = recipe.composition.alignment === "center" ? "text-center" : "text-left";
-  const rhythm = recipe.composition.rhythm === "compact" ? "mt-8 sm:mt-10" : recipe.composition.rhythm === "airy" ? "mt-16 sm:mt-24" : "mt-12 sm:mt-16";
-  const radius = recipe.frame.radius === "rounded" ? "2rem" : recipe.frame.radius === "soft" ? "0.75rem" : "0";
-  const frameStyle = recipe.frame.style === "double" || recipe.frame.style === "ornamental" ? "double" : recipe.frame.style === "none" ? "none" : "solid";
-  const framedSurface = {
-    backgroundColor: recipe.palette.surface,
-    borderColor: recipe.palette.accent,
-    borderStyle: frameStyle,
-    borderWidth: recipe.frame.style === "none" ? 0 : Math.max(recipe.frame.width, frameStyle === "double" ? 3 : 1),
-    borderRadius: radius,
-  } as CSSProperties;
-  const sectionOrder = (key: typeof recipe.contentOrder[number]) => {
-    const position = recipe.contentOrder.indexOf(key);
-    return position < 0 ? 99 : position;
-  };
-  const variables = {
-    "--invitation-primary": recipe.palette.text,
-    "--invitation-accent": recipe.palette.accent,
-    backgroundColor: recipe.palette.background,
-    color: recipe.palette.text,
-  } as CSSProperties;
-  const date = event.startsAt
-    ? new Intl.DateTimeFormat(event.locale, {
-        dateStyle: "full",
-        timeStyle: "short",
-        timeZone: event.timezone,
-      }).format(new Date(event.startsAt))
-    : t("datePending");
+  const names = event.honoreeNames.trim() || event.title;
+  const supportingTitle = comparableHeading(event.title) !== comparableHeading(names) ? event.title : "";
+  const whenLabel = formatEventWhen(event.startsAt, event.timezone, event.locale);
+  const dayLabel = formatEventDay(event.startsAt, event.timezone, event.locale);
+  const until = untilDateLabel(event.startsAt, event.timezone, event.locale);
+  const thanksDay = formatEventDay(event.startsAt, event.timezone, event.locale);
   const rsvpDeadlineDate = event.rsvpDeadline
-    ? new Intl.DateTimeFormat(event.locale, {
-        dateStyle: "long",
-        timeZone: event.timezone,
-      }).format(new Date(event.rsvpDeadline))
+    ? new Intl.DateTimeFormat(event.locale, { dateStyle: "long", timeZone: event.timezone }).format(new Date(event.rsvpDeadline))
     : null;
   const calendarInput: EventCalendarInput | null = event.startsAt ? {
     uid: event.id,
@@ -263,86 +254,168 @@ export function PublicInvitation({ event, state, initialMedia, rsvpSummary, prev
     location: [event.venueName, event.address].filter(Boolean).join(", "),
     description: event.description,
   } : null;
+  const googleHref = calendarInput ? googleEventCalendarUrl(calendarInput) : null;
+  const icsHref = calendarInput ? eventIcsDataUrl(calendarInput) : null;
   const travelInfo = event.travelInfo ?? { airports: [], hotels: [] };
   const hasTravelInfo = travelInfo.airports.length > 0 || travelInfo.hotels.length > 0;
   const hotels = [...travelInfo.hotels].sort((left, right) => Number(right.recommended) - Number(left.recommended));
-  const actionClass = "inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-current px-5 py-2.5 text-sm font-semibold outline-none transition-[transform,background-color] hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:ring-current focus-visible:ring-offset-2 motion-reduce:transform-none motion-reduce:transition-none";
+  const schedule = event.eventSchedule ?? [];
+  const hasVenue = Boolean(event.venueName || event.address || event.venueUrl || event.mapUrl);
+  const directions = directionsHref(event.address, event.mapUrl);
+  const gallery = media?.gallery ?? [];
+  const welcomePhotos = gallery.slice(0, 2);
+  const dressPhoto = gallery.length > 2 ? gallery[gallery.length - 1] : null;
+  const memoriesHref = memoriesPath(event.slug);
+  const closed = state === "rsvp_closed";
 
   return (
     <main
       data-invitation-theme={event.themeKey}
-      data-invitation-layout={event.designRecipe?.composition.family ?? theme.layout}
-      className={`min-h-screen overflow-x-hidden pb-24 sm:pb-28 ${bodyFont} ${theme.page}`}
-      style={variables}
+      data-invitation-layout="luxury"
+      data-invitation-phase={phase}
+      className="min-h-screen overflow-x-hidden bg-[#F3EEE4] text-[#14261A]"
     >
-      <InvitationHero coverUrl={media?.cover?.url ?? null} title={event.title} honoreeNames={event.honoreeNames} date={date} venueName={event.venueName} venueUrl={event.venueUrl} recipe={recipe} />
-      <article id="invitation-content" className={`${recreated ? "mx-auto flex flex-col px-4 py-8 sm:px-8 sm:py-14" : theme.stage}`} style={recreated ? { maxWidth: recipe.composition.maxWidth } : undefined}>
+      <InvitationHero
+        coverUrl={media?.cover?.url ?? null}
+        coverAlt={t("coverAlt", { title: names })}
+        honoreeNames={names}
+        whenLabel={phase === "thanks" ? thanksDay : whenLabel}
+        venueLine={event.venueName || event.address}
+        eyebrow={t(`eyebrow.${eventKind(event.eventType)}`)}
+        supportingTitle={supportingTitle}
+        phase={phase === "thanks" ? "thanks" : "upcoming"}
+        thanksTitle={t("thanks.title")}
+        thanksBody={t("thanks.arrived", { names })}
+        thanksAction={t("thanks.memories")}
+        memoriesHref={memoriesHref}
+      />
+
+      <article id="invitation-content" className="mx-auto max-w-lg pb-8">
+        {phase !== "thanks" && event.startsAt && (
+          <CountdownCard parts={parts} until={until} pendingLabel={t("countdown.pending")} />
+        )}
 
         {event.description && (
-          <section className={`${recreated ? alignment : theme.message} mt-8 sm:mt-12`} style={{ order: sectionOrder("intro") }}>
-            <p className={`${titleFont} text-2xl leading-10 sm:text-3xl sm:leading-[1.55]`}>{event.description}</p>
+          <section id="invitation-welcome" className="px-6 pb-2 pt-9 text-center" aria-labelledby="invitation-welcome-heading">
+            <Kicker>{t("welcome.kicker")}</Kicker>
+            <div aria-hidden="true" className="mx-auto mt-3.5 h-px w-10 bg-[#B3945C]" />
+            <h2 id="invitation-welcome-heading" className="sr-only">{t("welcome.kicker")}</h2>
+            <p className={`${eventDisplayClass} mt-4 text-[1.3rem] italic leading-snug`}>{event.description}</p>
           </section>
         )}
 
-        <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") }} aria-labelledby="invitation-details-heading">
-          <h2 id="invitation-details-heading" className={`${titleFont} text-3xl`}>{t("details")}</h2>
-          <div className="mt-7 grid gap-6 sm:grid-cols-2">
-            <div className="flex gap-3">
-              <CalendarDays aria-hidden="true" className="mt-1 size-5 shrink-0" />
-              <div>
-                <p className="font-semibold">{t("when")}</p>
-                <p className="mt-1 leading-7 opacity-80">{date}</p>
-                {rsvpDeadlineDate && <p className="mt-2 text-sm font-semibold">{state === "rsvp_closed" ? t("rsvpDeadlineClosed") : t("rsvpDeadline", { date: rsvpDeadlineDate })}</p>}
-              </div>
-            </div>
-            {(event.venueName || event.address) && (
-              <div className="flex gap-3">
-                <MapPin aria-hidden="true" className="mt-1 size-5 shrink-0" />
-                <div><p className="font-semibold">{t("where")}</p>{event.venueName && (event.venueUrl ? <a href={event.venueUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block min-h-11 py-2 font-semibold underline decoration-1 underline-offset-4">{event.venueName}</a> : <p className="mt-1 leading-7">{event.venueName}</p>)}{event.address && <p className="leading-7 opacity-80">{event.address}</p>}</div>
-              </div>
-            )}
+        {welcomePhotos.length > 0 && (
+          <div className="mt-6 space-y-3.5">
+            {welcomePhotos.map((item, index) => (
+              <figure key={item.id ?? item.path} className="px-6">
+                <InvitationImage src={item.url} alt={item.altText || t("galleryAlt", { number: index + 1 })} className={index === 0 ? "aspect-[4/5]" : "aspect-[16/9]"} />
+              </figure>
+            ))}
+            <p className="px-6 text-center text-[11px] uppercase tracking-[0.08em] text-[#5E6F61]">{t("welcome.photos")}</p>
           </div>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            {event.mapUrl && <a href={event.mapUrl} target="_blank" rel="noreferrer" className={actionClass}><Navigation aria-hidden="true" className="size-4" />{t("openMap")}</a>}
-            {calendarInput && <a href={googleEventCalendarUrl(calendarInput)} target="_blank" rel="noreferrer" className={actionClass}><CalendarDays aria-hidden="true" className="size-4" />{t("googleCalendar")}</a>}
-            {calendarInput && <a href={eventIcsDataUrl(calendarInput)} download={`${event.slug}.ics`} className={actionClass}><Clock3 aria-hidden="true" className="size-4" />{t("downloadCalendar")}</a>}
-          </div>
-        </section>
+        )}
 
-        {event.styleGuide && <div className={`${rhythm}`} style={{ order: sectionOrder("details") + 0.25 }}><InvitationStyleGuide guide={event.styleGuide} titleClass={titleFont} accent={recipe.palette.accent} surface={recipe.palette.surface} /></div>}
-
-        {(event.eventSchedule ?? []).length > 0 && (
-          <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.1 }} aria-labelledby="invitation-schedule-heading">
-            <h2 id="invitation-schedule-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("eventSchedule.title")}</h2>
-            <div className="relative mt-6 pl-7">
-              <div className="absolute bottom-1 left-[5px] top-1 w-px" style={{ backgroundColor: recipe.palette.accent, opacity: 0.35 }} />
-              {(event.eventSchedule ?? []).map((item, index) => (
-                <div key={`${item.name}:${index}`} className="relative pb-7 last:pb-0">
-                  <div className="absolute -left-7 top-1.5 size-2.5 rounded-full" style={{ backgroundColor: recipe.palette.accent }} />
-                  <p className="text-xs font-semibold uppercase tracking-wide opacity-70">
-                    {new Intl.DateTimeFormat(event.locale, { hour: "numeric", minute: "2-digit", timeZone: event.timezone }).format(new Date(item.startsAt))}
+        <section id="invitation-schedule" className="px-6 pb-2 pt-9" aria-labelledby={schedule.length > 0 ? "invitation-schedule-heading" : undefined}>
+          {schedule.length > 0 && (
+            <>
+              <Kicker>{t("eventSchedule.kicker")}</Kicker>
+              <h2 id="invitation-schedule-heading" className={`${eventDisplayClass} mt-2 text-[2rem] font-medium leading-tight text-[#1A3D24]`}>{t("eventSchedule.title")}</h2>
+              {dayLabel && <p className="mt-2 text-xs text-[#5E6F61]">{dayLabel}</p>}
+            </>
+          )}
+          {schedule.length > 0 && (
+            <div className="relative mt-4 pl-7">
+              <div className="absolute bottom-1 left-[5px] top-1 w-px bg-[#D4C2A0]" />
+              {schedule.map((item, index) => (
+                <div key={`${item.name}:${index}`} className="relative pb-6 last:pb-0">
+                  <div className="absolute -left-7 top-1.5 size-2.5 rounded-full bg-[#1A3D24] shadow-[0_0_0_3px_#F3EEE4]" />
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#B3945C]">
+                    {formatEventTime(item.startsAt, event.timezone, event.locale)}
                   </p>
-                  <p className="mt-1 text-lg">{item.name}</p>
+                  <p className={`${eventDisplayClass} mt-0.5 text-[1.35rem] font-semibold`}>{item.name}</p>
                   {(item.locationName || item.locationAddress) && (
-                    <p className="mt-1 flex items-start gap-1.5 text-sm opacity-75">
-                      <MapPin aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+                    <p className="mt-1 flex items-start gap-1.5 text-[13px] text-[#5E6F61]">
+                      <MapPin aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" />
                       <span>{[item.locationName, item.locationAddress].filter(Boolean).join(" — ")}</span>
                     </p>
                   )}
                 </div>
               ))}
             </div>
+          )}
+          {calendarInput && googleHref && icsHref && (
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <a href={googleHref} target="_blank" rel="noreferrer" className={ghostButton}><CalendarDays aria-hidden="true" className="size-4" />{t("googleCalendar")}</a>
+              <a href={icsHref} download={`${event.slug}.ics`} className={ghostButton}><Clock3 aria-hidden="true" className="size-4" />{t("downloadCalendar")}</a>
+            </div>
+          )}
+          <div className="mt-4">
+            {state === "published" && rsvpDeadlineDate && <p className="text-sm font-medium text-[#1A3D24]">{t("rsvpDeadline", { date: rsvpDeadlineDate })}</p>}
+            {closed && <p className="text-xs text-[#5E6F61]"><span className="inline-flex items-center rounded-full border border-[#E4DCCE] bg-[#FBF8F2] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em]">{t("rsvpDeadlineClosed")}</span></p>}
+          </div>
+        </section>
+
+        <div className="pb-4 pt-2">
+          <InvitationRsvpDialog
+            slug={event.slug}
+            state={state}
+            preview={preview}
+            deadlineDate={rsvpDeadlineDate}
+            showPublicRsvpCount={event.showPublicRsvpCount}
+            accent={GREEN}
+            background={PAPER}
+            foreground={INK}
+            whenLabel={whenLabel}
+            googleCalendarUrl={googleHref}
+            icsHref={icsHref}
+            icsFilename={`${event.slug}.ics`}
+            memoriesHref={memoriesHref}
+            brandingEnabled={brandingEnabled}
+            initialSuccess={rsvpInitialSuccess}
+            defaultOpen={rsvpStartsOpen}
+          />
+        </div>
+
+        {hasVenue && (
+          <section id="invitation-venue" className="px-6 py-8" aria-labelledby="invitation-venue-heading">
+            <Kicker>{t("where")}</Kicker>
+            <h2 id="invitation-venue-heading" className={`${eventDisplayClass} mt-2 text-[2rem] font-medium leading-tight text-[#1A3D24]`}>{event.venueName || t("where")}</h2>
+            <div className="mt-4 overflow-hidden border border-[#E4DCCE] bg-[#FBF8F2]">
+              <div className="relative h-36 bg-[#dce6db]" aria-hidden="true">
+                <svg viewBox="0 0 360 150" className="h-full w-full" preserveAspectRatio="xMidYMid slice">
+                  <rect width="360" height="150" fill="#dce6db" />
+                  <path d="M0 110 C60 90 90 130 150 100 C200 80 240 120 360 85 L360 150 L0 150Z" fill="#c9d6c6" />
+                  <circle cx="214" cy="72" r="7" fill="#1A3D24" />
+                  <circle cx="214" cy="72" r="14" fill="none" stroke="#1A3D24" strokeWidth="1.5" opacity="0.35" />
+                </svg>
+              </div>
+              <div className="px-4 py-4">
+                {event.venueName && <h3 className={`${eventDisplayClass} text-[1.35rem] font-semibold text-[#1A3D24]`}>{event.venueName}</h3>}
+                {event.address && <p className="mt-1 text-[13px] text-[#5E6F61]">{event.address}</p>}
+                <div className="mt-3.5 grid grid-cols-2 gap-2">
+                  {directions && <a href={directions} target="_blank" rel="noreferrer" className={solidButton}><Navigation aria-hidden="true" className="size-4" />{t("venue.directions")}</a>}
+                  {event.venueUrl && <a href={event.venueUrl} target="_blank" rel="noreferrer" className={ghostButton}>{t("venue.website")}</a>}
+                </div>
+              </div>
+            </div>
           </section>
         )}
 
+        {event.styleGuide && (
+          <>
+            <InvitationStyleGuide guide={event.styleGuide} titleClass={eventDisplayClass} />
+            {dressPhoto && (
+              <figure className="px-6 pb-6">
+                <InvitationImage src={dressPhoto.url} alt={dressPhoto.altText || t("galleryAlt", { number: gallery.length })} className="aspect-[16/9]" />
+              </figure>
+            )}
+          </>
+        )}
+
         {(event.additionalSections ?? []).map((section, index) => (
-          <section
-            key={`${section.heading}:${index}`}
-            className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`}
-            style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.3 + index / 100 }}
-          >
-            <h2 className={`${titleFont} text-3xl sm:text-4xl`}>{section.heading}</h2>
-            <p className="mt-5 leading-8 opacity-85">
+          <section key={`${section.heading}:${index}`} className="px-6 py-8">
+            <h2 className={`${eventDisplayClass} text-[2rem] font-medium leading-tight text-[#1A3D24]`}>{section.heading}</h2>
+            <p className="mt-4 leading-7 text-[#14261A]">
               {section.content.split("\n").map((line, lineIndex) => (
                 <Fragment key={lineIndex}>{lineIndex > 0 && <br />}{line}</Fragment>
               ))}
@@ -351,59 +424,91 @@ export function PublicInvitation({ event, state, initialMedia, rsvpSummary, prev
         ))}
 
         {hasTravelInfo && (
-          <section className={`${recreated ? "" : theme.details} ${rhythm} px-5 py-8 sm:px-9`} style={{ ...(recreated ? framedSurface : {}), order: sectionOrder("details") + 0.5 }} aria-labelledby="invitation-travel-heading">
-            <h2 id="invitation-travel-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("travel.title")}</h2>
-            <div className="mt-7 grid gap-9 md:grid-cols-2">
-              {travelInfo.airports.length > 0 && (
-                <div>
-                  <h3 className={`${titleFont} flex items-center gap-3 text-2xl`}><Plane aria-hidden="true" className="size-5" style={{ color: recipe.palette.accent }} />{t("travel.airports")}</h3>
-                  <div className="mt-4 divide-y" style={{ borderColor: recipe.palette.accent }}>
-                    {travelInfo.airports.map((airport) => (
-                      <article key={`${airport.name}:${airport.directionsUrl ?? ""}`} className="py-4 first:pt-0">
-                        <p className="font-semibold">{airport.name}</p>
-                        {airport.note && <p className="mt-1 text-sm leading-6 opacity-75">{airport.note}</p>}
-                        {airport.directionsUrl && <a href={airport.directionsUrl} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold underline decoration-1 underline-offset-4"><Navigation aria-hidden="true" className="size-4" />{t("travel.directions")}</a>}
-                      </article>
-                    ))}
-                  </div>
+          <section id="invitation-travel" className="px-6 py-8" aria-labelledby="invitation-travel-heading">
+            <Kicker>{t("travel.kicker")}</Kicker>
+            <h2 id="invitation-travel-heading" className={`${eventDisplayClass} mt-2 text-[2rem] font-medium leading-tight text-[#1A3D24]`}>{t("travel.heading")}</h2>
+            {travelInfo.airports.length > 0 && (
+              <div className="mt-4">
+                <h3 className="flex items-center gap-2 text-xs text-[#5E6F61]"><Plane aria-hidden="true" className="size-4 text-[#1A3D24]" />{t("travel.airports")}</h3>
+                <div className="mt-2 divide-y divide-[#E4DCCE]">
+                  {travelInfo.airports.map((airport) => (
+                    <article key={`${airport.name}:${airport.directionsUrl ?? ""}`} className="py-3">
+                      <p className="font-medium">{airport.name}</p>
+                      {airport.note && <p className="mt-1 text-[12.5px] text-[#5E6F61]">{airport.note}</p>}
+                      {airport.directionsUrl && <a href={airport.directionsUrl} target="_blank" rel="noreferrer" className="mt-1 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-[#1A3D24] underline decoration-1 underline-offset-4"><Navigation aria-hidden="true" className="size-4" />{t("travel.directions")}</a>}
+                    </article>
+                  ))}
                 </div>
-              )}
-              {hotels.length > 0 && (
-                <div>
-                  <h3 className={`${titleFont} flex items-center gap-3 text-2xl`}><Building2 aria-hidden="true" className="size-5" style={{ color: recipe.palette.accent }} />{t("travel.hotels")}</h3>
-                  <div className="mt-4 space-y-3">
-                    {hotels.map((hotel) => (
-                      <article key={`${hotel.name}:${hotel.address}`} className="relative border px-4 py-4" style={{ borderColor: recipe.palette.accent, borderWidth: hotel.recommended ? 2 : 1, backgroundColor: recipe.palette.surface }}>
-                        {hotel.recommended && <span className="mb-3 inline-flex rounded-full px-3 py-1 text-xs font-semibold" style={{ backgroundColor: recipe.palette.accent, color: readableTextColor(recipe.palette.accent) }}>{t("travel.recommended")}</span>}
-                        <p className="font-semibold">{hotel.name}</p>
-                        <p className="mt-1 text-sm leading-6 opacity-75">{hotel.address}</p>
-                        <a href={hotelMapUrl(hotel.address)} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center gap-2 text-sm font-semibold underline decoration-1 underline-offset-4"><MapPin aria-hidden="true" className="size-4" />{t("travel.map")}</a>
-                      </article>
-                    ))}
-                  </div>
+              </div>
+            )}
+            {hotels.length > 0 && (
+              <div className="mt-4">
+                <h3 className="flex items-center gap-2 text-xs text-[#5E6F61]"><Building2 aria-hidden="true" className="size-4 text-[#1A3D24]" />{t("travel.hotels")}</h3>
+                <div className="mt-2 space-y-2.5">
+                  {hotels.map((hotel) => (
+                    <article key={`${hotel.name}:${hotel.address}`} className="border bg-[#FBF8F2] px-3.5 py-3.5" style={{ borderColor: hotel.recommended ? "#B3945C" : "#E4DCCE" }}>
+                      {hotel.recommended && <span className="mb-1.5 inline-flex rounded-full bg-[#1A3D24] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-white">{t("travel.recommended")}</span>}
+                      <p className="font-medium">{hotel.name}</p>
+                      <p className="mt-1 text-[12.5px] text-[#5E6F61]">{hotel.address}</p>
+                      <a href={hotelMapUrl(hotel.address)} target="_blank" rel="noreferrer" className="mt-1 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-[#1A3D24]"><MapPin aria-hidden="true" className="size-4" />{t("travel.map")}</a>
+                    </article>
+                  ))}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </section>
         )}
 
-        {media && (media.gallery.length > 0 || media.video) && (
-          <section className={`${recreated ? "" : theme.media} ${rhythm}`} style={{ order: sectionOrder("gallery") }} aria-labelledby="invitation-gallery-heading">
-            <h2 id="invitation-gallery-heading" className={`${titleFont} text-3xl sm:text-4xl`}>{t("gallery")}</h2>
-            {media.gallery.length > 0 && <div data-invitation-gallery="true" className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">{media.gallery.map((item, index) => {
-              const fillsLastRow = media.gallery.length % 2 === 1 && index === media.gallery.length - 1;
-              return <InvitationImage key={item.id ?? item.path} src={item.url} alt={item.altText || t("galleryAlt", { number: index + 1 })} className={`aspect-[4/5] ${fillsLastRow ? "sm:col-span-2 sm:aspect-[16/9]" : ""}`} />;
-            })}</div>}
-            {media.video && <video controls preload="metadata" className="mt-6 aspect-video w-full bg-black" aria-label={t("videoLabel")}><source src={media.video.url} /></video>}
+        {(gallery.length > 0 || media?.video) && (
+          <section id="invitation-gallery" className="px-6 py-8" aria-labelledby="invitation-gallery-heading">
+            <Kicker>{t("galleryKicker")}</Kicker>
+            <h2 id="invitation-gallery-heading" className={`${eventDisplayClass} mt-2 text-[2rem] font-medium leading-tight text-[#1A3D24]`}>{t("gallery")}</h2>
+            {gallery.length > 0 && (
+              <div data-invitation-gallery="true" className="mt-4 grid grid-cols-2 gap-2">
+                {gallery.map((item, index) => {
+                  const lastIsWide = gallery.length > 1 && (gallery.length - 1) % 2 === 1 && index === gallery.length - 1;
+                  const wide = index === 0 || lastIsWide;
+                  return (
+                    <InvitationImage
+                      key={item.id ?? item.path}
+                      src={item.url}
+                      alt={item.altText || t("galleryAlt", { number: index + 1 })}
+                      className={wide ? "col-span-2 aspect-[16/9]" : "aspect-[4/5]"}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            {media?.video && <video controls preload="metadata" className="mt-4 aspect-video w-full bg-black" aria-label={t("videoLabel")}><source src={media.video.url} /></video>}
           </section>
         )}
 
-        {event.showPublicRsvpCount && <div style={{ order: sectionOrder("counts") }}><PublicRsvpAggregate summary={rsvpSummary} titleClass={titleFont} className={`${recreated ? "" : theme.count} ${rhythm}`} /></div>}
+        <a href={memoriesHref} className="mx-6 flex items-center gap-3 border border-[#E4DCCE] bg-[#FBF8F2] p-4">
+          {brandingEnabled && <span aria-hidden="true" className="grid size-8 shrink-0 place-items-center rounded-[10px] bg-[#1A3D24] font-[family-name:var(--font-event-display)] text-base text-white">i</span>}
+          <span>
+            <span className="block text-sm font-medium">{t("galleryMemories")}</span>
+            <span className="block text-xs text-[#5E6F61]">{t("galleryMemoriesHint")}</span>
+          </span>
+        </a>
 
+        {event.showPublicRsvpCount && (
+          <div id="invitation-guests">
+            <PublicRsvpAggregate summary={rsvpSummary} titleClass={eventDisplayClass} className="mt-4" />
+          </div>
+        )}
       </article>
-      {event.commentWallEnabled && <InvitationCommentWall slug={event.slug} initialPage={initialComments} preview={preview} accent={recipe.palette.accent} surface={recipe.palette.surface} foreground={recipe.palette.text} titleClass={titleFont} />}
-      <InvitationFooter slug={event.slug} />
-      <InvitationRsvpDialog slug={event.slug} state={state} preview={preview} deadlineDate={rsvpDeadlineDate} showPublicRsvpCount={event.showPublicRsvpCount} accent={recipe.palette.accent} background={recipe.palette.surface} foreground={recipe.palette.text} />
+
+      {event.commentWallEnabled && (
+        <InvitationCommentWall slug={event.slug} initialPage={initialComments} preview={preview} accent={GREEN} surface={PAPER} foreground={INK} titleClass={eventDisplayClass} honoreeNames={names} />
+      )}
+
+      <section className="mx-auto max-w-lg px-6 pt-10 text-center">
+        <Kicker>{names}</Kicker>
+        {dayLabel && <h2 className={`${eventDisplayClass} mt-2 text-[1.7rem] font-medium text-[#1A3D24]`}>{dayLabel}</h2>}
+        {(event.venueName || event.address) && <p className="mt-1 text-xs text-[#5E6F61]">{event.venueName || event.address}</p>}
+        {closed && <p className="mt-4"><span className="inline-flex items-center rounded-full border border-[#E4DCCE] bg-[#FBF8F2] px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.08em] text-[#5E6F61]">{t("rsvpDeadlineClosed")}</span></p>}
+      </section>
+      <InvitationFooter slug={event.slug} brandingEnabled={brandingEnabled} />
     </main>
   );
 }

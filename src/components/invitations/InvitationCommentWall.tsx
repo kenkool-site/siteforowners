@@ -6,7 +6,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { readableTextColor } from "@/lib/invitations/design-recipe";
 import type { InvitationCommentPage, PublicInvitationComment } from "@/lib/invitations/comments";
 
-export function InvitationCommentWall({ slug, initialPage, preview, accent, surface, foreground, titleClass }: {
+export function InvitationCommentWall({ slug, initialPage, preview, accent, surface, foreground, titleClass, honoreeNames = "" }: {
   slug: string;
   initialPage: InvitationCommentPage;
   preview: boolean;
@@ -14,6 +14,7 @@ export function InvitationCommentWall({ slug, initialPage, preview, accent, surf
   surface: string;
   foreground: string;
   titleClass: string;
+  honoreeNames?: string;
 }) {
   const t = useTranslations("invitations.public.guestbook");
   const locale = useLocale();
@@ -79,19 +80,19 @@ export function InvitationCommentWall({ slug, initialPage, preview, accent, surf
   }
 
   return (
-    <section data-invitation-comment-wall="true" className="mx-auto mt-14 w-[calc(100%-2rem)] max-w-4xl border px-5 py-9 sm:px-9" style={{ backgroundColor: surface, borderColor: accent, color: foreground }} aria-labelledby="invitation-guestbook-title">
-      <div className="text-center">
-        <h2 id="invitation-guestbook-title" className={`${titleClass} text-3xl sm:text-4xl`}>{t("title")}</h2>
-        <p className="mx-auto mt-3 max-w-xl leading-7 opacity-75">{t("intro")}</p>
-        <button type="button" disabled={preview} onClick={() => setOpen(true)} className="mt-6 min-h-11 rounded-full px-6 py-2.5 text-sm font-semibold disabled:opacity-50" style={{ backgroundColor: accent, color: readableTextColor(accent) }}>{t("leaveNote")}</button>
+    <section id="invitation-guestbook" data-invitation-comment-wall="true" className="mx-auto mt-2 w-full max-w-lg px-6 py-6" style={{ color: foreground }} aria-labelledby="invitation-guestbook-title">
+      <div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.22em]" style={{ color: accent }}>{t("title")}</p>
+        <h2 id="invitation-guestbook-title" className={`${titleClass} mt-2 text-[2rem] font-medium leading-tight`} style={{ color: accent }}>{honoreeNames ? t("notesTitle", { names: honoreeNames }) : t("title")}</h2>
+        <p className="mt-2 text-xs leading-5 opacity-75">{t("intro")}</p>
+        <button type="button" disabled={preview} onClick={() => setOpen(true)} className="mt-4 min-h-11 rounded-full px-5 py-2.5 text-sm font-medium disabled:opacity-50" style={{ backgroundColor: accent, color: readableTextColor(accent) }}>{t("leaveNote")}</button>
       </div>
-      {comments.length > 0 ? <div className="mt-9 grid gap-4 sm:grid-cols-2">{comments.map((comment) => (
-        <article key={comment.id} className="border-l-2 px-4 py-2" style={{ borderColor: accent }}>
-          <p className="whitespace-pre-wrap leading-7">{comment.body}</p>
-          <p className="mt-3 text-sm font-semibold">{comment.guestName}</p>
-          <time className="text-xs opacity-60" dateTime={comment.createdAt}>{new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(comment.createdAt))}</time>
+      {comments.length > 0 ? <div className="mt-4">{comments.map((comment) => (
+        <article key={comment.id} className="border-b py-3.5" style={{ borderColor: `${accent}33` }}>
+          <p className="whitespace-pre-wrap text-sm leading-6">{comment.body}</p>
+          <p className="mt-2 text-[12.5px] font-medium" style={{ color: accent }}>{comment.guestName} <time className="font-normal opacity-70" dateTime={comment.createdAt}>· {new Intl.DateTimeFormat(locale, { dateStyle: "medium" }).format(new Date(comment.createdAt))}</time></p>
         </article>
-      ))}</div> : <p className="mt-8 text-center text-sm opacity-65">{t("empty")}</p>}
+      ))}</div> : <p className="mt-6 text-sm opacity-65">{t("empty")}</p>}
       {cursor && <div className="mt-7 text-center"><button type="button" disabled={moreBusy} onClick={() => void showMore()} className="min-h-11 px-4 text-sm font-semibold underline underline-offset-4">{moreBusy ? t("loading") : t("showMore")}</button></div>}
       {message && <p role="status" aria-live="polite" className="mt-5 text-center text-sm">{message}</p>}
       {open && <div className="fixed inset-0 z-50 flex items-end overflow-y-auto overscroll-contain bg-black/55 sm:items-center sm:justify-center sm:p-6" role="presentation" onMouseDown={(event) => { if (event.currentTarget === event.target) setOpen(false); }}>

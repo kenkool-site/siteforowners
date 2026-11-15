@@ -414,12 +414,15 @@
         "responses": "Responses"
       },
       "sectionHelp": {
-        "event": "Set the essential details guests need.",
+        "event": "Set the essential details guests need. The timezone sets the clock, countdown, and calendar guests see.",
         "design": "Choose a calm, readable invitation style.",
         "rsvp": "Control replies, privacy, and notifications.",
         "preview": "Check the invitation and manage its availability.",
         "responses": "Guest responses will be organized here."
       },
+      "timezoneHelp": "Countdown, the time guests read, and calendar files use this timezone.",
+      "timezoneSuggestion": "Suggested from the venue: {timezone}",
+      "timezoneApply": "Use {timezone}",
       "media": {
         "heading": "Invitation media",
         "help": "The opening photo appears to guests. Your design reference stays private and guides the editable recreation.",
@@ -802,10 +805,34 @@
       },
       "datePending": "Date and time to come",
       "viewInvitation": "View invitation",
+      "scrollCue": "The invitation",
+      "eyebrow": {
+        "wedding": "The wedding of",
+        "birthday": "The birthday of",
+        "event": "The celebration of"
+      },
+      "countdown": {
+        "label": "Counting down",
+        "pending": "The countdown starts in a moment",
+        "days": "Days",
+        "hours": "Hours",
+        "minutes": "Minutes",
+        "seconds": "Seconds",
+        "until": "Until {date}"
+      },
+      "thanks": {
+        "title": "With our thanks",
+        "arrived": "The day has arrived for {names}",
+        "memories": "See photos in Memories"
+      },
+      "welcome": {
+        "kicker": "Welcome",
+        "photos": "From their celebration so far"
+      },
       "designedInviteAlt": "Designed event invitation",
       "coverAlt": "Cover for {title}",
       "details": "The details",
-      "styleGuide": { "title": "Style guide", "colors": "Colors of the day" },
+      "styleGuide": { "title": "Style guide", "wear": "What to wear", "colors": "Colors of the day" },
       "when": "When",
       "rsvpDeadline": "Please RSVP by {date}",
       "rsvpDeadlineClosed": "RSVPs are closed",
@@ -814,9 +841,16 @@
       "googleCalendar": "Add to Google Calendar",
       "downloadCalendar": "Download calendar file",
       "eventSchedule": {
+        "kicker": "The day",
         "title": "Event Schedule"
       },
+      "venue": {
+        "directions": "Directions",
+        "website": "Venue website"
+      },
       "travel": {
+        "kicker": "Travel",
+        "heading": "Getting here",
         "title": "Travel information",
         "airports": "Closest airports",
         "hotels": "Nearby hotels",
@@ -824,12 +858,16 @@
         "directions": "Get directions",
         "map": "View on map"
       },
+      "galleryKicker": "Photos",
       "gallery": "A glimpse of the celebration",
+      "galleryMemories": "See and share photos in Memories",
+      "galleryMemoriesHint": "Open the shared album",
       "galleryAlt": "Event photo {number}",
       "videoLabel": "Event video",
-      "footer": { "marketingCta": "Hosting your own event? Create your invitation with InviteSpot", "poweredBy": "Powered by InviteSpot", "hostSignIn": "Host sign in" },
+      "footer": { "marketingCta": "Hosting your own event? Create your invitation with InviteSpot", "madeWith": "Made with InviteSpot", "getPage": "Get a page like this", "poweredBy": "Powered by InviteSpot", "hostSignIn": "Host sign in" },
       "guestbook": {
         "title": "Guestbook",
+        "notesTitle": "Notes for {names}",
         "intro": "We’re excited to celebrate with you. Leave a note for the hosts.",
         "leaveNote": "Leave a note",
         "empty": "Be the first to leave a note.",
@@ -853,6 +891,17 @@
         "closedBody": "The host is no longer accepting new responses.",
         "closedEditHint": "Contact the host if you need to change a response.",
         "editing": "You are securely updating an existing response.",
+        "replyKicker": "Reply",
+        "attendsHint": "We’ll save a place for you.",
+        "declinesHint": "You’ll still be in our thoughts.",
+        "sendReply": "Send reply",
+        "thankYou": "Thank you, {name}",
+        "savedAttending": "We’ve saved that you’ll be there.",
+        "savedAttendingWhen": "We’ve saved that you’ll be there on {when}.",
+        "savedDeclined": "We’ve saved that you can’t be there. You’ll still be in our thoughts.",
+        "memoriesHint": "Add the day to your calendar, and after the event you can share photos in Memories.",
+        "memoriesCta": "Share photos in Memories",
+        "memoriesNote": "Opens the shared album",
         "fields": {
           "primaryName": "Your name",
           "attendance": "Will you attend?",

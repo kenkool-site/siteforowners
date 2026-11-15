@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { zonedWallTimeToUtcIso } from "@/lib/invitations/event-time";
 import type {
@@ -19,6 +19,7 @@ import { invitationPublicUrl } from "@/lib/invitations/public-url";
 import type { InvitationStyleGuide } from "@/lib/invitations/style-guide";
 import type { InvitationAdditionalSection } from "@/lib/invitations/additional-sections";
 import { type EventScheduleItem, MAX_EVENT_SCHEDULE_ITEMS, MAX_EVENT_SCHEDULE_NAME_LENGTH, MAX_EVENT_SCHEDULE_LOCATION_NAME_LENGTH, MAX_EVENT_SCHEDULE_LOCATION_ADDRESS_LENGTH } from "@/lib/invitations/event-schedule";
+import { COMMON_EVENT_TIMEZONES, suggestTimeZoneFromPlace } from "@/lib/invitations/venue-timezone";
 
 export type EditorEvent = InvitationEventForManagement;
 export type EventEditorMode = "founder" | "owner";
@@ -199,7 +200,38 @@ export function EventEditor({
   const [wordingBusy, setWordingBusy] = useState(false);
   const [wordingError, setWordingError] = useState("");
   const [subdomainFeedback, setSubdomainFeedback] = useState("");
+  const [venueZone, setVenueZone] = useState(() => suggestTimeZoneFromPlace(event.address, event.venueName));
+  const timezoneTouched = useRef(false);
   const eventFormRef = useRef<HTMLFormElement>(null);
+
+  useEffect(() => {
+    timezoneTouched.current = false;
+    setVenueZone(suggestTimeZoneFromPlace(currentEvent.address, currentEvent.venueName));
+  }, [formVersion, currentEvent.address, currentEvent.venueName]);
+
+  function refreshVenueZone() {
+    const form = eventFormRef.current;
+    if (!form) return;
+    const address = String(new FormData(form).get("address") ?? "");
+    const venueName = String(new FormData(form).get("venueName") ?? "");
+    const suggestion = suggestTimeZoneFromPlace(address, venueName);
+    setVenueZone(suggestion);
+    const savedPlace = `${currentEvent.address ?? ""}\n${currentEvent.venueName ?? ""}`;
+    if (!suggestion || timezoneTouched.current || `${address}\n${venueName}` === savedPlace) return;
+    const input = form.elements.namedItem("timezone");
+    if (input instanceof HTMLInputElement && input.value !== suggestion) {
+      input.value = suggestion;
+      markDirty();
+    }
+  }
+
+  function applyVenueZone() {
+    const input = eventFormRef.current?.elements.namedItem("timezone");
+    if (!venueZone || !(input instanceof HTMLInputElement)) return;
+    input.value = venueZone;
+    timezoneTouched.current = true;
+    markDirty();
+  }
 
   const dateLabel = useMemo(() => currentEvent.startsAt
     ? new Intl.DateTimeFormat(locale, {
@@ -736,11 +768,11 @@ export function EventEditor({
                   </div>
                 )}
               </div>
-              <label className={`${labelClass} sm:col-span-2`}>{t("fields.timezone")}<input name="timezone" defaultValue={currentEvent.timezone} placeholder={t("placeholders.timezone")} className={inputClass} /><FieldError name="timezone" errors={errors} /></label>
+              <label className={`${labelClass} sm:col-span-2`}>{t("fields.timezone")}<input name="timezone" list="invitation-timezones" defaultValue={currentEvent.timezone} placeholder={t("placeholders.timezone")} onInput={() => { timezoneTouched.current = true; }} className={inputClass} /><datalist id="invitation-timezones">{COMMON_EVENT_TIMEZONES.map((zone) => <option key={zone} value={zone} />)}</datalist><span className="mt-1 block text-xs font-normal leading-5 text-[#675d6a]">{t("timezoneHelp")}</span>{venueZone && venueZone !== currentEvent.timezone && <span className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-normal text-[#675d6a]">{t("timezoneSuggestion", { timezone: venueZone })}<button type="button" onClick={applyVenueZone} className="min-h-11 font-semibold text-[#6D456F] underline underline-offset-4">{t("timezoneApply", { timezone: venueZone })}</button></span>}<FieldError name="timezone" errors={errors} /></label>
               <label className={labelClass}>{t("fields.startsAt")}<input type="datetime-local" name="startsAt" defaultValue={toLocalInput(currentEvent.startsAt, currentEvent.timezone)} className={inputClass} /><FieldError name="startsAt" errors={errors} /></label>
               <label className={labelClass}>{t("fields.endsAt")}<input type="datetime-local" name="endsAt" defaultValue={toLocalInput(currentEvent.endsAt, currentEvent.timezone)} className={inputClass} /><FieldError name="endsAt" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.venue")}<input name="venueName" defaultValue={currentEvent.venueName ?? ""} placeholder={t("placeholders.venue")} className={inputClass} /><FieldError name="venueName" errors={errors} /></label>
-              <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} className={inputClass} /><FieldError name="address" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.venue")}<input name="venueName" defaultValue={currentEvent.venueName ?? ""} placeholder={t("placeholders.venue")} onBlur={refreshVenueZone} className={inputClass} /><FieldError name="venueName" errors={errors} /></label>
+              <label className={labelClass}>{t("fields.address")}<input name="address" defaultValue={currentEvent.address ?? ""} placeholder={t("placeholders.address")} onBlur={refreshVenueZone} className={inputClass} /><FieldError name="address" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.venueUrl")}<input name="venueUrl" type="url" defaultValue={currentEvent.venueUrl ?? ""} placeholder={t("placeholders.venueUrl")} className={inputClass} /><FieldError name="venueUrl" errors={errors} /></label>
               <label className={`${labelClass} sm:col-span-2`}>{t("fields.mapUrl")}<input type="url" name="mapUrl" defaultValue={currentEvent.mapUrl ?? ""} placeholder={t("placeholders.mapUrl")} className={inputClass} /></label>
             </div>
