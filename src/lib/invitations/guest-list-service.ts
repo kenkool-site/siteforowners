@@ -31,7 +31,7 @@ import {
   type GuestRecord,
   type InviteCopyInput,
 } from "./guest-list";
-import { readGuestListSmsConfig, sendGuestListSms } from "./guest-list-sms";
+import { guestListSmsStatus, sendGuestListSms } from "./guest-list-sms";
 import {
   GuestListError,
   allowGuestListAttempt,
@@ -93,12 +93,12 @@ export async function loadHostGuestList(eventId: string): Promise<{
 }> {
   const event = await requireEnabled(eventId);
   const guests = (await listGuestRecords(eventId)).map(toGuestListItem);
-  const sms = readGuestListSmsConfig();
+  const sms = guestListSmsStatus();
   return {
     event,
     guests,
     smsConfigured: sms.configured,
-    smsMessage: sms.configured ? null : sms.message,
+    smsMessage: sms.message,
   };
 }
 
@@ -148,7 +148,7 @@ export async function previewGuestMessages(eventId: string, kind: "invite" | "re
   const plan = planOutbound({ kind, guests });
   const batch = plan.send.slice(0, GUEST_LIST_SEND_BATCH);
   const bodies = batch.map((guest) => (kind === "invite" ? inviteSmsBody : reminderSmsBody)(copyInput(event, guest)));
-  const sms = readGuestListSmsConfig();
+  const sms = guestListSmsStatus();
   return {
     kind,
     sampleName: batch[0]?.fullName ?? null,
@@ -157,14 +157,13 @@ export async function previewGuestMessages(eventId: string, kind: "invite" | "re
     sendingNow: batch.length,
     estimate: outboundEstimate(bodies),
     smsConfigured: sms.configured,
-    smsMessage: sms.configured ? null : sms.message,
+    smsMessage: sms.message,
   };
 }
 
 export async function sendGuestMessages(eventId: string, kind: "invite" | "reminder", origin: string) {
   const event = await requireEnabled(eventId);
-  const sms = readGuestListSmsConfig();
-  if (!sms.configured) throw new GuestListError("sms_not_configured");
+  if (!guestListSmsStatus().configured) throw new GuestListError("sms_not_configured");
   const guests = await listGuestRecords(eventId);
   const plan = planOutbound({ kind, guests });
   const batch = plan.send.slice(0, GUEST_LIST_SEND_BATCH);
@@ -186,7 +185,7 @@ export async function sendGuestMessages(eventId: string, kind: "invite" | "remin
       body,
       segmentCount: segments,
     });
-    const result = await sendGuestListSms({ to: guest.phoneE164, body, statusCallback: callback, config: sms });
+    const result = await sendGuestListSms({ to: guest.phoneE164, body, statusCallback: callback });
     await finishGuestMessage(messageId, result);
     if (kind === "invite") await finishInviteSend(guest.id, result);
     else if (!result.ok) await clearReminderClaim(guest.id);
@@ -209,8 +208,7 @@ export async function requestGuestVerification(input: { slug: string; phone: str
   const guest = await getGuestByPhone(event.id, phone);
   if (!guest) return { result: "not_on_list" as const };
   if (guest.optedOutAt) return { result: "opted_out" as const };
-  const sms = readGuestListSmsConfig();
-  if (!sms.configured) throw new GuestListError("sms_not_configured");
+  if (!guestListSmsStatus().configured) throw new GuestListError("sms_not_configured");
   const code = createVerificationCode();
   const secret = codeSecret();
   await saveVerificationCode({
@@ -229,7 +227,7 @@ export async function requestGuestVerification(input: { slug: string; phone: str
     body: event.locale === "es" ? "Código de verificación de InviteSpot" : "InviteSpot verification code",
     segmentCount: smsSegmentCount(body).segments,
   });
-  const result = await sendGuestListSms({ to: phone, body, config: sms });
+  const result = await sendGuestListSms({ to: phone, body });
   await finishGuestMessage(messageId, result);
   if (!result.ok) throw new GuestListError("sms_failed");
   return { result: "code_sent" as const };

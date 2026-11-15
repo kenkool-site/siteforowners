@@ -1,57 +1,37 @@
-import twilio from "twilio";
-import { sendTwilioMessage, type TwilioMessageClient } from "@/lib/sms";
+import { getTwilioMessageClient, sendTwilioMessage, type TwilioMessageClient } from "@/lib/sms";
 
-export type GuestListSmsConfig =
-  | {
-      configured: true;
-      accountSid: string;
-      authToken: string;
-      messagingServiceSid: string | null;
-      fromNumber: string | null;
-    }
-  | { configured: false; message: string };
+export type GuestListSmsStatus = {
+  configured: boolean;
+  message: string | null;
+};
 
-type SmsEnv = Record<string, string | undefined>;
-
-export function readGuestListSmsConfig(env: SmsEnv = process.env): GuestListSmsConfig {
-  const accountSid = env.TWILIO_ACCOUNT_SID?.trim() ?? "";
-  const authToken = env.TWILIO_AUTH_TOKEN?.trim() ?? "";
-  const messagingServiceSid = env.TWILIO_MESSAGING_SERVICE_SID?.trim() ?? "";
-  const fromNumber = (env.TWILIO_FROM_NUMBER || env.TWILIO_FROM || "").trim();
-  if (!accountSid || !authToken) {
+/** Same credentials as booking SMS and invitation notifications: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM. */
+export function guestListSmsStatus(env: NodeJS.ProcessEnv = process.env): GuestListSmsStatus {
+  if (!env.TWILIO_ACCOUNT_SID?.trim() || !env.TWILIO_AUTH_TOKEN?.trim()) {
     return {
       configured: false,
       message: "Texting is turned off until TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN are set.",
     };
   }
-  if (!messagingServiceSid && !fromNumber) {
-    return {
-      configured: false,
-      message: "Texting is turned off until TWILIO_MESSAGING_SERVICE_SID or TWILIO_FROM_NUMBER is set.",
-    };
+  if (!env.TWILIO_FROM?.trim()) {
+    return { configured: false, message: "Texting is turned off until TWILIO_FROM is set." };
   }
-  return {
-    configured: true,
-    accountSid,
-    authToken,
-    messagingServiceSid: messagingServiceSid || null,
-    fromNumber: fromNumber || null,
-  };
+  return { configured: true, message: null };
 }
 
 export async function sendGuestListSms(input: {
   to: string;
   body: string;
   statusCallback?: string | null;
-  config?: GuestListSmsConfig;
-  client?: TwilioMessageClient;
+  client?: TwilioMessageClient | null;
 }): Promise<{ ok: true; sid: string } | { ok: false; error: string }> {
-  const config = input.config ?? readGuestListSmsConfig();
-  if (!config.configured) return { ok: false, error: config.message };
-  const client = input.client ?? (twilio(config.accountSid, config.authToken) as unknown as TwilioMessageClient);
-  const payload: Record<string, string> = { to: input.to, body: input.body };
-  if (config.messagingServiceSid) payload.messagingServiceSid = config.messagingServiceSid;
-  else if (config.fromNumber) payload.from = config.fromNumber;
+  const status = guestListSmsStatus();
+  const client = input.client === undefined ? getTwilioMessageClient() : input.client;
+  const from = process.env.TWILIO_FROM?.trim();
+  if (!client || !from) {
+    return { ok: false, error: status.message ?? "SMS delivery is not configured" };
+  }
+  const payload: Record<string, string> = { from, to: input.to, body: input.body };
   if (input.statusCallback) payload.statusCallback = input.statusCallback;
   const result = await sendTwilioMessage(client, payload);
   if (!result.ok) return result;

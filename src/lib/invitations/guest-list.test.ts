@@ -27,7 +27,7 @@ import {
   verificationSmsBody,
   type GuestRecord,
 } from "./guest-list";
-import { readGuestListSmsConfig } from "./guest-list-sms";
+import { guestListSmsStatus } from "./guest-list-sms";
 import { previewGuests, previewInviteBody, previewInviteEstimate } from "./guest-list-fixtures";
 import { parseEventUpdate } from "./validation";
 import { processPublicRsvpRequest } from "./rsvp";
@@ -207,20 +207,20 @@ test("Twilio signatures reject a tampered body", () => {
   assert.equal(twilioSignatureMatches("token", "", url, params), false);
 });
 
-test("sms config is off when Twilio env is missing and does not throw", () => {
-  assert.equal(readGuestListSmsConfig({}).configured, false);
-  const ready = readGuestListSmsConfig({
+test("sms config uses the existing Twilio env vars and does not throw when they are missing", () => {
+  assert.equal(guestListSmsStatus({} as NodeJS.ProcessEnv).configured, false);
+  assert.match(guestListSmsStatus({} as NodeJS.ProcessEnv).message ?? "", /TWILIO_ACCOUNT_SID/);
+  const missingFrom = guestListSmsStatus({
     TWILIO_ACCOUNT_SID: "AC123",
     TWILIO_AUTH_TOKEN: "secret",
-    TWILIO_MESSAGING_SERVICE_SID: "MG123",
-  });
-  assert.equal(ready.configured, true);
-  const fromNumber = readGuestListSmsConfig({
+  } as NodeJS.ProcessEnv);
+  assert.equal(missingFrom.configured, false);
+  assert.match(missingFrom.message ?? "", /TWILIO_FROM/);
+  assert.equal(guestListSmsStatus({
     TWILIO_ACCOUNT_SID: "AC123",
     TWILIO_AUTH_TOKEN: "secret",
     TWILIO_FROM: "+15555550100",
-  });
-  assert.equal(fromNumber.configured, true);
+  } as NodeJS.ProcessEnv).configured, true);
 });
 
 test("the sample guest list matches the reply totals used on the host screens", () => {
