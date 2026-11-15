@@ -17,6 +17,7 @@ type OwnerGuestDashboardEvent = {
   status: InvitationEventStatus;
   slug: string;
   publicSubdomain: string | null;
+  privateGuestListEnabled?: boolean;
 };
 
 export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled: false, totalCount: 0, newCount: 0 }, memories }: {
@@ -63,6 +64,18 @@ export function OwnerGuestDashboard({ event, initialData, guestbook = { enabled:
           <Link href={`/invitations/manage/${event.id}/message`} className="inline-flex min-h-11 items-center justify-center rounded-md border border-[#6D456F] px-4 py-2 text-sm font-semibold text-[#55405a]">{t("message.open")}</Link>
         </div>
       </section>
+
+      {event.privateGuestListEnabled ? (
+        <section className="mx-auto max-w-6xl px-4 pt-6 sm:px-6">
+          <div className="flex flex-col gap-4 rounded-lg border border-[#cfc3d3] bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">{t("privateList.title")}</h2>
+              <p className="mt-1 text-sm text-[#675d6a]">{t("privateList.description")}</p>
+            </div>
+            <Link href={`/invitations/manage/${event.id}/guests`} className="inline-flex min-h-11 items-center justify-center rounded-md bg-[#1A3D24] px-4 py-2 text-sm font-semibold text-white">{t("privateList.open")}</Link>
+          </div>
+        </section>
+      ) : null}
 
       {memories && <OwnerMemoriesCard eventId={event.id} slug={event.slug} publicSubdomain={event.publicSubdomain} initial={memories} />}
 

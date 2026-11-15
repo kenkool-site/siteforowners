@@ -167,6 +167,7 @@ function eventRow(input: {
     capacity: 8,
     rsvp_deadline: input.deadline ?? null,
     rsvp_override_open: false,
+    private_guest_list_enabled: false,
     submission_limit: 250,
     email_notification_limit: input.emailLimit ?? 250,
     sms_notification_limit: 50,

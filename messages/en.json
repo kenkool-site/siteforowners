@@ -157,6 +157,11 @@
           "description": "Send an update, reminder, or thank-you to everyone who RSVP'd.",
           "open": "Message guests"
         },
+        "privateList": {
+          "title": "Private guest list",
+          "description": "Add guests, send invitation texts, and see who has replied. Nothing is texted until you press send.",
+          "open": "Open guest list"
+        },
         "memories": {
           "title": "Shared photos",
           "flagged": "{count, plural, one {# needs review} other {# need review}}",
@@ -725,6 +730,13 @@
       "passcodeHelp": "For security, the current passcode is never displayed.",
       "rsvpOverrideHelp": "Lets anyone RSVP even after the deadline has passed. Remember to turn this off when you're done.",
       "founderLimitsHelp": "Only the founder can change message and submission limits.",
+      "privateGuestList": {
+        "title": "Private guest list (invite-only)",
+        "badge": "Premium",
+        "off": "Off by default. Anyone with the event link can RSVP — name, phone, email, and party size.",
+        "on": "On for this event. The public RSVP form is closed. The host adds guests and sends each invitation by text.",
+        "note": "When this is on, only guests the host adds can reply. The host sends invitations by text from the <strong>InviteSpot Twilio number</strong>. Each guest gets a personal link. Opening the public event link requires phone verification. Hosts cannot turn this on themselves."
+      },
       "founderControls": "Founder controls",
       "credentialsHelp": "Changing the sign-in email or PIN affects the owner's next login. Leave the PIN blank to keep it.",
       "cohost": {
@@ -783,8 +795,161 @@
         "newOwnerPin": "Use exactly six digits for the new owner PIN."
       }
     },
+    "guestList": {
+      "hostOnly": "Host only",
+      "back": "Back",
+      "list": { "screen": "Guest list" },
+      "empty": {
+        "title": "No guests yet",
+        "body": "Add people by name and mobile, or import a spreadsheet. Invitations go out by text when you are ready.",
+        "add": "Add a guest",
+        "import": "Import CSV or spreadsheet",
+        "hint": "Texts are sent from the InviteSpot number. Guests can reply STOP to opt out."
+      },
+      "add": {
+        "screen": "Add a guest",
+        "title": "New guest",
+        "lead": "They will receive a personal invitation by text, when you choose to send it.",
+        "name": "Full name",
+        "mobile": "Mobile",
+        "seats": "Max party size",
+        "fewer": "Fewer seats",
+        "more": "More seats",
+        "household": "Group or household",
+        "optional": "optional",
+        "householdHint": "Used to keep families together on your list. It is not shown on the invitation.",
+        "email": "Email",
+        "submit": "Add to guest list"
+      },
+      "import": {
+        "screen": "Import guests",
+        "title": "Import a spreadsheet",
+        "lead": "Use columns for name, mobile, seats, email, and household. The first row can be a header. Nothing is texted.",
+        "placeholder": "Name,Mobile,Seats,Email,Household",
+        "file": "Or choose a CSV file",
+        "submit": "Add these guests",
+        "result": "Added {added}. Skipped {skipped} already on the list."
+      },
+      "stats": { "guests": "Guests", "attendingSeats": "Attending seats", "seatsReserved": "Seats reserved" },
+      "filters": {
+        "all": "All",
+        "not_sent": "Not sent",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "opened": "Opened",
+        "attending": "Attending",
+        "declined": "Declined",
+        "failed": "Undeliverable",
+        "opted_out": "Opted out"
+      },
+      "status": {
+        "not_sent": "Not sent",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "opened": "Opened",
+        "attending": "Attending",
+        "declined": "Declined",
+        "failed": "Undeliverable",
+        "opted_out": "Opted out"
+      },
+      "seats": "{count, plural, one {# seat} other {# seats}}",
+      "seatsOf": "{used} of {allowed} seats",
+      "remind": "Remind {count}",
+      "sendInvites": "Send {count} invites",
+      "remove": "Remove",
+      "send": {
+        "screen": "Send invites",
+        "kicker": "Preview",
+        "title": "Preview the invitation text",
+        "remindTitle": "Preview the reminder",
+        "forGuest": "Each guest receives their own name and a personal link. This is the message for {name}.",
+        "from": "From the InviteSpot number",
+        "ready": "{count, plural, one {# invitation ready to send.} other {# invitations ready to send.}}",
+        "remindReady": "{count, plural, one {# reminder ready to send.} other {# reminders ready to send.}}",
+        "segments": "About {total} text messages in total — each message is {each, plural, one {# segment} other {# segments}}. Only the guests in this send are texted.",
+        "more": "Send again afterward for the remaining {count}.",
+        "none": "Nobody is waiting for this text.",
+        "reminderHint": "A reminder uses a shorter follow-up, and is sent only to people who already received an invite and have not replied.",
+        "submit": "Send {count} invitations",
+        "submitRemind": "Send {count} reminders"
+      },
+      "replies": {
+        "screen": "RSVP",
+        "open": "Guest replies",
+        "title": "Guest replies",
+        "invited": "Invited",
+        "opened": "Opened",
+        "attendingSeats": "Attending seats",
+        "declined": "Declined",
+        "waiting": "Awaiting a reply",
+        "bar": "{attending} attending · {declined} declined · {waiting} waiting",
+        "recent": "Recent",
+        "openedNote": "Opened the invitation",
+        "guestList": "Guest list"
+      },
+      "errors": {
+        "duplicate_phone": "That mobile number is already on this list.",
+        "sms": "Texting is turned off until Twilio is configured.",
+        "rate_limited": "Too many texts were just sent. Wait a bit and try again.",
+        "generic": "That could not be saved. Check the details and try again."
+      }
+    },
     "public": {
       "previewNotice": "Preview — RSVP submission is disabled.",
+      "inviteOnly": {
+        "badge": "Invite-only",
+        "title": "This event is invite-only",
+        "lead": {
+          "wedding": "The wedding of {names} is by invitation. Enter the mobile number on your invite and we’ll send a 6-digit code.",
+          "birthday": "{names}’s birthday celebration is by invitation. Enter the mobile number on your invite and we’ll send a 6-digit code.",
+          "event": "{title} is by invitation. Enter the mobile number on your invite and we’ll send a 6-digit code."
+        },
+        "phoneLabel": "Mobile number",
+        "sendCode": "Send a verification code",
+        "verifyKicker": "Verification",
+        "codeTitle": "Enter the code we sent",
+        "codeLead": "A 6-digit code was sent to the mobile number you entered.",
+        "digit": "Digit {number}",
+        "codeWait": "It may take a moment to arrive.",
+        "resend": "Resend code",
+        "missingTitle": "We couldn’t find this number",
+        "missingBody": "The mobile you entered isn’t on {names}’s invitation list. If you think this is a mistake, please get in touch with them directly.",
+        "missingHint": "We won’t be able to add you from this page.",
+        "tryAnother": "Try a different number",
+        "optedTitle": "This number asked not to get texts",
+        "optedBody": "Texts to this mobile are turned off. Please get in touch with {names} directly.",
+        "closedTitle": "Replies are closed",
+        "closedBody": "{names} are no longer taking replies from this page.",
+        "rateLimited": "Please wait a few minutes before requesting another code.",
+        "smsOff": "Text verification is temporarily unavailable. Please use the personal link from your invitation.",
+        "expired": "That code expired. Request a new one.",
+        "mismatch": "That code didn’t match. Try again.",
+        "error": "We couldn’t send a code just now. Try again in a moment."
+      },
+      "personalRsvp": {
+        "kicker": "Your invitation",
+        "title": "{name}, you’re invited",
+        "allowance": "Your invitation is for up to {count, plural, one {# guest} other {# guests}}.",
+        "yes": "Joyfully attends",
+        "yesDetail": "We’ll save a place for you.",
+        "no": "Warmly declines",
+        "noDetail": "You’ll still be in our thoughts.",
+        "howMany": "How many will join?",
+        "ofSeats": "{count} of {allowed} seats",
+        "fewer": "Fewer guests",
+        "more": "More guests",
+        "submit": "Send reply",
+        "thanks": "Thank you, {name}",
+        "savedSeats": "We’ve saved {count, plural, one {# seat} other {# seats}} for you{when}{venue}.",
+        "savedDecline": "We’ve saved your regrets. You’ll still be in our thoughts.",
+        "google": "Google",
+        "calendarFile": "Calendar file",
+        "memories": "Add the day to your calendar. After the event you can share photos in Memories.",
+        "change": "Change reply",
+        "overSeats": "This invitation is for up to {count, plural, one {# guest} other {# guests}}.",
+        "closed": "Replies are closed.",
+        "error": "Your reply could not be saved. Try again."
+      },
       "unavailable": {
         "title": "This invitation is unavailable",
         "body": "Please check back later or contact the host."

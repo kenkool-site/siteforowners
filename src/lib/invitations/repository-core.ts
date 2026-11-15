@@ -114,6 +114,7 @@ export type InvitationManagementRow = {
   capacity: number | null;
   rsvp_deadline: string | null;
   rsvp_override_open: boolean;
+  private_guest_list_enabled?: boolean;
   submission_limit: number;
   email_notification_limit: number;
   sms_notification_limit: number;
@@ -176,6 +177,7 @@ export type InvitationPublicRow = {
   comment_wall_enabled?: boolean;
   rsvp_deadline: string | null;
   rsvp_override_open: boolean;
+  private_guest_list_enabled?: boolean;
   status: InvitationEventStatus;
   expire_at: string | null;
   invitation_rsvps: Array<{ attending: boolean; party_size: number }> | null;
@@ -213,6 +215,7 @@ export type PublicInvitationEvent = {
   commentWallEnabled: boolean;
   rsvpDeadline: string | null;
   rsvpOverrideOpen: boolean;
+  privateGuestListEnabled?: boolean;
   status: InvitationEventStatus;
   expireAt: string | null;
 };
@@ -403,6 +406,7 @@ export async function getInvitationEventForManagement(
     capacity: row.capacity,
     rsvpDeadline: row.rsvp_deadline,
     rsvpOverrideOpen: row.rsvp_override_open,
+    privateGuestListEnabled: row.private_guest_list_enabled ?? false,
     submissionLimit: row.submission_limit,
     emailNotificationLimit: row.email_notification_limit,
     smsNotificationLimit: row.sms_notification_limit,
@@ -477,6 +481,7 @@ export async function getPublicInvitationBySlug(
       commentWallEnabled: row.comment_wall_enabled ?? false,
       rsvpDeadline: row.rsvp_deadline,
       rsvpOverrideOpen: row.rsvp_override_open,
+      privateGuestListEnabled: row.private_guest_list_enabled ?? false,
       status: row.status,
       expireAt: row.expire_at,
     },
@@ -518,6 +523,7 @@ const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>>
   capacity: "capacity",
   rsvpDeadline: "rsvp_deadline",
   rsvpOverrideOpen: "rsvp_override_open",
+  privateGuestListEnabled: "private_guest_list_enabled",
   submissionLimit: "submission_limit",
   emailNotificationLimit: "email_notification_limit",
   smsNotificationLimit: "sms_notification_limit",

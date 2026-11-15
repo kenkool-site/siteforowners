@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyHost, invitationRewritePath, isLegacySiteforownersApex } from "./host-routing";
+import { classifyHost, invitationRewritePath, isGuestInvitePath, isLegacySiteforownersApex } from "./host-routing";
 
 test("host classification recognizes root, preview, platform, local, and custom hosts", () => {
   assert.deepEqual(classifyHost("www.siteforowners.com"), { kind: "root" });
@@ -37,6 +37,13 @@ test("invitation hosts pass through the already-resolved /invite/{slug} paths un
   assert.equal(invitationRewritePath("mercy-john-lx9cwn", "/invite/mercy-john-lx9cwn/memories"), "/invite/mercy-john-lx9cwn/memories");
   assert.equal(invitationRewritePath("mercy/john", "/invite/mercy%2Fjohn"), "/invite/mercy%2Fjohn");
   assert.equal(invitationRewritePath("mercy/john", "/invite/mercy%2Fjohn/memories"), "/invite/mercy%2Fjohn/memories");
+});
+
+test("personal guest links stay on /i/<token> for the event host", () => {
+  assert.equal(isGuestInvitePath("/i/K7mQ2pLx9aWc4nRb"), true);
+  assert.equal(isGuestInvitePath("/i/short"), false);
+  assert.equal(invitationRewritePath("mercy-john", "/i/K7mQ2pLx9aWc4nRb"), "/i/K7mQ2pLx9aWc4nRb");
+  assert.equal(invitationRewritePath("mercy-john", "/i/../admin"), null);
 });
 
 test("invitation hosts still 404 an unrelated slug's already-resolved invite path", () => {

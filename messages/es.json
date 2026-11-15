@@ -157,6 +157,11 @@
           "description": "Envía una actualización, un recordatorio o un agradecimiento a quienes confirmaron asistencia.",
           "open": "Enviar mensaje"
         },
+        "privateList": {
+          "title": "Lista privada de invitados",
+          "description": "Agregue invitados, envíe textos de invitación y vea quién respondió. No se envía ningún texto hasta que pulse enviar.",
+          "open": "Abrir lista"
+        },
         "memories": {
           "title": "Fotos compartidas",
           "flagged": "{count, plural, one {# necesita revisión} other {# necesitan revisión}}",
@@ -725,6 +730,13 @@
       "passcodeHelp": "Por seguridad, la clave actual nunca se muestra.",
       "rsvpOverrideHelp": "Permite que cualquiera responda aunque la fecha límite ya haya pasado. No olvide desactivarlo cuando termine.",
       "founderLimitsHelp": "Solo el fundador puede cambiar los límites de mensajes y respuestas.",
+      "privateGuestList": {
+        "title": "Lista privada de invitados (solo con invitación)",
+        "badge": "Premium",
+        "off": "Apagado por defecto. Cualquier persona con el enlace puede confirmar: nombre, teléfono, correo y tamaño del grupo.",
+        "on": "Encendido para este evento. El formulario público está cerrado. El anfitrión agrega invitados y envía cada invitación por texto.",
+        "note": "Cuando está encendido, solo responden los invitados que agrega el anfitrión. El anfitrión envía los textos desde el <strong>número de Twilio de InviteSpot</strong>. Cada invitado recibe un enlace personal. Abrir el enlace público pide una verificación por teléfono. Los anfitriones no pueden activarlo ellos mismos."
+      },
       "founderControls": "Controles del fundador",
       "credentialsHelp": "Cambiar el correo o PIN de acceso afecta el próximo inicio de sesión del propietario. Deje el PIN en blanco para conservarlo.",
       "cohost": {
@@ -783,8 +795,161 @@
         "newOwnerPin": "Use exactamente seis dígitos para el nuevo PIN."
       }
     },
+    "guestList": {
+      "hostOnly": "Solo anfitrión",
+      "back": "Volver",
+      "list": { "screen": "Lista de invitados" },
+      "empty": {
+        "title": "Aún no hay invitados",
+        "body": "Agregue personas por nombre y celular, o importe una hoja de cálculo. Las invitaciones se envían por texto cuando usted lo decida.",
+        "add": "Agregar invitado",
+        "import": "Importar CSV u hoja de cálculo",
+        "hint": "Los textos salen del número de InviteSpot. Los invitados pueden responder STOP para cancelar."
+      },
+      "add": {
+        "screen": "Agregar invitado",
+        "title": "Nuevo invitado",
+        "lead": "Recibirá una invitación personal por texto cuando usted elija enviarla.",
+        "name": "Nombre completo",
+        "mobile": "Celular",
+        "seats": "Tamaño máximo del grupo",
+        "fewer": "Menos lugares",
+        "more": "Más lugares",
+        "household": "Grupo o familia",
+        "optional": "opcional",
+        "householdHint": "Sirve para agrupar familias en su lista. No aparece en la invitación.",
+        "email": "Correo",
+        "submit": "Agregar a la lista"
+      },
+      "import": {
+        "screen": "Importar invitados",
+        "title": "Importar una hoja de cálculo",
+        "lead": "Use columnas de nombre, celular, lugares, correo y familia. La primera fila puede ser un encabezado. No se envía ningún texto.",
+        "placeholder": "Nombre,Celular,Lugares,Correo,Familia",
+        "file": "O elija un archivo CSV",
+        "submit": "Agregar estos invitados",
+        "result": "Se agregaron {added}. Se omitieron {skipped} que ya estaban en la lista."
+      },
+      "stats": { "guests": "Invitados", "attendingSeats": "Lugares que asisten", "seatsReserved": "Lugares reservados" },
+      "filters": {
+        "all": "Todos",
+        "not_sent": "Sin enviar",
+        "sent": "Enviado",
+        "delivered": "Entregado",
+        "opened": "Abierto",
+        "attending": "Asiste",
+        "declined": "No asiste",
+        "failed": "No entregado",
+        "opted_out": "Canceló"
+      },
+      "status": {
+        "not_sent": "Sin enviar",
+        "sent": "Enviado",
+        "delivered": "Entregado",
+        "opened": "Abierto",
+        "attending": "Asiste",
+        "declined": "No asiste",
+        "failed": "No entregado",
+        "opted_out": "Canceló"
+      },
+      "seats": "{count, plural, one {# lugar} other {# lugares}}",
+      "seatsOf": "{used} de {allowed} lugares",
+      "remind": "Recordar {count}",
+      "sendInvites": "Enviar {count} invitaciones",
+      "remove": "Quitar",
+      "send": {
+        "screen": "Enviar invitaciones",
+        "kicker": "Vista previa",
+        "title": "Vea el texto de la invitación",
+        "remindTitle": "Vea el recordatorio",
+        "forGuest": "Cada invitado recibe su nombre y un enlace personal. Este es el mensaje para {name}.",
+        "from": "Desde el número de InviteSpot",
+        "ready": "{count, plural, one {# invitación lista para enviar.} other {# invitaciones listas para enviar.}}",
+        "remindReady": "{count, plural, one {# recordatorio listo para enviar.} other {# recordatorios listos para enviar.}}",
+        "segments": "Unos {total} mensajes de texto en total — cada mensaje tiene {each, plural, one {# segmento} other {# segmentos}}. Solo se escribe a los invitados de este envío.",
+        "more": "Vuelva a enviar después para los {count} restantes.",
+        "none": "Nadie está esperando este texto.",
+        "reminderHint": "El recordatorio es más corto y solo se envía a quienes ya recibieron una invitación y no han respondido.",
+        "submit": "Enviar {count} invitaciones",
+        "submitRemind": "Enviar {count} recordatorios"
+      },
+      "replies": {
+        "screen": "Confirmaciones",
+        "open": "Respuestas",
+        "title": "Respuestas de invitados",
+        "invited": "Invitados",
+        "opened": "Abrieron",
+        "attendingSeats": "Lugares que asisten",
+        "declined": "No asisten",
+        "waiting": "Sin respuesta",
+        "bar": "{attending} asisten · {declined} no asisten · {waiting} esperando",
+        "recent": "Recientes",
+        "openedNote": "Abrió la invitación",
+        "guestList": "Lista de invitados"
+      },
+      "errors": {
+        "duplicate_phone": "Ese celular ya está en esta lista.",
+        "sms": "Los textos están apagados hasta que se configure Twilio.",
+        "rate_limited": "Se enviaron demasiados textos. Espere un momento e inténtelo de nuevo.",
+        "generic": "No se pudo guardar. Revise los datos e inténtelo de nuevo."
+      }
+    },
     "public": {
       "previewNotice": "Vista previa — el envío de RSVP está desactivado.",
+      "inviteOnly": {
+        "badge": "Solo con invitación",
+        "title": "Este evento es solo con invitación",
+        "lead": {
+          "wedding": "La boda de {names} es por invitación. Escriba el celular de su invitación y le enviaremos un código de 6 dígitos.",
+          "birthday": "La celebración de cumpleaños de {names} es por invitación. Escriba el celular de su invitación y le enviaremos un código de 6 dígitos.",
+          "event": "{title} es por invitación. Escriba el celular de su invitación y le enviaremos un código de 6 dígitos."
+        },
+        "phoneLabel": "Número de celular",
+        "sendCode": "Enviar un código de verificación",
+        "verifyKicker": "Verificación",
+        "codeTitle": "Escriba el código que enviamos",
+        "codeLead": "Enviamos un código de 6 dígitos al celular que escribió.",
+        "digit": "Dígito {number}",
+        "codeWait": "Puede tardar un momento en llegar.",
+        "resend": "Reenviar código",
+        "missingTitle": "No encontramos este número",
+        "missingBody": "El celular que escribió no está en la lista de {names}. Si cree que es un error, póngase en contacto con ellos directamente.",
+        "missingHint": "No podremos agregarlo desde esta página.",
+        "tryAnother": "Probar con otro número",
+        "optedTitle": "Este número pidió no recibir textos",
+        "optedBody": "Los textos a este celular están apagados. Póngase en contacto con {names} directamente.",
+        "closedTitle": "Las respuestas están cerradas",
+        "closedBody": "{names} ya no reciben respuestas desde esta página.",
+        "rateLimited": "Espere unos minutos antes de pedir otro código.",
+        "smsOff": "La verificación por texto no está disponible por ahora. Use el enlace personal de su invitación.",
+        "expired": "Ese código venció. Pida uno nuevo.",
+        "mismatch": "Ese código no coincide. Inténtelo de nuevo.",
+        "error": "No pudimos enviar un código ahora. Inténtelo en un momento."
+      },
+      "personalRsvp": {
+        "kicker": "Su invitación",
+        "title": "{name}, está invitado",
+        "allowance": "Su invitación es para un máximo de {count, plural, one {# invitado} other {# invitados}}.",
+        "yes": "Asiste con gusto",
+        "yesDetail": "Le guardaremos un lugar.",
+        "no": "Declina con cariño",
+        "noDetail": "Seguirá en nuestros pensamientos.",
+        "howMany": "¿Cuántos vendrán?",
+        "ofSeats": "{count} de {allowed} lugares",
+        "fewer": "Menos invitados",
+        "more": "Más invitados",
+        "submit": "Enviar respuesta",
+        "thanks": "Gracias, {name}",
+        "savedSeats": "Guardamos {count, plural, one {# lugar} other {# lugares}} para usted{when}{venue}.",
+        "savedDecline": "Guardamos su respuesta. Seguirá en nuestros pensamientos.",
+        "google": "Google",
+        "calendarFile": "Archivo de calendario",
+        "memories": "Agregue el día a su calendario. Después del evento puede compartir fotos en Memories.",
+        "change": "Cambiar respuesta",
+        "overSeats": "Esta invitación es para un máximo de {count, plural, one {# invitado} other {# invitados}}.",
+        "closed": "Las respuestas están cerradas.",
+        "error": "No se pudo guardar su respuesta. Inténtelo de nuevo."
+      },
       "unavailable": {
         "title": "Esta invitación no está disponible",
         "body": "Vuelva más tarde o comuníquese con el anfitrión."
