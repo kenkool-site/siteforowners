@@ -99,6 +99,7 @@ function render(
   overrides: Partial<PublicInvitationEvent> = {},
   locale: "en" | "es" = "en",
   rsvpSummary = { attendingPeople: 17, declinedParties: 3 },
+  nowIso?: string,
 ): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider
@@ -113,6 +114,7 @@ function render(
           event={{ ...event, locale, ...overrides }}
           state={state}
           rsvpSummary={rsvpSummary}
+          nowIso={nowIso}
         />
       )}
     </NextIntlClientProvider>,
@@ -140,7 +142,8 @@ test("an optional venue website links the venue name on the cover and in event d
     venueUrl: "https://www.theblissataubrey.com/",
   } as unknown as Partial<PublicInvitationEvent>);
   const links = html.match(/href="https:\/\/www\.theblissataubrey\.com\/"/g) ?? [];
-  assert.equal(links.length, 2);
+  assert.equal(links.length, 1);
+  assert.match(html, />Venue website</);
   assert.doesNotMatch(html, />https:\/\/www\.theblissataubrey\.com\/</);
 });
 
@@ -192,14 +195,12 @@ test("Spanish event locale translates system copy without changing authored copy
   assert.match(html, /Celebrate with us — exactly as written\./);
 });
 
-test("the three public themes produce structurally different invitation layouts", () => {
-  const classic = render("published", { themeKey: "classic" });
-  const romantic = render("published", { themeKey: "romantic" });
-  const celebration = render("published", { themeKey: "celebration" });
-
-  assert.match(classic, /data-invitation-layout="centered-frame"/);
-  assert.match(romantic, /data-invitation-layout="image-asymmetry"/);
-  assert.match(celebration, /data-invitation-layout="offset-blocks"/);
+test("every event theme uses the same luxury guest layout", () => {
+  for (const themeKey of ["classic", "romantic", "celebration"] as const) {
+    const html = render("published", { themeKey });
+    assert.match(html, /data-invitation-layout="luxury"/);
+    assert.match(html, /data-invitation-frame="gold"/);
+  }
 });
 
 test("the cover opens the invitation and the private designed reference is never rendered", async () => {
@@ -218,25 +219,62 @@ test("the cover opens the invitation and the private designed reference is never
 
 test("the public invitation has a guest-facing marketing CTA plus discreet platform and host sign-in footer links", () => {
   const html = render("published");
-  assert.match(html, /href="https:\/\/www\.invitespot\.app\/\?from=mia-and-lee"[^>]*>Hosting your own event\? Create your invitation with InviteSpot/);
-  assert.match(html, /href="https:\/\/www\.invitespot\.app\/"[^>]*>Powered by InviteSpot/);
+  assert.match(html, /utm_source=event_site/);
+  assert.match(html, /utm_campaign=mia-and-lee/);
+  assert.match(html, /utm_content=footer/);
+  assert.match(html, /from=mia-and-lee/);
+  assert.match(html, />Made with InviteSpot</);
+  assert.match(html, />Get a page like this</);
   assert.match(html, /href="https:\/\/www\.siteforowners\.com\/invitations\/login"[^>]*>Host sign in/);
+});
+
+test("turning off InviteSpot branding hides the marketing footer and keeps host sign-in", () => {
+  const html = renderToStaticMarkup(
+    <NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
+      <PublicInvitation event={event} state="published" rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} brandingEnabled={false} />
+    </NextIntlClientProvider>,
+  );
+  assert.doesNotMatch(html, /Made with InviteSpot|Get a page like this|utm_source=event_site/);
+  assert.match(html, /Host sign in/);
+  assert.match(html, /See and share photos in Memories/);
+});
+
+test("the countdown uses the supplied instant and the hero thanks guests after the start", () => {
+  const upcoming = render("published", {}, "en", { attendingPeople: 4, declinedParties: 0 }, "2026-10-09T18:30:00.000Z");
+  assert.match(upcoming, /data-countdown="live"/);
+  assert.match(upcoming, /Counting down/);
+  assert.match(upcoming, />1</);
+  assert.doesNotMatch(upcoming, /With our thanks/);
+
+  const thanks = render("published", {}, "en", { attendingPeople: 4, declinedParties: 0 }, "2026-10-11T00:00:00.000Z");
+  assert.match(thanks, /data-invitation-phase="thanks"/);
+  assert.match(thanks, /With our thanks/);
+  assert.match(thanks, /The day has arrived for Mia and Lee/);
+  assert.match(thanks, /href="\/invite\/mia-and-lee\/memories"/);
+  assert.match(thanks, /See photos in Memories/);
+  assert.doesNotMatch(thanks, /data-countdown="live"/);
+});
+
+test("directions fall back to a maps search of the address when no map link is saved", () => {
+  const html = render("published", { mapUrl: null });
+  assert.match(html, /https:\/\/www\.google\.com\/maps\/search\/\?api=1&amp;query=42%20Celebration%20Way/);
 });
 
 test("the honoree names lead the hero while a distinct extracted title supports them", () => {
   const html = render("published", { title: "Save the Date in style", honoreeNames: "Mercy & John" });
-  assert.match(html, /<h1[^>]*>Mercy &amp; John<\/h1>/);
-  assert.match(html, /data-invitation-kicker="true"[^>]*>Save the Date in style<\/p>/);
+  assert.match(html, /<h1[^>]*>[\s\S]*Mercy[\s\S]*John[\s\S]*<\/h1>/);
+  assert.match(html, /data-invitation-kicker="true"[^>]*>The wedding of</);
+  assert.match(html, /data-invitation-supporting="true"[^>]*>Save the Date in style</);
 });
 
-test("the cover renders the selected decorative frame with the dynamic accent color", () => {
+test("the cover uses the thin gold frame instead of a decorative recipe frame", () => {
   const recipe = structuredClone(DEFAULT_INVITATION_DESIGN_RECIPE);
   recipe.frame.style = "floral";
   recipe.palette.accent = "#C27A91";
   const html = render("published", { designRecipe: recipe });
-  assert.match(html, /data-invitation-frame="floral"/);
-  assert.match(html, /border-color:#C27A91/);
-  assert.match(html, /<svg/);
+  assert.match(html, /data-invitation-frame="gold"/);
+  assert.doesNotMatch(html, /data-invitation-frame="floral"/);
+  assert.doesNotMatch(html, /border-color:#C27A91/);
 });
 
 test("gallery photos stack on mobile and balance into two columns on larger screens", async () => {
@@ -253,7 +291,7 @@ test("gallery photos stack on mobile and balance into two columns on larger scre
     </NextIntlClientProvider>,
     galleryMedia,
   );
-  assert.match(html, /data-invitation-gallery="true"[^>]*class="[^"]*grid-cols-1[^"]*sm:grid-cols-2/);
+  assert.match(html, /data-invitation-gallery="true"[^>]*class="[^"]*grid-cols-2/);
 });
 
 test("publicly-cacheable gallery media renders through next/image while preserving sizing classes", async () => {
@@ -295,7 +333,7 @@ test("optional travel information highlights one hotel and links guest direction
   const html = renderToStaticMarkup(<NextIntlClientProvider locale="en" messages={enMessages} timeZone={event.timezone}>
     <PublicInvitation event={travelEvent} state="published" rsvpSummary={{ attendingPeople: 0, declinedParties: 0 }} />
   </NextIntlClientProvider>);
-  for (const expected of ["Travel information", "Closest airports", "Dallas Fort Worth International", "Recommended hotel", "The Grand Hotel", "City Lodge"]) {
+  for (const expected of ["Getting here", "Closest airports", "Dallas Fort Worth International", "Recommended hotel", "The Grand Hotel", "City Lodge"]) {
     assert.match(html, new RegExp(expected));
   }
   assert.match(html, /https:\/\/maps\.example\.test\/dfw/);

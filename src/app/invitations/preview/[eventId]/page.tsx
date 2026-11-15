@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { NextRequest } from "next/server";
+import { EventSiteFonts } from "@/components/invitations/EventSiteFonts";
 import { PublicInvitation } from "@/components/invitations/PublicInvitation";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { requireInvitationAccess } from "@/lib/invitations/access";
@@ -23,7 +24,7 @@ export default async function InvitationPreviewPage({ params }: { params: { even
     loadMedia: getInvitationMediaForManagement,
   });
   if (!preview) notFound();
-  return <InvitationPublicProvider locale={preview.event.locale} timeZone={preview.event.timezone}>
-    <PublicInvitation event={preview.event} state={preview.state} initialMedia={preview.media} rsvpSummary={preview.rsvpSummary} preview />
-  </InvitationPublicProvider>;
+  return <EventSiteFonts><InvitationPublicProvider locale={preview.event.locale} timeZone={preview.event.timezone}>
+    <PublicInvitation event={preview.event} state={preview.state} initialMedia={preview.media} rsvpSummary={preview.rsvpSummary} preview nowIso={new Date().toISOString()} />
+  </InvitationPublicProvider></EventSiteFonts>;
 }

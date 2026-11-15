@@ -31,6 +31,7 @@ test("the localized RSVP form exposes every guest field with accessible labels",
     "Message for the host",
   ]) assert.match(html, new RegExp(expected));
   assert.match(html, /aria-describedby="rsvp-contact-help"/);
+  assert.doesNotMatch(html, /Find your invitation/);
   assert.match(html, /min-h-11/);
   assert.match(html, /motion-reduce:/);
 });

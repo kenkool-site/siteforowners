@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useMemo, useState } from "react";
 import { zonedWallTimeToUtcIso } from "@/lib/invitations/event-time";
+import { COMMON_EVENT_TIMEZONES } from "@/lib/invitations/venue-timezone";
 import { normalizePlatformSubdomain } from "@/lib/subdomain";
 
 type CreatedInvitation = {
@@ -218,7 +219,9 @@ export function FounderEventForm() {
           </label>
           <label className="text-sm font-medium text-gray-800">
             Timezone
-            <input name="timezone" required defaultValue={timezone} className={fieldClass} />
+            <input name="timezone" list="founder-event-timezones" required defaultValue={timezone} className={fieldClass} />
+            <datalist id="founder-event-timezones">{COMMON_EVENT_TIMEZONES.map((zone) => <option key={zone} value={zone} />)}</datalist>
+            <span className="mt-1 block text-xs font-normal text-gray-500">Use the venue’s timezone. After you add the address, the editor can suggest one.</span>
           </label>
         </div>
       </section>

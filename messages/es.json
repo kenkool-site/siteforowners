@@ -414,12 +414,15 @@
         "responses": "Respuestas"
       },
       "sectionHelp": {
-        "event": "Agregue los detalles esenciales para sus invitados.",
+        "event": "Agregue los detalles esenciales para sus invitados. La zona horaria define el reloj, la cuenta regresiva y el calendario.",
         "design": "Elija un estilo de invitación tranquilo y legible.",
         "rsvp": "Controle las respuestas, la privacidad y las notificaciones.",
         "preview": "Revise la invitación y administre su disponibilidad.",
         "responses": "Las respuestas de sus invitados se organizarán aquí."
       },
+      "timezoneHelp": "La cuenta regresiva, la hora que ven los invitados y los calendarios usan esta zona horaria.",
+      "timezoneSuggestion": "Sugerida por el lugar: {timezone}",
+      "timezoneApply": "Usar {timezone}",
       "media": {
         "heading": "Contenido multimedia",
         "help": "Los invitados ven la foto de apertura. La referencia de diseño se mantiene privada y guía la recreación editable.",
@@ -802,10 +805,34 @@
       },
       "datePending": "Fecha y hora por confirmar",
       "viewInvitation": "Ver invitación",
+      "scrollCue": "La invitación",
+      "eyebrow": {
+        "wedding": "La boda de",
+        "birthday": "El cumpleaños de",
+        "event": "La celebración de"
+      },
+      "countdown": {
+        "label": "Cuenta regresiva",
+        "pending": "La cuenta regresiva comienza en un momento",
+        "days": "Días",
+        "hours": "Horas",
+        "minutes": "Minutos",
+        "seconds": "Segundos",
+        "until": "Hasta el {date}"
+      },
+      "thanks": {
+        "title": "Con nuestro agradecimiento",
+        "arrived": "El día ha llegado para {names}",
+        "memories": "Ver fotos en Memories"
+      },
+      "welcome": {
+        "kicker": "Bienvenida",
+        "photos": "De la celebración hasta ahora"
+      },
       "designedInviteAlt": "Invitación diseñada para el evento",
       "coverAlt": "Portada de {title}",
       "details": "Los detalles",
-      "styleGuide": { "title": "Guía de estilo", "colors": "Colores del día" },
+      "styleGuide": { "title": "Guía de estilo", "wear": "Qué ponerse", "colors": "Colores del día" },
       "when": "Cuándo",
       "rsvpDeadline": "Responda antes del {date}",
       "rsvpDeadlineClosed": "Las respuestas están cerradas",
@@ -814,9 +841,16 @@
       "googleCalendar": "Agregar a Google Calendar",
       "downloadCalendar": "Descargar archivo de calendario",
       "eventSchedule": {
+        "kicker": "El día",
         "title": "Cronograma del evento"
       },
+      "venue": {
+        "directions": "Cómo llegar",
+        "website": "Sitio del lugar"
+      },
       "travel": {
+        "kicker": "Viaje",
+        "heading": "Cómo llegar",
         "title": "Información de viaje",
         "airports": "Aeropuertos más cercanos",
         "hotels": "Hoteles cercanos",
@@ -824,12 +858,16 @@
         "directions": "Cómo llegar",
         "map": "Ver en el mapa"
       },
+      "galleryKicker": "Fotos",
       "gallery": "Un vistazo a la celebración",
+      "galleryMemories": "Ver y compartir fotos en Memories",
+      "galleryMemoriesHint": "Abrir el álbum compartido",
       "galleryAlt": "Foto del evento {number}",
       "videoLabel": "Video del evento",
-      "footer": { "marketingCta": "¿Organizas tu propio evento? Crea tu invitación con InviteSpot", "poweredBy": "Creado con InviteSpot", "hostSignIn": "Acceso del anfitrión" },
+      "footer": { "marketingCta": "¿Organizas tu propio evento? Crea tu invitación con InviteSpot", "madeWith": "Hecho con InviteSpot", "getPage": "Obtén una página como esta", "poweredBy": "Creado con InviteSpot", "hostSignIn": "Acceso del anfitrión" },
       "guestbook": {
         "title": "Libro de invitados",
+        "notesTitle": "Notas para {names}",
         "intro": "Nos emociona celebrar con usted. Deje una nota para los anfitriones.",
         "leaveNote": "Dejar una nota",
         "empty": "Sea la primera persona en dejar una nota.",
@@ -853,6 +891,17 @@
         "closedBody": "El anfitrión ya no acepta respuestas nuevas.",
         "closedEditHint": "Contacte al anfitrión si necesita cambiar una respuesta.",
         "editing": "Está actualizando de forma segura una respuesta existente.",
+        "replyKicker": "Respuesta",
+        "attendsHint": "Les guardaremos un lugar.",
+        "declinesHint": "Seguirán en nuestros pensamientos.",
+        "sendReply": "Enviar respuesta",
+        "thankYou": "Gracias, {name}",
+        "savedAttending": "Guardamos que asistirá.",
+        "savedAttendingWhen": "Guardamos que asistirá el {when}.",
+        "savedDeclined": "Guardamos que no podrá asistir. Seguirán en nuestros pensamientos.",
+        "memoriesHint": "Agregue el día a su calendario y, después del evento, podrá compartir fotos en Memories.",
+        "memoriesCta": "Compartir fotos en Memories",
+        "memoriesNote": "Abre el álbum compartido",
         "fields": {
           "primaryName": "Tu nombre",
           "attendance": "¿Asistirás?",
