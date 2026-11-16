@@ -99,7 +99,10 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
     services.push({
       name,
       price,
-      description: description || undefined,
+      // Keep a blank string. Maison treats that as "cleared" and does not
+      // fall back to generated service_descriptions. Dropping it would look
+      // like the field was never set.
+      description: description === "" ? "" : description,
       duration_minutes,
       image: image || undefined,
       client_id,

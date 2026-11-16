@@ -30,6 +30,9 @@ type Copy = {
   pauseCarousel: string;
   resumeCarousel: string;
   viewService: string;
+  book: string;
+  tapToBook: string;
+  selectToBook: string;
 };
 
 interface MaisonServicesProps {
@@ -201,7 +204,36 @@ export function MaisonServices({
   }`;
 
   return (
-    <section id="services" className="mx-auto max-w-[1180px] px-6 py-16 md:px-11 md:py-24" aria-labelledby="maison-services-title">
+    <section
+      id="services"
+      className="mx-auto max-w-[1180px] px-6 py-16 md:px-11 md:py-24"
+      aria-labelledby="maison-services-title"
+      style={{ ["--m-gold" as string]: palette.gold, ["--m-ink" as string]: palette.ink, ["--m-paper" as string]: palette.paper } as CSSProperties}
+    >
+      <style>{`
+        .maison-book-row { cursor: pointer; transition: background-color 160ms ease; }
+        .maison-book-name { transition: color 160ms ease; }
+        .maison-book-pill {
+          color: var(--m-ink);
+          border: 1px solid var(--m-gold);
+          background: color-mix(in srgb, var(--m-gold) 16%, transparent);
+          transition: background-color 160ms ease, color 160ms ease;
+        }
+        .maison-book-row:hover { background-color: color-mix(in srgb, var(--m-gold) 12%, transparent); }
+        .maison-book-row:hover .maison-book-name,
+        .maison-book-row:focus-visible .maison-book-name { color: var(--m-gold); }
+        .maison-book-row:hover .maison-book-pill,
+        .maison-book-row:focus-visible .maison-book-pill {
+          background: color-mix(in srgb, var(--m-gold) 34%, var(--m-paper));
+          color: var(--m-ink);
+          border-color: var(--m-gold);
+        }
+        .maison-book-row:active { background-color: color-mix(in srgb, var(--m-ink) 8%, transparent); }
+        .maison-book-row:focus-visible { outline: 2px solid var(--m-gold); outline-offset: 3px; }
+        @media (prefers-reduced-motion: reduce) {
+          .maison-book-row, .maison-book-name, .maison-book-pill { transition: none; }
+        }
+      `}</style>
       <div className="mb-8 flex flex-col gap-4 md:mb-11 md:flex-row md:items-end md:justify-between">
         <div>
           <p className="mb-4 text-[9px] font-semibold uppercase tracking-[0.28em]" style={{ color: palette.gold }}>
@@ -371,21 +403,29 @@ export function MaisonServices({
         </div>
       </div>
 
-      <div className="mt-8 md:hidden" data-full-service-list>
-        <div className="mb-2 flex items-end justify-between gap-3">
-          <h3 className="text-[1.8rem] leading-none" style={serif}>
-            {copy.fullMenu}
-          </h3>
-          <span className="text-[8px] font-semibold uppercase tracking-[0.16em] opacity-60">{countLabel}</span>
+      <div className="mt-10 md:mt-16" data-full-service-list>
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div>
+            <h3 className="text-[1.8rem] leading-none md:text-[2.2rem]" style={serif}>
+              {copy.fullMenu}
+            </h3>
+            {ordered.some((service) => canBookService(service, bookingMode)) ? (
+              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.16em] opacity-55">
+                <span className="md:hidden">{copy.tapToBook}</span>
+                <span className="hidden md:inline">{copy.selectToBook}</span>
+              </p>
+            ) : null}
+          </div>
+          <span className="pt-2 text-[8px] font-semibold uppercase tracking-[0.16em] opacity-60">{countLabel}</span>
         </div>
-        <ul>
+        <ul className="md:grid md:grid-cols-2 md:gap-x-14">
           {ordered.map((service, index) => {
             const duration = formatDuration(service.durationMinutes ?? 60);
             const bookable = canBookService(service, bookingMode);
             const row = (
               <>
-                <span className="min-w-0 max-w-[68%]">
-                  <span className="block text-[1.3rem] leading-tight" style={serif}>
+                <span className="min-w-0 max-w-[56%] md:max-w-[62%]">
+                  <span className="maison-book-name block text-[1.3rem] leading-tight md:text-[1.45rem]" style={serif}>
                     {service.name}
                   </span>
                   {service.description ? (
@@ -395,13 +435,19 @@ export function MaisonServices({
                   ) : null}
                 </span>
                 <span className="mx-2 mb-1 h-px min-w-2 flex-1 self-center border-b border-dotted" style={{ borderColor: `color-mix(in srgb, ${palette.gold} 45%, ${palette.line})` }} />
-                <span className="shrink-0 text-right">
-                  <span className="block text-[1.3rem] leading-none" style={serif}>
+                <span className="flex shrink-0 flex-col items-end text-right">
+                  <span className="block text-[1.3rem] leading-none md:text-[1.45rem]" style={serif}>
                     {service.price}
                   </span>
                   <span className="mt-1.5 block text-[8px] font-semibold uppercase tracking-[0.14em] opacity-60">
                     {duration}
                   </span>
+                  {bookable ? (
+                    <span className="maison-book-pill mt-2 inline-flex items-center gap-1 px-2 py-1 text-[9px] font-semibold uppercase tracking-[0.14em]">
+                      {copy.book}
+                      <span aria-hidden="true">→</span>
+                    </span>
+                  ) : null}
                 </span>
               </>
             );
@@ -410,7 +456,8 @@ export function MaisonServices({
                 {bookable ? (
                   <button
                     type="button"
-                    className="flex w-full items-center gap-2 py-3.5 text-left"
+                    className="maison-book-row flex w-full items-center gap-2 py-3.5 text-left"
+                    aria-label={`${copy.book} ${service.name}`}
                     onClick={() => bookService(service, bookingMode)}
                   >
                     {row}
