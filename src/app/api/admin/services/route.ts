@@ -7,6 +7,7 @@ import { validateAddOns } from "@/lib/validation/add-ons";
 import { validateDepositSettings } from "@/lib/validation/deposit-settings";
 import { isValidPersistedServiceImageUrl, PERSISTED_SERVICE_IMAGE_URL_ERROR } from "@/lib/validation/service-image-url";
 import { revalidateTenantSite } from "@/lib/revalidate-tenant-site";
+import { persistedServiceDescription } from "@/lib/service-description";
 
 const MAX_NAME = 80;
 const MAX_PRICE = 30;
@@ -54,7 +55,7 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
     const r = item as Record<string, unknown>;
     let name = typeof r.name === "string" ? r.name.trim() : "";
     let price = typeof r.price === "string" ? r.price.trim() : "";
-    let description = typeof r.description === "string" ? r.description.trim() : undefined;
+    let description = persistedServiceDescription(r.description);
     const duration_minutes = typeof r.duration_minutes === "number" ? r.duration_minutes : undefined;
     const image = typeof r.image === "string" ? r.image.trim() : undefined;
     const client_id = typeof r.client_id === "string" ? r.client_id.trim() || undefined : undefined;
@@ -66,7 +67,7 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
 
     if (name.length > MAX_NAME) name = name.slice(0, MAX_NAME);
     if (price.length > MAX_PRICE) price = price.slice(0, MAX_PRICE);
-    if (description !== undefined && description.length > MAX_DESCRIPTION) {
+    if (description.length > MAX_DESCRIPTION) {
       description = description.slice(0, MAX_DESCRIPTION);
     }
 
@@ -99,10 +100,9 @@ function validatePayload(body: Record<string, unknown>): ValidationOk | Validati
     services.push({
       name,
       price,
-      // Keep a blank string. Maison treats that as "cleared" and does not
-      // fall back to generated service_descriptions. Dropping it would look
-      // like the field was never set.
-      description: description === "" ? "" : description,
+      // Always persist a string. "" means the editor field was blank, so
+      // Maison must not fill the line from generated copy.
+      description,
       duration_minutes,
       image: image || undefined,
       client_id,
