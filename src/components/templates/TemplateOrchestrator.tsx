@@ -7,6 +7,7 @@ import { THEMES_BY_VERTICAL } from "@/lib/templates/themes";
 import { lightPaletteFromBrandColors } from "@/lib/templates/brand-palette";
 import type { BookingModePolicy } from "@/lib/admin-auth";
 import { detectProvider } from "@/lib/admin-bookings";
+import { displayedServiceDescription } from "@/lib/service-description";
 
 // Heroes
 import { ClassicHero } from "./heroes/ClassicHero";
@@ -276,7 +277,11 @@ export function TemplateOrchestrator({
 
   const services = data.services.map((s) => ({
     ...s,
-    description: copy?.service_descriptions?.[s.name] ?? s.description,
+    description: displayedServiceDescription(
+      s.description,
+      copy?.service_descriptions?.[s.name],
+      template === "maison",
+    ),
     bookingDeepLink: serviceDeepLinkUrls.get(normalizeServiceName(s.name)),
     // Map snake_case from DB JSONB to camelCase for the UI components.
     durationMinutes: s.duration_minutes,
