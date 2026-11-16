@@ -27,6 +27,7 @@ import { createClient as createBrowserSupabase } from "@/lib/supabase/client";
 import { FounderUpdatesPanel } from "./FounderUpdatesPanel";
 import { buildLandingSlug } from "@/lib/seo-landing";
 import { buildSocialLinksPayload, socialLinkToDisplayValue } from "@/lib/social-links";
+import { persistedServiceDescription } from "@/lib/service-description";
 
 export interface SiteEditorProps {
   tenant: Record<string, unknown>;
@@ -106,6 +107,7 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
     ((preview.services as ServiceItem[]) || []).map((s) => ({
       ...s,
       client_id: s.client_id ?? crypto.randomUUID(),
+      description: persistedServiceDescription(s.description),
     }))
   );
   // Founder admin consumes categories (used by ServiceRow dropdowns) but does
@@ -374,7 +376,9 @@ export function SiteEditor({ tenant, preview, initialDeposit }: SiteEditorProps)
             google_review_url: googleReviewUrl.trim() || null,
             seo_locality: seoLocality.trim() || null,
             booking_url: bookingUrl || null,
-            services: services.filter((s) => s.name.trim()),
+            services: services
+              .filter((s) => s.name.trim())
+              .map((s) => ({ ...s, description: persistedServiceDescription(s.description) })),
             categories,
             booking_policies: bookingPolicies.trim() || null,
             // Tenant-scoped fields — server only persists these on the

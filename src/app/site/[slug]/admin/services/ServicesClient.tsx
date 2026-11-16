@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ServiceItem } from "@/lib/ai/types";
 import { createBlankService } from "@/lib/admin-services";
+import { persistedServiceDescription } from "@/lib/service-description";
 import { ServiceRow } from "../_components/ServiceRow";
 import { ServiceReorderRow } from "../_components/ServiceReorderRow";
 import { CategoriesPanel } from "./CategoriesPanel";
@@ -18,10 +19,12 @@ function normalizeService(s: ServiceItem): ServiceItem {
     ...s,
     name: s.name.length > MAX_NAME ? s.name.slice(0, MAX_NAME) : s.name,
     price: s.price.length > MAX_PRICE ? s.price.slice(0, MAX_PRICE) : s.price,
-    description:
-      s.description && s.description.length > MAX_DESCRIPTION
-        ? s.description.slice(0, MAX_DESCRIPTION)
-        : s.description,
+    description: (() => {
+      const description = persistedServiceDescription(s.description);
+      return description.length > MAX_DESCRIPTION
+        ? description.slice(0, MAX_DESCRIPTION)
+        : description;
+    })(),
     // Lazy backfill — assign a stable client_id to any service that doesn't
     // have one yet, so React keys survive renames.
     client_id: s.client_id ?? crypto.randomUUID(),
