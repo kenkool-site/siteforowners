@@ -60,6 +60,7 @@ export type InvitationEventUpdate = {
   capacity?: number | null;
   rsvpDeadline?: string | null;
   rsvpOverrideOpen?: boolean;
+  privateGuestListEnabled?: boolean;
   submissionLimit?: number;
   emailNotificationLimit?: number;
   smsNotificationLimit?: number;
@@ -334,6 +335,10 @@ export function parseEventUpdate(
     parsePositiveInteger(body, "submissionLimit", value, errors, false);
     parsePositiveInteger(body, "emailNotificationLimit", value, errors, false);
     parsePositiveInteger(body, "smsNotificationLimit", value, errors, false);
+    if ("privateGuestListEnabled" in body) {
+      if (typeof body.privateGuestListEnabled === "boolean") value.privateGuestListEnabled = body.privateGuestListEnabled;
+      else errors.privateGuestListEnabled = "Choose on or off.";
+    }
   }
 
   const startsAt = value.startsAt !== undefined ? value.startsAt : current?.startsAt;

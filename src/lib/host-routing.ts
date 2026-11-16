@@ -42,10 +42,17 @@ export function classifyHost(host: string): HostClassification {
   return { kind: "custom", hostname };
 }
 
+const GUEST_INVITE_PATH = /^\/i\/[A-Za-z0-9_-]{16,64}$/;
+
+export function isGuestInvitePath(pathname: string): boolean {
+  return GUEST_INVITE_PATH.test(pathname);
+}
+
 export function invitationRewritePath(slug: string, pathname: string): string | null {
   const encodedSlug = encodeURIComponent(slug);
   if (pathname === "/") return `/invite/${encodedSlug}`;
   if (pathname === "/memories") return `/invite/${encodedSlug}/memories`;
+  if (isGuestInvitePath(pathname)) return pathname;
   // PasscodeGate's post-success navigation (src/components/invitations/PasscodeGate.tsx)
   // reloads the guest's original destination on the same reserved subdomain it was
   // reached on, which is already one of these exact paths — without this identity

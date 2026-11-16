@@ -180,6 +180,17 @@ test("public totals disappear completely when the owner disables them", () => {
   assert.doesNotMatch(html, /17 attending|3 unable to attend|guest count|RSVP count/i);
 });
 
+test("a private guest list replaces the open RSVP form with the invite-only gate", () => {
+  const html = render("published", { privateGuestListEnabled: true });
+  assert.match(html, /This event is invite-only/);
+  assert.match(html, /data-invitation-layout="luxury"/);
+  assert.doesNotMatch(html, /name="primaryName"/);
+  assert.doesNotMatch(html, /Respond to this invitation/);
+  const open = render("published");
+  assert.match(open, /Respond to this invitation/);
+  assert.doesNotMatch(open, /This event is invite-only/);
+});
+
 test("closed invitations keep their details but replace the new RSVP action", () => {
   const html = render("rsvp_closed");
   assert.match(html, /Mia and Lee/);

@@ -115,8 +115,11 @@ test("the response dashboard is outside the event settings form and disabled fie
 test("only founders see cost limit controls", () => {
   assert.doesNotMatch(render("owner"), /Submission limit/);
   assert.doesNotMatch(render("owner"), /Owner sign-in email/);
+  assert.doesNotMatch(render("owner"), /Private guest list/);
   assert.match(render("founder"), /Submission limit/);
   assert.match(render("founder"), /Owner sign-in email/);
+  assert.match(render("founder"), /name="privateGuestListEnabled"/);
+  assert.match(render("founder"), /Private guest list \(invite-only\)/);
 });
 
 test("only founders can edit the public subdomain while owners see the clean share link", () => {

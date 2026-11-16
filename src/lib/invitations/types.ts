@@ -70,6 +70,8 @@ export interface InvitationEvent {
   capacity: number | null;
   rsvpDeadline: string | null;
   rsvpOverrideOpen: boolean;
+  /** Premium invite-only mode. Absent or false keeps the open RSVP form. */
+  privateGuestListEnabled?: boolean;
   submissionLimit: number;
   emailNotificationLimit: number;
   smsNotificationLimit: number;

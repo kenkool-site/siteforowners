@@ -234,6 +234,7 @@ type PublicRsvpEventLookup = {
     expireAt: string | null;
     rsvpOverrideOpen: boolean;
     showPublicRsvpCount: boolean;
+    privateGuestListEnabled?: boolean;
   };
   passcodeHash: string | null;
 };
@@ -360,6 +361,9 @@ export async function processPublicRsvpRequest(
     if (!signed || !(await dependencies.verifyPasscode(signed, invitation.event.id))) {
       return { status: 403, body: { ok: false, code: "event_unavailable" } };
     }
+  }
+  if (invitation.event.privateGuestListEnabled) {
+    return { status: 403, body: { ok: false, code: "invite_only" } };
   }
 
   const mutation: RsvpMutationKind = request.rsvpId ? "update" : "create";

@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { isPublicSiteLive, isOwnerAdminReachable } from "@/lib/tenant-access";
-import { classifyHost, invitationRewritePath, isLegacySiteforownersApex } from "@/lib/host-routing";
+import { classifyHost, invitationRewritePath, isGuestInvitePath, isLegacySiteforownersApex } from "@/lib/host-routing";
 // Imported from ./passcode-session directly, not from ./auth: ./auth has a
 // top-level `node:crypto` import (used by its unrelated owner-session/
 // edit-token functions) that webpack refuses to bundle into this Edge
@@ -178,6 +178,11 @@ export async function middleware(request: NextRequest) {
       }
       return NextResponse.next();
     }
+    if (isGuestInvitePath(pathname)) {
+      const personal = NextResponse.next();
+      personal.headers.set("Cache-Control", "no-store, must-revalidate");
+      return personal;
+    }
     const notFound = NextResponse.rewrite(new URL("/not-found", request.url));
     notFound.headers.set("Cache-Control", "no-store, must-revalidate");
     return notFound;
@@ -229,8 +234,10 @@ export async function middleware(request: NextRequest) {
         unavailable.headers.set("Cache-Control", "no-store, must-revalidate");
         return unavailable;
       }
+      const guestLink = isGuestInvitePath(pathname);
       if (
-        eventResult.data?.passcode_hash
+        !guestLink
+        && eventResult.data?.passcode_hash
         && !(await hasInvitationPasscodeAccess(request, reservation.invitation_event_id as string))
       ) {
         return invitationLockedRewrite(request, eventSlug, rewritePath);

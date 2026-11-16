@@ -11,6 +11,7 @@ import type {
 import type { InvitationEventForManagement } from "@/lib/invitations/repository";
 import type { InvitationEventStatus } from "@/lib/invitations/types";
 import { ResponsesDashboard } from "./ResponsesDashboard";
+import { PrivateGuestListCard } from "./guest-list/PrivateGuestListCard";
 import { ReferenceImportReview } from "./ReferenceImportReview";
 import type { ExtractedFact, InvitationReferenceAnalysis } from "@/lib/invitations/reference-analysis";
 import { DEFAULT_INVITATION_DESIGN_RECIPE, type InvitationDesignRecipe } from "@/lib/invitations/design-recipe";
@@ -333,6 +334,7 @@ export function EventEditor({
         payload.submissionLimit = numberOrNull(data.get("submissionLimit"));
         payload.emailNotificationLimit = numberOrNull(data.get("emailNotificationLimit"));
         payload.smsNotificationLimit = numberOrNull(data.get("smsNotificationLimit"));
+        payload.privateGuestListEnabled = data.has("privateGuestListEnabled");
       }
     } catch {
       setErrors({ startsAt: t("errors.startsAt") });
@@ -1015,6 +1017,7 @@ export function EventEditor({
 
           <section id="rsvp" className={sectionClass}>
             <SectionHeading title={t("sections.rsvp")} help={t("sectionHelp.rsvp")} />
+            {mode === "founder" ? <div className="mb-6"><PrivateGuestListCard enabled={Boolean(currentEvent.privateGuestListEnabled)} /></div> : null}
             <div className="grid gap-5 sm:grid-cols-2">
               <label className={labelClass}>{t("fields.deadline")}<input type="datetime-local" name="rsvpDeadline" defaultValue={toLocalInput(currentEvent.rsvpDeadline, currentEvent.timezone)} className={inputClass} /><FieldError name="rsvpDeadline" errors={errors} /></label>
               <label className={labelClass}>{t("fields.capacity")}<input type="number" min="1" step="1" name="capacity" defaultValue={currentEvent.capacity ?? ""} className={inputClass} /><FieldError name="capacity" errors={errors} /></label>

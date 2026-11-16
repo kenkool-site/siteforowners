@@ -10,6 +10,7 @@ import {
   type EventCalendarInput,
 } from "@/lib/invitations/calendar";
 import { InvitationRsvpDialog } from "./InvitationRsvpDialog";
+import { InviteOnlyGate } from "./guest-list/InviteOnlyGate";
 import type { InvitationMediaSnapshot } from "@/lib/invitations/media";
 import { hotelMapUrl } from "@/lib/invitations/travel";
 import { InvitationHero } from "./InvitationHero";
@@ -61,6 +62,7 @@ export type PublicInvitationEvent = Pick<
   | "designRecipe"
   | "showPublicRsvpCount"
   | "commentWallEnabled"
+  | "privateGuestListEnabled"
 >;
 
 type PublicInvitationProps = {
@@ -267,6 +269,20 @@ export function PublicInvitation({
   const dressPhoto = gallery.length > 2 ? gallery[gallery.length - 1] : null;
   const memoriesHref = memoriesPath(event.slug);
   const closed = state === "rsvp_closed";
+
+  if (event.privateGuestListEnabled) {
+    return (
+      <InviteOnlyGate
+        slug={event.slug}
+        names={names}
+        eventType={event.eventType}
+        title={event.title}
+        coverUrl={media?.cover?.url ?? `/api/invitations/public/${encodeURIComponent(event.slug)}/cover`}
+        closed={closed}
+        preview={preview}
+      />
+    );
+  }
 
   return (
     <main
