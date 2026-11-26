@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  composerRecipientChoices,
   eligibleBroadcastRecipients,
+  maskInvitationEmail,
+  maskInvitationPhone,
   parseComposeBroadcastInput,
+  resolveBroadcastRecipients,
 } from "./broadcasts";
 import { dispatchBroadcastNotifications } from "./broadcasts";
 import { createInvitationBroadcast } from "./broadcasts";
@@ -304,6 +308,44 @@ test("a markSent throw for a successful send is counted as failed exactly once, 
   assert.deepEqual(result, { sentCount: 4, failedCount: 1, suppressedCount: 0 });
   assert.equal(result.sentCount + result.failedCount + result.suppressedCount, recipients.length);
   assert.deepEqual(markFailedAttempts, ["n-r2"]);
+});
+
+test("masked contacts keep a hint and hide the rest of the address or number", () => {
+  assert.equal(maskInvitationEmail("wunmi@example.test"), "w•••@example.test");
+  assert.equal(maskInvitationEmail("not-an-email"), "•••");
+  assert.equal(maskInvitationPhone("+15551234567"), "••• ••• 4567");
+  assert.equal(maskInvitationPhone("123"), "•••");
+  const choices = composerRecipientChoices([
+    row({ id: "r1", email: "wunmi@example.test", phone: "+15551234567", attending: true }),
+    row({ id: "r2", email: "ada@example.test", phone: null, attending: false }),
+  ], "sms");
+  assert.deepEqual(choices, [{ id: "r1", name: "Wunmi Adeniji", contact: "••• ••• 4567", status: "attending" }]);
+  assert.equal(composerRecipientChoices([row({ id: "r2", email: "a@example.test", attending: false })], "email")[0]?.status, "declined");
+});
+
+test("omitting recipient ids keeps every eligible guest, and an explicit list must all belong to that channel", () => {
+  const eligible = [
+    { rsvpId: "r1", primaryName: "Wunmi", contact: "w@example.test" },
+    { rsvpId: "r2", primaryName: "Ada", contact: "a@example.test" },
+  ];
+  assert.deepEqual(resolveBroadcastRecipients(eligible, undefined), { ok: true, recipients: eligible });
+  const subset = resolveBroadcastRecipients(eligible, ["r2"]);
+  assert.deepEqual(subset.ok && subset, { ok: true, recipients: [eligible[1]] });
+  for (const ids of [[], ["r9"], ["r1", "r1"], ["r1", "r2", "missing"]]) {
+    assert.deepEqual(resolveBroadcastRecipients(eligible, ids), { ok: false, code: "invalid_recipients" });
+  }
+});
+
+test("compose input accepts an optional recipient list and rejects a malformed one", () => {
+  const parsed = parseComposeBroadcastInput({ channel: "sms", body: "Hello", recipientIds: [" r1 "] });
+  assert.equal(parsed.ok, true);
+  if (parsed.ok) assert.deepEqual(parsed.value.recipientIds, ["r1"]);
+  const omitted = parseComposeBroadcastInput({ channel: "sms", body: "Hello" });
+  assert.equal(omitted.ok, true);
+  if (omitted.ok) assert.equal(omitted.value.recipientIds, undefined);
+  assert.deepEqual(parseComposeBroadcastInput({ channel: "sms", body: "Hello", recipientIds: [] }), { ok: false, code: "invalid_recipients" });
+  assert.deepEqual(parseComposeBroadcastInput({ channel: "sms", body: "Hello", recipientIds: "r1" }), { ok: false, code: "invalid_recipients" });
+  assert.deepEqual(parseComposeBroadcastInput({ channel: "email", subject: "Hi", body: "Hello", recipientIds: [1] }), { ok: false, code: "invalid_recipients" });
 });
 
 test("createInvitationBroadcast rejects an empty body before touching the database", async () => {

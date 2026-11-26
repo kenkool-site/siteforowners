@@ -48,6 +48,13 @@ export function isGuestInvitePath(pathname: string): boolean {
   return GUEST_INVITE_PATH.test(pathname);
 }
 
+const SHARE_IMAGE_PATH = /^\/invite\/.+\/(?:memories\/)?(?:opengraph-image|twitter-image)$|^\/i\/[A-Za-z0-9_-]{16,64}\/(?:opengraph-image|twitter-image)$/;
+
+/** Event social images. The site-root /opengraph-image file stays the SiteForOwners card. */
+export function isInvitationShareImagePath(pathname: string): boolean {
+  return SHARE_IMAGE_PATH.test(pathname);
+}
+
 export function invitationRewritePath(slug: string, pathname: string): string | null {
   const encodedSlug = encodeURIComponent(slug);
   if (pathname === "/") return `/invite/${encodedSlug}`;
@@ -59,5 +66,14 @@ export function invitationRewritePath(slug: string, pathname: string): string | 
   // passthrough, that reload 404s on any platform subdomain, since neither case above
   // matches it.
   if (pathname === `/invite/${encodedSlug}` || pathname === `/invite/${encodedSlug}/memories`) return pathname;
-  return null;
+  if (!isInvitationShareImagePath(pathname)) return null;
+  const personal = pathname.match(/^\/i\/([A-Za-z0-9_-]{16,64})\/(?:opengraph-image|twitter-image)$/);
+  if (personal) return pathname;
+  const allowed = [
+    `/invite/${encodedSlug}/opengraph-image`,
+    `/invite/${encodedSlug}/twitter-image`,
+    `/invite/${encodedSlug}/memories/opengraph-image`,
+    `/invite/${encodedSlug}/memories/twitter-image`,
+  ];
+  return allowed.includes(pathname) ? pathname : null;
 }

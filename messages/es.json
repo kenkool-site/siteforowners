@@ -454,7 +454,22 @@
           "subject": "Asunto",
           "body": "Mensaje"
         },
-        "smsRemaining": "Quedan {remaining} de {limit} textos para invitados en este evento.",
+        "smsRemaining": "Quedan {remaining} de {limit} textos para invitados en este evento. Este mensaje usa {needed}.",
+        "recipients": {
+          "label": "¿Quién debe recibirlo?",
+          "search": "Buscar por nombre",
+          "selectAll": "Seleccionar todos",
+          "clear": "Quitar selección",
+          "selected": "{count, plural, one {# seleccionado} other {# seleccionados}}",
+          "empty": "Nadie en la lista puede recibir este {channel, select, email {correo} other {texto}}.",
+          "noMatches": "Ningún invitado coincide con la búsqueda.",
+          "status": {
+            "all": "Todos",
+            "attending": "Asisten",
+            "declined": "No asisten"
+          }
+        },
+        "invalidRecipients": "Actualiza la página y elige a los invitados de nuevo. Alguien de la lista ya no puede recibir esto.",
         "smsRemainingShort": "Este texto necesita {needed} envíos y quedan {remaining}, así que algunos invitados no lo recibirán.",
         "smsCharacterCount": "{count} caracteres",
         "smsSegmentWarning": "{count, plural, one {Esto se enviará como # segmento de mensaje por destinatario.} other {Esto se enviará como # segmentos de mensaje por destinatario — los mensajes más largos cuestan más.}}",

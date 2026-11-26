@@ -5,6 +5,7 @@ import {
   dispatchInvitationBroadcast,
   eligibleBroadcastRecipients,
   getInvitationSmsBroadcastBudget,
+  InvitationBroadcastError,
   listInvitationBroadcasts,
   parseComposeBroadcastInput,
 } from "@/lib/invitations/broadcasts";
@@ -57,6 +58,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       channel: parsed.value.channel,
       subject: parsed.value.subject,
       body: parsed.value.body,
+      recipientIds: parsed.value.recipientIds,
       sentBy: actor.kind === "founder" ? "founder" : "owner",
       emailFrom: EMAIL_FROM,
       smsFrom: TWILIO_FROM,
@@ -81,6 +83,9 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       smsBudget,
     });
   } catch (error) {
+    if (error instanceof InvitationBroadcastError) {
+      return NextResponse.json({ ok: false, code: error.code }, { status: 400 });
+    }
     console.error("[invitations/messages] send failed", { eventId: params.eventId, actor: actor.kind, error });
     return NextResponse.json({ ok: false, code: "event_unavailable" }, { status: 500 });
   }

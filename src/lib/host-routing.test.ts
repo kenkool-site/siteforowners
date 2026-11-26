@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { classifyHost, invitationRewritePath, isGuestInvitePath, isLegacySiteforownersApex } from "./host-routing";
+import { classifyHost, invitationRewritePath, isGuestInvitePath, isInvitationShareImagePath, isLegacySiteforownersApex } from "./host-routing";
 
 test("host classification recognizes root, preview, platform, local, and custom hosts", () => {
   assert.deepEqual(classifyHost("www.siteforowners.com"), { kind: "root" });
@@ -48,6 +48,25 @@ test("personal guest links stay on /i/<token> for the event host", () => {
 
 test("invitation hosts still 404 an unrelated slug's already-resolved invite path", () => {
   assert.equal(invitationRewritePath("mercy-john-lx9cwn", "/invite/someone-else"), null);
+});
+
+test("invitation hosts serve event social images and refuse another event's image", () => {
+  assert.equal(isInvitationShareImagePath("/invite/mercy-john/opengraph-image"), true);
+  assert.equal(isInvitationShareImagePath("/opengraph-image"), false);
+  assert.equal(
+    invitationRewritePath("mercy-john", "/invite/mercy-john/opengraph-image"),
+    "/invite/mercy-john/opengraph-image",
+  );
+  assert.equal(
+    invitationRewritePath("mercy-john", "/invite/mercy-john/memories/twitter-image"),
+    "/invite/mercy-john/memories/twitter-image",
+  );
+  assert.equal(
+    invitationRewritePath("mercy-john", "/i/K7mQ2pLx9aWc4nRb/opengraph-image"),
+    "/i/K7mQ2pLx9aWc4nRb/opengraph-image",
+  );
+  assert.equal(invitationRewritePath("mercy-john", "/invite/someone-else/opengraph-image"), null);
+  assert.equal(invitationRewritePath("mercy-john", "/opengraph-image"), null);
 });
 
 test("isLegacySiteforownersApex recognizes only the bare siteforowners.com root (with or without www), not the platform or invitespot.app hosts", () => {

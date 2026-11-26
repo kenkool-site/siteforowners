@@ -4,7 +4,7 @@ import { GuestMessageComposer } from "@/components/invitations/GuestMessageCompo
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
 import { invitationOwnerOwnsEvent } from "@/lib/invitations/access";
 import { INVITATION_OWNER_SESSION_COOKIE, verifyOwnerSession } from "@/lib/invitations/auth";
-import { eligibleBroadcastRecipients, getInvitationSmsBroadcastBudget, listInvitationBroadcasts } from "@/lib/invitations/broadcasts";
+import { composerRecipientChoices, getInvitationSmsBroadcastBudget, listInvitationBroadcasts } from "@/lib/invitations/broadcasts";
 import { buildMessageTemplateValues } from "@/lib/invitations/message-templates";
 import { getInvitationEventForManagement, listInvitationResponseRows } from "@/lib/invitations/repository";
 
@@ -32,9 +32,9 @@ export default async function OwnerMessagePage({ params }: { params: { eventId: 
         backHref={`/invitations/manage/${event.id}`}
         templateValues={buildMessageTemplateValues(event)}
         smsBudget={smsBudget}
-        initialRecipientCounts={{
-          email: eligibleBroadcastRecipients(rows, "email").length,
-          sms: eligibleBroadcastRecipients(rows, "sms").length,
+        recipients={{
+          email: composerRecipientChoices(rows, "email"),
+          sms: composerRecipientChoices(rows, "sms"),
         }}
         initialTotalResponses={rows.length}
         initialHistory={history}

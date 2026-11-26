@@ -454,7 +454,22 @@
           "subject": "Subject",
           "body": "Message"
         },
-        "smsRemaining": "{remaining} of {limit} guest texts left for this event.",
+        "smsRemaining": "{remaining} of {limit} guest texts left for this event. This message uses {needed}.",
+        "recipients": {
+          "label": "Who should get this?",
+          "search": "Search by name",
+          "selectAll": "Select all",
+          "clear": "Clear",
+          "selected": "{count, plural, one {# selected} other {# selected}}",
+          "empty": "Nobody on the list can receive this {channel, select, email {email} other {text}}.",
+          "noMatches": "No guests match that search.",
+          "status": {
+            "all": "All",
+            "attending": "Attending",
+            "declined": "Not attending"
+          }
+        },
+        "invalidRecipients": "Refresh the page and choose the guests again. Someone on the list can no longer receive this.",
         "smsRemainingShort": "This text needs {needed} sends and {remaining} are left, so some guests will be skipped.",
         "smsCharacterCount": "{count} characters",
         "smsSegmentWarning": "{count, plural, one {This will send as # message segment per recipient.} other {This will send as # message segments per recipient — longer messages cost more.}}",
