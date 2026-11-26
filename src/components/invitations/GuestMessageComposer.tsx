@@ -5,20 +5,18 @@ import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { BroadcastRecipientChoice } from "@/lib/invitations/broadcasts";
 import {
+  GUEST_NAME_PLACEHOLDER,
+  hasGuestNamePlaceholder,
+  previewGuestMessage,
+} from "@/lib/invitations/guest-message";
+import {
   MESSAGE_TEMPLATE_KEYS,
   type MessageTemplateKey,
   type MessageTemplateValues,
 } from "@/lib/invitations/message-templates";
-import { smsOptOutLine, withSmsOptOutFooter } from "@/lib/invitations/sms-opt-out";
+import { smsOptOutLine } from "@/lib/invitations/sms-opt-out";
+import { smsSegmentCount } from "@/lib/invitations/sms-segments";
 import type { InvitationBroadcast, InvitationLocale, InvitationNotificationChannel } from "@/lib/invitations/types";
-
-// Rough, GSM-7-based estimate (ignores Unicode/UCS-2 detection): 160 chars
-// for a single segment, 153 per segment once concatenated. Good enough for
-// a cost-awareness hint, not billing-accurate.
-function estimateSmsSegments(text: string): number {
-  if (text.length === 0) return 0;
-  return text.length <= 160 ? 1 : Math.ceil(text.length / 153);
-}
 
 type ComposerResult = {
   sentCount: number;
@@ -73,8 +71,32 @@ export function GuestMessageComposer({
   const recipientCount = selectedIds.length;
   const optedOutCount = channel === "sms" ? roster.filter((guest) => guest.optedOut).length : 0;
   const missingCount = initialTotalResponses - roster.length;
-  const outboundSms = channel === "sms" && body.trim() ? withSmsOptOutFooter(body, smsLocale) : "";
-  const smsSegments = outboundSms ? estimateSmsSegments(outboundSms) : 0;
+  const selectedGuests = selectable.filter((guest) => selected.has(guest.id));
+  const mentionsGuest = hasGuestNamePlaceholder(body) || (channel === "email" && hasGuestNamePlaceholder(subject));
+  const preview = previewGuestMessage({
+    template: body,
+    guests: selectedGuests.map((guest) => ({
+      primaryName: guest.name,
+      partySize: guest.partySize,
+      additionalGuestNames: guest.additionalGuestNames,
+    })),
+    locale: smsLocale,
+    channel,
+  });
+  const subjectPreview = channel === "email" && hasGuestNamePlaceholder(subject)
+    ? previewGuestMessage({
+      template: subject,
+      guests: selectedGuests.map((guest) => ({
+        primaryName: guest.name,
+        partySize: guest.partySize,
+        additionalGuestNames: guest.additionalGuestNames,
+      })),
+      locale: smsLocale,
+      channel: "email",
+    }).text
+    : "";
+  const outboundSms = channel === "sms" && body.trim() ? preview.text : "";
+  const smsSegments = outboundSms ? smsSegmentCount(outboundSms).segments : 0;
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return roster.filter((guest) => {
@@ -238,6 +260,18 @@ export function GuestMessageComposer({
             {t("fields.body")}
             <textarea value={body} onChange={(event) => { setBody(event.target.value); setEdited(true); }} rows={6} maxLength={5000} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
           </label>
+          {mentionsGuest && (
+            <p className="mt-2 text-xs text-[#675d6a]">
+              {preview.sample
+                ? t("guestNameHintSample", { token: GUEST_NAME_PLACEHOLDER, name: preview.label })
+                : preview.fallback
+                  ? t("guestNameHintFallback", { token: GUEST_NAME_PLACEHOLDER, greeting: preview.label })
+                  : t("guestNameHint", { token: GUEST_NAME_PLACEHOLDER, name: preview.label })}
+            </p>
+          )}
+          {subjectPreview && (
+            <p className="mt-1 text-xs text-[#675d6a]">{t("subjectPreview", { subject: subjectPreview })}</p>
+          )}
           {channel === "sms" && (
             <div className="mt-1 space-y-1">
               <p className="text-xs text-[#807484]">
@@ -247,6 +281,18 @@ export function GuestMessageComposer({
                 {smsSegments > 1 && <span className="text-[#9a6b2f]"> · {t("smsSegmentWarning", { count: smsSegments })}</span>}
               </p>
               <p className="text-xs text-[#675d6a]">{t("smsOptOutPreview", { line: smsOptOutLine(smsLocale) })}</p>
+              {outboundSms && (
+                <div data-sms-preview="" className="rounded-md bg-[#F7F4F8] px-3 py-2 text-xs text-[#2B2231]">
+                  <span className="mb-1 block font-semibold text-[#675d6a]">{t("sentPreview")}</span>
+                  <span className="whitespace-pre-line break-words">{outboundSms}</span>
+                </div>
+              )}
+            </div>
+          )}
+          {channel === "email" && hasGuestNamePlaceholder(body) && preview.text.trim() && (
+            <div className="mt-2 max-h-40 overflow-y-auto rounded-md bg-[#F7F4F8] px-3 py-2 text-xs text-[#2B2231]">
+              <span className="mb-1 block font-semibold text-[#675d6a]">{t("sentPreview")}</span>
+              <span className="whitespace-pre-line break-words">{preview.text}</span>
             </div>
           )}
 

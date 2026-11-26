@@ -20,9 +20,13 @@ export function smsBodyHasOptOut(body: string): boolean {
   return lower.includes(SMS_OPT_OUT_LINE.en.toLowerCase()) || lower.includes(SMS_OPT_OUT_LINE.es.toLowerCase());
 }
 
-/** Append the locale's opt-out line once. A host who already typed either line keeps their text. */
+/**
+ * Append the locale's opt-out line once, with a blank line before it so the
+ * footer does not read as the last sentence of the note. A host who already
+ * typed either line keeps their text, including whatever spacing they used.
+ */
 export function withSmsOptOutFooter(body: string, locale: InvitationLocale): string {
   const trimmed = body.trim();
   if (!trimmed || smsBodyHasOptOut(trimmed)) return trimmed;
-  return `${trimmed}\n${smsOptOutLine(locale)}`;
+  return `${trimmed}\n\n${smsOptOutLine(locale)}`;
 }

@@ -2,6 +2,7 @@ import type { InvitationAdditionalSection } from "./additional-sections";
 import { directionsHref, formatInEventZone } from "./event-site";
 import { invitationMemoriesUrl, invitationPublicUrl } from "./public-url";
 import type { InvitationStyleGuide } from "./style-guide";
+import { GUEST_NAME_PLACEHOLDER } from "./guest-message";
 import type { InvitationLocale } from "./types";
 
 export const MESSAGE_TEMPLATE_KEYS = [
@@ -41,6 +42,8 @@ export type MessageTemplateValues = {
   smsDeadline: string;
   livestream: string;
   change: string;
+  /** Left literal so the host can edit it. Filled per recipient at send time. */
+  guest_name: string;
 };
 
 export type MessageTemplateEvent = {
@@ -199,5 +202,6 @@ export function buildMessageTemplateValues(event: MessageTemplateEvent): Message
     smsDeadline: deadlineShort ? smsPlain(deadlineShort) : blanks.deadline,
     livestream,
     change: blanks.change,
+    guest_name: GUEST_NAME_PLACEHOLDER,
   };
 }

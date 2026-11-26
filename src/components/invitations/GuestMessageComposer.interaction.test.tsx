@@ -158,22 +158,32 @@ test("selecting a template inserts host, date, and venue, and SMS uses the short
     assert.match(textarea.value, /Mercy and John/);
     assert.match(textarea.value, /The Bliss/);
     assert.match(textarea.value, /mercy-john\.invitespot\.app/);
+    assert.match(textarea.value, /Hi \{guest_name\},/);
     assert.doesNotMatch(textarea.value, /You're Invited/);
 
     const smsRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
       .find((input) => input.parentElement?.textContent?.includes("Text message"))!;
     await act(async () => { smsRadio.click(); });
     assert.match(container.textContent ?? "", /500 of 500 guest texts left/);
-    assert.match(textarea.value, /Mercy and John reminder:/);
-    assert.ok(textarea.value.length <= 160);
-    assert.match(container.textContent ?? "", /Every text includes this line: Reply STOP to opt out/);
+    assert.match(textarea.value, /Hi \{guest_name\},/);
+    assert.match(textarea.value, /The Bliss/);
+    assert.match(textarea.value, /- Mercy and John/);
+    assert.match(container.textContent ?? "", /\{guest_name\} is replaced with each guest name\. This preview uses Wunmi\./);
+    assert.match(container.textContent ?? "", /Every text adds a blank line, then: Reply STOP to opt out/);
     assert.match(container.textContent ?? "", /including the line below/);
-    assert.doesNotMatch(container.textContent ?? "", /message segment/i);
+    const reminderPreview = container.querySelector("[data-sms-preview]")?.textContent ?? "";
+    assert.match(reminderPreview, /Hi Wunmi,/);
+    assert.match(reminderPreview, /\n\nReply STOP to opt out/);
+    assert.equal(reminderPreview.split("Reply STOP to opt out").length, 2);
 
     const photos = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Share photos")!;
     await act(async () => { photos.click(); });
     assert.match(textarea.value, /https:\/\/mercy-john\.invitespot\.app\/memories/);
-    assert.ok(textarea.value.length <= 160);
+    assert.match(textarea.value, /\{guest_name\}/);
+    const photoPreview = container.querySelector("[data-sms-preview]")?.textContent ?? "";
+    assert.match(photoPreview, /Hi Wunmi, thank you for celebrating with us!/);
+    assert.match(photoPreview, /https:\/\/mercy-john\.invitespot\.app\/memories/);
+    assert.match(photoPreview, /\n\nReply STOP to opt out/);
 
     const setValue = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(textarea), "value")!.set!;
     await act(async () => {
@@ -271,7 +281,7 @@ test("the character count includes the opt-out line once, and a message that onl
       setValue.call(textarea, "x".repeat(150));
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    assert.match(container.textContent ?? "", /172 characters, including the line below/);
+    assert.match(container.textContent ?? "", /173 characters, including the line below/);
     assert.match(container.textContent ?? "", /2 message segments/i);
   });
 });

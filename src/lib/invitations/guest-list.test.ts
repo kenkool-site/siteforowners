@@ -87,7 +87,8 @@ test("invitation texts name the host, include the personal link, and the STOP op
   const body = inviteSmsBody(wedding);
   assert.match(body, /Hi Chanelle, Mercy & John invite you to their wedding, Saturday, December 19, 2026, at The Bliss at Aubrey\./);
   assert.match(body, /https:\/\/mercy-john\.invitespot\.app\/i\/K7mQ2pLx9aWc4nRb/);
-  assert.match(body, /Reply STOP to opt out/);
+  assert.match(body, /\n\nReply STOP to opt out$/);
+  assert.equal(body.match(/Reply STOP to opt out/g)?.length, 1);
   assert.equal(smsSegmentCount(body).encoding, "gsm");
   assert.ok(smsSegmentCount(body).segments >= 2);
 
@@ -101,11 +102,13 @@ test("invitation texts name the host, include the personal link, and the STOP op
   const spanish = inviteSmsBody({ ...wedding, locale: "es" });
   assert.match(spanish, /^Hola Chanelle/);
   assert.match(spanish, /su boda/);
-  assert.match(spanish, /Responde STOP para cancelar/);
+  assert.match(spanish, /\n\nResponde STOP para cancelar$/);
+  assert.equal(spanish.match(/Responde STOP para cancelar/g)?.length, 1);
 
   const reminder = reminderSmsBody(wedding);
   assert.match(reminder, /reminder from Mercy & John/);
-  assert.match(reminder, /Reply STOP to opt out/);
+  assert.match(reminder, /\n\nReply STOP to opt out$/);
+  assert.equal(reminder.match(/Reply STOP to opt out/g)?.length, 1);
   assert.ok(reminder.length < body.length);
 });
 
@@ -113,7 +116,11 @@ test("verification texts expire and include STOP", () => {
   const body = verificationSmsBody("482913", "en");
   assert.match(body, /482913/);
   assert.match(body, /10 minutes/);
-  assert.match(body, /Reply STOP to opt out/);
+  assert.match(body, /\n\nReply STOP to opt out$/);
+  assert.equal(body.match(/Reply STOP to opt out/g)?.length, 1);
+  const spanish = verificationSmsBody("482913", "es");
+  assert.match(spanish, /\n\nResponde STOP para cancelar$/);
+  assert.equal(spanish.match(/Responde STOP para cancelar/g)?.length, 1);
 });
 
 test("personal links use the event subdomain when one exists", () => {
