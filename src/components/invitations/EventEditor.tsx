@@ -334,6 +334,7 @@ export function EventEditor({
         payload.submissionLimit = numberOrNull(data.get("submissionLimit"));
         payload.emailNotificationLimit = numberOrNull(data.get("emailNotificationLimit"));
         payload.smsNotificationLimit = numberOrNull(data.get("smsNotificationLimit"));
+        payload.emailBroadcastLimit = numberOrNull(data.get("emailBroadcastLimit"));
         payload.smsBroadcastLimit = numberOrNull(data.get("smsBroadcastLimit"));
         payload.privateGuestListEnabled = data.has("privateGuestListEnabled");
       }
@@ -1053,14 +1054,21 @@ export function EventEditor({
                 <p className="mb-3 text-sm font-semibold text-[#55485a]">{t("founderLimitsHelp")}</p>
                 <div className="grid gap-4 sm:grid-cols-3">
                   <label className={labelClass}>{t("fields.submissionLimit")}<input type="number" min="1" name="submissionLimit" defaultValue={currentEvent.submissionLimit} className={inputClass} /></label>
-                  <label className={labelClass}>{t("fields.emailLimit")}<input type="number" min="1" name="emailNotificationLimit" defaultValue={currentEvent.emailNotificationLimit} className={inputClass} /></label>
+                  <label className={labelClass}>{t("fields.emailLimit")}<input type="number" min="1" name="emailNotificationLimit" defaultValue={currentEvent.emailNotificationLimit} className={inputClass} /><span className="mt-1.5 block text-xs font-normal leading-5 text-[#675d6a]">{t("emailLimitHelp")}</span></label>
                   <label className={labelClass}>{t("fields.smsLimit")}<input type="number" min="1" name="smsNotificationLimit" defaultValue={currentEvent.smsNotificationLimit} className={inputClass} /><span className="mt-1.5 block text-xs font-normal leading-5 text-[#675d6a]">{t("smsLimitHelp")}</span></label>
                 </div>
-                <label className={`${labelClass} mt-4`}>
-                  {t("fields.smsBroadcastLimit")}
-                  <input type="number" min="1" name="smsBroadcastLimit" defaultValue={currentEvent.smsBroadcastLimit ?? ""} placeholder={t("placeholders.smsBroadcastLimit")} className={inputClass} />
-                  <span className="mt-1.5 block text-xs font-normal leading-5 text-[#675d6a]">{t("smsBroadcastLimitHelp")}</span>
-                </label>
+                <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                  <label className={labelClass}>
+                    {t("fields.emailBroadcastLimit")}
+                    <input type="number" min="1" name="emailBroadcastLimit" defaultValue={currentEvent.emailBroadcastLimit ?? ""} placeholder={t("placeholders.emailBroadcastLimit")} className={inputClass} />
+                    <span className="mt-1.5 block text-xs font-normal leading-5 text-[#675d6a]">{t("emailBroadcastLimitHelp")}</span>
+                  </label>
+                  <label className={labelClass}>
+                    {t("fields.smsBroadcastLimit")}
+                    <input type="number" min="1" name="smsBroadcastLimit" defaultValue={currentEvent.smsBroadcastLimit ?? ""} placeholder={t("placeholders.smsBroadcastLimit")} className={inputClass} />
+                    <span className="mt-1.5 block text-xs font-normal leading-5 text-[#675d6a]">{t("smsBroadcastLimitHelp")}</span>
+                  </label>
+                </div>
               </fieldset>
             )}
           </section>

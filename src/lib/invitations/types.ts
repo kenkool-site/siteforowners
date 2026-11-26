@@ -76,6 +76,12 @@ export interface InvitationEvent {
   emailNotificationLimit: number;
   smsNotificationLimit: number;
   /**
+   * Guest-broadcast email cap. Null or absent uses the platform default
+   * (INVITATION_EMAIL_BROADCAST_LIMIT, otherwise 1000). Host RSVP alerts and
+   * guest confirmations use emailNotificationLimit and do not spend this budget.
+   */
+  emailBroadcastLimit?: number | null;
+  /**
    * Guest-broadcast SMS cap. Null or absent uses the platform default
    * (INVITATION_SMS_BROADCAST_LIMIT, otherwise 500). Host RSVP alerts use
    * smsNotificationLimit and do not spend this budget.

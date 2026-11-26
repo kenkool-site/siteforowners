@@ -17,6 +17,7 @@ import {
   type NotificationPayload,
   type ReserveNotificationResult,
 } from "./notifications";
+import { effectiveEmailBroadcastLimit, emailBroadcastRemaining } from "./email-broadcast-limit";
 import { effectiveSmsBroadcastLimit, smsBroadcastRemaining } from "./sms-broadcast-limit";
 import type { InvitationBroadcast, InvitationLocale, InvitationNotificationChannel } from "./types";
 
@@ -439,48 +440,68 @@ async function updateInvitationBroadcastCounts(
   if (error) throw new Error("Unable to update invitation broadcast counts", { cause: error });
 }
 
-export type InvitationSmsBroadcastBudget = {
+export type InvitationBroadcastBudget = {
   limit: number;
   remaining: number;
 };
 
-async function countCelebrantBroadcastSms(eventId: string): Promise<number> {
+export type InvitationSmsBroadcastBudget = InvitationBroadcastBudget;
+export type InvitationEmailBroadcastBudget = InvitationBroadcastBudget;
+
+async function countCelebrantBroadcasts(eventId: string, channel: "email" | "sms"): Promise<number> {
   const { count, error } = await createAdminClient()
     .from("invitation_notifications")
     .select("id", { count: "exact", head: true })
     .eq("event_id", eventId)
-    .eq("channel", "sms")
+    .eq("channel", channel)
     .eq("kind", "celebrant_broadcast")
     .in("status", ["pending", "sent", "failed"]);
-  if (error) throw new Error("Unable to count guest text messages", { cause: error });
+  if (error) throw new Error(channel === "email" ? "Unable to count guest emails" : "Unable to count guest text messages", { cause: error });
   return count ?? 0;
 }
 
-async function readSmsBroadcastOverride(eventId: string): Promise<number | null> {
+async function readBroadcastOverride(eventId: string, column: "email_broadcast_limit" | "sms_broadcast_limit"): Promise<number | null> {
   const { data, error } = await createAdminClient()
     .from("invitation_events")
-    .select("sms_broadcast_limit")
+    .select(column)
     .eq("id", eventId)
     .maybeSingle();
-  if (error) throw new Error("Unable to load guest text limit", { cause: error });
-  const value = data?.sms_broadcast_limit;
+  if (error) throw new Error(column === "email_broadcast_limit" ? "Unable to load guest email limit" : "Unable to load guest text limit", { cause: error });
+  const row = data as { email_broadcast_limit?: unknown; sms_broadcast_limit?: unknown } | null;
+  const value = column === "email_broadcast_limit" ? row?.email_broadcast_limit : row?.sms_broadcast_limit;
   return typeof value === "number" ? value : null;
 }
 
 /**
- * Remaining guest-broadcast texts for the composer. Returns null when the
- * count cannot be loaded so the composer still opens. Host RSVP alerts are
- * not included in `remaining`.
+ * Remaining guest-broadcast emails for the composer. Returns null when the
+ * count cannot be loaded so the composer still opens. Host RSVP alerts and
+ * guest confirmations are not included in `remaining`.
  */
+export async function getInvitationEmailBroadcastBudget(
+  eventId: string,
+  knownOverride?: number | null,
+): Promise<InvitationEmailBroadcastBudget | null> {
+  try {
+    const override = knownOverride === undefined ? await readBroadcastOverride(eventId, "email_broadcast_limit") : knownOverride;
+    const limit = effectiveEmailBroadcastLimit(override);
+    if (isInvitationE2EFixturesEnabled()) return { limit, remaining: limit };
+    const used = await countCelebrantBroadcasts(eventId, "email");
+    return { limit, remaining: emailBroadcastRemaining(limit, used) };
+  } catch (error) {
+    console.error("[invitations/messages] email budget unavailable", { eventId, error });
+    return null;
+  }
+}
+
 export async function getInvitationSmsBroadcastBudget(
   eventId: string,
   knownOverride?: number | null,
 ): Promise<InvitationSmsBroadcastBudget | null> {
   try {
-    const override = knownOverride === undefined ? await readSmsBroadcastOverride(eventId) : knownOverride;
+    const override = knownOverride === undefined ? await readBroadcastOverride(eventId, "sms_broadcast_limit") : knownOverride;
     const limit = effectiveSmsBroadcastLimit(override);
     if (isInvitationE2EFixturesEnabled()) return { limit, remaining: limit };
-    const used = await countCelebrantBroadcastSms(eventId);
+    const used = await countCelebrantBroadcasts(eventId, "sms");
     return { limit, remaining: smsBroadcastRemaining(limit, used) };
   } catch (error) {
     console.error("[invitations/messages] sms budget unavailable", { eventId, error });

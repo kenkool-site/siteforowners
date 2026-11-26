@@ -188,8 +188,8 @@ export function filterSortInvitationResponses(
 
 function countsTowardChannelLimit(row: InvitationNotificationWarningRow, channel: InvitationNotificationChannel): boolean {
   if (row.channel !== channel || row.status === "suppressed") return false;
-  // Guest broadcasts have their own SMS budget and must not trip the host RSVP alert warning.
-  if (channel === "sms" && row.kind === "celebrant_broadcast") return false;
+  // Guest broadcasts have their own email and SMS budgets and must not trip the host RSVP alert warning.
+  if (row.kind === "celebrant_broadcast") return false;
   return true;
 }
 
@@ -236,7 +236,7 @@ export function buildInvitationResponsesDashboard(input: {
   }
   if (
     notificationUsage(input.notifications, "email") >= input.event.email_notification_limit
-    || suppressed.some((row) => row.channel === "email")
+    || suppressed.some((row) => row.channel === "email" && row.kind !== "celebrant_broadcast")
   ) warnings.push({ code: "email_limit_reached", count: 1 });
   if (
     notificationUsage(input.notifications, "sms") >= input.event.sms_notification_limit

@@ -454,6 +454,7 @@
           "subject": "Asunto",
           "body": "Mensaje"
         },
+        "emailRemaining": "Quedan {remaining} de {limit} correos para invitados en este evento. Este mensaje usa {needed}.",
         "smsRemaining": "Quedan {remaining} de {limit} textos para invitados en este evento. Este mensaje usa {needed}.",
         "recipients": {
           "label": "¿Quién debe recibirlo?",
@@ -472,6 +473,7 @@
           "optedOutExcluded": "{count, plural, one {# invitado canceló los textos y no está incluido.} other {# invitados cancelaron los textos y no están incluidos.}}"
         },
         "invalidRecipients": "Actualiza la página y elige a los invitados de nuevo. Alguien de la lista ya no puede recibir esto.",
+        "emailRemainingShort": "Este correo necesita {needed} envíos y quedan {remaining}, así que algunos invitados no lo recibirán.",
         "smsRemainingShort": "Este texto necesita {needed} envíos y quedan {remaining}, así que algunos invitados no lo recibirán.",
         "smsCharacterCount": "{count} caracteres",
         "smsCharacterCountWithOptOut": "{count} caracteres, incluida la línea de abajo",
@@ -482,7 +484,9 @@
         "confirm": "¿Enviar a {count, plural, one {# invitado} other {# invitados}} por {channel}?",
         "send": "Enviar mensaje",
         "sending": "Enviando…",
-        "resultSummary": "Enviado a {sent}, fallido para {failed}, omitido {suppressed} por el límite de mensajes.",
+        "resultSummary": "Enviado a {sent}, fallido para {failed}.",
+        "resultLimitEmail": "Enviado a {sent}, fallido para {failed}. Se omitieron {suppressed} porque este evento llegó a su límite de correos a invitados.",
+        "resultLimitSms": "Enviado a {sent}, fallido para {failed}. Se omitieron {suppressed} porque este evento llegó a su límite de textos a invitados.",
         "error": "No se pudo enviar el mensaje. Inténtalo de nuevo.",
         "bodyTooLong": "Tu mensaje es demasiado largo. Redúcelo a 5000 caracteres o menos e inténtalo de nuevo.",
         "history": {
@@ -597,6 +601,7 @@
         "submissionLimit": "Límite de respuestas",
         "emailLimit": "Límite de notificaciones por correo",
         "smsLimit": "Límite de notificaciones SMS",
+        "emailBroadcastLimit": "Límite de correos a invitados",
         "smsBroadcastLimit": "Límite de textos a invitados",
         "ownerName": "Nombre del propietario",
         "ownerEmail": "Correo de acceso del propietario",
@@ -623,6 +628,7 @@
         "address": "Calle, ciudad, estado",
         "mapUrl": "https://maps.google.com/…",
         "passcode": "Déjelo en blanco para conservar la clave actual",
+        "emailBroadcastLimit": "Valor de la plataforma",
         "smsBroadcastLimit": "Valor de la plataforma"
       },
       "status": {
@@ -817,7 +823,9 @@
       "passcodeHelp": "Por seguridad, la clave actual nunca se muestra.",
       "rsvpOverrideHelp": "Permite que cualquiera responda aunque la fecha límite ya haya pasado. No olvide desactivarlo cuando termine.",
       "founderLimitsHelp": "Solo el fundador puede cambiar los límites de mensajes y respuestas.",
+      "emailLimitHelp": "Correos al anfitrión cuando alguien confirma, y las confirmaciones a los invitados. Los mensajes a invitados no usan este límite.",
       "smsLimitHelp": "Textos al anfitrión cuando alguien confirma. Los mensajes a invitados no usan este límite.",
+      "emailBroadcastLimitHelp": "Correos que el anfitrión envía a los invitados. Déjalo en blanco para usar el valor de la plataforma (1000, o INVITATION_EMAIL_BROADCAST_LIMIT). No incluye las alertas de RSVP al anfitrión ni las confirmaciones a invitados.",
       "smsBroadcastLimitHelp": "Textos que el anfitrión envía a los invitados. Déjalo en blanco para usar el valor de la plataforma (500, o INVITATION_SMS_BROADCAST_LIMIT). No incluye las alertas de RSVP al anfitrión.",
       "privateGuestList": {
         "title": "Lista privada de invitados (solo con invitación)",

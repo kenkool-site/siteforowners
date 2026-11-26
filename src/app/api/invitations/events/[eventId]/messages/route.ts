@@ -4,6 +4,7 @@ import { isSameOrigin } from "@/lib/invitations/auth";
 import {
   dispatchInvitationBroadcast,
   eligibleBroadcastRecipients,
+  getInvitationEmailBroadcastBudget,
   getInvitationSmsBroadcastBudget,
   InvitationBroadcastError,
   listInvitationBroadcasts,
@@ -17,9 +18,10 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
   const actor = await requireInvitationAccess(request, params.eventId);
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const [broadcasts, rows, smsBudget] = await Promise.all([
+    const [broadcasts, rows, emailBudget, smsBudget] = await Promise.all([
       listInvitationBroadcasts(params.eventId),
       listInvitationResponseRows(params.eventId),
+      getInvitationEmailBroadcastBudget(params.eventId),
       getInvitationSmsBroadcastBudget(params.eventId),
     ]);
     const optedOutPhones = await loadInvitationSmsOptOuts(rows.flatMap((row) => row.phone ? [row.phone] : []));
@@ -31,6 +33,7 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
         sms: smsRecipients.ok ? smsRecipients.recipients.length : 0,
       },
       totalResponses: rows.length,
+      emailBudget,
       smsBudget,
     }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
@@ -68,6 +71,9 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       smsFrom: TWILIO_FROM,
       locale: event.locale,
     });
+    const emailBudget = parsed.value.channel === "email"
+      ? await getInvitationEmailBroadcastBudget(params.eventId, event.emailBroadcastLimit ?? null)
+      : null;
     const smsBudget = parsed.value.channel === "sms"
       ? await getInvitationSmsBroadcastBudget(params.eventId, event.smsBroadcastLimit ?? null)
       : null;
@@ -85,6 +91,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       sentCount: result.sentCount,
       failedCount: result.failedCount,
       suppressedCount: result.suppressedCount,
+      emailBudget,
       smsBudget,
     });
   } catch (error) {
