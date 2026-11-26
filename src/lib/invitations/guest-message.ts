@@ -1,3 +1,4 @@
+import { substituteDaysToGo } from "./days-to-go";
 import type { InvitationLocale } from "./types";
 import { smsSegmentCount, isGsm7Char } from "./sms-segments";
 import { withSmsOptOutFooter } from "./sms-opt-out";
@@ -99,7 +100,7 @@ function applyFallbackGreeting(template: string, locale: InvitationLocale): stri
   return tidySpacing(next);
 }
 
-export function personalizeGuestMessage(
+function applyGuestName(
   template: string,
   input: { name: string | null; locale: InvitationLocale; channel: "sms" | "email" },
 ): string {
@@ -108,6 +109,26 @@ export function personalizeGuestMessage(
   const name = raw && input.channel === "sms" ? gsm7SafeName(raw) : raw;
   if (!name) return applyFallbackGreeting(template, input.locale);
   return template.replace(placeholderPattern(), name);
+}
+
+/** SMS keeps the countdown in GSM-7. Email keeps accents such as "días". */
+function daysPhraseForChannel(phrase: string, channel: "sms" | "email"): string {
+  if (!phrase || channel !== "sms") return phrase;
+  return gsm7SafeName(phrase) ?? "";
+}
+
+export function personalizeGuestMessage(
+  template: string,
+  input: {
+    name: string | null;
+    locale: InvitationLocale;
+    channel: "sms" | "email";
+    /** Countdown phrase from the event date at send time. Omitted when it cannot be counted. */
+    daysToGo?: string | null;
+  },
+): string {
+  const named = applyGuestName(template, input);
+  return substituteDaysToGo(named, daysPhraseForChannel(input.daysToGo ?? "", input.channel));
 }
 
 export type GuestMessagePreview = {
@@ -128,6 +149,8 @@ export function previewGuestMessage(input: {
   guests: readonly GuestNameSource[];
   locale: InvitationLocale;
   channel: "sms" | "email";
+  /** Same phrase passed to personalizeGuestMessage. Counted once for the event, not per guest. */
+  daysToGo?: string | null;
 }): GuestMessagePreview {
   const sample = input.guests.length === 0;
   const guests = sample ? [{ primaryName: SAMPLE_GUEST_NAME }] : input.guests;
@@ -149,6 +172,7 @@ export function previewGuestMessage(input: {
       name: inserted,
       locale: input.locale,
       channel: input.channel,
+      daysToGo: input.daysToGo,
     });
     const text = input.channel === "sms" ? withSmsOptOutFooter(rendered, input.locale) : rendered;
     const info = input.channel === "sms" ? smsSegmentCount(text) : null;

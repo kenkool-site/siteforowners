@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { BroadcastRecipientChoice } from "@/lib/invitations/broadcasts";
+import { calendarDaysUntilEvent, DAYS_TO_GO_PLACEHOLDER, daysToGoText } from "@/lib/invitations/days-to-go";
 import {
   GUEST_NAME_PLACEHOLDER,
   hasGuestNamePlaceholder,
+  personalizeGuestMessage,
   previewGuestMessage,
 } from "@/lib/invitations/guest-message";
 import {
@@ -38,6 +40,9 @@ export function GuestMessageComposer({
   eventName,
   backHref,
   templateValues,
+  eventStartsAt = null,
+  eventTimezone = null,
+  now,
   emailBudget: initialEmailBudget,
   smsBudget: initialSmsBudget,
   recipients,
@@ -48,6 +53,11 @@ export function GuestMessageComposer({
   eventName: string;
   backHref: string;
   templateValues: MessageTemplateValues;
+  /** Event start. The preview counts {days_to_go} from this date; sending does the same on the server. */
+  eventStartsAt?: string | null;
+  eventTimezone?: string | null;
+  /** Preview clock. Defaults to the current time. */
+  now?: Date;
   emailBudget: ChannelBudget | null;
   smsBudget: ChannelBudget | null;
   recipients: { email: BroadcastRecipientChoice[]; sms: BroadcastRecipientChoice[] };
@@ -83,26 +93,31 @@ export function GuestMessageComposer({
   const missingCount = initialTotalResponses - roster.length;
   const selectedGuests = selectable.filter((guest) => selected.has(guest.id));
   const mentionsGuest = hasGuestNamePlaceholder(body) || (channel === "email" && hasGuestNamePlaceholder(subject));
+  const mentionsDays = body.includes(DAYS_TO_GO_PLACEHOLDER) || (channel === "email" && subject.includes(DAYS_TO_GO_PLACEHOLDER));
+  const daysUntil = calendarDaysUntilEvent(eventStartsAt, eventTimezone, now ?? new Date());
+  const daysToGo = daysToGoText(daysUntil, smsLocale);
+  const daysPhrase = daysToGo
+    ? personalizeGuestMessage(DAYS_TO_GO_PLACEHOLDER, { name: null, locale: smsLocale, channel, daysToGo })
+    : "";
+  const guestSources = selectedGuests.map((guest) => ({
+    primaryName: guest.name,
+    partySize: guest.partySize,
+    additionalGuestNames: guest.additionalGuestNames,
+  }));
   const preview = previewGuestMessage({
     template: body,
-    guests: selectedGuests.map((guest) => ({
-      primaryName: guest.name,
-      partySize: guest.partySize,
-      additionalGuestNames: guest.additionalGuestNames,
-    })),
+    guests: guestSources,
     locale: smsLocale,
     channel,
+    daysToGo,
   });
-  const subjectPreview = channel === "email" && hasGuestNamePlaceholder(subject)
+  const subjectPreview = channel === "email" && (hasGuestNamePlaceholder(subject) || subject.includes(DAYS_TO_GO_PLACEHOLDER))
     ? previewGuestMessage({
       template: subject,
-      guests: selectedGuests.map((guest) => ({
-        primaryName: guest.name,
-        partySize: guest.partySize,
-        additionalGuestNames: guest.additionalGuestNames,
-      })),
+      guests: guestSources,
       locale: smsLocale,
       channel: "email",
+      daysToGo,
     }).text
     : "";
   const outboundSms = channel === "sms" && body.trim() ? preview.text : "";
@@ -127,6 +142,15 @@ export function GuestMessageComposer({
     }
     return filled;
   }, [t, templateValues]);
+
+  function insertPlaceholder(token: string) {
+    setEdited(true);
+    setBody((current) => {
+      if (current.includes(token)) return current;
+      if (!current) return token;
+      return `${current}${/\s$/.test(current) ? "" : " "}${token}`;
+    });
+  }
 
   function applyTemplate(key: MessageTemplateKey | "blank", forChannel = channel) {
     if (key === "blank") {
@@ -275,6 +299,16 @@ export function GuestMessageComposer({
             {t("fields.body")}
             <textarea value={body} onChange={(event) => { setBody(event.target.value); setEdited(true); }} rows={6} maxLength={5000} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
           </label>
+          <div className="mt-2">
+            <p className="text-xs text-[#807484]">{t("insertPlaceholders")}</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[GUEST_NAME_PLACEHOLDER, DAYS_TO_GO_PLACEHOLDER].map((token) => (
+                <button key={token} type="button" onClick={() => insertPlaceholder(token)} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">
+                  {token}
+                </button>
+              ))}
+            </div>
+          </div>
           {mentionsGuest && (
             <p className="mt-2 text-xs text-[#675d6a]">
               {preview.sample
@@ -284,8 +318,17 @@ export function GuestMessageComposer({
                   : t("guestNameHint", { token: GUEST_NAME_PLACEHOLDER, name: preview.label })}
             </p>
           )}
+          {mentionsDays && (
+            <p className="mt-2 text-xs text-[#675d6a]">
+              {daysUntil == null
+                ? t("daysToGoHintMissing", { token: DAYS_TO_GO_PLACEHOLDER })
+                : daysPhrase
+                  ? t("daysToGoHint", { token: DAYS_TO_GO_PLACEHOLDER, phrase: daysPhrase })
+                  : t("daysToGoHintPast", { token: DAYS_TO_GO_PLACEHOLDER })}
+            </p>
+          )}
           {subjectPreview && (
-            <p className="mt-1 text-xs text-[#675d6a]">{t("subjectPreview", { subject: subjectPreview })}</p>
+            <p data-subject-preview="" className="mt-1 text-xs text-[#675d6a]">{t("subjectPreview", { subject: subjectPreview })}</p>
           )}
           {channel === "sms" && (
             <div className="mt-1 space-y-1">
@@ -304,8 +347,8 @@ export function GuestMessageComposer({
               )}
             </div>
           )}
-          {channel === "email" && hasGuestNamePlaceholder(body) && preview.text.trim() && (
-            <div className="mt-2 max-h-40 overflow-y-auto rounded-md bg-[#F7F4F8] px-3 py-2 text-xs text-[#2B2231]">
+          {channel === "email" && (hasGuestNamePlaceholder(body) || body.includes(DAYS_TO_GO_PLACEHOLDER)) && preview.text.trim() && (
+            <div data-message-preview="" className="mt-2 max-h-40 overflow-y-auto rounded-md bg-[#F7F4F8] px-3 py-2 text-xs text-[#2B2231]">
               <span className="mb-1 block font-semibold text-[#675d6a]">{t("sentPreview")}</span>
               <span className="whitespace-pre-line break-words">{preview.text}</span>
             </div>

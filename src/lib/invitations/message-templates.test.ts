@@ -9,6 +9,7 @@ import {
   type MessageTemplateEvent,
   type MessageTemplateValues,
 } from "./message-templates";
+import { calendarDaysUntilEvent, daysToGoText } from "./days-to-go";
 import { personalizeGuestMessage } from "./guest-message";
 import { smsSegmentCount } from "./sms-segments";
 import { smsOptOutLine, withSmsOptOutFooter } from "./sms-opt-out";
@@ -52,9 +53,12 @@ const event: MessageTemplateEvent = {
   additionalSections: [{ heading: "Livestream", content: "Join us at https://zoom.us/j/123456789." }],
 };
 
+const COUNTDOWN_NOW = new Date("2026-12-07T16:00:00.000Z");
+
 test("templates insert the host, date, venue, invitation link, and memories link", () => {
   const values = buildMessageTemplateValues(event);
   assert.equal(values.guest_name, "{guest_name}");
+  assert.equal(values.days_to_go, "{days_to_go}");
   assert.equal(values.name, "Mercy and John");
   assert.match(values.smsWhen, /Dec/);
   assert.match(values.smsWhen, /2:00/);
@@ -108,15 +112,21 @@ test("every SMS template stays within two GSM-7 segments for a typical event and
     const values = buildMessageTemplateValues({ ...event, locale });
     const templates = catalog.invitations.manage.messageComposer.templates;
     const footer = smsOptOutLine(locale);
+    const daysToGo = daysToGoText(calendarDaysUntilEvent(event.startsAt, event.timezone, COUNTDOWN_NOW), locale);
+    assert.equal(daysToGo, locale === "es" ? "faltan 12 días" : "12 days to go");
     for (const key of MESSAGE_TEMPLATE_KEYS) {
       const template = templates[key];
       assert.equal(typeof template.label, "string");
       assert.equal(typeof template.subject, "string");
       assert.equal(typeof template.email, "string");
       assert.equal(typeof template.sms, "string");
+      if (key === "reminder" || key === "dayBefore" || key === "rsvpDeadline") {
+        assert.match(template.sms, /\{days_to_go\}/, `${key} sms should keep the countdown token`);
+        assert.match(template.email, /\{days_to_go\}/, `${key} email should keep the countdown token`);
+      }
       const drafted = fill(template.sms, values);
       assert.match(drafted, /\{guest_name\}/, `${key} sms should keep the guest-name token for the host to edit`);
-      const personalized = personalizeGuestMessage(drafted, { name: "Alexandra", locale, channel: "sms" });
+      const personalized = personalizeGuestMessage(drafted, { name: "Alexandra", locale, channel: "sms", daysToGo });
       const sms = withSmsOptOutFooter(personalized, locale);
       assert.equal(personalized.includes("{"), false, `${key} sms still has a placeholder: ${personalized}`);
       assert.equal(isGsm7(sms), true, `${key} sms is not GSM-7: ${sms}`);
@@ -127,10 +137,10 @@ test("every SMS template stays within two GSM-7 segments for a typical event and
       assert.match(sms, new RegExp(`\\n\\n${footer}$`), `${key} sms footer should sit on its own line`);
       assert.equal(sms.split(footer).length, 2, `${key} sms should append the opt-out line once`);
       assert.equal(withSmsOptOutFooter(sms, locale), sms);
-      const fallback = personalizeGuestMessage(drafted, { name: null, locale, channel: "sms" });
+      const fallback = personalizeGuestMessage(drafted, { name: null, locale, channel: "sms", daysToGo });
       assert.match(fallback, locale === "es" ? /^Hola,/ : /^Hi there,/);
       assert.equal(fallback.includes("guest_name"), false);
-      const email = personalizeGuestMessage(fill(template.email, values), { name: "Ada", locale, channel: "email" });
+      const email = personalizeGuestMessage(fill(template.email, values), { name: "Ada", locale, channel: "email", daysToGo });
       assert.equal(email.includes("{"), false, `${key} email still has a placeholder`);
       assert.match(email, locale === "es" ? /^Hola Ada,/ : /^Hi Ada,/);
       assert.match(email, /Mercy and John\s*$/);

@@ -391,15 +391,15 @@
           },
           "reminder": {
             "label": "Reminder",
-            "subject": "A reminder from {name}",
-            "email": "Hi {guest_name},\n\nA friendly reminder about our celebration. We would love to see you there.\n\nWhen: {when}\nWhere: {place}\n\nInvitation: {inviteUrl}\n\n- {name}",
-            "sms": "Hi {guest_name}, a reminder for our celebration: {smsWhen} at {venue}. We would love to see you. {inviteUrl} - {name}"
+            "subject": "A reminder from {name}: {days_to_go}",
+            "email": "Hi {guest_name},\n\nJust {days_to_go} until our celebration. We would love to see you there.\n\nWhen: {when}\nWhere: {place}\n\nInvitation: {inviteUrl}\n\n- {name}",
+            "sms": "Hi {guest_name}, just {days_to_go} until our celebration: {smsWhen} at {venue}. We would love to see you. {inviteUrl} - {name}"
           },
           "dayBefore": {
             "label": "Day before",
-            "subject": "Tomorrow, from {name}",
-            "email": "Hi {guest_name},\n\nWe celebrate tomorrow and would love to see you.\n\nWhen: {when}\nWhere: {place}\n\nInvitation: {inviteUrl}\n\n- {name}",
-            "sms": "Hi {guest_name}, we celebrate tomorrow, {smsWhen}, at {venue}. We would love to see you! {inviteUrl} - {name}"
+            "subject": "From {name}: {days_to_go}",
+            "email": "Hi {guest_name},\n\nJust {days_to_go} until we celebrate, and we would love to see you.\n\nWhen: {when}\nWhere: {place}\n\nInvitation: {inviteUrl}\n\n- {name}",
+            "sms": "Hi {guest_name}, just {days_to_go} until we celebrate: {smsWhen} at {venue}. We would love to see you! {inviteUrl} - {name}"
           },
           "eventDay": {
             "label": "Event day",
@@ -422,8 +422,8 @@
           "rsvpDeadline": {
             "label": "RSVP deadline",
             "subject": "Please RSVP, from {name}",
-            "email": "Hi {guest_name},\n\nPlease send your RSVP by {deadline} so we can plan for you. We would love to have you with us.\n\n{inviteUrl}\n\n- {name}",
-            "sms": "Hi {guest_name}, please send your RSVP by {smsDeadline}. We would love to plan for you. {inviteUrl} - {name}"
+            "email": "Hi {guest_name},\n\nPlease send your RSVP by {deadline} so we can plan for you. Just {days_to_go} until our celebration, and we would love to have you with us.\n\n{inviteUrl}\n\n- {name}",
+            "sms": "Hi {guest_name}, please send your RSVP by {smsDeadline}. {days_to_go}. We would love to plan for you. {inviteUrl} - {name}"
           },
           "photoSharing": {
             "label": "Share photos",
@@ -483,6 +483,10 @@
         "guestNameHint": "{token} is replaced with each guest name. This preview uses {name}.",
         "guestNameHintSample": "{token} is replaced with each guest name. This preview uses a sample name, {name}.",
         "guestNameHintFallback": "{token} is replaced with each guest name. This preview opens with {greeting} because no name is on file.",
+        "insertPlaceholders": "Insert into the message",
+        "daysToGoHint": "{token} is filled in when you send, from this event date. This preview uses {phrase}.",
+        "daysToGoHintPast": "{token} is filled in when you send. This celebration date has passed, so it is left out.",
+        "daysToGoHintMissing": "{token} is filled in when you send. Add the event date and it will count the days.",
         "smsSegmentWarning": "{count, plural, one {This will send as # message segment per recipient.} other {This will send as # message segments per recipient — longer messages cost more.}}",
         "recipientPreview": "This will reach {reached} of {total, plural, one {# guest} other {# guests}}.",
         "recipientPreviewGap": "{missing, plural, one {# guest doesn't} other {# guests don't}} have {channel, select, email {an email address} other {a phone number}} on file and won't receive this.",

@@ -77,6 +77,8 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       replyTo: guestMail.replyTo,
       smsFrom: TWILIO_FROM,
       locale: event.locale,
+      startsAt: event.startsAt,
+      timezone: event.timezone,
     });
     const emailBudget = parsed.value.channel === "email"
       ? await getInvitationEmailBroadcastBudget(params.eventId, event.emailBroadcastLimit ?? null)

@@ -33,6 +33,8 @@ export default async function OwnerMessagePage({ params }: { params: { eventId: 
         eventName={event.honoreeNames || event.title}
         backHref={`/invitations/manage/${event.id}`}
         templateValues={buildMessageTemplateValues(event)}
+        eventStartsAt={event.startsAt}
+        eventTimezone={event.timezone}
         emailBudget={emailBudget}
         smsBudget={smsBudget}
         recipients={{

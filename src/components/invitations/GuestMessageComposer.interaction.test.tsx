@@ -77,6 +77,9 @@ async function withComposer(
             eventName="Mercy & John"
             backHref="/invitations/manage/event-1"
             templateValues={templateValues}
+            eventStartsAt="2026-12-19T19:00:00.000Z"
+            eventTimezone="America/New_York"
+            now={new Date("2026-12-07T16:00:00.000Z")}
             emailBudget={{ limit: 1000, remaining: 1000 }}
             smsBudget={{ limit: 500, remaining: 500 }}
             recipients={recipients}
@@ -209,20 +212,31 @@ test("selecting a template inserts host, date, and venue, and SMS uses the short
     assert.match(textarea.value, /The Bliss/);
     assert.match(textarea.value, /mercy-john\.invitespot\.app/);
     assert.match(textarea.value, /Hi \{guest_name\},/);
+    assert.match(textarea.value, /\{days_to_go\}/);
+    assert.match(textarea.value, /Just \{days_to_go\} until our celebration/);
     assert.doesNotMatch(textarea.value, /You're Invited/);
+    const emailPreview = container.querySelector("[data-message-preview]")?.textContent ?? "";
+    assert.match(emailPreview, /Hi Wunmi,\s+Just 12 days to go until our celebration\. We would love to see you there\./);
+    assert.doesNotMatch(emailPreview, /\{days_to_go\}/);
+    const subjectPreview = container.querySelector("[data-subject-preview]")?.textContent ?? "";
+    assert.match(subjectPreview, /A reminder from Mercy and John: 12 days to go/);
+    assert.doesNotMatch(subjectPreview, /\{days_to_go\}/);
 
     const smsRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
       .find((input) => input.parentElement?.textContent?.includes("Text message"))!;
     await act(async () => { smsRadio.click(); });
     assert.match(container.textContent ?? "", /500 of 500 guest texts left/);
     assert.match(textarea.value, /Hi \{guest_name\},/);
+    assert.match(textarea.value, /\{days_to_go\}/);
     assert.match(textarea.value, /The Bliss/);
     assert.match(textarea.value, /- Mercy and John/);
     assert.match(container.textContent ?? "", /\{guest_name\} is replaced with each guest name\. This preview uses Wunmi\./);
+    assert.match(container.textContent ?? "", /\{days_to_go\} is filled in when you send, from this event date\. This preview uses 12 days to go\./);
     assert.match(container.textContent ?? "", /Every text adds a blank line, then: Reply STOP to opt out/);
     assert.match(container.textContent ?? "", /including the line below/);
     const reminderPreview = container.querySelector("[data-sms-preview]")?.textContent ?? "";
-    assert.match(reminderPreview, /Hi Wunmi,/);
+    assert.match(reminderPreview, /Hi Wunmi, just 12 days to go until our celebration/);
+    assert.doesNotMatch(reminderPreview, /\{days_to_go\}/);
     assert.match(reminderPreview, /\n\nReply STOP to opt out/);
     assert.equal(reminderPreview.split("Reply STOP to opt out").length, 2);
 
@@ -244,6 +258,20 @@ test("selecting a template inserts host, date, and venue, and SMS uses the short
       .find((input) => input.parentElement?.textContent?.includes("Email"))!;
     await act(async () => { emailRadio.click(); });
     assert.equal(textarea.value, "Custom note for guests");
+  });
+});
+
+test("the days chip inserts the token and the preview shows the countdown", async () => {
+  await withComposer(async () => ({ ok: true, json: async () => ({}) }) as Response, async (container) => {
+    const chip = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "{days_to_go}");
+    assert.ok(chip, "expected a {days_to_go} insert chip");
+    await act(async () => { chip.click(); });
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    assert.equal(textarea.value, "{days_to_go}");
+    const preview = container.querySelector("[data-message-preview]")?.textContent ?? "";
+    assert.match(preview, /12 days to go/);
+    assert.doesNotMatch(preview, /\{days_to_go\}/);
+    assert.match(container.textContent ?? "", /\{days_to_go\} is filled in when you send/);
   });
 });
 

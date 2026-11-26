@@ -391,15 +391,15 @@
           },
           "reminder": {
             "label": "Recordatorio",
-            "subject": "Un recordatorio de {name}",
-            "email": "Hola {guest_name},\n\nUn recordatorio cariñoso de nuestra celebración. Nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}\n\n- {name}",
-            "sms": "Hola {guest_name}, un recordatorio de nuestra fiesta: {smsWhen} en {venue}. Nos encanta verte. {inviteUrl} - {name}"
+            "subject": "Un recordatorio de {name}: {days_to_go}",
+            "email": "Hola {guest_name},\n\nSolo {days_to_go} para nuestra celebración. Nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, solo {days_to_go} para nuestra fiesta: {smsWhen} en {venue}. Nos encanta verte. {inviteUrl} - {name}"
           },
           "dayBefore": {
             "label": "Día anterior",
-            "subject": "Mañana, de parte de {name}",
-            "email": "Hola {guest_name},\n\nMañana celebramos y nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}\n\n- {name}",
-            "sms": "Hola {guest_name}, mañana celebramos, {smsWhen}, en {venue}. Nos encanta verte! {inviteUrl} - {name}"
+            "subject": "De parte de {name}: {days_to_go}",
+            "email": "Hola {guest_name},\n\nSolo {days_to_go} para celebrar, y nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, solo {days_to_go} para celebrar: {smsWhen} en {venue}. Nos encanta verte! {inviteUrl} - {name}"
           },
           "eventDay": {
             "label": "Día del evento",
@@ -422,8 +422,8 @@
           "rsvpDeadline": {
             "label": "Fecha límite de RSVP",
             "subject": "Confirma tu asistencia, de parte de {name}",
-            "email": "Hola {guest_name},\n\nPor favor confirma tu asistencia antes del {deadline} para poder contar contigo. Nos encantaría tenerte con nosotros.\n\n{inviteUrl}\n\n- {name}",
-            "sms": "Hola {guest_name}, confirma tu asistencia antes del {smsDeadline}. Nos encanta contar contigo. {inviteUrl} - {name}"
+            "email": "Hola {guest_name},\n\nPor favor confirma tu asistencia antes del {deadline} para poder contar contigo. Solo {days_to_go} para nuestra celebración, y nos encantaría tenerte con nosotros.\n\n{inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, confirma tu asistencia antes del {smsDeadline}. {days_to_go}. Nos encanta contar contigo. {inviteUrl} - {name}"
           },
           "photoSharing": {
             "label": "Compartir fotos",
@@ -483,6 +483,10 @@
         "guestNameHint": "{token} se reemplaza con el nombre de cada invitado. Esta vista previa usa {name}.",
         "guestNameHintSample": "{token} se reemplaza con el nombre de cada invitado. Esta vista previa usa un nombre de ejemplo, {name}.",
         "guestNameHintFallback": "{token} se reemplaza con el nombre de cada invitado. Esta vista previa empieza con {greeting} porque no hay nombre.",
+        "insertPlaceholders": "Insertar en el mensaje",
+        "daysToGoHint": "{token} se completa al enviar, con la fecha de este evento. Esta vista previa usa {phrase}.",
+        "daysToGoHintPast": "{token} se completa al enviar. La fecha de esta celebración ya pasó, así que no se incluye.",
+        "daysToGoHintMissing": "{token} se completa al enviar. Agrega la fecha del evento y contará los días.",
         "smsSegmentWarning": "{count, plural, one {Esto se enviará como # segmento de mensaje por destinatario.} other {Esto se enviará como # segmentos de mensaje por destinatario — los mensajes más largos cuestan más.}}",
         "recipientPreview": "Esto llegará a {reached} de {total, plural, one {# invitado} other {# invitados}}.",
         "recipientPreviewGap": "{missing, plural, one {# invitado no tiene} other {# invitados no tienen}} {channel, select, email {un correo electrónico} other {un número de teléfono}} registrado y no lo recibirá{missing, plural, one {} other {n}}.",
