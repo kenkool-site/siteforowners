@@ -73,6 +73,74 @@ test("the opt-out footer is one blank line away and is not added twice", () => {
   assert.equal(spanish.split("Responde STOP para cancelar").length, 2);
 });
 
+test("days_to_go is filled with the guest name, folded for SMS, and omitted cleanly when the day has passed", () => {
+  assert.equal(
+    personalizeGuestMessage("Hi {guest_name}, just {days_to_go} until our celebration!", {
+      name: "Ada",
+      locale: "en",
+      channel: "sms",
+      daysToGo: "12 days to go",
+    }),
+    "Hi Ada, just 12 days to go until our celebration!",
+  );
+  assert.equal(
+    personalizeGuestMessage("Hi {first_name}, just {days_to_go} until our celebration!", {
+      name: null,
+      locale: "en",
+      channel: "sms",
+      daysToGo: "1 day to go",
+    }),
+    "Hi there, just 1 day to go until our celebration!",
+  );
+  assert.equal(
+    personalizeGuestMessage("Hi {guest_name}, just {days_to_go} until our celebration!", {
+      name: "Ada",
+      locale: "en",
+      channel: "email",
+      daysToGo: "",
+    }),
+    "Hi Ada, just until our celebration!",
+  );
+  assert.equal(
+    personalizeGuestMessage("Hola {guest_name}, solo {days_to_go} para la fiesta.", {
+      name: "Ada",
+      locale: "es",
+      channel: "sms",
+      daysToGo: "faltan 12 días",
+    }),
+    "Hola Ada, solo faltan 12 dias para la fiesta.",
+  );
+  assert.equal(
+    personalizeGuestMessage("Hola {guest_name}, solo {days_to_go} para la fiesta.", {
+      name: "Ada",
+      locale: "es",
+      channel: "email",
+      daysToGo: "faltan 12 días",
+    }),
+    "Hola Ada, solo faltan 12 días para la fiesta.",
+  );
+  assert.equal(
+    personalizeGuestMessage("Hola {guest_name}: {days_to_go}.", {
+      name: "Ada",
+      locale: "es",
+      channel: "sms",
+      daysToGo: "¡es hoy!",
+    }),
+    "Hola Ada: ¡es hoy!",
+  );
+  const withFooter = withSmsOptOutFooter(
+    personalizeGuestMessage("Hi {guest_name}, just {days_to_go} until our celebration", {
+      name: "Ada",
+      locale: "en",
+      channel: "sms",
+      daysToGo: "12 days to go",
+    }),
+    "en",
+  );
+  assert.equal(withFooter, "Hi Ada, just 12 days to go until our celebration\n\nReply STOP to opt out");
+  assert.equal(withFooter.split("Reply STOP to opt out").length, 2);
+});
+
 test("the preview uses the longest selected name, or a sample name when nobody is selected", () => {
   const template = "Hi {guest_name}, thank you - Mercy and John";
   const selected = previewGuestMessage({
@@ -103,4 +171,13 @@ test("the preview uses the longest selected name, or a sample name when nobody i
   assert.equal(missing.fallback, true);
   assert.equal(missing.text, "Hi there, thank you - Mercy and John");
   assert.doesNotMatch(missing.text, /STOP/);
+
+  const countdown = previewGuestMessage({
+    template: "Hi {guest_name}, just {days_to_go} until our celebration",
+    guests: [{ primaryName: "Ada Lovelace", partySize: 1 }],
+    locale: "en",
+    channel: "sms",
+    daysToGo: "12 days to go",
+  });
+  assert.equal(countdown.text, "Hi Ada, just 12 days to go until our celebration\n\nReply STOP to opt out");
 });

@@ -1,6 +1,7 @@
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isInvitationE2EFixturesEnabled } from "./e2e-guard";
+import { calendarDaysUntilEvent, daysToGoText } from "./days-to-go";
 import { guestMessageDisplayName, personalizeGuestMessage } from "./guest-message";
 import { normalizeGuestPhone } from "./guest-list";
 import type { InvitationResponseRow } from "./responses";
@@ -247,10 +248,15 @@ export type DispatchBroadcastNotificationsInput = {
   /** Guest email only. Omitted when the host contact or owner email is missing. */
   replyTo?: string;
   recipients: BroadcastRecipient[];
-  /** Used for the SMS opt-out line. Defaults to English. */
+  /** Used for the SMS opt-out line and the {days_to_go} phrase. Defaults to English. */
   locale?: InvitationLocale;
   /** Normalized E.164 numbers from invitation_sms_opt_outs. SMS only. */
   optedOutPhones?: ReadonlySet<string>;
+  /** Event start. {days_to_go} is counted from this date in the event timezone at send time. */
+  startsAt?: string | null;
+  timezone?: string | null;
+  /** Clock for {days_to_go}. Defaults to the moment of sending. */
+  now?: Date;
 };
 
 export type DispatchBroadcastNotificationsResult = {
@@ -269,6 +275,10 @@ export async function dispatchBroadcastNotifications(
   let failedCount = 0;
   let suppressedCount = 0;
   const locale = input.locale === "es" ? "es" : "en";
+  const daysToGo = daysToGoText(
+    calendarDaysUntilEvent(input.startsAt, input.timezone, input.now ?? new Date()),
+    locale,
+  );
   const optedOutPhones = input.channel === "sms" ? input.optedOutPhones ?? new Set<string>() : new Set<string>();
   const recipients = input.channel === "sms"
     ? input.recipients.filter((recipient) => !isSmsOptedOut(recipient.contact, optedOutPhones))
@@ -325,11 +335,11 @@ export async function dispatchBroadcastNotifications(
       partySize: recipient.partySize,
       additionalGuestNames: recipient.additionalGuestNames,
     });
-    const renderedBody = personalizeGuestMessage(input.body, { name, locale, channel: input.channel });
+    const renderedBody = personalizeGuestMessage(input.body, { name, locale, channel: input.channel, daysToGo });
     const outboundBody = input.channel === "sms" ? withSmsOptOutFooter(renderedBody, locale) : renderedBody;
     const subject = input.subject == null
       ? null
-      : personalizeGuestMessage(input.subject, { name, locale, channel: "email" });
+      : personalizeGuestMessage(input.subject, { name, locale, channel: "email", daysToGo });
     const payload: NotificationPayload = input.channel === "email"
       ? {
           channel: "email",
@@ -555,6 +565,9 @@ export type SendInvitationBroadcastInput = ComposeBroadcastInput & {
   smsFrom: string;
   locale: InvitationLocale;
   replyTo?: string;
+  /** Event start used to fill {days_to_go} when the message is sent. */
+  startsAt?: string | null;
+  timezone?: string | null;
 };
 
 export type SendInvitationBroadcastResult = {
@@ -607,8 +620,9 @@ export async function dispatchInvitationBroadcast(
   });
   if (!selected.ok) throw new InvitationBroadcastError(selected.code);
   const recipients = selected.recipients;
-  // Store the host's template, including {guest_name}. Each send below
-  // substitutes that recipient's name and, for SMS, appends the opt-out line.
+  // Store the host's template, including {guest_name} and {days_to_go}.
+  // Each send below substitutes that recipient's name and the countdown,
+  // and, for SMS, appends the opt-out line.
   const broadcast = await createInvitationBroadcast(input);
 
   const result = await dispatchBroadcastNotifications(
@@ -619,6 +633,8 @@ export async function dispatchInvitationBroadcast(
       subject: input.subject,
       body: input.body,
       locale: input.locale,
+      startsAt: input.startsAt,
+      timezone: input.timezone,
       optedOutPhones,
       from: input.channel === "email" ? input.emailFrom : input.smsFrom,
       ...(input.channel === "email" && input.replyTo ? { replyTo: input.replyTo } : {}),

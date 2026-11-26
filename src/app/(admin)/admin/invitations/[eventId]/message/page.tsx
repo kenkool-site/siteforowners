@@ -26,6 +26,8 @@ export default async function FounderMessagePage({ params }: { params: { eventId
         eventName={event.honoreeNames || event.title}
         backHref={`/admin/invitations/${event.id}`}
         templateValues={buildMessageTemplateValues(event)}
+        eventStartsAt={event.startsAt}
+        eventTimezone={event.timezone}
         emailBudget={emailBudget}
         smsBudget={smsBudget}
         recipients={{

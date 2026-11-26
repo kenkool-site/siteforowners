@@ -2,6 +2,7 @@ import type { InvitationAdditionalSection } from "./additional-sections";
 import { directionsHref, formatInEventZone } from "./event-site";
 import { invitationMemoriesUrl, invitationPublicUrl } from "./public-url";
 import type { InvitationStyleGuide } from "./style-guide";
+import { DAYS_TO_GO_PLACEHOLDER } from "./days-to-go";
 import { GUEST_NAME_PLACEHOLDER } from "./guest-message";
 import type { InvitationLocale } from "./types";
 
@@ -44,6 +45,8 @@ export type MessageTemplateValues = {
   change: string;
   /** Left literal so the host can edit it. Filled per recipient at send time. */
   guest_name: string;
+  /** Left literal. Filled from the event date when the message is sent. */
+  days_to_go: string;
 };
 
 export type MessageTemplateEvent = {
@@ -203,5 +206,6 @@ export function buildMessageTemplateValues(event: MessageTemplateEvent): Message
     livestream,
     change: blanks.change,
     guest_name: GUEST_NAME_PLACEHOLDER,
+    days_to_go: DAYS_TO_GO_PLACEHOLDER,
   };
 }

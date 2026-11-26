@@ -634,6 +634,147 @@ test("a Spanish SMS broadcast uses the Spanish opt-out line", async () => {
   assert.equal(body, "Nos vemos el sábado\n\nResponde STOP para cancelar");
 });
 
+test("{days_to_go} is filled at send time for each recipient, and a past date drops out without touching the opt-out line", async () => {
+  const template = "Hi {guest_name}, just {days_to_go} until our celebration - Mercy and John";
+  const sent: string[] = [];
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-days",
+      channel: "sms",
+      subject: null,
+      body: template,
+      locale: "en",
+      from: "+15550001111",
+      startsAt: "2026-12-19T19:00:00.000Z",
+      timezone: "America/New_York",
+      now: new Date("2026-12-07T16:00:00.000Z"),
+      recipients: [
+        { rsvpId: "ada", primaryName: "Ada Lovelace", contact: "+12145550101", partySize: 1 },
+        { rsvpId: "blank", primaryName: "   ", contact: "+12145550102", partySize: 1 },
+      ],
+    },
+    {
+      reserve: async () => ({ id: "n1", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: {
+        send: async (input) => {
+          sent.push(input.body);
+          return { ok: true, providerId: "sms-1" };
+        },
+      },
+    },
+  );
+  assert.equal(template, "Hi {guest_name}, just {days_to_go} until our celebration - Mercy and John");
+  assert.deepEqual(sent, [
+    "Hi Ada, just 12 days to go until our celebration - Mercy and John\n\nReply STOP to opt out",
+    "Hi there, just 12 days to go until our celebration - Mercy and John\n\nReply STOP to opt out",
+  ]);
+  for (const body of sent) {
+    assert.equal(body.split("Reply STOP to opt out").length, 2);
+    assert.match(body, /\n\nReply STOP to opt out$/);
+  }
+
+  let past = "";
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-past",
+      channel: "sms",
+      subject: null,
+      body: "Hi {guest_name}, just {days_to_go} until our celebration!",
+      locale: "en",
+      from: "+15550001111",
+      startsAt: "2026-12-19T19:00:00.000Z",
+      timezone: "America/New_York",
+      now: new Date("2026-12-20T16:00:00.000Z"),
+      recipients: [{ rsvpId: "ada", primaryName: "Ada Lovelace", contact: "+12145550101", partySize: 1 }],
+    },
+    {
+      reserve: async () => ({ id: "n2", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: {
+        send: async (input) => {
+          past = input.body;
+          return { ok: true, providerId: "sms-2" };
+        },
+      },
+    },
+  );
+  assert.equal(past, "Hi Ada, just until our celebration!\n\nReply STOP to opt out");
+
+  const emails: Array<{ subject: string; html: string }> = [];
+  let spanishSms = "";
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-es-email",
+      channel: "email",
+      subject: "De parte de Mercy: {days_to_go}",
+      body: "Hola {guest_name}, solo {days_to_go} para la fiesta.",
+      locale: "es",
+      from: "hello@example.test",
+      startsAt: "2026-12-19T19:00:00.000Z",
+      timezone: "America/New_York",
+      now: new Date("2026-12-18T16:00:00.000Z"),
+      recipients: [{ rsvpId: "ada", primaryName: "Ada Lovelace", contact: "ada@example.test", partySize: 1 }],
+    },
+    {
+      reserve: async () => ({ id: "n3", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: {
+        send: async (input) => {
+          emails.push({ subject: input.subject, html: input.html });
+          return { ok: true, providerId: "e1" };
+        },
+      },
+      sms: { send: async () => ({ ok: true, providerId: "sms-1" }) },
+    },
+  );
+  assert.equal(emails[0]?.subject, "De parte de Mercy: falta 1 día");
+  assert.match(emails[0]?.html ?? "", /Hola Ada, solo falta 1 día para la fiesta/);
+  assert.doesNotMatch(emails[0]?.html ?? "", /STOP/);
+
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-es-sms",
+      channel: "sms",
+      subject: null,
+      body: "Hola {guest_name}, solo {days_to_go} para la fiesta.",
+      locale: "es",
+      from: "+15550001111",
+      startsAt: "2026-12-19T19:00:00.000Z",
+      timezone: "America/New_York",
+      now: new Date("2026-12-07T16:00:00.000Z"),
+      recipients: [{ rsvpId: "ada", primaryName: "Ada Lovelace", contact: "+12145550101", partySize: 1 }],
+    },
+    {
+      reserve: async () => ({ id: "n4", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: {
+        send: async (input) => {
+          spanishSms = input.body;
+          return { ok: true, providerId: "sms-4" };
+        },
+      },
+    },
+  );
+  assert.equal(spanishSms, "Hola Ada, solo faltan 12 dias para la fiesta.\n\nResponde STOP para cancelar");
+  assert.equal(spanishSms.split("Responde STOP para cancelar").length, 2);
+});
+
 test("createInvitationBroadcast rejects an empty body before touching the database", async () => {
   await assert.rejects(
     () => createInvitationBroadcast({ eventId: "event-1", channel: "email", subject: "Hi", body: "", sentBy: "owner" }),
