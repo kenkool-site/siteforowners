@@ -1,7 +1,9 @@
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isInvitationE2EFixturesEnabled } from "./e2e-guard";
+import { normalizeGuestPhone } from "./guest-list";
 import type { InvitationResponseRow } from "./responses";
+import { withSmsOptOutFooter } from "./sms-opt-out";
 import {
   markInvitationNotificationFailed,
   markInvitationNotificationSent,
@@ -16,7 +18,7 @@ import {
   type ReserveNotificationResult,
 } from "./notifications";
 import { effectiveSmsBroadcastLimit, smsBroadcastRemaining } from "./sms-broadcast-limit";
-import type { InvitationBroadcast, InvitationNotificationChannel } from "./types";
+import type { InvitationBroadcast, InvitationLocale, InvitationNotificationChannel } from "./types";
 
 export type BroadcastRecipient = {
   rsvpId: string;
@@ -53,17 +55,33 @@ export type BroadcastRecipientChoice = {
   name: string;
   contact: string;
   status: "attending" | "declined";
+  /** SMS only. Opt-outs are global per E.164 number, so email stays available. */
+  optedOut?: boolean;
 };
+
+/**
+ * True when this phone's normalized E.164 is in invitation_sms_opt_outs.
+ * That table is one row per phone (not per event, not per sending number).
+ * START deletes the row, which makes this false again.
+ */
+export function isSmsOptedOut(phone: string, optedOutPhones: ReadonlySet<string>): boolean {
+  if (optedOutPhones.size === 0) return false;
+  const key = normalizeGuestPhone(phone);
+  return key !== null && optedOutPhones.has(key);
+}
 
 export function composerRecipientChoices(
   rows: InvitationResponseRow[],
   channel: InvitationNotificationChannel,
+  optedOutPhones?: ReadonlySet<string>,
 ): BroadcastRecipientChoice[] {
+  const optedOut = optedOutPhones ?? new Set<string>();
   return eligibleBroadcastRecipients(rows, channel).map((recipient) => ({
     id: recipient.rsvpId,
     name: recipient.primaryName,
     contact: channel === "email" ? maskInvitationEmail(recipient.contact) : maskInvitationPhone(recipient.contact),
     status: recipient.attending === false ? "declined" : "attending",
+    optedOut: channel === "sms" && isSmsOptedOut(recipient.contact, optedOut),
   }));
 }
 
@@ -143,6 +161,59 @@ export function resolveBroadcastRecipients(
   return { ok: true, recipients };
 }
 
+/**
+ * SMS opt-outs are removed after an explicit recipient list is accepted, so
+ * passing those RSVP ids cannot put the number back on the send. Email is
+ * unchanged. A phone that START removed from the opt-out set is included.
+ */
+export function selectBroadcastRecipients(input: {
+  rows: readonly InvitationResponseRow[];
+  channel: InvitationNotificationChannel;
+  recipientIds?: readonly string[];
+  optedOutPhones?: ReadonlySet<string>;
+}): { ok: true; recipients: BroadcastRecipient[] } | { ok: false; code: "invalid_recipients" } {
+  const resolved = resolveBroadcastRecipients(
+    eligibleBroadcastRecipients([...input.rows], input.channel),
+    input.recipientIds,
+  );
+  if (!resolved.ok || input.channel !== "sms") return resolved;
+  const optedOut = input.optedOutPhones ?? new Set<string>();
+  return {
+    ok: true,
+    recipients: resolved.recipients.filter((recipient) => !isSmsOptedOut(recipient.contact, optedOut)),
+  };
+}
+
+const OPT_OUT_LOOKUP_CHUNK = 100;
+
+/**
+ * Phones currently in invitation_sms_opt_outs. Lookup uses the same E.164
+ * key the inbound webhook writes. An error fails the send rather than
+ * texting someone who may have opted out.
+ */
+export async function loadInvitationSmsOptOuts(phones: readonly string[]): Promise<Set<string>> {
+  const seen = new Set<string>();
+  const keys: string[] = [];
+  for (const phone of phones) {
+    const key = normalizeGuestPhone(phone);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    keys.push(key);
+  }
+  if (keys.length === 0 || isInvitationE2EFixturesEnabled()) return new Set();
+  const found = new Set<string>();
+  const db = createAdminClient();
+  for (let index = 0; index < keys.length; index += OPT_OUT_LOOKUP_CHUNK) {
+    const chunk = keys.slice(index, index + OPT_OUT_LOOKUP_CHUNK);
+    const { data, error } = await db.from("invitation_sms_opt_outs").select("phone_e164").in("phone_e164", chunk);
+    if (error) throw new Error("Unable to load SMS opt-outs", { cause: error });
+    for (const row of (data ?? []) as Array<{ phone_e164?: unknown }>) {
+      if (typeof row.phone_e164 === "string") found.add(row.phone_e164);
+    }
+  }
+  return found;
+}
+
 function renderBroadcastEmailHtml(body: string): string {
   const paragraphs = body
     .split(/\n{2,}/)
@@ -159,6 +230,10 @@ export type DispatchBroadcastNotificationsInput = {
   body: string;
   from: string;
   recipients: BroadcastRecipient[];
+  /** Used for the SMS opt-out line. Defaults to English. */
+  locale?: InvitationLocale;
+  /** Normalized E.164 numbers from invitation_sms_opt_outs. SMS only. */
+  optedOutPhones?: ReadonlySet<string>;
 };
 
 export type DispatchBroadcastNotificationsResult = {
@@ -176,6 +251,13 @@ export async function dispatchBroadcastNotifications(
   let sentCount = 0;
   let failedCount = 0;
   let suppressedCount = 0;
+  const outboundBody = input.channel === "sms"
+    ? withSmsOptOutFooter(input.body, input.locale === "es" ? "es" : "en")
+    : input.body;
+  const optedOutPhones = input.channel === "sms" ? input.optedOutPhones ?? new Set<string>() : new Set<string>();
+  const recipients = input.channel === "sms"
+    ? input.recipients.filter((recipient) => !isSmsOptedOut(recipient.contact, optedOutPhones))
+    : input.recipients;
 
   // Swallows any throw from markFailed. Without this, a markFailed call
   // that itself throws (e.g. the same kind of Supabase/RPC error reserve()
@@ -239,7 +321,7 @@ export async function dispatchBroadcastNotifications(
           input: {
             from: input.from,
             to: recipient.contact,
-            body: input.body,
+            body: outboundBody,
             idempotencyKey: reservation.id,
           },
         };
@@ -278,8 +360,8 @@ export async function dispatchBroadcastNotifications(
     }
   }
 
-  for (let i = 0; i < input.recipients.length; i += BROADCAST_BATCH_SIZE) {
-    const batch = input.recipients.slice(i, i + BROADCAST_BATCH_SIZE);
+  for (let i = 0; i < recipients.length; i += BROADCAST_BATCH_SIZE) {
+    const batch = recipients.slice(i, i + BROADCAST_BATCH_SIZE);
     await Promise.all(batch.map((recipient) => sendToRecipient(recipient)));
   }
 
@@ -425,6 +507,7 @@ export type SendInvitationBroadcastInput = ComposeBroadcastInput & {
   sentBy: "owner" | "founder";
   emailFrom: string;
   smsFrom: string;
+  locale: InvitationLocale;
 };
 
 export type SendInvitationBroadcastResult = {
@@ -466,13 +549,19 @@ export async function dispatchInvitationBroadcast(
   input: SendInvitationBroadcastInput,
 ): Promise<SendInvitationBroadcastResult> {
   const rows = await listInvitationRsvpsForBroadcast(input.eventId);
-  const selected = resolveBroadcastRecipients(
-    eligibleBroadcastRecipients(rows, input.channel),
-    input.recipientIds,
-  );
+  const optedOutPhones = input.channel === "sms"
+    ? await loadInvitationSmsOptOuts(rows.flatMap((row) => row.phone ? [row.phone] : []))
+    : new Set<string>();
+  const selected = selectBroadcastRecipients({
+    rows,
+    channel: input.channel,
+    recipientIds: input.recipientIds,
+    optedOutPhones,
+  });
   if (!selected.ok) throw new InvitationBroadcastError(selected.code);
   const recipients = selected.recipients;
-  const broadcast = await createInvitationBroadcast(input);
+  const body = input.channel === "sms" ? withSmsOptOutFooter(input.body, input.locale) : input.body;
+  const broadcast = await createInvitationBroadcast({ ...input, body });
 
   const result = await dispatchBroadcastNotifications(
     {
@@ -480,7 +569,9 @@ export async function dispatchInvitationBroadcast(
       broadcastId: broadcast.id,
       channel: input.channel,
       subject: input.subject,
-      body: input.body,
+      body,
+      locale: input.locale,
+      optedOutPhones,
       from: input.channel === "email" ? input.emailFrom : input.smsFrom,
       recipients,
     },

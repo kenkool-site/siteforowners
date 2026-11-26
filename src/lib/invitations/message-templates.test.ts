@@ -9,6 +9,7 @@ import {
   type MessageTemplateEvent,
   type MessageTemplateValues,
 } from "./message-templates";
+import { withSmsOptOutFooter } from "./sms-opt-out";
 
 const GSM7_BASIC = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\u001bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
 const GSM7_EXT = "^{}\\[~]|€";
@@ -103,10 +104,11 @@ test("a meeting link is used when a section does not say livestream", () => {
   assert.equal(findLivestreamUrl([{ heading: "Hotels", content: "https://hotel.example/stay" }]), null);
 });
 
-test("every SMS template is one GSM-7 segment for a typical event, in English and Spanish", () => {
+test("every SMS template is one GSM-7 segment for a typical event, in English and Spanish, including the opt-out line", () => {
   const catalogs = [en, es];
   for (const catalog of catalogs) {
-    const values = buildMessageTemplateValues({ ...event, locale: catalog === es ? "es" : "en" });
+    const locale = catalog === es ? "es" : "en";
+    const values = buildMessageTemplateValues({ ...event, locale });
     const templates = catalog.invitations.manage.messageComposer.templates;
     for (const key of MESSAGE_TEMPLATE_KEYS) {
       const template = templates[key];
@@ -114,13 +116,14 @@ test("every SMS template is one GSM-7 segment for a typical event, in English an
       assert.equal(typeof template.subject, "string");
       assert.equal(typeof template.email, "string");
       assert.equal(typeof template.sms, "string");
-      const sms = fill(template.sms, values);
-      assert.equal(sms.includes("{"), false, `${key} sms still has a placeholder: ${sms}`);
+      const drafted = fill(template.sms, values);
+      const sms = withSmsOptOutFooter(drafted, locale);
+      assert.equal(drafted.includes("{"), false, `${key} sms still has a placeholder: ${drafted}`);
       assert.equal(isGsm7(sms), true, `${key} sms is not GSM-7: ${sms}`);
-      assert.ok(gsm7Septets(sms) <= 160, `${key} sms is ${gsm7Septets(sms)} septets: ${sms}`);
+      assert.ok(gsm7Septets(sms) <= 160, `${key} sms is ${gsm7Septets(sms)} septets with the opt-out line: ${sms}`);
       const email = fill(template.email, values);
       assert.equal(email.includes("{"), false, `${key} email still has a placeholder`);
-      assert.ok(email.length > sms.length, `${key} email should be longer than its SMS`);
+      assert.ok(email.length > drafted.length, `${key} email should be longer than its SMS`);
     }
   }
 });

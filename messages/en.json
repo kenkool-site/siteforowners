@@ -466,12 +466,16 @@
           "status": {
             "all": "All",
             "attending": "Attending",
-            "declined": "Not attending"
-          }
+            "declined": "Not attending",
+            "optedOut": "Opted out"
+          },
+          "optedOutExcluded": "{count, plural, one {# guest opted out of texts and is not included.} other {# guests opted out of texts and are not included.}}"
         },
         "invalidRecipients": "Refresh the page and choose the guests again. Someone on the list can no longer receive this.",
         "smsRemainingShort": "This text needs {needed} sends and {remaining} are left, so some guests will be skipped.",
         "smsCharacterCount": "{count} characters",
+        "smsCharacterCountWithOptOut": "{count} characters, including the line below",
+        "smsOptOutPreview": "Every text includes this line: {line}",
         "smsSegmentWarning": "{count, plural, one {This will send as # message segment per recipient.} other {This will send as # message segments per recipient — longer messages cost more.}}",
         "recipientPreview": "This will reach {reached} of {total, plural, one {# guest} other {# guests}}.",
         "recipientPreviewGap": "{missing, plural, one {# guest doesn't} other {# guests don't}} have {channel, select, email {an email address} other {a phone number}} on file and won't receive this.",

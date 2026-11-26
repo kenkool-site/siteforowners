@@ -166,6 +166,9 @@ test("selecting a template inserts host, date, and venue, and SMS uses the short
     assert.match(container.textContent ?? "", /500 of 500 guest texts left/);
     assert.match(textarea.value, /Mercy and John reminder:/);
     assert.ok(textarea.value.length <= 160);
+    assert.match(container.textContent ?? "", /Every text includes this line: Reply STOP to opt out/);
+    assert.match(container.textContent ?? "", /including the line below/);
+    assert.doesNotMatch(container.textContent ?? "", /message segment/i);
 
     const photos = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Share photos")!;
     await act(async () => { photos.click(); });
@@ -246,4 +249,78 @@ test("a long SMS body shows a segment-count warning; a short one and email don't
     await act(async () => { emailRadio.click(); });
     assert.doesNotMatch(container.textContent ?? "", /segment/i, "email channel should never show an SMS segment warning");
   });
+});
+
+test("the character count includes the opt-out line once, and a message that only fits without it warns", async () => {
+  await withComposer(async () => ({ ok: true, json: async () => ({}) }) as Response, async (container) => {
+    const smsRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
+      .find((input) => input.parentElement?.textContent?.includes("Text message"))!;
+    await act(async () => { smsRadio.click(); });
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    const setValue = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(textarea), "value")!.set!;
+
+    const already = "Hello\nReply STOP to opt out";
+    await act(async () => {
+      setValue.call(textarea, already);
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    assert.match(container.textContent ?? "", new RegExp(`${already.length} characters, including the line below`));
+    assert.doesNotMatch(container.textContent ?? "", /49 characters/);
+
+    await act(async () => {
+      setValue.call(textarea, "x".repeat(150));
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    assert.match(container.textContent ?? "", /172 characters, including the line below/);
+    assert.match(container.textContent ?? "", /2 message segments/i);
+  });
+});
+
+test("an opted-out guest is unavailable for text, left out of the count, and cannot be sent", async () => {
+  const calls: Array<{ method?: string; body?: string }> = [];
+  const recipients = {
+    email: defaultRecipients.email,
+    sms: [
+      { id: "r1", name: "Wunmi Adeniji", contact: "••• ••• 4567", status: "attending" as const },
+      { id: "r3", name: "Opted Guest", contact: "••• ••• 0100", status: "attending" as const, optedOut: true },
+    ],
+  };
+  await withComposer(async (_input, init) => {
+    calls.push({ method: init?.method, body: init?.body as string | undefined });
+    return { ok: true, json: async () => ({ ok: true, broadcast: {
+      id: "broadcast-3", eventId: "event-1", channel: "sms", subject: null, body: "Hello there",
+      sentBy: "owner", recipientCount: 1, sentCount: 1, failedCount: 0, suppressedCount: 0,
+      createdAt: "2026-09-20T12:00:00.000Z",
+    }, sentCount: 1, failedCount: 0, suppressedCount: 0 }) } as Response;
+  }, async (container, dom) => {
+    dom.window.confirm = () => true;
+    const smsRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
+      .find((input) => input.parentElement?.textContent?.includes("Text message"))!;
+    await act(async () => { smsRadio.click(); });
+
+    assert.match(container.textContent ?? "", /Opted out/);
+    assert.match(container.textContent ?? "", /1 guest opted out of texts and is not included/);
+    assert.match(container.textContent ?? "", /1 selected/);
+    assert.match(container.textContent ?? "", /reach 1 of 10 guests/i);
+    const opted = Array.from(container.querySelectorAll("label")).find((label) => label.textContent?.includes("Opted Guest"));
+    const checkbox = opted?.querySelector<HTMLInputElement>("input[type='checkbox']");
+    assert.equal(checkbox?.disabled, true);
+    assert.equal(checkbox?.checked, false);
+
+    const selectAll = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Select all")!;
+    await act(async () => { selectAll.click(); });
+    assert.equal(checkbox?.checked, false);
+
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    const setValue = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(textarea), "value")!.set!;
+    await act(async () => {
+      setValue.call(textarea, "Hello there");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const sendButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Send message")!;
+    await act(async () => { sendButton.click(); await Promise.resolve(); });
+    const posted = JSON.parse(calls.find((call) => call.method === "POST")!.body!);
+    assert.equal(posted.channel, "sms");
+    assert.deepEqual(posted.recipientIds, ["r1"]);
+  }, recipients);
 });

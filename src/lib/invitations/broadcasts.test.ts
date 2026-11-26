@@ -7,6 +7,7 @@ import {
   maskInvitationPhone,
   parseComposeBroadcastInput,
   resolveBroadcastRecipients,
+  selectBroadcastRecipients,
 } from "./broadcasts";
 import { dispatchBroadcastNotifications } from "./broadcasts";
 import { createInvitationBroadcast } from "./broadcasts";
@@ -319,7 +320,7 @@ test("masked contacts keep a hint and hide the rest of the address or number", (
     row({ id: "r1", email: "wunmi@example.test", phone: "+15551234567", attending: true }),
     row({ id: "r2", email: "ada@example.test", phone: null, attending: false }),
   ], "sms");
-  assert.deepEqual(choices, [{ id: "r1", name: "Wunmi Adeniji", contact: "••• ••• 4567", status: "attending" }]);
+  assert.deepEqual(choices, [{ id: "r1", name: "Wunmi Adeniji", contact: "••• ••• 4567", status: "attending", optedOut: false }]);
   assert.equal(composerRecipientChoices([row({ id: "r2", email: "a@example.test", attending: false })], "email")[0]?.status, "declined");
 });
 
@@ -346,6 +347,163 @@ test("compose input accepts an optional recipient list and rejects a malformed o
   assert.deepEqual(parseComposeBroadcastInput({ channel: "sms", body: "Hello", recipientIds: [] }), { ok: false, code: "invalid_recipients" });
   assert.deepEqual(parseComposeBroadcastInput({ channel: "sms", body: "Hello", recipientIds: "r1" }), { ok: false, code: "invalid_recipients" });
   assert.deepEqual(parseComposeBroadcastInput({ channel: "email", subject: "Hi", body: "Hello", recipientIds: [1] }), { ok: false, code: "invalid_recipients" });
+});
+
+test("an opted-out phone is skipped, including when its RSVP id is explicitly requested", () => {
+  const rows = [
+    row({ id: "opted", phone: "(214) 555-0100", attending: true }),
+    row({ id: "ok", phone: "+12145550101", attending: true }),
+  ];
+  const optedOut = new Set(["+12145550100"]);
+  const selected = selectBroadcastRecipients({
+    rows,
+    channel: "sms",
+    recipientIds: ["opted", "ok"],
+    optedOutPhones: optedOut,
+  });
+  assert.equal(selected.ok, true);
+  if (selected.ok) assert.deepEqual(selected.recipients.map((recipient) => recipient.rsvpId), ["ok"]);
+
+  const omitted = selectBroadcastRecipients({ rows, channel: "sms", optedOutPhones: optedOut });
+  assert.equal(omitted.ok, true);
+  if (omitted.ok) assert.deepEqual(omitted.recipients.map((recipient) => recipient.rsvpId), ["ok"]);
+});
+
+test("START re-allows a number once it is no longer in the opt-out set", () => {
+  const rows = [row({ id: "back", phone: "+12145550100", attending: true })];
+  const stopped = selectBroadcastRecipients({
+    rows,
+    channel: "sms",
+    recipientIds: ["back"],
+    optedOutPhones: new Set(["+12145550100"]),
+  });
+  assert.equal(stopped.ok, true);
+  if (stopped.ok) assert.deepEqual(stopped.recipients, []);
+
+  const started = selectBroadcastRecipients({
+    rows,
+    channel: "sms",
+    recipientIds: ["back"],
+    optedOutPhones: new Set(),
+  });
+  assert.equal(started.ok, true);
+  if (started.ok) assert.deepEqual(started.recipients.map((recipient) => recipient.rsvpId), ["back"]);
+});
+
+test("an SMS opt-out does not remove the guest from email", () => {
+  const rows = [row({ id: "r1", email: "a@example.test", phone: "+12145550100" })];
+  const selected = selectBroadcastRecipients({
+    rows,
+    channel: "email",
+    recipientIds: ["r1"],
+    optedOutPhones: new Set(["+12145550100"]),
+  });
+  assert.equal(selected.ok, true);
+  if (selected.ok) assert.deepEqual(selected.recipients.map((recipient) => recipient.rsvpId), ["r1"]);
+  const choices = composerRecipientChoices(rows, "sms", new Set(["+12145550100"]));
+  assert.equal(choices[0]?.optedOut, true);
+  assert.equal(composerRecipientChoices(rows, "email", new Set(["+12145550100"])).every((choice) => !choice.optedOut), true);
+});
+
+test("the send path skips an opted-out recipient even when that recipient is passed in, and appends the opt-out line once", async () => {
+  const bodies: string[] = [];
+  const sentTo: string[] = [];
+  const result = await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-1",
+      channel: "sms",
+      subject: null,
+      body: "See you Saturday",
+      locale: "en",
+      from: "+15550001111",
+      optedOutPhones: new Set(["+12145550100"]),
+      recipients: [
+        { rsvpId: "opted", primaryName: "Opted", contact: "(214) 555-0100" },
+        { rsvpId: "ok", primaryName: "Ok", contact: "+12145550101" },
+      ],
+    },
+    {
+      reserve: async () => ({ id: "n1", allowed: true }),
+      savePayload: async (_id, payload) => {
+        if (payload.channel === "sms") bodies.push(payload.input.body);
+      },
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: {
+        send: async (input) => {
+          sentTo.push(input.to);
+          bodies.push(input.body);
+          return { ok: true, providerId: "sms-1" };
+        },
+      },
+    },
+  );
+  assert.deepEqual(result, { sentCount: 1, failedCount: 0, suppressedCount: 0 });
+  assert.deepEqual(sentTo, ["+12145550101"]);
+  assert.deepEqual(bodies, [
+    "See you Saturday\nReply STOP to opt out",
+    "See you Saturday\nReply STOP to opt out",
+  ]);
+
+  const again: string[] = [];
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-2",
+      channel: "sms",
+      subject: null,
+      body: "See you Saturday\nReply STOP to opt out",
+      locale: "es",
+      from: "+15550001111",
+      recipients: [{ rsvpId: "ok", primaryName: "Ok", contact: "+12145550101" }],
+    },
+    {
+      reserve: async () => ({ id: "n2", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: {
+        send: async (input) => {
+          again.push(input.body);
+          return { ok: true, providerId: "sms-2" };
+        },
+      },
+    },
+  );
+  assert.deepEqual(again, ["See you Saturday\nReply STOP to opt out"]);
+});
+
+test("a Spanish SMS broadcast uses the Spanish opt-out line", async () => {
+  let body = "";
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-1",
+      channel: "sms",
+      subject: null,
+      body: "Nos vemos el sábado",
+      locale: "es",
+      from: "+15550001111",
+      recipients: [{ rsvpId: "ok", primaryName: "Ok", contact: "+12145550101" }],
+    },
+    {
+      reserve: async () => ({ id: "n1", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: {
+        send: async (input) => {
+          body = input.body;
+          return { ok: true, providerId: "sms-1" };
+        },
+      },
+    },
+  );
+  assert.equal(body, "Nos vemos el sábado\nResponde STOP para cancelar");
 });
 
 test("createInvitationBroadcast rejects an empty body before touching the database", async () => {

@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { BroadcastRecipientChoice } from "@/lib/invitations/broadcasts";
 import {
   MESSAGE_TEMPLATE_KEYS,
   type MessageTemplateKey,
   type MessageTemplateValues,
 } from "@/lib/invitations/message-templates";
-import type { InvitationBroadcast, InvitationNotificationChannel } from "@/lib/invitations/types";
+import { smsOptOutLine, withSmsOptOutFooter } from "@/lib/invitations/sms-opt-out";
+import type { InvitationBroadcast, InvitationLocale, InvitationNotificationChannel } from "@/lib/invitations/types";
 
 // Rough, GSM-7-based estimate (ignores Unicode/UCS-2 detection): 160 chars
 // for a single segment, 153 per segment once concatenated. Good enough for
@@ -48,6 +49,8 @@ export function GuestMessageComposer({
   initialHistory: InvitationBroadcast[];
 }) {
   const t = useTranslations("invitations.manage.messageComposer");
+  const uiLocale = useLocale();
+  const smsLocale: InvitationLocale = uiLocale === "es" ? "es" : "en";
   const [channel, setChannel] = useState<InvitationNotificationChannel>("email");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
@@ -58,15 +61,20 @@ export function GuestMessageComposer({
   const [result, setResult] = useState<ComposerResult | null>(null);
   const [history, setHistory] = useState(initialHistory);
   const [smsBudget, setSmsBudget] = useState(initialSmsBudget);
-  const [selected, setSelected] = useState<Set<string>>(() => new Set(recipients.email.map((guest) => guest.id)));
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(
+    recipients.email.filter((guest) => !guest.optedOut).map((guest) => guest.id),
+  ));
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
   const roster = channel === "email" ? recipients.email : recipients.sms;
-  const selectedIds = roster.filter((guest) => selected.has(guest.id)).map((guest) => guest.id);
+  const selectable = roster.filter((guest) => !guest.optedOut);
+  const selectedIds = selectable.filter((guest) => selected.has(guest.id)).map((guest) => guest.id);
   const recipientCount = selectedIds.length;
+  const optedOutCount = channel === "sms" ? roster.filter((guest) => guest.optedOut).length : 0;
   const missingCount = initialTotalResponses - roster.length;
-  const smsSegments = channel === "sms" ? estimateSmsSegments(body) : 0;
+  const outboundSms = channel === "sms" && body.trim() ? withSmsOptOutFooter(body, smsLocale) : "";
+  const smsSegments = outboundSms ? estimateSmsSegments(outboundSms) : 0;
   const visible = useMemo(() => {
     const needle = query.trim().toLowerCase();
     return roster.filter((guest) => {
@@ -107,7 +115,7 @@ export function GuestMessageComposer({
     setQuery("");
     setStatusFilter("all");
     const nextRoster = next === "email" ? recipients.email : recipients.sms;
-    setSelected(new Set(nextRoster.map((guest) => guest.id)));
+    setSelected(new Set(nextRoster.filter((guest) => !guest.optedOut).map((guest) => guest.id)));
     if (templateKey && !edited) {
       setSubject(templates[templateKey].subject);
       setBody(next === "sms" ? templates[templateKey].sms : templates[templateKey].email);
@@ -118,6 +126,7 @@ export function GuestMessageComposer({
     setSelected((current) => {
       const next = new Set(current);
       for (const guest of visible) {
+        if (guest.optedOut) continue;
         if (checked) next.add(guest.id);
         else next.delete(guest.id);
       }
@@ -126,6 +135,7 @@ export function GuestMessageComposer({
   }
 
   function toggleGuest(id: string) {
+    if (roster.some((guest) => guest.id === id && guest.optedOut)) return;
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -229,10 +239,15 @@ export function GuestMessageComposer({
             <textarea value={body} onChange={(event) => { setBody(event.target.value); setEdited(true); }} rows={6} maxLength={5000} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
           </label>
           {channel === "sms" && (
-            <p className="mt-1 text-xs text-[#807484]">
-              {t("smsCharacterCount", { count: body.length })}
-              {smsSegments > 1 && <span className="text-[#9a6b2f]"> · {t("smsSegmentWarning", { count: smsSegments })}</span>}
-            </p>
+            <div className="mt-1 space-y-1">
+              <p className="text-xs text-[#807484]">
+                {outboundSms
+                  ? t("smsCharacterCountWithOptOut", { count: outboundSms.length })
+                  : t("smsCharacterCount", { count: 0 })}
+                {smsSegments > 1 && <span className="text-[#9a6b2f]"> · {t("smsSegmentWarning", { count: smsSegments })}</span>}
+              </p>
+              <p className="text-xs text-[#675d6a]">{t("smsOptOutPreview", { line: smsOptOutLine(smsLocale) })}</p>
+            </div>
           )}
 
           <fieldset className="mt-5">
@@ -275,22 +290,28 @@ export function GuestMessageComposer({
               <ul className="mt-3 max-h-80 space-y-1 overflow-y-auto">
                 {visible.map((guest) => (
                   <li key={guest.id}>
-                    <label className="flex min-h-11 items-center gap-3 rounded-md px-1 py-2 text-sm">
+                    <label className={`flex min-h-11 items-center gap-3 rounded-md px-1 py-2 text-sm ${guest.optedOut ? "text-[#8a8090]" : ""}`}>
                       <input
                         type="checkbox"
-                        className="size-5 shrink-0 accent-[#6D456F]"
-                        checked={selected.has(guest.id)}
+                        className="size-5 shrink-0 accent-[#6D456F] disabled:opacity-40"
+                        checked={!guest.optedOut && selected.has(guest.id)}
+                        disabled={Boolean(guest.optedOut)}
                         onChange={() => toggleGuest(guest.id)}
                       />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate font-semibold">{guest.name}</span>
                         <span className="block truncate text-xs text-[#675d6a]">{guest.contact}</span>
                       </span>
-                      <span className="shrink-0 text-xs text-[#807484]">{t(`recipients.status.${guest.status}`)}</span>
+                      <span className="shrink-0 text-xs text-[#807484]">
+                        {guest.optedOut ? t("recipients.status.optedOut") : t(`recipients.status.${guest.status}`)}
+                      </span>
                     </label>
                   </li>
                 ))}
               </ul>
+            )}
+            {optedOutCount > 0 && (
+              <p className="mt-2 text-xs text-[#675d6a]">{t("recipients.optedOutExcluded", { count: optedOutCount })}</p>
             )}
           </fieldset>
 

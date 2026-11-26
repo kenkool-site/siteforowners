@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { GuestMessageComposer } from "@/components/invitations/GuestMessageComposer";
 import { InvitationPublicProvider } from "@/components/invitations/InvitationPublicProvider";
-import { composerRecipientChoices, getInvitationSmsBroadcastBudget, listInvitationBroadcasts } from "@/lib/invitations/broadcasts";
+import { composerRecipientChoices, getInvitationSmsBroadcastBudget, listInvitationBroadcasts, loadInvitationSmsOptOuts } from "@/lib/invitations/broadcasts";
 import { buildMessageTemplateValues } from "@/lib/invitations/message-templates";
 import { getInvitationEventForManagement, listInvitationResponseRows } from "@/lib/invitations/repository";
 
@@ -16,6 +16,7 @@ export default async function FounderMessagePage({ params }: { params: { eventId
     listInvitationBroadcasts(event.id),
     getInvitationSmsBroadcastBudget(event.id, event.smsBroadcastLimit ?? null),
   ]);
+  const optedOutPhones = await loadInvitationSmsOptOuts(rows.flatMap((row) => row.phone ? [row.phone] : []));
 
   return (
     <InvitationPublicProvider locale={event.locale} timeZone={event.timezone}>
@@ -27,7 +28,7 @@ export default async function FounderMessagePage({ params }: { params: { eventId
         smsBudget={smsBudget}
         recipients={{
           email: composerRecipientChoices(rows, "email"),
-          sms: composerRecipientChoices(rows, "sms"),
+          sms: composerRecipientChoices(rows, "sms", optedOutPhones),
         }}
         initialTotalResponses={rows.length}
         initialHistory={history}
