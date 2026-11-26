@@ -11,6 +11,7 @@ import {
   type RetryReservation,
 } from "./notifications";
 import type { RsvpMutationResult } from "./types";
+import { guestInvitationFrom, hostInvitationFrom } from "./email-from";
 
 const baseEvent: NotificationEventContext = {
   id: "event-1",
@@ -352,6 +353,53 @@ test("RSVP notifications prefer celebrant names over an extracted invitation slo
   assert.ok(subjects.some((subject) => subject === "New RSVP — Mercy & John"));
   assert.equal(subjects.some((subject) => subject.includes("Save the Date in style")), false);
   assert.ok(htmlBodies.every((html) => !html.includes("Save the Date in style")));
+});
+
+test("guest RSVP mail is from the hosts via InviteSpot and owner alerts are from InviteSpot", async () => {
+  const sent: Array<{ from: string; replyTo?: string; subject: string; html: string }> = [];
+  await dispatchRsvpNotifications({
+    ...fixture,
+    event: {
+      ...baseEvent,
+      title: "Save the Date in style",
+      honoreeNames: "Mercy & John",
+      guestEmailConfirmations: true,
+      notificationEmail: "hosts@example.com",
+      ownerEmail: "owner@example.com",
+    },
+  }, {
+    ...alwaysAllow(),
+    reserve: async (_channel, input) => ({ id: `${input.audience}-${input.kind}`, allowed: true }),
+    email: { send: async (input) => { sent.push(input); return { ok: true, providerId: "e1" }; } },
+  });
+  const guest = sent.find((message) => message.subject.startsWith("Your RSVP"));
+  const owner = sent.find((message) => message.subject.startsWith("New RSVP"));
+  assert.ok(guest);
+  assert.ok(owner);
+  assert.equal(guest.from, guestInvitationFrom("Mercy & John"));
+  assert.equal(guest.replyTo, "hosts@example.com");
+  assert.equal(owner.from, hostInvitationFrom());
+  assert.equal(owner.replyTo, undefined);
+  for (const message of [guest, owner]) {
+    assert.doesNotMatch(message.from, /SiteForOwners/);
+    assert.doesNotMatch(message.subject, /SiteForOwners/);
+    assert.doesNotMatch(message.html, /SiteForOwners/);
+  }
+});
+
+test("guest RSVP mail leaves reply-to unset unless the owner email is on file", async () => {
+  let replyTo: string | undefined = "sentinel";
+  await dispatchRsvpNotifications({
+    ...fixture,
+    event: { ...baseEvent, guestEmailConfirmations: true, notificationEmail: "hosts@example.com" },
+  }, {
+    ...alwaysAllow(),
+    email: { send: async (input) => {
+      if (input.subject.startsWith("Your RSVP")) replyTo = input.replyTo;
+      return { ok: true, providerId: "e1" };
+    } },
+  });
+  assert.equal(replyTo, undefined);
 });
 
 test("an RSVP update mints no new edit token, so its guest confirmation email falls back to the invite page", async () => {

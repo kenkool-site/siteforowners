@@ -15,6 +15,7 @@
 // dispatchInvitationRsvpNotifications's outer try/catch.
 
 import { sealNotificationPayload, openNotificationPayload } from "./notification-payload";
+import { guestInvitationMail, hostInvitationFrom, resendEmailFields } from "./email-from";
 import { Resend } from "resend";
 import twilio from "twilio";
 import { escapeHtml } from "@/lib/marketing-lead";
@@ -73,6 +74,8 @@ export type EmailSendInput = {
   subject: string;
   html: string;
   idempotencyKey: string;
+  /** Set on guest mail when the host contact and owner email are both on file. */
+  replyTo?: string;
 };
 
 export type SmsSendInput = {
@@ -233,6 +236,8 @@ export type NotificationEventContext = {
   ownerEmailRecipients?: string[];
   ownerSmsNotifications: boolean;
   notificationEmail: string | null;
+  /** Owner account email. Reply-To is set only when this and notificationEmail both exist. */
+  ownerEmail?: string | null;
   notificationPhone: string | null;
   guestEmailConfirmations: boolean;
 };
@@ -297,6 +302,13 @@ export async function dispatchRsvpNotifications(
 ): Promise<DispatchRsvpNotificationsResult> {
   const { event, rsvp, created, dashboardUrl, inviteUrl } = input;
   const displayTitle = notificationDisplayTitle(event);
+  const guestMail = guestInvitationMail({
+    honoreeNames: event.honoreeNames,
+    title: event.title,
+    hostContactEmail: event.notificationEmail,
+    ownerEmail: event.ownerEmail,
+  });
+  const ownerFrom = hostInvitationFrom();
   const kind: InvitationNotificationKind = created ? "rsvp_created" : "rsvp_updated";
   const attempts: PlannedAttempt[] = [];
 
@@ -312,7 +324,7 @@ export async function dispatchRsvpNotifications(
       kind,
       recipient: to,
       payload: (idempotencyKey) => ({ channel: "email", input: {
-        from: EMAIL_FROM,
+        from: ownerFrom,
         to,
         subject: ownerEmailSubject({ eventTitle: displayTitle, created, rsvp, locale: event.locale }),
         html: renderOwnerEmailHtml({ eventTitle: displayTitle, created, rsvp, dashboardUrl, locale: event.locale }),
@@ -348,7 +360,8 @@ export async function dispatchRsvpNotifications(
       kind: "guest_confirmation",
       recipient: to,
       payload: (idempotencyKey) => ({ channel: "email", input: {
-        from: EMAIL_FROM,
+        from: guestMail.from,
+        ...(guestMail.replyTo ? { replyTo: guestMail.replyTo } : {}),
         to,
         subject: guestEmailSubject(displayTitle, event.locale),
         html: renderGuestConfirmationEmailHtml({ eventTitle: displayTitle, rsvp, editUrl: null, inviteUrl, locale: event.locale }),
@@ -400,7 +413,6 @@ export async function dispatchRsvpNotifications(
 // ---------------------------------------------------------------------------
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const EMAIL_FROM = process.env.EMAIL_FROM || "SiteForOwners <hello@siteforowners.com>";
 
 const twilioAccountSid = process.env.TWILIO_ACCOUNT_SID;
 const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
@@ -414,7 +426,7 @@ export const resendEmailSender: EmailSender = {
     if (!resend) return { ok: false, error: "Email delivery is not configured" };
     try {
       const result = await resend.emails.send(
-        { from: input.from, to: input.to, subject: input.subject, html: input.html },
+        resendEmailFields(input),
         { idempotencyKey: input.idempotencyKey },
       );
       if (!result.data?.id) {
@@ -545,7 +557,27 @@ async function getInvitationNotificationEventContext(eventId: string): Promise<N
     notificationEmail: data.notification_email,
     notificationPhone: data.notification_phone,
     guestEmailConfirmations: data.guest_email_confirmations,
+    ownerEmail: await loadInvitationOwnerEmail(client, eventId),
   };
+}
+
+async function loadInvitationOwnerEmail(
+  client: ReturnType<typeof createAdminClient>,
+  eventId: string,
+): Promise<string | null> {
+  try {
+    const { data, error } = await client
+      .from("invitation_events")
+      .select("invitation_owners!invitation_events_owner_id_fkey(email)")
+      .eq("id", eventId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const relation = data.invitation_owners as unknown as { email?: unknown } | Array<{ email?: unknown }> | null;
+    const owner = Array.isArray(relation) ? relation[0] : relation;
+    return typeof owner?.email === "string" && owner.email.trim() ? owner.email.trim() : null;
+  } catch {
+    return null;
+  }
 }
 
 export type DispatchInvitationRsvpNotificationsInput = {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Resend } from "resend";
 import { checkRateLimit, getClientIp, hashIp } from "@/lib/api-rate-limit";
+import { hostInvitationFrom } from "@/lib/invitations/email-from";
 import { parseInvitespotLead } from "@/lib/invitespot-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -9,7 +10,6 @@ const LEAD_MAX_REQUESTS = 5;
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
-const FROM = process.env.EMAIL_FROM || "SiteForOwners <hello@siteforowners.com>";
 
 function escapeHtml(value: string): string {
   return value
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await resend.emails.send({
-      from: FROM,
+      from: hostInvitationFrom(),
       to: ADMIN_EMAIL,
       replyTo: email || undefined,
       subject: `New InviteSpot lead: ${name}`,

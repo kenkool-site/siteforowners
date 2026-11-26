@@ -12,6 +12,7 @@ import {
   parseComposeBroadcastInput,
   selectBroadcastRecipients,
 } from "@/lib/invitations/broadcasts";
+import { guestInvitationMail } from "@/lib/invitations/email-from";
 import { getInvitationEventForManagement, listInvitationResponseRows } from "@/lib/invitations/repository";
 
 export async function GET(request: NextRequest, { params }: { params: { eventId: string } }) {
@@ -42,7 +43,6 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
   }
 }
 
-const EMAIL_FROM = process.env.EMAIL_FROM || "SiteForOwners <hello@siteforowners.com>";
 const TWILIO_FROM = process.env.TWILIO_FROM || "";
 
 export async function POST(request: NextRequest, { params }: { params: { eventId: string } }) {
@@ -60,6 +60,12 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     const event = await getInvitationEventForManagement(params.eventId);
     if (!event) return NextResponse.json({ ok: false, code: "event_unavailable" }, { status: 404 });
 
+    const guestMail = guestInvitationMail({
+      honoreeNames: event.honoreeNames,
+      title: event.title,
+      hostContactEmail: event.notificationEmail,
+      ownerEmail: event.owner.email,
+    });
     const result = await dispatchInvitationBroadcast({
       eventId: params.eventId,
       channel: parsed.value.channel,
@@ -67,7 +73,8 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       body: parsed.value.body,
       recipientIds: parsed.value.recipientIds,
       sentBy: actor.kind === "founder" ? "founder" : "owner",
-      emailFrom: EMAIL_FROM,
+      emailFrom: guestMail.from,
+      replyTo: guestMail.replyTo,
       smsFrom: TWILIO_FROM,
       locale: event.locale,
     });

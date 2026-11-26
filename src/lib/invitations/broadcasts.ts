@@ -244,6 +244,8 @@ export type DispatchBroadcastNotificationsInput = {
   subject: string | null;
   body: string;
   from: string;
+  /** Guest email only. Omitted when the host contact or owner email is missing. */
+  replyTo?: string;
   recipients: BroadcastRecipient[];
   /** Used for the SMS opt-out line. Defaults to English. */
   locale?: InvitationLocale;
@@ -333,6 +335,7 @@ export async function dispatchBroadcastNotifications(
           channel: "email",
           input: {
             from: input.from,
+            ...(input.replyTo ? { replyTo: input.replyTo } : {}),
             to: recipient.contact,
             subject: subject ?? "",
             html: renderBroadcastEmailHtml(outboundBody),
@@ -551,6 +554,7 @@ export type SendInvitationBroadcastInput = ComposeBroadcastInput & {
   emailFrom: string;
   smsFrom: string;
   locale: InvitationLocale;
+  replyTo?: string;
 };
 
 export type SendInvitationBroadcastResult = {
@@ -617,6 +621,7 @@ export async function dispatchInvitationBroadcast(
       locale: input.locale,
       optedOutPhones,
       from: input.channel === "email" ? input.emailFrom : input.smsFrom,
+      ...(input.channel === "email" && input.replyTo ? { replyTo: input.replyTo } : {}),
       recipients,
     },
     {
