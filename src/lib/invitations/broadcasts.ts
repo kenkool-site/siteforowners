@@ -22,6 +22,7 @@ export type BroadcastRecipient = {
   rsvpId: string;
   primaryName: string;
   contact: string;
+  attending?: boolean;
 };
 
 export function eligibleBroadcastRecipients(
@@ -30,21 +31,56 @@ export function eligibleBroadcastRecipients(
 ): BroadcastRecipient[] {
   return rows.flatMap((row) => {
     const contact = channel === "email" ? row.email : row.phone;
-    return contact ? [{ rsvpId: row.id, primaryName: row.primary_name, contact }] : [];
+    return contact ? [{ rsvpId: row.id, primaryName: row.primary_name, contact, attending: row.attending }] : [];
   });
+}
+
+export function maskInvitationEmail(email: string): string {
+  const at = email.indexOf("@");
+  if (at <= 0 || at === email.length - 1) return "•••";
+  return `${email.slice(0, 1)}•••${email.slice(at)}`;
+}
+
+export function maskInvitationPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  const last4 = digits.slice(-4);
+  if (last4.length < 4) return "•••";
+  return `••• ••• ${last4}`;
+}
+
+export type BroadcastRecipientChoice = {
+  id: string;
+  name: string;
+  contact: string;
+  status: "attending" | "declined";
+};
+
+export function composerRecipientChoices(
+  rows: InvitationResponseRow[],
+  channel: InvitationNotificationChannel,
+): BroadcastRecipientChoice[] {
+  return eligibleBroadcastRecipients(rows, channel).map((recipient) => ({
+    id: recipient.rsvpId,
+    name: recipient.primaryName,
+    contact: channel === "email" ? maskInvitationEmail(recipient.contact) : maskInvitationPhone(recipient.contact),
+    status: recipient.attending === false ? "declined" : "attending",
+  }));
 }
 
 export type ComposeBroadcastInput = {
   channel: InvitationNotificationChannel;
   subject: string | null;
   body: string;
+  /** Omitted means every guest who can receive this channel. */
+  recipientIds?: string[];
 };
 
 export type ComposeBroadcastErrorCode =
   | "invalid_channel"
   | "subject_required"
   | "body_required"
-  | "body_too_long";
+  | "body_too_long"
+  | "invalid_recipients";
 
 export type ParseComposeBroadcastResult =
   | { ok: true; value: ComposeBroadcastInput }
@@ -62,7 +98,49 @@ export function parseComposeBroadcastInput(value: unknown): ParseComposeBroadcas
   if (body.length > MAX_BROADCAST_BODY_LENGTH) return { ok: false, code: "body_too_long" };
   const subject = typeof input.subject === "string" ? input.subject.trim() : "";
   if (channel === "email" && !subject) return { ok: false, code: "subject_required" };
-  return { ok: true, value: { channel, subject: channel === "email" ? subject : null, body } };
+  let recipientIds: string[] | undefined;
+  if ("recipientIds" in input && input.recipientIds !== undefined) {
+    const raw = input.recipientIds;
+    if (!Array.isArray(raw) || raw.length === 0 || raw.length > 2000) {
+      return { ok: false, code: "invalid_recipients" };
+    }
+    const ids: string[] = [];
+    for (const id of raw) {
+      if (typeof id !== "string") return { ok: false, code: "invalid_recipients" };
+      const trimmed = id.trim();
+      if (!trimmed || trimmed.length > 80) return { ok: false, code: "invalid_recipients" };
+      ids.push(trimmed);
+    }
+    recipientIds = ids;
+  }
+  return { ok: true, value: { channel, subject: channel === "email" ? subject : null, body, recipientIds } };
+}
+
+export class InvitationBroadcastError extends Error {
+  constructor(readonly code: "invalid_recipients") {
+    super(code);
+    this.name = "InvitationBroadcastError";
+  }
+}
+
+/** Every explicit id must belong to this event and be eligible for the channel. */
+export function resolveBroadcastRecipients(
+  eligible: readonly BroadcastRecipient[],
+  recipientIds: readonly string[] | undefined,
+): { ok: true; recipients: BroadcastRecipient[] } | { ok: false; code: "invalid_recipients" } {
+  if (!recipientIds) return { ok: true, recipients: [...eligible] };
+  if (recipientIds.length === 0) return { ok: false, code: "invalid_recipients" };
+  const byId = new Map(eligible.map((recipient) => [recipient.rsvpId, recipient]));
+  const seen = new Set<string>();
+  const recipients: BroadcastRecipient[] = [];
+  for (const id of recipientIds) {
+    if (seen.has(id)) return { ok: false, code: "invalid_recipients" };
+    const match = byId.get(id);
+    if (!match) return { ok: false, code: "invalid_recipients" };
+    seen.add(id);
+    recipients.push(match);
+  }
+  return { ok: true, recipients };
 }
 
 function renderBroadcastEmailHtml(body: string): string {
@@ -387,9 +465,14 @@ async function listInvitationRsvpsForBroadcast(eventId: string): Promise<Invitat
 export async function dispatchInvitationBroadcast(
   input: SendInvitationBroadcastInput,
 ): Promise<SendInvitationBroadcastResult> {
-  const broadcast = await createInvitationBroadcast(input);
   const rows = await listInvitationRsvpsForBroadcast(input.eventId);
-  const recipients = eligibleBroadcastRecipients(rows, input.channel);
+  const selected = resolveBroadcastRecipients(
+    eligibleBroadcastRecipients(rows, input.channel),
+    input.recipientIds,
+  );
+  if (!selected.ok) throw new InvitationBroadcastError(selected.code);
+  const recipients = selected.recipients;
+  const broadcast = await createInvitationBroadcast(input);
 
   const result = await dispatchBroadcastNotifications(
     {

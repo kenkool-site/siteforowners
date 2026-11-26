@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { invitationCoverPreviewUrl, invitationMemoriesUrl, invitationPublicUrl } from "./public-url";
+import { invitationCoverPreviewUrl, invitationMemoriesUrl, invitationOgImageUrl, invitationPersonalUrl, invitationPublicUrl } from "./public-url";
 
 test("invitation public URL prefers an assigned clean subdomain, on invitespot.app", () => {
   assert.equal(
@@ -61,6 +61,32 @@ test("invitation memories URL without a subdomain falls back to the /invite/{slu
       "https://www.invitespot.app",
     ),
     "https://www.invitespot.app/invite/mercy-john-lx9cwn/memories",
+  );
+});
+
+test("open graph images are absolute invitespot.app URLs, including the memories path", () => {
+  assert.equal(
+    invitationOgImageUrl({ slug: "mercy-john", publicSubdomain: "mercy-john" }),
+    "https://mercy-john.invitespot.app/api/invitations/public/mercy-john/og",
+  );
+  assert.equal(
+    invitationOgImageUrl({ slug: "mercy-john", publicSubdomain: "mercy-john" }, "memories"),
+    "https://mercy-john.invitespot.app/api/invitations/public/mercy-john/og/memories",
+  );
+  assert.equal(
+    invitationOgImageUrl({ slug: "mercy/john", publicSubdomain: null }),
+    "https://www.invitespot.app/api/invitations/public/mercy%2Fjohn/og",
+  );
+  assert.equal(
+    invitationPersonalUrl({ slug: "mercy-john", publicSubdomain: "mercy-john" }, "K7mQ2pLx9aWc4nRb"),
+    "https://mercy-john.invitespot.app/i/K7mQ2pLx9aWc4nRb",
+  );
+});
+
+test("a bogus public subdomain cannot move the preview image off invitespot.app", () => {
+  assert.equal(
+    invitationOgImageUrl({ slug: "mercy-john", publicSubdomain: "https://evil.example" }),
+    "https://www.invitespot.app/api/invitations/public/mercy-john/og",
   );
 });
 

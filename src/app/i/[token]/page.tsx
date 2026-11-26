@@ -6,14 +6,26 @@ import { InvitationPublicProvider } from "@/components/invitations/InvitationPub
 import { eventIcsDataUrl, googleEventCalendarUrl } from "@/lib/invitations/calendar";
 import { formatEventWhen, memoriesPath } from "@/lib/invitations/event-site";
 import { guestFirstName, isGuestToken, personalInvitationLead } from "@/lib/invitations/guest-list";
+import { getGuestByToken } from "@/lib/invitations/guest-list-store";
 import { loadPersonalInvitation } from "@/lib/invitations/guest-list-service";
+import { invitationPageMetadata } from "@/lib/invitations/public-access";
+import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
+import { getEffectiveEventState } from "@/lib/invitations/state";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Your invitation",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({ params }: { params: { token: string } }): Promise<Metadata> {
+  try {
+    if (!isGuestToken(params.token)) return invitationPageMetadata(null, null, { page: "rsvp" });
+    const loaded = await getGuestByToken(params.token);
+    if (!loaded?.event.privateGuestListEnabled) return invitationPageMetadata(null, null, { page: "rsvp" });
+    const invitation = await getPublicInvitationBySlug(loaded.event.slug);
+    const state = invitation ? getEffectiveEventState(invitation.event, new Date()) : null;
+    return invitationPageMetadata(invitation, state, { page: "rsvp", token: params.token });
+  } catch {
+    return invitationPageMetadata(null, null, { page: "rsvp" });
+  }
+}
 
 export default async function PersonalInvitationPage({ params }: { params: { token: string } }) {
   if (!isGuestToken(params.token)) notFound();

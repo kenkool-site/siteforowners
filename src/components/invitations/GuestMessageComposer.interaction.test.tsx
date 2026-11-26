@@ -4,6 +4,7 @@ import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
+import type { BroadcastRecipientChoice } from "@/lib/invitations/broadcasts";
 import { buildMessageTemplateValues } from "@/lib/invitations/message-templates";
 import { GuestMessageComposer } from "./GuestMessageComposer";
 import type { InvitationBroadcast } from "@/lib/invitations/types";
@@ -26,9 +27,20 @@ const templateValues = buildMessageTemplateValues({
 
 Object.assign(globalThis, { React });
 
+const defaultRecipients: { email: BroadcastRecipientChoice[]; sms: BroadcastRecipientChoice[] } = {
+  email: [
+    { id: "r1", name: "Wunmi Adeniji", contact: "w•••@example.test", status: "attending" },
+    { id: "r2", name: "Ada Lovelace", contact: "a•••@example.test", status: "declined" },
+  ],
+  sms: [
+    { id: "r1", name: "Wunmi Adeniji", contact: "••• ••• 4567", status: "attending" },
+  ],
+};
+
 async function withComposer(
   fetchImpl: typeof fetch,
   run: (container: HTMLElement, dom: JSDOM) => Promise<void>,
+  recipients = defaultRecipients,
 ) {
   const dom = new JSDOM("<!doctype html><html><body><div id='root'></div></body></html>", { url: "https://app.example.test" });
   // Includes "self" beyond ResponsesDashboard.interaction.test.tsx's list:
@@ -66,7 +78,7 @@ async function withComposer(
             backHref="/invitations/manage/event-1"
             templateValues={templateValues}
             smsBudget={{ limit: 500, remaining: 500 }}
-            initialRecipientCounts={{ email: 8, sms: 5 }}
+            recipients={recipients}
             initialTotalResponses={10}
             initialHistory={[]}
           />
@@ -113,7 +125,7 @@ test("selecting a template fills in subject and body, and sending posts the comp
     assert.ok(thankYouButton, "expected a Thank you template button");
     await act(async () => { thankYouButton.click(); });
 
-    const subjectInput = container.querySelector<HTMLInputElement>("input:not([type='radio'])");
+    const subjectInput = container.querySelector<HTMLInputElement>("input[name='subject']");
     assert.ok(subjectInput, "expected a subject text input");
     assert.ok(subjectInput.value.length > 0, "expected the template to fill the subject field");
 
@@ -130,6 +142,7 @@ test("selecting a template fills in subject and body, and sending posts the comp
     const posted = JSON.parse(postCall!.body!);
     assert.equal(posted.channel, "email");
     assert.ok(posted.subject.length > 0);
+    assert.deepEqual(posted.recipientIds, ["r1", "r2"]);
 
     assert.match(container.textContent ?? "", /Sent to 8/);
   });
@@ -168,6 +181,41 @@ test("selecting a template inserts host, date, and venue, and SMS uses the short
       .find((input) => input.parentElement?.textContent?.includes("Email"))!;
     await act(async () => { emailRadio.click(); });
     assert.equal(textarea.value, "Custom note for guests");
+  });
+});
+
+test("clearing one guest sends only the guests who stay selected", async () => {
+  const calls: Array<{ method?: string; body?: string }> = [];
+  await withComposer(async (_input, init) => {
+    calls.push({ method: init?.method, body: init?.body as string | undefined });
+    return { ok: true, json: async () => ({ ok: true, broadcast: {
+      id: "broadcast-2", eventId: "event-1", channel: "email", subject: "Hi", body: "Hello there",
+      sentBy: "owner", recipientCount: 1, sentCount: 1, failedCount: 0, suppressedCount: 0,
+      createdAt: "2026-09-20T12:00:00.000Z",
+    }, sentCount: 1, failedCount: 0, suppressedCount: 0 }) } as Response;
+  }, async (container, dom) => {
+    dom.window.confirm = () => true;
+    const ada = Array.from(container.querySelectorAll("label")).find((label) => label.textContent?.includes("Ada Lovelace"));
+    const checkbox = ada?.querySelector<HTMLInputElement>("input[type='checkbox']");
+    assert.ok(checkbox?.checked);
+    await act(async () => { checkbox?.click(); });
+    assert.match(container.textContent ?? "", /reach 1 of 10 guests/i);
+
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    const subject = container.querySelector<HTMLInputElement>("input[name='subject']")!;
+    const setValue = (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
+      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")!.set!;
+      setter.call(element, value);
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    await act(async () => {
+      setValue(subject, "Hello");
+      setValue(textarea, "Hello there");
+    });
+    const sendButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Send message")!;
+    await act(async () => { sendButton.click(); await Promise.resolve(); });
+    const posted = JSON.parse(calls.find((call) => call.method === "POST")!.body!);
+    assert.deepEqual(posted.recipientIds, ["r1"]);
   });
 });
 

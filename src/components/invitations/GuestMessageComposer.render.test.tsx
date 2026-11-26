@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
 import esMessages from "../../../messages/es.json";
+import type { BroadcastRecipientChoice } from "@/lib/invitations/broadcasts";
 import { buildMessageTemplateValues } from "@/lib/invitations/message-templates";
 import { GuestMessageComposer } from "./GuestMessageComposer";
 
@@ -26,6 +27,20 @@ const templateValues = buildMessageTemplateValues({
   additionalSections: [],
 });
 
+function people(prefix: string, count: number, contact: string): BroadcastRecipientChoice[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `${prefix}-${index}`,
+    name: `Guest ${index + 1}`,
+    contact,
+    status: index % 2 === 0 ? "attending" : "declined",
+  }));
+}
+
+const recipients = {
+  email: people("email", 8, "g•••@example.com"),
+  sms: people("sms", 5, "••• ••• 4567"),
+};
+
 function render(): string {
   return renderToStaticMarkup(
     <NextIntlClientProvider locale="en" messages={enMessages} timeZone="America/New_York">
@@ -35,7 +50,7 @@ function render(): string {
         backHref="/invitations/manage/event-1"
         templateValues={templateValues}
         smsBudget={{ limit: 500, remaining: 420 }}
-        initialRecipientCounts={{ email: 8, sms: 5 }}
+        recipients={recipients}
         initialTotalResponses={10}
         initialHistory={[]}
       />
@@ -53,6 +68,11 @@ test("the composer exposes a channel picker, template picker, and compose fields
 test("the recipient preview reflects the initial email recipient count out of total responses", () => {
   const html = render();
   assert.match(html, /reach 8 of 10 guests/i);
+  assert.match(html, /Guest 1/);
+  assert.match(html, /g•••@example.com/);
+  assert.match(html, /Select all/);
+  assert.match(html, /Not attending/);
+  assert.doesNotMatch(html, /\+1555|guest@example\.com/);
 });
 
 test("an empty history shows the empty state, not a broken list", () => {
@@ -69,7 +89,10 @@ test("Spanish templates render without dropping the new labels", () => {
         backHref="/invitations/manage/event-1"
         templateValues={{ ...templateValues, name: "Mercy y John", parking: "[estacionamiento]", change: "[que cambio]" }}
         smsBudget={null}
-        initialRecipientCounts={{ email: 1, sms: 1 }}
+        recipients={{
+          email: [{ id: "email-1", name: "Invitada", contact: "a•••@example.com", status: "attending" }],
+          sms: [{ id: "sms-1", name: "Invitada", contact: "••• ••• 0100", status: "declined" }],
+        }}
         initialTotalResponses={1}
         initialHistory={[]}
       />

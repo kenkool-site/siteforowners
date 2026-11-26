@@ -8,9 +8,10 @@ import { cookies } from "next/headers";
 import { INVITATION_OWNER_SESSION_COOKIE, verifyOwnerSession } from "@/lib/invitations/auth";
 import { invitationOwnerOwnsEvent } from "@/lib/invitations/access";
 import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
+import { invitationPageMetadata } from "@/lib/invitations/public-access";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
-import { formatInTimeZone, venueLine } from "@/lib/invitations/memories/guest-presentation";
+import { getEffectiveEventState } from "@/lib/invitations/state";
 import enMessages from "../../../../../messages/en.json";
 import esMessages from "../../../../../messages/es.json";
 
@@ -19,27 +20,19 @@ const MEMORIES_PALETTE = { accent: "#1f4a2c", background: "#efede5", text: "#1c2
 export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
   try {
     const invitation = await getPublicInvitationBySlug(params.slug);
-    if (!invitation) return { title: "Photos · InviteSpot", robots: { index: false, follow: false } };
-    const settings = await getEventMemoriesSettings(invitation.event.id);
-    const names = invitation.event.honoreeNames.trim() || invitation.event.title;
-    const branding = settings?.brandingEnabled !== false;
-    const when = formatInTimeZone(invitation.event.startsAt, invitation.event.timezone, invitation.event.locale, { month: "short", day: "numeric", year: "numeric" });
-    const place = venueLine(invitation.event.venueName, invitation.event.address);
-    const description = [when, place].filter(Boolean).join(" · ");
-    const photosLabel = invitation.event.locale === "es" ? "Fotos" : "Photos";
-    const title = branding ? `${names} · ${photosLabel} · InviteSpot` : `${names} · ${photosLabel}`;
-    return {
-      title,
-      description: description || undefined,
-      openGraph: {
-        title: names,
-        description: description || undefined,
-        siteName: branding ? "InviteSpot" : undefined,
-      },
-      twitter: { card: "summary_large_image", title, description: description || undefined },
-    };
+    const state = invitation ? getEffectiveEventState(invitation.event, new Date()) : null;
+    let showBrand = true;
+    if (invitation && !invitation.passcodeHash && (state === "published" || state === "rsvp_closed")) {
+      try {
+        const settings = await getEventMemoriesSettings(invitation.event.id);
+        if (settings) showBrand = settings.brandingEnabled !== false;
+      } catch {
+        showBrand = true;
+      }
+    }
+    return invitationPageMetadata(invitation, state, { page: "memories", showBrand });
   } catch {
-    return { title: "Photos · InviteSpot" };
+    return invitationPageMetadata(null, null, { page: "memories" });
   }
 }
 

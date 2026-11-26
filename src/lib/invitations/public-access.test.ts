@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { formatEventWhen } from "./event-site";
 import {
+  invitationOgPlan,
   invitationPageMetadata,
   resolvePublicInvitationPage,
   resolveInvitationPreview,
@@ -38,7 +40,7 @@ const invitation: PublicInvitationLookup = {
     rsvpDeadline: null,
     rsvpOverrideOpen: false,
     status: "published",
-    expireAt: "2026-10-12T04:00:00.000Z",
+    expireAt: "2027-10-12T04:00:00.000Z",
   },
   passcodeHash: null,
   rsvpSummary: { attendingPeople: 4, declinedParties: 2 },
@@ -90,34 +92,106 @@ test("published and RSVP-closed invitations resolve to details regardless of pas
   }
 });
 
-test("only published passcode-free invitations receive authored metadata", () => {
+test("published invitations advertise the event on invitespot.app, never SiteForOwners", () => {
   const publicMetadata = invitationPageMetadata({
     ...invitation,
     event: { ...invitation.event, title: "Save the Date", publicSubdomain: "mia-lee", coverImagePath: "event-1/cover/share.png" },
   }, "published");
-  assert.equal(publicMetadata.title, "Mia and Lee");
-  assert.equal(publicMetadata.description, "Save the Date — The Garden — Celebrate with us");
-  assert.equal(publicMetadata.openGraph?.title, "Mia and Lee");
-  assert.equal(publicMetadata.openGraph?.description, "Save the Date — The Garden — Celebrate with us");
-  assert.equal(publicMetadata.twitter?.title, "Mia and Lee");
-  assert.equal(publicMetadata.twitter?.description, "Save the Date — The Garden — Celebrate with us");
+  const when = formatEventWhen(invitation.event.startsAt, invitation.event.timezone, "en");
+  assert.ok(when);
+  assert.equal(publicMetadata.title, "You're invited: Mia and Lee");
+  assert.equal(publicMetadata.description, `Save the Date · ${when} · The Garden · Celebrate with us`);
+  assert.equal(publicMetadata.openGraph?.title, "You're invited: Mia and Lee");
+  assert.equal(publicMetadata.openGraph?.description, publicMetadata.description);
+  assert.equal(publicMetadata.openGraph?.siteName, "InviteSpot");
+  assert.equal(publicMetadata.openGraph?.url, "https://mia-lee.invitespot.app/");
+  assert.equal(publicMetadata.applicationName, "InviteSpot");
+  assert.equal(publicMetadata.metadataBase?.href, "https://mia-lee.invitespot.app/");
+  assert.equal(publicMetadata.twitter?.title, "You're invited: Mia and Lee");
   assert.deepEqual(publicMetadata.robots, { index: true, follow: true });
   assert.equal(publicMetadata.alternates?.canonical, "https://mia-lee.invitespot.app/");
-  // Cover images stay on the shared siteforowners.com app URL — deliberately
-  // unaffected by the invitespot.app migration (invitationCoverPreviewUrl).
-  assert.deepEqual(publicMetadata.openGraph?.images, [{ url: "https://www.siteforowners.com/api/invitations/public/mia-and-lee/cover", alt: "Mia and Lee" }]);
+  assert.deepEqual(publicMetadata.openGraph?.images, [{
+    url: "https://mia-lee.invitespot.app/api/invitations/public/mia-and-lee/og",
+    width: 1200,
+    height: 630,
+    alt: "Mia and Lee",
+  }]);
   assert.match(JSON.stringify(publicMetadata.twitter), /summary_large_image/);
-  assert.doesNotMatch(JSON.stringify(publicMetadata), /Secret Celebration Way|maps\.example/);
+  assert.match(JSON.stringify(publicMetadata.twitter), /mia-lee\.invitespot\.app\/api\/invitations\/public\/mia-and-lee\/og/);
+  assert.doesNotMatch(JSON.stringify(publicMetadata), /siteforowners|Secret Celebration Way|maps\.example|event-1\/cover/i);
 
-  for (const state of ["draft", "rsvp_closed", "expired", "offline"] as const) {
+  const closed = invitationPageMetadata({
+    ...invitation,
+    event: { ...invitation.event, title: "Save the Date", publicSubdomain: "mia-lee" },
+  }, "rsvp_closed");
+  assert.equal(closed.title, "You're invited: Mia and Lee");
+  assert.equal(closed.openGraph?.siteName, "InviteSpot");
+  assert.deepEqual(closed.robots, { index: false, follow: false });
+  assert.match(String(closed.description), /The Garden/);
+  assert.doesNotMatch(JSON.stringify(closed), /Secret Celebration Way|siteforowners/i);
+
+  for (const state of ["draft", "expired", "offline"] as const) {
     const metadata = invitationPageMetadata(invitation, state);
     assert.deepEqual(metadata.robots, { index: false, follow: false });
-    assert.doesNotMatch(JSON.stringify(metadata), /Mia|Celebrate|Secret Celebration Way|maps\.example/);
+    assert.equal(metadata.openGraph?.siteName, "InviteSpot");
+    assert.equal(metadata.title, "Invitation");
+    assert.doesNotMatch(JSON.stringify(metadata), /Mia|Celebrate|The Garden|Secret Celebration Way|maps\.example/);
+    assert.doesNotMatch(JSON.stringify(metadata), /siteforowners/i);
   }
   const protectedMetadata = invitationPageMetadata({ ...invitation, passcodeHash: "stored" }, "published");
   assert.deepEqual(protectedMetadata.robots, { index: false, follow: false });
-  assert.doesNotMatch(JSON.stringify(protectedMetadata), /Mia|Celebrate|Secret Celebration Way|maps\.example/);
+  assert.equal(protectedMetadata.openGraph?.siteName, "InviteSpot");
+  assert.equal(protectedMetadata.title, "Invitation");
+  assert.doesNotMatch(JSON.stringify(protectedMetadata), /Mia|Celebrate|The Garden|Secret Celebration Way|maps\.example/);
+  assert.doesNotMatch(JSON.stringify(protectedMetadata), /siteforowners/i);
   assert.doesNotMatch(JSON.stringify(protectedMetadata), /\/cover/);
+});
+
+test("private guest lists share only the names and cover the public gate already shows", () => {
+  const metadata = invitationPageMetadata({
+    ...invitation,
+    event: {
+      ...invitation.event,
+      publicSubdomain: "mia-lee",
+      privateGuestListEnabled: true,
+      coverImagePath: "event-1/cover/share.png",
+    },
+  }, "published");
+  assert.equal(metadata.title, "You're invited: Mia and Lee");
+  assert.equal(metadata.description, "This event is invite-only.");
+  assert.equal(metadata.openGraph?.siteName, "InviteSpot");
+  assert.match(JSON.stringify(metadata.openGraph?.images), /mia-lee\.invitespot\.app\/api\/invitations\/public\/mia-and-lee\/og/);
+  assert.doesNotMatch(JSON.stringify(metadata), /The Garden|Celebrate|Secret Celebration Way|October|event-1\/cover|siteforowners/i);
+  const plan = invitationOgPlan({
+    ...invitation,
+    event: { ...invitation.event, privateGuestListEnabled: true, coverImagePath: "event-1/cover/share.png" },
+  }, "published");
+  assert.equal(plan.names, "Mia and Lee");
+  assert.equal(plan.detail, "Invite-only");
+  assert.deepEqual(plan.cover, { eventId: "event-1", path: "event-1/cover/share.png" });
+  const hidden = invitationOgPlan({ ...invitation, passcodeHash: "stored" }, "published");
+  assert.equal(hidden.names, "You're invited");
+  assert.equal(hidden.detail, "");
+  assert.equal(hidden.cover, null);
+});
+
+test("memories and personal RSVP previews stay on the event origin", () => {
+  const event = { ...invitation.event, publicSubdomain: "mia-lee", locale: "es" as const };
+  const memories = invitationPageMetadata({ ...invitation, event }, "published", { page: "memories", showBrand: true });
+  assert.equal(memories.openGraph?.url, "https://mia-lee.invitespot.app/memories");
+  assert.match(String(memories.title), /Fotos · InviteSpot/);
+  assert.match(JSON.stringify(memories.openGraph?.images), /\/og\/memories/);
+  const quiet = invitationPageMetadata({ ...invitation, event }, "published", { page: "memories", showBrand: false });
+  assert.equal(quiet.openGraph?.siteName, "Mia and Lee");
+  assert.doesNotMatch(String(quiet.title), /InviteSpot|SiteForOwners/);
+  const personal = invitationPageMetadata({ ...invitation, event: invitation.event }, "published", {
+    page: "rsvp",
+    token: "K7mQ2pLx9aWc4nRb",
+  });
+  assert.equal(personal.openGraph?.url, "https://www.invitespot.app/i/K7mQ2pLx9aWc4nRb");
+  assert.deepEqual(personal.robots, { index: false, follow: false });
+  assert.match(JSON.stringify(personal.openGraph?.images), /\/api\/invitations\/public\/mia-and-lee\/og/);
+  assert.doesNotMatch(JSON.stringify(personal.openGraph?.images), /K7mQ2pLx9aWc4nRb/);
 });
 
 test("invitation metadata falls back to the invitation title and avoids duplicate supporting text", () => {
@@ -125,15 +199,16 @@ test("invitation metadata falls back to the invitation title and avoids duplicat
     ...invitation,
     event: { ...invitation.event, honoreeNames: "", title: "Birthday Celebration" },
   }, "published");
-  assert.equal(fallback.title, "Birthday Celebration");
-  assert.equal(fallback.description, "The Garden — Celebrate with us");
+  assert.equal(fallback.title, "You're invited: Birthday Celebration");
+  assert.match(String(fallback.description), /The Garden · Celebrate with us/);
 
   const sameTitle = invitationPageMetadata({
     ...invitation,
     event: { ...invitation.event, honoreeNames: "  Mia and Lee  ", title: "mia and lee" },
   }, "published");
-  assert.equal(sameTitle.title, "Mia and Lee");
-  assert.equal(sameTitle.description, "The Garden — Celebrate with us");
+  assert.equal(sameTitle.title, "You're invited: Mia and Lee");
+  assert.match(String(sameTitle.description), /The Garden · Celebrate with us/);
+  assert.doesNotMatch(String(sameTitle.description), /Mia and Lee ·/);
 });
 
 test("getInvitationReferralDisplayName returns the honoree names for a published event", async () => {

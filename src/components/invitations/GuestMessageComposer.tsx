@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import type { BroadcastRecipientChoice } from "@/lib/invitations/broadcasts";
 import {
   MESSAGE_TEMPLATE_KEYS,
   type MessageTemplateKey,
@@ -25,6 +26,7 @@ type ComposerResult = {
 };
 
 type SmsBudget = { limit: number; remaining: number };
+type StatusFilter = "all" | "attending" | "declined";
 
 export function GuestMessageComposer({
   eventId,
@@ -32,7 +34,7 @@ export function GuestMessageComposer({
   backHref,
   templateValues,
   smsBudget: initialSmsBudget,
-  initialRecipientCounts,
+  recipients,
   initialTotalResponses,
   initialHistory,
 }: {
@@ -41,7 +43,7 @@ export function GuestMessageComposer({
   backHref: string;
   templateValues: MessageTemplateValues;
   smsBudget: SmsBudget | null;
-  initialRecipientCounts: { email: number; sms: number };
+  recipients: { email: BroadcastRecipientChoice[]; sms: BroadcastRecipientChoice[] };
   initialTotalResponses: number;
   initialHistory: InvitationBroadcast[];
 }) {
@@ -56,10 +58,23 @@ export function GuestMessageComposer({
   const [result, setResult] = useState<ComposerResult | null>(null);
   const [history, setHistory] = useState(initialHistory);
   const [smsBudget, setSmsBudget] = useState(initialSmsBudget);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set(recipients.email.map((guest) => guest.id)));
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
 
-  const recipientCount = channel === "email" ? initialRecipientCounts.email : initialRecipientCounts.sms;
-  const missingCount = initialTotalResponses - recipientCount;
+  const roster = channel === "email" ? recipients.email : recipients.sms;
+  const selectedIds = roster.filter((guest) => selected.has(guest.id)).map((guest) => guest.id);
+  const recipientCount = selectedIds.length;
+  const missingCount = initialTotalResponses - roster.length;
   const smsSegments = channel === "sms" ? estimateSmsSegments(body) : 0;
+  const visible = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return roster.filter((guest) => {
+      if (statusFilter !== "all" && guest.status !== statusFilter) return false;
+      if (!needle) return true;
+      return guest.name.toLowerCase().includes(needle) || guest.contact.toLowerCase().includes(needle);
+    });
+  }, [query, roster, statusFilter]);
 
   const templates = useMemo(() => {
     const filled = {} as Record<MessageTemplateKey, { subject: string; email: string; sms: string }>;
@@ -89,10 +104,34 @@ export function GuestMessageComposer({
 
   function changeChannel(next: InvitationNotificationChannel) {
     setChannel(next);
+    setQuery("");
+    setStatusFilter("all");
+    const nextRoster = next === "email" ? recipients.email : recipients.sms;
+    setSelected(new Set(nextRoster.map((guest) => guest.id)));
     if (templateKey && !edited) {
       setSubject(templates[templateKey].subject);
       setBody(next === "sms" ? templates[templateKey].sms : templates[templateKey].email);
     }
+  }
+
+  function setVisibleSelection(checked: boolean) {
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const guest of visible) {
+        if (checked) next.add(guest.id);
+        else next.delete(guest.id);
+      }
+      return next;
+    });
+  }
+
+  function toggleGuest(id: string) {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function send() {
@@ -104,12 +143,17 @@ export function GuestMessageComposer({
       const response = await fetch(`/api/invitations/events/${eventId}/messages`, {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ channel, subject: channel === "email" ? subject : undefined, body }),
+        body: JSON.stringify({
+          channel,
+          subject: channel === "email" ? subject : undefined,
+          body,
+          recipientIds: selectedIds,
+        }),
       });
       const data: unknown = await response.json();
       if (!response.ok || !data || typeof data !== "object" || !("ok" in data) || !(data as { ok: boolean }).ok) {
         const code = data && typeof data === "object" && "code" in data ? (data as { code?: unknown }).code : undefined;
-        setMessage(code === "body_too_long" ? t("bodyTooLong") : t("error"));
+        setMessage(code === "body_too_long" ? t("bodyTooLong") : code === "invalid_recipients" ? t("invalidRecipients") : t("error"));
         return;
       }
       const payload = data as ComposerResult & {
@@ -176,7 +220,7 @@ export function GuestMessageComposer({
           {channel === "email" && (
             <label className="mt-5 block text-sm font-semibold">
               {t("fields.subject")}
-              <input value={subject} onChange={(event) => { setSubject(event.target.value); setEdited(true); }} className="mt-2 min-h-11 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
+              <input name="subject" value={subject} onChange={(event) => { setSubject(event.target.value); setEdited(true); }} className="mt-2 min-h-11 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
             </label>
           )}
 
@@ -191,10 +235,69 @@ export function GuestMessageComposer({
             </p>
           )}
 
+          <fieldset className="mt-5">
+            <legend className="text-sm font-semibold">{t("recipients.label")}</legend>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {(["all", "attending", "declined"] as const).map((filter) => (
+                <button
+                  key={filter}
+                  type="button"
+                  aria-pressed={statusFilter === filter}
+                  onClick={() => setStatusFilter(filter)}
+                  className={`min-h-11 rounded-full border px-4 text-sm font-semibold ${statusFilter === filter ? "border-[#6D456F] bg-[#F4EAF3] text-[#6D456F]" : "border-[#cfc3d3]"}`}
+                >
+                  {t(`recipients.status.${filter}`)}
+                </button>
+              ))}
+            </div>
+            <label className="mt-3 block text-sm font-semibold">
+              <span className="sr-only">{t("recipients.search")}</span>
+              <input
+                type="search"
+                value={query}
+                maxLength={80}
+                autoComplete="off"
+                placeholder={t("recipients.search")}
+                onChange={(event) => setQuery(event.target.value)}
+                className="min-h-11 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] font-normal text-[#2B2231]"
+              />
+            </label>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => setVisibleSelection(true)} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">{t("recipients.selectAll")}</button>
+              <button type="button" onClick={() => setVisibleSelection(false)} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">{t("recipients.clear")}</button>
+              <p className="text-xs text-[#675d6a]">{t("recipients.selected", { count: recipientCount })}</p>
+            </div>
+            {roster.length === 0 ? (
+              <p className="mt-3 text-sm text-[#675d6a]">{t("recipients.empty", { channel })}</p>
+            ) : visible.length === 0 ? (
+              <p className="mt-3 text-sm text-[#675d6a]">{t("recipients.noMatches")}</p>
+            ) : (
+              <ul className="mt-3 max-h-80 space-y-1 overflow-y-auto">
+                {visible.map((guest) => (
+                  <li key={guest.id}>
+                    <label className="flex min-h-11 items-center gap-3 rounded-md px-1 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="size-5 shrink-0 accent-[#6D456F]"
+                        checked={selected.has(guest.id)}
+                        onChange={() => toggleGuest(guest.id)}
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-semibold">{guest.name}</span>
+                        <span className="block truncate text-xs text-[#675d6a]">{guest.contact}</span>
+                      </span>
+                      <span className="shrink-0 text-xs text-[#807484]">{t(`recipients.status.${guest.status}`)}</span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </fieldset>
+
           <p className="mt-5 text-sm text-[#675d6a]">{t("recipientPreview", { reached: recipientCount, total: initialTotalResponses })}</p>
           {missingCount > 0 && <p className="mt-1 text-xs text-[#807484]">{t("recipientPreviewGap", { missing: missingCount, channel })}</p>}
           {channel === "sms" && smsBudget && (
-            <p className="mt-1 text-xs text-[#675d6a]" aria-live="polite">{t("smsRemaining", { remaining: smsBudget.remaining, limit: smsBudget.limit })}</p>
+            <p className="mt-1 text-xs text-[#675d6a]" aria-live="polite">{t("smsRemaining", { remaining: smsBudget.remaining, limit: smsBudget.limit, needed: recipientCount })}</p>
           )}
           {smsShortfall && smsBudget && (
             <p className="mt-1 text-xs text-[#9a6b2f]">{t("smsRemainingShort", { needed: recipientCount, remaining: smsBudget.remaining })}</p>
