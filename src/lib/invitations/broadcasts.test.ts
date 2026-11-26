@@ -70,6 +70,43 @@ test("compose input rejects a body over 5000 characters", () => {
   assert.deepEqual(result, { ok: false, code: "body_too_long" });
 });
 
+test("a guest broadcast email keeps the host from name and reply-to", async () => {
+  let from = "";
+  let replyTo: string | undefined;
+  let html = "";
+  let subject = "";
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1", broadcastId: "broadcast-1", channel: "email",
+      subject: "Thank you, and photos, from Mercy & John",
+      body: "Thank you for celebrating with us.\n\nPhotos and highlights: https://example.test/memories",
+      from: '"Mercy & John via InviteSpot" <hello@siteforowners.com>',
+      replyTo: "hosts@example.com",
+      recipients: [{ rsvpId: "r1", primaryName: "Kenneth A", contact: "kenneth@example.test" }],
+    },
+    {
+      reserve: async () => ({ id: "n1", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async (input) => {
+        from = input.from;
+        replyTo = input.replyTo;
+        html = input.html;
+        subject = input.subject;
+        return { ok: true, providerId: "e1" };
+      } },
+      sms: { send: async () => ({ ok: true, providerId: "sms-1" }) },
+    },
+  );
+  assert.equal(from, '"Mercy & John via InviteSpot" <hello@siteforowners.com>');
+  assert.equal(replyTo, "hosts@example.com");
+  assert.equal(subject, "Thank you, and photos, from Mercy & John");
+  assert.doesNotMatch(html, /SiteForOwners/);
+  assert.doesNotMatch(subject, /SiteForOwners/);
+  assert.match(html, /Photos and highlights/);
+});
+
 test("a recipient whose email provider call fails is counted as failed, not thrown", async () => {
   const marked: string[] = [];
   const result = await dispatchBroadcastNotifications(

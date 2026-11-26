@@ -623,6 +623,7 @@ export async function dispatchFixtureInvitationRsvpNotifications(
       ownerEmailNotifications: event.owner_email_notifications,
       ownerSmsNotifications: event.owner_sms_notifications,
       notificationEmail: event.notification_email,
+      ownerEmail: (Array.isArray(event.invitation_owners) ? event.invitation_owners[0] : event.invitation_owners)?.email ?? null,
       notificationPhone: event.notification_phone,
       guestEmailConfirmations: event.guest_email_confirmations,
     },
