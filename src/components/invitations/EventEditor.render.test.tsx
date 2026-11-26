@@ -119,6 +119,9 @@ test("only founders see cost limit controls", () => {
   assert.match(render("founder"), /Submission limit/);
   assert.match(render("founder"), /Owner sign-in email/);
   assert.match(render("founder"), /name="privateGuestListEnabled"/);
+  assert.match(render("founder"), /name="smsBroadcastLimit"/);
+  assert.match(render("founder"), /Guest text limit/);
+  assert.doesNotMatch(render("owner"), /name="smsBroadcastLimit"/);
   assert.match(render("founder"), /Private guest list \(invite-only\)/);
 });
 

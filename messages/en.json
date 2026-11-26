@@ -382,14 +382,80 @@
         "templates": {
           "label": "Start from a template",
           "blank": "Start blank",
-          "thankYou": { "label": "Thank you", "subject": "Thank you for celebrating with us!", "body": "{name}: Thank you so much for being part of our special day. It meant the world to have you there." },
-          "reminder": { "label": "Reminder", "subject": "A quick reminder about our big day", "body": "{name}: Just a friendly reminder about our upcoming event — we can't wait to see you there!" },
-          "update": { "label": "Update", "subject": "An update about our event", "body": "{name}: We wanted to let you know about a small update — please check the invitation page for the latest details." }
+          "hint": "Templates fill the message. Edit it before you send. Nothing sends until you press Send.",
+          "thankYou": {
+            "label": "Thank you",
+            "subject": "Thank you from {name}",
+            "email": "{name}\n\nThank you for celebrating with us. It meant so much to have you there.\n\nWith love,\n{name}",
+            "sms": "{name}: Thank you for celebrating with us. It meant so much to have you there."
+          },
+          "reminder": {
+            "label": "Reminder",
+            "subject": "Reminder for {name}",
+            "email": "{name}\n\nA reminder about our celebration.\n\nWhen: {when}\nWhere: {place}\n\nInvitation: {inviteUrl}",
+            "sms": "{name} reminder: {smsWhen} at {venue}. {inviteUrl}"
+          },
+          "dayBefore": {
+            "label": "Day before",
+            "subject": "Tomorrow: {name}",
+            "email": "{name}\n\nWe celebrate tomorrow and would love to see you.\n\nWhen: {when}\nWhere: {place}\n\nInvitation: {inviteUrl}",
+            "sms": "{name} is tomorrow, {smsWhen}, at {venue}. {inviteUrl}"
+          },
+          "eventDay": {
+            "label": "Event day",
+            "subject": "Today: {name}",
+            "email": "{name}\n\nToday is the day. Here are the details for getting there.\n\nWhen: {time}\nWhere: {place}\nDirections: {directions}\nParking: {parking}\n\nInvitation: {inviteUrl}",
+            "sms": "{name} is today at {smsTime}, {venue}. Directions: {smsDirections}. Parking: {parking}"
+          },
+          "dressCode": {
+            "label": "Dress code",
+            "subject": "Dress code for {name}",
+            "email": "{name}\n\nHere is what to wear, including aso-ebi or other colors if we asked for them.\n\nDress code: {dressCode}\nColors: {colors}\n\nInvitation: {inviteUrl}",
+            "sms": "{name}: Dress code / aso-ebi: {smsDressCode}. Colors: {smsColors}."
+          },
+          "scheduleChange": {
+            "label": "Schedule change",
+            "subject": "A change for {name}",
+            "email": "{name}\n\nThere is a change to the schedule or the venue.\n\nWhat changed: {change}\n\nPlease use the invitation for the latest details:\n{inviteUrl}\n\nWhere we last listed it: {place}",
+            "sms": "{name}: Change - {change}. Details: {inviteUrl}"
+          },
+          "rsvpDeadline": {
+            "label": "RSVP deadline",
+            "subject": "Please RSVP for {name}",
+            "email": "{name}\n\nPlease send your RSVP by {deadline} so we can plan for you.\n\n{inviteUrl}",
+            "sms": "{name}: Please RSVP by {smsDeadline}. {inviteUrl}"
+          },
+          "photoSharing": {
+            "label": "Share photos",
+            "subject": "Share photos from {name}",
+            "email": "{name}\n\nPlease add your photos and videos to our memories page. We would love to see the day through your eyes.\n\n{memoriesUrl}",
+            "sms": "{name}: Please share your photos: {memoriesUrl}"
+          },
+          "thankYouPhotos": {
+            "label": "Thank you and photos",
+            "subject": "Thank you and photos from {name}",
+            "email": "{name}\n\nThank you for celebrating with us. It meant so much to have you there.\n\nPhotos and highlights: {memoriesUrl}",
+            "sms": "{name}: Thank you for celebrating with us. Photos: {memoriesUrl}"
+          },
+          "livestream": {
+            "label": "Livestream",
+            "subject": "Watch {name}",
+            "email": "{name}\n\nJoin us online if you cannot be there in person.\n\n{livestream}\n\nInvitation: {inviteUrl}",
+            "sms": "{name}: Watch with us: {livestream}"
+          },
+          "update": {
+            "label": "Update",
+            "subject": "An update for {name}",
+            "email": "{name}\n\nWe have an update for you.\n\n{change}\n\nLatest details: {inviteUrl}",
+            "sms": "{name}: Update - {change}. Details: {inviteUrl}"
+          }
         },
         "fields": {
           "subject": "Subject",
           "body": "Message"
         },
+        "smsRemaining": "{remaining} of {limit} guest texts left for this event.",
+        "smsRemainingShort": "This text needs {needed} sends and {remaining} are left, so some guests will be skipped.",
         "smsCharacterCount": "{count} characters",
         "smsSegmentWarning": "{count, plural, one {This will send as # message segment per recipient.} other {This will send as # message segments per recipient — longer messages cost more.}}",
         "recipientPreview": "This will reach {reached} of {total, plural, one {# guest} other {# guests}}.",
@@ -512,6 +578,7 @@
         "submissionLimit": "Submission limit",
         "emailLimit": "Email notification limit",
         "smsLimit": "SMS notification limit",
+        "smsBroadcastLimit": "Guest text limit",
         "ownerName": "Owner name",
         "ownerEmail": "Owner sign-in email",
         "ownerPhone": "Owner phone",
@@ -536,7 +603,8 @@
         "venueUrl": "https://venue.example/",
         "address": "Street, city, state",
         "mapUrl": "https://maps.google.com/…",
-        "passcode": "Leave blank to keep the current passcode"
+        "passcode": "Leave blank to keep the current passcode",
+        "smsBroadcastLimit": "Platform default"
       },
       "status": {
         "label": "Status",
@@ -730,6 +798,8 @@
       "passcodeHelp": "For security, the current passcode is never displayed.",
       "rsvpOverrideHelp": "Lets anyone RSVP even after the deadline has passed. Remember to turn this off when you're done.",
       "founderLimitsHelp": "Only the founder can change message and submission limits.",
+      "smsLimitHelp": "Texts to the host when someone RSVPs. Guest broadcasts do not use this limit.",
+      "smsBroadcastLimitHelp": "Texts the host sends to guests. Leave blank to use the platform default (500, or INVITATION_SMS_BROADCAST_LIMIT). Does not include host RSVP alerts.",
       "privateGuestList": {
         "title": "Private guest list (invite-only)",
         "badge": "Premium",
