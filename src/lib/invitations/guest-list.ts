@@ -1,6 +1,7 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { toE164 } from "@/lib/sms";
 import { eventKind, formatEventDay } from "./event-site";
+import { smsOptOutLine } from "./sms-opt-out";
 import type { InvitationLocale } from "./types";
 
 export const GUEST_TOKEN_BYTES = 16;
@@ -229,7 +230,7 @@ export function inviteSmsBody(input: InviteCopyInput): string {
   const when = whenPhrase(input);
   const place = placePhrase(input.venueName, input.locale);
   const whenBit = when ? `, ${when}` : "";
-  const optOut = input.locale === "es" ? "Responde STOP para cancelar" : "Reply STOP to opt out";
+  const optOut = smsOptOutLine(input.locale);
   const rsvp = input.locale === "es" ? "Confirma aquí" : "RSVP";
   if (input.locale === "es") {
     return `Hola ${first}, ${hosts} te invitan a ${gathering}${whenBit}${place}.\n${rsvp}:\n${input.url}\n${optOut}`;
@@ -243,7 +244,7 @@ export function reminderSmsBody(input: InviteCopyInput): string {
   const gathering = gatheringPhrase(input);
   const when = whenPhrase(input);
   const whenBit = when ? (input.locale === "es" ? ` el ${when}` : ` on ${when}`) : "";
-  const optOut = input.locale === "es" ? "Responde STOP para cancelar" : "Reply STOP to opt out";
+  const optOut = smsOptOutLine(input.locale);
   if (input.locale === "es") {
     return `Hola ${first}, un recordatorio de ${hosts}: confirma tu asistencia a ${gathering}${whenBit}.\n${input.url}\n${optOut}`;
   }
@@ -251,10 +252,11 @@ export function reminderSmsBody(input: InviteCopyInput): string {
 }
 
 export function verificationSmsBody(code: string, locale: InvitationLocale): string {
+  const optOut = smsOptOutLine(locale);
   if (locale === "es") {
-    return `Tu código de InviteSpot es ${code}. Caduca en 10 minutos.\nResponde STOP para cancelar`;
+    return `Tu código de InviteSpot es ${code}. Caduca en 10 minutos.\n${optOut}`;
   }
-  return `Your InviteSpot verification code is ${code}. It expires in 10 minutes.\nReply STOP to opt out`;
+  return `Your InviteSpot verification code is ${code}. It expires in 10 minutes.\n${optOut}`;
 }
 
 export function guestInviteUrl(event: { slug: string; publicSubdomain: string | null }, token: string, appUrl = process.env.NEXT_PUBLIC_INVITESPOT_APP_URL || "https://www.invitespot.app"): string {

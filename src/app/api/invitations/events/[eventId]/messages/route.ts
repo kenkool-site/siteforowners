@@ -7,7 +7,9 @@ import {
   getInvitationSmsBroadcastBudget,
   InvitationBroadcastError,
   listInvitationBroadcasts,
+  loadInvitationSmsOptOuts,
   parseComposeBroadcastInput,
+  selectBroadcastRecipients,
 } from "@/lib/invitations/broadcasts";
 import { getInvitationEventForManagement, listInvitationResponseRows } from "@/lib/invitations/repository";
 
@@ -20,11 +22,13 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
       listInvitationResponseRows(params.eventId),
       getInvitationSmsBroadcastBudget(params.eventId),
     ]);
+    const optedOutPhones = await loadInvitationSmsOptOuts(rows.flatMap((row) => row.phone ? [row.phone] : []));
+    const smsRecipients = selectBroadcastRecipients({ rows, channel: "sms", optedOutPhones });
     return NextResponse.json({
       broadcasts,
       recipientCounts: {
         email: eligibleBroadcastRecipients(rows, "email").length,
-        sms: eligibleBroadcastRecipients(rows, "sms").length,
+        sms: smsRecipients.ok ? smsRecipients.recipients.length : 0,
       },
       totalResponses: rows.length,
       smsBudget,
@@ -62,6 +66,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       sentBy: actor.kind === "founder" ? "founder" : "owner",
       emailFrom: EMAIL_FROM,
       smsFrom: TWILIO_FROM,
+      locale: event.locale,
     });
     const smsBudget = parsed.value.channel === "sms"
       ? await getInvitationSmsBroadcastBudget(params.eventId, event.smsBroadcastLimit ?? null)
