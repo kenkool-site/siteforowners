@@ -1,6 +1,7 @@
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isInvitationE2EFixturesEnabled } from "./e2e-guard";
+import { guestMessageDisplayName, personalizeGuestMessage } from "./guest-message";
 import { normalizeGuestPhone } from "./guest-list";
 import type { InvitationResponseRow } from "./responses";
 import { withSmsOptOutFooter } from "./sms-opt-out";
@@ -25,6 +26,8 @@ export type BroadcastRecipient = {
   primaryName: string;
   contact: string;
   attending?: boolean;
+  partySize?: number;
+  additionalGuestNames?: string[];
 };
 
 export function eligibleBroadcastRecipients(
@@ -33,7 +36,14 @@ export function eligibleBroadcastRecipients(
 ): BroadcastRecipient[] {
   return rows.flatMap((row) => {
     const contact = channel === "email" ? row.email : row.phone;
-    return contact ? [{ rsvpId: row.id, primaryName: row.primary_name, contact, attending: row.attending }] : [];
+    return contact ? [{
+      rsvpId: row.id,
+      primaryName: row.primary_name,
+      contact,
+      attending: row.attending,
+      partySize: row.party_size,
+      additionalGuestNames: row.additional_guest_names,
+    }] : [];
   });
 }
 
@@ -57,6 +67,8 @@ export type BroadcastRecipientChoice = {
   status: "attending" | "declined";
   /** SMS only. Opt-outs are global per E.164 number, so email stays available. */
   optedOut?: boolean;
+  partySize?: number;
+  additionalGuestNames?: string[];
 };
 
 /**
@@ -82,6 +94,8 @@ export function composerRecipientChoices(
     contact: channel === "email" ? maskInvitationEmail(recipient.contact) : maskInvitationPhone(recipient.contact),
     status: recipient.attending === false ? "declined" : "attending",
     optedOut: channel === "sms" && isSmsOptedOut(recipient.contact, optedOut),
+    partySize: recipient.partySize,
+    additionalGuestNames: recipient.additionalGuestNames,
   }));
 }
 
@@ -251,9 +265,7 @@ export async function dispatchBroadcastNotifications(
   let sentCount = 0;
   let failedCount = 0;
   let suppressedCount = 0;
-  const outboundBody = input.channel === "sms"
-    ? withSmsOptOutFooter(input.body, input.locale === "es" ? "es" : "en")
-    : input.body;
+  const locale = input.locale === "es" ? "es" : "en";
   const optedOutPhones = input.channel === "sms" ? input.optedOutPhones ?? new Set<string>() : new Set<string>();
   const recipients = input.channel === "sms"
     ? input.recipients.filter((recipient) => !isSmsOptedOut(recipient.contact, optedOutPhones))
@@ -305,14 +317,24 @@ export async function dispatchBroadcastNotifications(
       return;
     }
 
+    const name = guestMessageDisplayName({
+      primaryName: recipient.primaryName,
+      partySize: recipient.partySize,
+      additionalGuestNames: recipient.additionalGuestNames,
+    });
+    const renderedBody = personalizeGuestMessage(input.body, { name, locale, channel: input.channel });
+    const outboundBody = input.channel === "sms" ? withSmsOptOutFooter(renderedBody, locale) : renderedBody;
+    const subject = input.subject == null
+      ? null
+      : personalizeGuestMessage(input.subject, { name, locale, channel: "email" });
     const payload: NotificationPayload = input.channel === "email"
       ? {
           channel: "email",
           input: {
             from: input.from,
             to: recipient.contact,
-            subject: input.subject ?? "",
-            html: renderBroadcastEmailHtml(input.body),
+            subject: subject ?? "",
+            html: renderBroadcastEmailHtml(outboundBody),
             idempotencyKey: reservation.id,
           },
         }
@@ -560,8 +582,9 @@ export async function dispatchInvitationBroadcast(
   });
   if (!selected.ok) throw new InvitationBroadcastError(selected.code);
   const recipients = selected.recipients;
-  const body = input.channel === "sms" ? withSmsOptOutFooter(input.body, input.locale) : input.body;
-  const broadcast = await createInvitationBroadcast({ ...input, body });
+  // Store the host's template, including {guest_name}. Each send below
+  // substitutes that recipient's name and, for SMS, appends the opt-out line.
+  const broadcast = await createInvitationBroadcast(input);
 
   const result = await dispatchBroadcastNotifications(
     {
@@ -569,7 +592,7 @@ export async function dispatchInvitationBroadcast(
       broadcastId: broadcast.id,
       channel: input.channel,
       subject: input.subject,
-      body,
+      body: input.body,
       locale: input.locale,
       optedOutPhones,
       from: input.channel === "email" ? input.emailFrom : input.smsFrom,

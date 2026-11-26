@@ -320,7 +320,15 @@ test("masked contacts keep a hint and hide the rest of the address or number", (
     row({ id: "r1", email: "wunmi@example.test", phone: "+15551234567", attending: true }),
     row({ id: "r2", email: "ada@example.test", phone: null, attending: false }),
   ], "sms");
-  assert.deepEqual(choices, [{ id: "r1", name: "Wunmi Adeniji", contact: "••• ••• 4567", status: "attending", optedOut: false }]);
+  assert.deepEqual(choices, [{
+    id: "r1",
+    name: "Wunmi Adeniji",
+    contact: "••• ••• 4567",
+    status: "attending",
+    optedOut: false,
+    partySize: 1,
+    additionalGuestNames: [],
+  }]);
   assert.equal(composerRecipientChoices([row({ id: "r2", email: "a@example.test", attending: false })], "email")[0]?.status, "declined");
 });
 
@@ -443,8 +451,8 @@ test("the send path skips an opted-out recipient even when that recipient is pas
   assert.deepEqual(result, { sentCount: 1, failedCount: 0, suppressedCount: 0 });
   assert.deepEqual(sentTo, ["+12145550101"]);
   assert.deepEqual(bodies, [
-    "See you Saturday\nReply STOP to opt out",
-    "See you Saturday\nReply STOP to opt out",
+    "See you Saturday\n\nReply STOP to opt out",
+    "See you Saturday\n\nReply STOP to opt out",
   ]);
 
   const again: string[] = [];
@@ -476,6 +484,89 @@ test("the send path skips an opted-out recipient even when that recipient is pas
   assert.deepEqual(again, ["See you Saturday\nReply STOP to opt out"]);
 });
 
+test("each recipient gets their own name, a missing name uses a neutral greeting, and the footer is not repeated", async () => {
+  const template = "Hi {guest_name}, see you Saturday - Mercy and John";
+  const sent: Array<{ to: string; body: string }> = [];
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-names",
+      channel: "sms",
+      subject: null,
+      body: template,
+      locale: "en",
+      from: "+15550001111",
+      recipients: [
+        { rsvpId: "ada", primaryName: "Ada Lovelace", contact: "+12145550101", partySize: 1, additionalGuestNames: [] },
+        { rsvpId: "family", primaryName: "The Okonkwo Family", contact: "+12145550102", partySize: 4, additionalGuestNames: ["Ken"] },
+        { rsvpId: "couple", primaryName: "Mercy and John", contact: "+12145550103", partySize: 2 },
+        { rsvpId: "blank", primaryName: "   ", contact: "+12145550104", partySize: 1 },
+        { rsvpId: "zoe", primaryName: "Zoë Alvarez", contact: "+12145550105", partySize: 1 },
+      ],
+    },
+    {
+      reserve: async () => ({ id: "n1", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: { send: async () => ({ ok: true, providerId: "e1" }) },
+      sms: {
+        send: async (input) => {
+          sent.push({ to: input.to, body: input.body });
+          return { ok: true, providerId: "sms-1" };
+        },
+      },
+    },
+  );
+  assert.equal(template, "Hi {guest_name}, see you Saturday - Mercy and John");
+  assert.deepEqual(sent.map((item) => item.body), [
+    "Hi Ada, see you Saturday - Mercy and John\n\nReply STOP to opt out",
+    "Hi The Okonkwo Family, see you Saturday - Mercy and John\n\nReply STOP to opt out",
+    "Hi Mercy and John, see you Saturday - Mercy and John\n\nReply STOP to opt out",
+    "Hi there, see you Saturday - Mercy and John\n\nReply STOP to opt out",
+    "Hi Zoe, see you Saturday - Mercy and John\n\nReply STOP to opt out",
+  ]);
+  for (const item of sent) {
+    assert.equal(item.body.split("Reply STOP to opt out").length, 2);
+    assert.match(item.body, /\n\nReply STOP to opt out$/);
+  }
+
+  const emails: Array<{ subject: string; html: string }> = [];
+  await dispatchBroadcastNotifications(
+    {
+      eventId: "event-1",
+      broadcastId: "broadcast-email",
+      channel: "email",
+      subject: "Hello {first_name}",
+      body: "Hi {guest_name},\n\nThank you.\n\n- Mercy and John",
+      locale: "en",
+      from: "hello@example.test",
+      recipients: [
+        { rsvpId: "ada", primaryName: "Ada Lovelace", contact: "ada@example.test", partySize: 1 },
+        { rsvpId: "blank", primaryName: "", contact: "blank@example.test" },
+      ],
+    },
+    {
+      reserve: async () => ({ id: "n2", allowed: true }),
+      savePayload: async () => undefined,
+      markSent: async () => undefined,
+      markFailed: async () => undefined,
+      email: {
+        send: async (input) => {
+          emails.push({ subject: input.subject, html: input.html });
+          return { ok: true, providerId: "e1" };
+        },
+      },
+      sms: { send: async () => ({ ok: true, providerId: "sms-1" }) },
+    },
+  );
+  assert.equal(emails[0]?.subject, "Hello Ada");
+  assert.match(emails[0]?.html ?? "", /Hi Ada,/);
+  assert.doesNotMatch(emails[0]?.html ?? "", /STOP/);
+  assert.equal(emails[1]?.subject, "Hello there");
+  assert.match(emails[1]?.html ?? "", /Hi there,/);
+});
+
 test("a Spanish SMS broadcast uses the Spanish opt-out line", async () => {
   let body = "";
   await dispatchBroadcastNotifications(
@@ -503,7 +594,7 @@ test("a Spanish SMS broadcast uses the Spanish opt-out line", async () => {
       },
     },
   );
-  assert.equal(body, "Nos vemos el sábado\nResponde STOP para cancelar");
+  assert.equal(body, "Nos vemos el sábado\n\nResponde STOP para cancelar");
 });
 
 test("createInvitationBroadcast rejects an empty body before touching the database", async () => {

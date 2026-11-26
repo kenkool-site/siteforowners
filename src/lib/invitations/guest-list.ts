@@ -1,8 +1,12 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { toE164 } from "@/lib/sms";
 import { eventKind, formatEventDay } from "./event-site";
-import { smsOptOutLine } from "./sms-opt-out";
+import { withSmsOptOutFooter } from "./sms-opt-out";
+import { smsSegmentCount, type SmsSegmentInfo } from "./sms-segments";
 import type { InvitationLocale } from "./types";
+
+export { smsSegmentCount };
+export type { SmsSegmentInfo };
 
 export const GUEST_TOKEN_BYTES = 16;
 export const VERIFICATION_TTL_MS = 10 * 60 * 1000;
@@ -18,9 +22,6 @@ export const SEND_PER_EVENT = { windowSeconds: 60 * 60, max: 200 };
 
 const STOP_KEYWORDS = new Set(["stop", "stopall", "unsubscribe", "cancel", "end", "quit"]);
 const START_KEYWORDS = new Set(["start", "unstop", "yes"]);
-
-const GSM_BASIC = "@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\u001bÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
-const GSM_EXT = "^{}\\[~]|€";
 
 export type GuestDeliveryStatus = "not_sent" | "sending" | "sent" | "delivered" | "failed";
 
@@ -159,35 +160,6 @@ export function planOutbound(input: {
   return { send, skippedOptOut };
 }
 
-export type SmsSegmentInfo = {
-  segments: number;
-  encoding: "gsm" | "ucs2";
-  length: number;
-};
-
-export function smsSegmentCount(body: string): SmsSegmentInfo {
-  let septets = 0;
-  const chars = Array.from(body);
-  for (let index = 0; index < chars.length; index += 1) {
-    const char = chars[index] ?? "";
-    if (GSM_BASIC.includes(char)) septets += 1;
-    else if (GSM_EXT.includes(char)) septets += 2;
-    else {
-      const length = chars.length;
-      return {
-        segments: length === 0 ? 0 : length <= 70 ? 1 : Math.ceil(length / 67),
-        encoding: "ucs2",
-        length,
-      };
-    }
-  }
-  return {
-    segments: septets === 0 ? 0 : septets <= 160 ? 1 : Math.ceil(septets / 153),
-    encoding: "gsm",
-    length: septets,
-  };
-}
-
 export type InviteCopyInput = {
   guestName: string;
   honoreeNames: string;
@@ -230,12 +202,11 @@ export function inviteSmsBody(input: InviteCopyInput): string {
   const when = whenPhrase(input);
   const place = placePhrase(input.venueName, input.locale);
   const whenBit = when ? `, ${when}` : "";
-  const optOut = smsOptOutLine(input.locale);
   const rsvp = input.locale === "es" ? "Confirma aquí" : "RSVP";
-  if (input.locale === "es") {
-    return `Hola ${first}, ${hosts} te invitan a ${gathering}${whenBit}${place}.\n${rsvp}:\n${input.url}\n${optOut}`;
-  }
-  return `Hi ${first}, ${hosts} invite you to ${gathering}${whenBit}${place}.\n${rsvp}:\n${input.url}\n${optOut}`;
+  const note = input.locale === "es"
+    ? `Hola ${first}, ${hosts} te invitan a ${gathering}${whenBit}${place}.\n${rsvp}:\n${input.url}`
+    : `Hi ${first}, ${hosts} invite you to ${gathering}${whenBit}${place}.\n${rsvp}:\n${input.url}`;
+  return withSmsOptOutFooter(note, input.locale);
 }
 
 export function reminderSmsBody(input: InviteCopyInput): string {
@@ -244,19 +215,17 @@ export function reminderSmsBody(input: InviteCopyInput): string {
   const gathering = gatheringPhrase(input);
   const when = whenPhrase(input);
   const whenBit = when ? (input.locale === "es" ? ` el ${when}` : ` on ${when}`) : "";
-  const optOut = smsOptOutLine(input.locale);
-  if (input.locale === "es") {
-    return `Hola ${first}, un recordatorio de ${hosts}: confirma tu asistencia a ${gathering}${whenBit}.\n${input.url}\n${optOut}`;
-  }
-  return `Hi ${first}, a reminder from ${hosts}: please RSVP for ${gathering}${whenBit}.\n${input.url}\n${optOut}`;
+  const note = input.locale === "es"
+    ? `Hola ${first}, un recordatorio de ${hosts}: confirma tu asistencia a ${gathering}${whenBit}.\n${input.url}`
+    : `Hi ${first}, a reminder from ${hosts}: please RSVP for ${gathering}${whenBit}.\n${input.url}`;
+  return withSmsOptOutFooter(note, input.locale);
 }
 
 export function verificationSmsBody(code: string, locale: InvitationLocale): string {
-  const optOut = smsOptOutLine(locale);
-  if (locale === "es") {
-    return `Tu código de InviteSpot es ${code}. Caduca en 10 minutos.\n${optOut}`;
-  }
-  return `Your InviteSpot verification code is ${code}. It expires in 10 minutes.\n${optOut}`;
+  const note = locale === "es"
+    ? `Tu código de InviteSpot es ${code}. Caduca en 10 minutos.`
+    : `Your InviteSpot verification code is ${code}. It expires in 10 minutes.`;
+  return withSmsOptOutFooter(note, locale);
 }
 
 export function guestInviteUrl(event: { slug: string; publicSubdomain: string | null }, token: string, appUrl = process.env.NEXT_PUBLIC_INVITESPOT_APP_URL || "https://www.invitespot.app"): string {

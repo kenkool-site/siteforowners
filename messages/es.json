@@ -386,68 +386,68 @@
           "thankYou": {
             "label": "Agradecimiento",
             "subject": "Gracias de parte de {name}",
-            "email": "{name}\n\nGracias por celebrar con nosotros. Significó mucho tenerte ahí.\n\nCon cariño,\n{name}",
-            "sms": "{name}: Gracias por celebrar con nosotros."
+            "email": "Hola {guest_name},\n\nGracias por celebrar con nosotros. Significó mucho tenerte ahí, y nos alegra que hayas sido parte del día.\n\nCon cariño,\n{name}",
+            "sms": "Hola {guest_name}, gracias por celebrar con nosotros! Nos hizo muy feliz tenerte con nosotros. - {name}"
           },
           "reminder": {
             "label": "Recordatorio",
-            "subject": "Recordatorio de {name}",
-            "email": "{name}\n\nUn recordatorio de nuestra celebración.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}",
-            "sms": "{name}: Recordatorio {smsWhen} en {venue}. {inviteUrl}"
+            "subject": "Un recordatorio de {name}",
+            "email": "Hola {guest_name},\n\nUn recordatorio cariñoso de nuestra celebración. Nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, un recordatorio de nuestra fiesta: {smsWhen} en {venue}. Nos encanta verte. {inviteUrl} - {name}"
           },
           "dayBefore": {
             "label": "Día anterior",
-            "subject": "Mañana: {name}",
-            "email": "{name}\n\nMañana celebramos y nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}",
-            "sms": "{name} es mañana, {smsWhen}, en {venue}. {inviteUrl}"
+            "subject": "Mañana, de parte de {name}",
+            "email": "Hola {guest_name},\n\nMañana celebramos y nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, mañana celebramos, {smsWhen}, en {venue}. Nos encanta verte! {inviteUrl} - {name}"
           },
           "eventDay": {
             "label": "Día del evento",
-            "subject": "Hoy: {name}",
-            "email": "{name}\n\nHoy es el día. Aquí están los detalles para llegar.\n\nHora: {time}\nDónde: {place}\nCómo llegar: {directions}\nEstacionamiento: {parking}\n\nInvitación: {inviteUrl}",
-            "sms": "{name} es hoy a las {smsTime}, {venue}. Direcciones: {smsDirections}. Estacionamiento: {parking}"
+            "subject": "Hoy, de parte de {name}",
+            "email": "Hola {guest_name},\n\nHoy es el día. Aquí está lo que necesitas para llegar.\n\nHora: {time}\nDónde: {place}\nCómo llegar: {directions}\nEstacionamiento: {parking}\n\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, hoy es la fiesta! Empezamos a las {smsTime} en {venue}. Para llegar: {smsDirections}. Estacionamiento: {parking} - {name}"
           },
           "dressCode": {
             "label": "Vestimenta",
-            "subject": "Vestimenta para {name}",
-            "email": "{name}\n\nEsto es lo que pedimos vestir, incluido aso-ebi u otros colores.\n\nVestimenta: {dressCode}\nColores: {colors}\n\nInvitación: {inviteUrl}",
-            "sms": "{name}: Vestimenta / aso-ebi: {smsDressCode}. Colores: {smsColors}."
+            "subject": "Vestimenta, de parte de {name}",
+            "email": "Hola {guest_name},\n\nEsto es lo que pedimos vestir, incluido aso-ebi u otros colores.\n\nVestimenta: {dressCode}\nColores: {colors}\n\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, vestimenta: {smsDressCode}. Colores: {smsColors}. - {name}"
           },
           "scheduleChange": {
             "label": "Cambio de horario",
-            "subject": "Un cambio para {name}",
-            "email": "{name}\n\nHay un cambio de horario o de lugar.\n\nQué cambió: {change}\n\nUsa la invitación para los detalles más recientes:\n{inviteUrl}\n\nDonde lo teníamos: {place}",
-            "sms": "{name}: Cambio - {change}. Detalles: {inviteUrl}"
+            "subject": "Un cambio de parte de {name}",
+            "email": "Hola {guest_name},\n\nHay un cambio de horario o de lugar. Usa la invitación para los detalles más recientes.\n\nQué cambió: {change}\n\nDonde lo teníamos: {place}\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, hay un cambio: {change}. Detalles recientes: {inviteUrl} - {name}"
           },
           "rsvpDeadline": {
             "label": "Fecha límite de RSVP",
-            "subject": "Confirma tu asistencia a {name}",
-            "email": "{name}\n\nPor favor confirma tu asistencia antes del {deadline} para poder contar contigo.\n\n{inviteUrl}",
-            "sms": "{name}: Confirma tu asistencia antes del {smsDeadline}. {inviteUrl}"
+            "subject": "Confirma tu asistencia, de parte de {name}",
+            "email": "Hola {guest_name},\n\nPor favor confirma tu asistencia antes del {deadline} para poder contar contigo. Nos encantaría tenerte con nosotros.\n\n{inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, confirma tu asistencia antes del {smsDeadline}. Nos encanta contar contigo. {inviteUrl} - {name}"
           },
           "photoSharing": {
             "label": "Compartir fotos",
-            "subject": "Comparte fotos de {name}",
-            "email": "{name}\n\nAgrega tus fotos y videos a nuestra página de recuerdos. Nos encantaría ver el día desde tus ojos.\n\n{memoriesUrl}",
-            "sms": "{name}: Comparte tus fotos: {memoriesUrl}"
+            "subject": "Comparte tus fotos con {name}",
+            "email": "Hola {guest_name},\n\nGracias por celebrar con nosotros. Agrega tus fotos y videos a nuestra página de recuerdos. Nos encantaría ver el día desde tus ojos.\n\n{memoriesUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, gracias por celebrar con nosotros! Comparte tus fotos y videos de la fiesta en este enlace: {memoriesUrl} - {name}"
           },
           "thankYouPhotos": {
             "label": "Agradecimiento y fotos",
-            "subject": "Gracias y fotos de {name}",
-            "email": "{name}\n\nGracias por celebrar con nosotros. Significó mucho tenerte ahí.\n\nFotos y momentos: {memoriesUrl}",
-            "sms": "{name}: Gracias por celebrar con nosotros. Fotos: {memoriesUrl}"
+            "subject": "Gracias y fotos, de parte de {name}",
+            "email": "Hola {guest_name},\n\nGracias por celebrar con nosotros. Significó mucho tenerte ahí.\n\nFotos y momentos: {memoriesUrl}\n\nCon cariño,\n{name}",
+            "sms": "Hola {guest_name}, gracias por celebrar con nosotros! Las fotos y videos de la fiesta: {memoriesUrl} - {name}"
           },
           "livestream": {
             "label": "En vivo",
-            "subject": "En vivo: {name}",
-            "email": "{name}\n\nAcompáñanos en línea si no puedes estar en persona.\n\n{livestream}\n\nInvitación: {inviteUrl}",
-            "sms": "{name}: En vivo: {livestream}"
+            "subject": "En vivo, de parte de {name}",
+            "email": "Hola {guest_name},\n\nAcompáñanos en línea si no puedes estar en persona. Igual nos encantaría tenerte con nosotros.\n\n{livestream}\n\nInvitación: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, te esperamos en vivo si no puedes estar: {livestream} - {name}"
           },
           "update": {
             "label": "Actualización",
-            "subject": "Una actualización de {name}",
-            "email": "{name}\n\nTenemos una actualización para ti.\n\n{change}\n\nDetalles: {inviteUrl}",
-            "sms": "{name}: {change}. Detalles: {inviteUrl}"
+            "subject": "Una novedad de {name}",
+            "email": "Hola {guest_name},\n\nTenemos una novedad para ti.\n\n{change}\n\nDetalles: {inviteUrl}\n\n- {name}",
+            "sms": "Hola {guest_name}, tenemos una novedad: {change}. Detalles: {inviteUrl} - {name}"
           }
         },
         "fields": {
@@ -475,7 +475,12 @@
         "smsRemainingShort": "Este texto necesita {needed} envíos y quedan {remaining}, así que algunos invitados no lo recibirán.",
         "smsCharacterCount": "{count} caracteres",
         "smsCharacterCountWithOptOut": "{count} caracteres, incluida la línea de abajo",
-        "smsOptOutPreview": "Cada texto incluye esta línea: {line}",
+        "smsOptOutPreview": "Cada texto agrega una línea en blanco y luego: {line}",
+        "sentPreview": "Los invitados reciben:",
+        "subjectPreview": "Asunto que ven: {subject}",
+        "guestNameHint": "{token} se reemplaza con el nombre de cada invitado. Esta vista previa usa {name}.",
+        "guestNameHintSample": "{token} se reemplaza con el nombre de cada invitado. Esta vista previa usa un nombre de ejemplo, {name}.",
+        "guestNameHintFallback": "{token} se reemplaza con el nombre de cada invitado. Esta vista previa empieza con {greeting} porque no hay nombre.",
         "smsSegmentWarning": "{count, plural, one {Esto se enviará como # segmento de mensaje por destinatario.} other {Esto se enviará como # segmentos de mensaje por destinatario — los mensajes más largos cuestan más.}}",
         "recipientPreview": "Esto llegará a {reached} de {total, plural, one {# invitado} other {# invitados}}.",
         "recipientPreviewGap": "{missing, plural, one {# invitado no tiene} other {# invitados no tienen}} {channel, select, email {un correo electrónico} other {un número de teléfono}} registrado y no lo recibirá{missing, plural, one {} other {n}}.",
