@@ -7,6 +7,7 @@ import { validatePlatformSubdomain } from "@/lib/subdomain";
 import { parseInvitationStyleGuide, type InvitationStyleGuide } from "./style-guide";
 import { parseInvitationAdditionalSections, type InvitationAdditionalSection } from "./additional-sections";
 import { parseInvitationEventSchedule, type EventScheduleItem } from "./event-schedule";
+import { MAX_EMAIL_BROADCAST_LIMIT } from "./email-broadcast-limit";
 import { MAX_SMS_BROADCAST_LIMIT } from "./sms-broadcast-limit";
 
 export type ParsedRsvpInput = {
@@ -65,6 +66,7 @@ export type InvitationEventUpdate = {
   submissionLimit?: number;
   emailNotificationLimit?: number;
   smsNotificationLimit?: number;
+  emailBroadcastLimit?: number | null;
   smsBroadcastLimit?: number | null;
   ownerEmailNotifications?: boolean;
   ownerSmsNotifications?: boolean;
@@ -337,6 +339,15 @@ export function parseEventUpdate(
     parsePositiveInteger(body, "submissionLimit", value, errors, false);
     parsePositiveInteger(body, "emailNotificationLimit", value, errors, false);
     parsePositiveInteger(body, "smsNotificationLimit", value, errors, false);
+    if ("emailBroadcastLimit" in body) {
+      const raw = body.emailBroadcastLimit;
+      if (raw === null || raw === "") value.emailBroadcastLimit = null;
+      else if (typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= MAX_EMAIL_BROADCAST_LIMIT) {
+        value.emailBroadcastLimit = raw;
+      } else {
+        errors.emailBroadcastLimit = "Enter a whole number from 1 to 1000000, or leave it blank for the platform default.";
+      }
+    }
     if ("smsBroadcastLimit" in body) {
       const raw = body.smsBroadcastLimit;
       if (raw === null || raw === "") value.smsBroadcastLimit = null;

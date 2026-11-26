@@ -49,6 +49,7 @@ function render(): string {
         eventName="Mercy & John"
         backHref="/invitations/manage/event-1"
         templateValues={templateValues}
+        emailBudget={{ limit: 1000, remaining: 1000 }}
         smsBudget={{ limit: 500, remaining: 420 }}
         recipients={recipients}
         initialTotalResponses={10}
@@ -68,6 +69,8 @@ test("the composer exposes a channel picker, template picker, and compose fields
 test("the recipient preview reflects the initial email recipient count out of total responses", () => {
   const html = render();
   assert.match(html, /reach 8 of 10 guests/i);
+  assert.match(html, /1000 of 1000 guest emails left/);
+  assert.doesNotMatch(html, /420 of 500 guest texts left/);
   assert.match(html, /Guest 1/);
   assert.match(html, /g•••@example.com/);
   assert.match(html, /Select all/);
@@ -88,6 +91,7 @@ test("Spanish templates render without dropping the new labels", () => {
         eventName="Mercy y John"
         backHref="/invitations/manage/event-1"
         templateValues={{ ...templateValues, name: "Mercy y John", parking: "[estacionamiento]", change: "[que cambio]" }}
+        emailBudget={null}
         smsBudget={null}
         recipients={{
           email: [{ id: "email-1", name: "Invitada", contact: "a•••@example.com", status: "attending" }],

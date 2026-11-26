@@ -77,6 +77,7 @@ async function withComposer(
             eventName="Mercy & John"
             backHref="/invitations/manage/event-1"
             templateValues={templateValues}
+            emailBudget={{ limit: 1000, remaining: 1000 }}
             smsBudget={{ limit: 500, remaining: 500 }}
             recipients={recipients}
             initialTotalResponses={10}
@@ -145,6 +146,55 @@ test("selecting a template fills in subject and body, and sending posts the comp
     assert.deepEqual(posted.recipientIds, ["r1", "r2"]);
 
     assert.match(container.textContent ?? "", /Sent to 8/);
+    assert.doesNotMatch(container.textContent ?? "", /guest email limit/);
+  });
+});
+
+test("a send blocked by the guest email limit says so instead of a generic messaging limit", async () => {
+  await withComposer(async () => ({
+    ok: true,
+    json: async () => ({
+      ok: true,
+      broadcast: {
+        id: "broadcast-limited",
+        eventId: "event-1",
+        channel: "email",
+        subject: "Hello",
+        body: "Hello there",
+        sentBy: "owner",
+        recipientCount: 1,
+        sentCount: 0,
+        failedCount: 0,
+        suppressedCount: 1,
+        createdAt: "2026-09-20T12:00:00.000Z",
+      },
+      sentCount: 0,
+      failedCount: 0,
+      suppressedCount: 1,
+      emailBudget: { limit: 1000, remaining: 0 },
+    }),
+  }) as Response, async (container, dom) => {
+    dom.window.confirm = () => true;
+    const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    const subject = container.querySelector<HTMLInputElement>("input[name='subject']")!;
+    const setValue = (element: HTMLInputElement | HTMLTextAreaElement, value: string) => {
+      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(element), "value")!.set!;
+      setter.call(element, value);
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    await act(async () => {
+      setValue(subject, "Hello");
+      setValue(textarea, "Hello there");
+    });
+    const sendButton = Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Send message")!;
+    await act(async () => {
+      sendButton.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    assert.match(container.textContent ?? "", /Skipped 1 because this event is at its guest email limit/);
+    assert.doesNotMatch(container.textContent ?? "", /messaging limit/);
+    assert.match(container.textContent ?? "", /0 of 1000 guest emails left/);
   });
 });
 

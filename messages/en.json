@@ -454,6 +454,7 @@
           "subject": "Subject",
           "body": "Message"
         },
+        "emailRemaining": "{remaining} of {limit} guest emails left for this event. This message uses {needed}.",
         "smsRemaining": "{remaining} of {limit} guest texts left for this event. This message uses {needed}.",
         "recipients": {
           "label": "Who should get this?",
@@ -472,6 +473,7 @@
           "optedOutExcluded": "{count, plural, one {# guest opted out of texts and is not included.} other {# guests opted out of texts and are not included.}}"
         },
         "invalidRecipients": "Refresh the page and choose the guests again. Someone on the list can no longer receive this.",
+        "emailRemainingShort": "This email needs {needed} sends and {remaining} are left, so some guests will be skipped.",
         "smsRemainingShort": "This text needs {needed} sends and {remaining} are left, so some guests will be skipped.",
         "smsCharacterCount": "{count} characters",
         "smsCharacterCountWithOptOut": "{count} characters, including the line below",
@@ -487,7 +489,9 @@
         "confirm": "Send to {count, plural, one {# guest} other {# guests}} via {channel}?",
         "send": "Send message",
         "sending": "Sending…",
-        "resultSummary": "Sent to {sent}, failed for {failed}, skipped {suppressed} due to the messaging limit.",
+        "resultSummary": "Sent to {sent}, failed for {failed}.",
+        "resultLimitEmail": "Sent to {sent}, failed for {failed}. Skipped {suppressed} because this event is at its guest email limit.",
+        "resultLimitSms": "Sent to {sent}, failed for {failed}. Skipped {suppressed} because this event is at its guest text limit.",
         "error": "The message could not be sent. Try again.",
         "bodyTooLong": "Your message is too long. Shorten it to 5,000 characters or fewer and try again.",
         "history": {
@@ -602,6 +606,7 @@
         "submissionLimit": "Submission limit",
         "emailLimit": "Email notification limit",
         "smsLimit": "SMS notification limit",
+        "emailBroadcastLimit": "Guest email limit",
         "smsBroadcastLimit": "Guest text limit",
         "ownerName": "Owner name",
         "ownerEmail": "Owner sign-in email",
@@ -628,6 +633,7 @@
         "address": "Street, city, state",
         "mapUrl": "https://maps.google.com/…",
         "passcode": "Leave blank to keep the current passcode",
+        "emailBroadcastLimit": "Platform default",
         "smsBroadcastLimit": "Platform default"
       },
       "status": {
@@ -822,7 +828,9 @@
       "passcodeHelp": "For security, the current passcode is never displayed.",
       "rsvpOverrideHelp": "Lets anyone RSVP even after the deadline has passed. Remember to turn this off when you're done.",
       "founderLimitsHelp": "Only the founder can change message and submission limits.",
+      "emailLimitHelp": "Emails to the host when someone RSVPs, and guest confirmation emails. Guest broadcasts do not use this limit.",
       "smsLimitHelp": "Texts to the host when someone RSVPs. Guest broadcasts do not use this limit.",
+      "emailBroadcastLimitHelp": "Emails the host sends to guests. Leave blank to use the platform default (1000, or INVITATION_EMAIL_BROADCAST_LIMIT). Does not include host RSVP alerts or guest confirmations.",
       "smsBroadcastLimitHelp": "Texts the host sends to guests. Leave blank to use the platform default (500, or INVITATION_SMS_BROADCAST_LIMIT). Does not include host RSVP alerts.",
       "privateGuestList": {
         "title": "Private guest list (invite-only)",

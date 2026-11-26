@@ -118,6 +118,7 @@ export type InvitationManagementRow = {
   submission_limit: number;
   email_notification_limit: number;
   sms_notification_limit: number;
+  email_broadcast_limit?: number | null;
   sms_broadcast_limit?: number | null;
   owner_email_notifications: boolean;
   owner_sms_notifications: boolean;
@@ -411,6 +412,7 @@ export async function getInvitationEventForManagement(
     submissionLimit: row.submission_limit,
     emailNotificationLimit: row.email_notification_limit,
     smsNotificationLimit: row.sms_notification_limit,
+    emailBroadcastLimit: row.email_broadcast_limit ?? null,
     smsBroadcastLimit: row.sms_broadcast_limit ?? null,
     ownerEmailNotifications: row.owner_email_notifications,
     ownerSmsNotifications: row.owner_sms_notifications,
@@ -529,6 +531,7 @@ const EVENT_UPDATE_COLUMNS: Partial<Record<keyof InvitationEventUpdate, string>>
   submissionLimit: "submission_limit",
   emailNotificationLimit: "email_notification_limit",
   smsNotificationLimit: "sms_notification_limit",
+  emailBroadcastLimit: "email_broadcast_limit",
   smsBroadcastLimit: "sms_broadcast_limit",
   ownerEmailNotifications: "owner_email_notifications",
   ownerSmsNotifications: "owner_sms_notifications",

@@ -418,6 +418,20 @@ test("only founders can allow a past transition into published", () => {
   assert.deepEqual(validateStatusTransition(event, "reopen", "founder", { now, allowPastEvent: true }), {});
 });
 
+test("only a founder can set or clear the guest email and guest text limits", () => {
+  const founderEmail = parseEventUpdate({ emailBroadcastLimit: 2500 }, "founder");
+  assert.equal(founderEmail.ok && founderEmail.value.emailBroadcastLimit, 2500);
+  const clearedEmail = parseEventUpdate({ emailBroadcastLimit: null }, "founder");
+  assert.equal(clearedEmail.ok && clearedEmail.value.emailBroadcastLimit, null);
+  const blankEmail = parseEventUpdate({ emailBroadcastLimit: "" }, "founder");
+  assert.equal(blankEmail.ok && blankEmail.value.emailBroadcastLimit, null);
+  const invalidEmail = parseEventUpdate({ emailBroadcastLimit: 0 }, "founder");
+  assert.equal(invalidEmail.ok, false);
+  const ownerEmail = parseEventUpdate({ emailBroadcastLimit: 2500, title: "Garden Party" }, "owner");
+  assert.equal(ownerEmail.ok, true);
+  if (ownerEmail.ok) assert.equal("emailBroadcastLimit" in ownerEmail.value, false);
+});
+
 test("only a founder can set or clear the guest text limit", () => {
   const founder = parseEventUpdate({ smsBroadcastLimit: 800 }, "founder");
   assert.equal(founder.ok && founder.value.smsBroadcastLimit, 800);

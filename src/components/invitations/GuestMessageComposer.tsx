@@ -24,7 +24,13 @@ type ComposerResult = {
   suppressedCount: number;
 };
 
-type SmsBudget = { limit: number; remaining: number };
+type ChannelBudget = { limit: number; remaining: number };
+
+function isChannelBudget(value: unknown): value is ChannelBudget {
+  if (!value || typeof value !== "object") return false;
+  const budget = value as { limit?: unknown; remaining?: unknown };
+  return typeof budget.limit === "number" && typeof budget.remaining === "number";
+}
 type StatusFilter = "all" | "attending" | "declined";
 
 export function GuestMessageComposer({
@@ -32,6 +38,7 @@ export function GuestMessageComposer({
   eventName,
   backHref,
   templateValues,
+  emailBudget: initialEmailBudget,
   smsBudget: initialSmsBudget,
   recipients,
   initialTotalResponses,
@@ -41,7 +48,8 @@ export function GuestMessageComposer({
   eventName: string;
   backHref: string;
   templateValues: MessageTemplateValues;
-  smsBudget: SmsBudget | null;
+  emailBudget: ChannelBudget | null;
+  smsBudget: ChannelBudget | null;
   recipients: { email: BroadcastRecipientChoice[]; sms: BroadcastRecipientChoice[] };
   initialTotalResponses: number;
   initialHistory: InvitationBroadcast[];
@@ -57,7 +65,9 @@ export function GuestMessageComposer({
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<ComposerResult | null>(null);
+  const [resultChannel, setResultChannel] = useState<InvitationNotificationChannel | null>(null);
   const [history, setHistory] = useState(initialHistory);
+  const [emailBudget, setEmailBudget] = useState(initialEmailBudget);
   const [smsBudget, setSmsBudget] = useState(initialSmsBudget);
   const [selected, setSelected] = useState<Set<string>>(() => new Set(
     recipients.email.filter((guest) => !guest.optedOut).map((guest) => guest.id),
@@ -191,17 +201,20 @@ export function GuestMessageComposer({
       const payload = data as ComposerResult & {
         ok: true;
         broadcast: InvitationBroadcast;
-        smsBudget?: SmsBudget | null;
+        emailBudget?: ChannelBudget | null;
+        smsBudget?: ChannelBudget | null;
       };
       setResult({ sentCount: payload.sentCount, failedCount: payload.failedCount, suppressedCount: payload.suppressedCount });
+      setResultChannel(channel);
       setHistory((current) => [payload.broadcast, ...current]);
-      if (payload.smsBudget && typeof payload.smsBudget.limit === "number" && typeof payload.smsBudget.remaining === "number") {
+      const spent = payload.sentCount + payload.failedCount;
+      if (channel === "email") {
+        if (isChannelBudget(payload.emailBudget)) setEmailBudget(payload.emailBudget);
+        else if (emailBudget) setEmailBudget({ limit: emailBudget.limit, remaining: Math.max(0, emailBudget.remaining - spent) });
+      } else if (isChannelBudget(payload.smsBudget)) {
         setSmsBudget(payload.smsBudget);
-      } else if (channel === "sms" && smsBudget) {
-        setSmsBudget({
-          limit: smsBudget.limit,
-          remaining: Math.max(0, smsBudget.remaining - payload.sentCount - payload.failedCount),
-        });
+      } else if (smsBudget) {
+        setSmsBudget({ limit: smsBudget.limit, remaining: Math.max(0, smsBudget.remaining - spent) });
       }
       setTemplateKey(null);
       setEdited(false);
@@ -214,7 +227,9 @@ export function GuestMessageComposer({
     }
   }
 
-  const smsShortfall = channel === "sms" && smsBudget !== null && recipientCount > smsBudget.remaining;
+  const activeBudget = channel === "email" ? emailBudget : smsBudget;
+  const budgetShortfall = activeBudget !== null && recipientCount > activeBudget.remaining;
+  const resultLimited = result !== null && result.suppressedCount > 0;
 
   return (
     <main className="min-h-screen bg-[#F7F4F8] px-4 py-7 text-[#2B2231] sm:px-6">
@@ -363,15 +378,21 @@ export function GuestMessageComposer({
 
           <p className="mt-5 text-sm text-[#675d6a]">{t("recipientPreview", { reached: recipientCount, total: initialTotalResponses })}</p>
           {missingCount > 0 && <p className="mt-1 text-xs text-[#807484]">{t("recipientPreviewGap", { missing: missingCount, channel })}</p>}
-          {channel === "sms" && smsBudget && (
-            <p className="mt-1 text-xs text-[#675d6a]" aria-live="polite">{t("smsRemaining", { remaining: smsBudget.remaining, limit: smsBudget.limit, needed: recipientCount })}</p>
+          {activeBudget && (
+            <p className="mt-1 text-xs text-[#675d6a]" aria-live="polite">{t(channel === "email" ? "emailRemaining" : "smsRemaining", { remaining: activeBudget.remaining, limit: activeBudget.limit, needed: recipientCount })}</p>
           )}
-          {smsShortfall && smsBudget && (
-            <p className="mt-1 text-xs text-[#9a6b2f]">{t("smsRemainingShort", { needed: recipientCount, remaining: smsBudget.remaining })}</p>
+          {budgetShortfall && activeBudget && (
+            <p className="mt-1 text-xs text-[#9a6b2f]">{t(channel === "email" ? "emailRemainingShort" : "smsRemainingShort", { needed: recipientCount, remaining: activeBudget.remaining })}</p>
           )}
 
           {message && <p role="alert" className="mt-4 text-sm text-[#8a2d2d]">{message}</p>}
-          {result && <p role="status" aria-live="polite" className="mt-4 text-sm text-[#285d44]">{t("resultSummary", { sent: result.sentCount, failed: result.failedCount, suppressed: result.suppressedCount })}</p>}
+          {result && (
+            <p role="status" aria-live="polite" className={`mt-4 text-sm ${resultLimited && result.sentCount === 0 ? "text-[#9a6b2f]" : "text-[#285d44]"}`}>
+              {resultLimited
+                ? t(resultChannel === "sms" ? "resultLimitSms" : "resultLimitEmail", { sent: result.sentCount, failed: result.failedCount, suppressed: result.suppressedCount })
+                : t("resultSummary", { sent: result.sentCount, failed: result.failedCount, suppressed: result.suppressedCount })}
+            </p>
+          )}
 
           <button
             type="button"
