@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
+import {
+  MESSAGE_TEMPLATE_KEYS,
+  type MessageTemplateKey,
+  type MessageTemplateValues,
+} from "@/lib/invitations/message-templates";
 import type { InvitationBroadcast, InvitationNotificationChannel } from "@/lib/invitations/types";
-
-type TemplateKey = "thankYou" | "reminder" | "update";
 
 // Rough, GSM-7-based estimate (ignores Unicode/UCS-2 detection): 160 chars
 // for a single segment, 153 per segment once concatenated. Good enough for
@@ -21,19 +24,23 @@ type ComposerResult = {
   suppressedCount: number;
 };
 
+type SmsBudget = { limit: number; remaining: number };
+
 export function GuestMessageComposer({
   eventId,
   eventName,
-  eventTitle,
   backHref,
+  templateValues,
+  smsBudget: initialSmsBudget,
   initialRecipientCounts,
   initialTotalResponses,
   initialHistory,
 }: {
   eventId: string;
   eventName: string;
-  eventTitle: string;
   backHref: string;
+  templateValues: MessageTemplateValues;
+  smsBudget: SmsBudget | null;
   initialRecipientCounts: { email: number; sms: number };
   initialTotalResponses: number;
   initialHistory: InvitationBroadcast[];
@@ -42,25 +49,50 @@ export function GuestMessageComposer({
   const [channel, setChannel] = useState<InvitationNotificationChannel>("email");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [templateKey, setTemplateKey] = useState<MessageTemplateKey | null>(null);
+  const [edited, setEdited] = useState(false);
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState("");
   const [result, setResult] = useState<ComposerResult | null>(null);
   const [history, setHistory] = useState(initialHistory);
+  const [smsBudget, setSmsBudget] = useState(initialSmsBudget);
 
   const recipientCount = channel === "email" ? initialRecipientCounts.email : initialRecipientCounts.sms;
   const missingCount = initialTotalResponses - recipientCount;
   const smsSegments = channel === "sms" ? estimateSmsSegments(body) : 0;
 
-  const templates = useMemo(() => ({
-    thankYou: { subject: t("templates.thankYou.subject"), body: t("templates.thankYou.body", { name: eventTitle }) },
-    reminder: { subject: t("templates.reminder.subject"), body: t("templates.reminder.body", { name: eventTitle }) },
-    update: { subject: t("templates.update.subject"), body: t("templates.update.body", { name: eventTitle }) },
-  }), [t, eventTitle]);
+  const templates = useMemo(() => {
+    const filled = {} as Record<MessageTemplateKey, { subject: string; email: string; sms: string }>;
+    for (const key of MESSAGE_TEMPLATE_KEYS) {
+      filled[key] = {
+        subject: t(`templates.${key}.subject`, templateValues),
+        email: t(`templates.${key}.email`, templateValues),
+        sms: t(`templates.${key}.sms`, templateValues),
+      };
+    }
+    return filled;
+  }, [t, templateValues]);
 
-  function applyTemplate(key: TemplateKey | "blank") {
-    if (key === "blank") { setSubject(""); setBody(""); return; }
+  function applyTemplate(key: MessageTemplateKey | "blank", forChannel = channel) {
+    if (key === "blank") {
+      setTemplateKey(null);
+      setEdited(false);
+      setSubject("");
+      setBody("");
+      return;
+    }
+    setTemplateKey(key);
+    setEdited(false);
     setSubject(templates[key].subject);
-    setBody(templates[key].body);
+    setBody(forChannel === "sms" ? templates[key].sms : templates[key].email);
+  }
+
+  function changeChannel(next: InvitationNotificationChannel) {
+    setChannel(next);
+    if (templateKey && !edited) {
+      setSubject(templates[templateKey].subject);
+      setBody(next === "sms" ? templates[templateKey].sms : templates[templateKey].email);
+    }
   }
 
   async function send() {
@@ -80,16 +112,33 @@ export function GuestMessageComposer({
         setMessage(code === "body_too_long" ? t("bodyTooLong") : t("error"));
         return;
       }
-      const payload = data as ComposerResult & { ok: true; broadcast: InvitationBroadcast };
+      const payload = data as ComposerResult & {
+        ok: true;
+        broadcast: InvitationBroadcast;
+        smsBudget?: SmsBudget | null;
+      };
       setResult({ sentCount: payload.sentCount, failedCount: payload.failedCount, suppressedCount: payload.suppressedCount });
       setHistory((current) => [payload.broadcast, ...current]);
-      setSubject(""); setBody("");
+      if (payload.smsBudget && typeof payload.smsBudget.limit === "number" && typeof payload.smsBudget.remaining === "number") {
+        setSmsBudget(payload.smsBudget);
+      } else if (channel === "sms" && smsBudget) {
+        setSmsBudget({
+          limit: smsBudget.limit,
+          remaining: Math.max(0, smsBudget.remaining - payload.sentCount - payload.failedCount),
+        });
+      }
+      setTemplateKey(null);
+      setEdited(false);
+      setSubject("");
+      setBody("");
     } catch {
       setMessage(t("error"));
     } finally {
       setSending(false);
     }
   }
+
+  const smsShortfall = channel === "sms" && smsBudget !== null && recipientCount > smsBudget.remaining;
 
   return (
     <main className="min-h-screen bg-[#F7F4F8] px-4 py-7 text-[#2B2231] sm:px-6">
@@ -103,11 +152,11 @@ export function GuestMessageComposer({
             <legend className="text-sm font-semibold">{t("channel.label")}</legend>
             <div className="flex gap-4">
               <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input type="radio" name="channel" checked={channel === "email"} onChange={() => setChannel("email")} />
+                <input type="radio" name="channel" checked={channel === "email"} onChange={() => changeChannel("email")} />
                 {t("channel.email")}
               </label>
               <label className="flex min-h-11 items-center gap-2 text-sm">
-                <input type="radio" name="channel" checked={channel === "sms"} onChange={() => setChannel("sms")} />
+                <input type="radio" name="channel" checked={channel === "sms"} onChange={() => changeChannel("sms")} />
                 {t("channel.sms")}
               </label>
             </div>
@@ -117,22 +166,23 @@ export function GuestMessageComposer({
             <p className="text-sm font-semibold">{t("templates.label")}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               <button type="button" onClick={() => applyTemplate("blank")} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">{t("templates.blank")}</button>
-              <button type="button" onClick={() => applyTemplate("thankYou")} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">{t("templates.thankYou.label")}</button>
-              <button type="button" onClick={() => applyTemplate("reminder")} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">{t("templates.reminder.label")}</button>
-              <button type="button" onClick={() => applyTemplate("update")} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">{t("templates.update.label")}</button>
+              {MESSAGE_TEMPLATE_KEYS.map((key) => (
+                <button key={key} type="button" onClick={() => applyTemplate(key)} className="min-h-11 rounded-full border border-[#cfc3d3] px-4 text-sm font-semibold">{t(`templates.${key}.label`)}</button>
+              ))}
             </div>
+            <p className="mt-2 text-xs text-[#807484]">{t("templates.hint")}</p>
           </div>
 
           {channel === "email" && (
             <label className="mt-5 block text-sm font-semibold">
               {t("fields.subject")}
-              <input value={subject} onChange={(event) => setSubject(event.target.value)} className="mt-2 min-h-11 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
+              <input value={subject} onChange={(event) => { setSubject(event.target.value); setEdited(true); }} className="mt-2 min-h-11 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
             </label>
           )}
 
           <label className="mt-5 block text-sm font-semibold">
             {t("fields.body")}
-            <textarea value={body} onChange={(event) => setBody(event.target.value)} rows={6} maxLength={5000} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
+            <textarea value={body} onChange={(event) => { setBody(event.target.value); setEdited(true); }} rows={6} maxLength={5000} className="mt-2 w-full rounded-md border border-[#cfc3d3] bg-white px-3 py-2 text-[16px] text-[#2B2231]" />
           </label>
           {channel === "sms" && (
             <p className="mt-1 text-xs text-[#807484]">
@@ -143,6 +193,12 @@ export function GuestMessageComposer({
 
           <p className="mt-5 text-sm text-[#675d6a]">{t("recipientPreview", { reached: recipientCount, total: initialTotalResponses })}</p>
           {missingCount > 0 && <p className="mt-1 text-xs text-[#807484]">{t("recipientPreviewGap", { missing: missingCount, channel })}</p>}
+          {channel === "sms" && smsBudget && (
+            <p className="mt-1 text-xs text-[#675d6a]" aria-live="polite">{t("smsRemaining", { remaining: smsBudget.remaining, limit: smsBudget.limit })}</p>
+          )}
+          {smsShortfall && smsBudget && (
+            <p className="mt-1 text-xs text-[#9a6b2f]">{t("smsRemainingShort", { needed: recipientCount, remaining: smsBudget.remaining })}</p>
+          )}
 
           {message && <p role="alert" className="mt-4 text-sm text-[#8a2d2d]">{message}</p>}
           {result && <p role="status" aria-live="polite" className="mt-4 text-sm text-[#285d44]">{t("resultSummary", { sent: result.sentCount, failed: result.failedCount, suppressed: result.suppressedCount })}</p>}

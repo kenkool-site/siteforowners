@@ -20,6 +20,7 @@ import twilio from "twilio";
 import { escapeHtml } from "@/lib/marketing-lead";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { invitationPublicUrl } from "./public-url";
+import { platformSmsBroadcastLimit } from "./sms-broadcast-limit";
 import type {
   InvitationLocale,
   InvitationNotificationAudience,
@@ -474,6 +475,7 @@ export async function reserveInvitationNotification(
     p_recipient: input.recipient,
     p_kind: input.kind,
     p_broadcast_id: input.broadcastId ?? null,
+    p_platform_sms_broadcast_limit: platformSmsBroadcastLimit(),
   });
   if (error) throw new Error("Unable to reserve invitation notification", { cause: error });
   const row = Array.isArray(data) ? data[0] : data;
@@ -699,6 +701,7 @@ async function getInvitationEventLocale(eventId: string): Promise<InvitationLoca
 export async function reserveInvitationNotificationRetry(notificationId: string): Promise<RetryReservation> {
   const { data, error } = await createAdminClient().rpc("retry_invitation_notification", {
     p_notification_id: notificationId,
+    p_platform_sms_broadcast_limit: platformSmsBroadcastLimit(),
   });
   if (error) throw new Error("Unable to retry invitation notification", { cause: error });
   const row = Array.isArray(data) ? data[0] : data;

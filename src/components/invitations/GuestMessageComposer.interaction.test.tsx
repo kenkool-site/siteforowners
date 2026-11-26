@@ -4,8 +4,25 @@ import { JSDOM } from "jsdom";
 import React, { act } from "react";
 import { NextIntlClientProvider } from "next-intl";
 import enMessages from "../../../messages/en.json";
+import { buildMessageTemplateValues } from "@/lib/invitations/message-templates";
 import { GuestMessageComposer } from "./GuestMessageComposer";
 import type { InvitationBroadcast } from "@/lib/invitations/types";
+
+const templateValues = buildMessageTemplateValues({
+  locale: "en",
+  title: "You're Invited",
+  honoreeNames: "Mercy and John",
+  slug: "mercy-john",
+  publicSubdomain: "mercy-john",
+  startsAt: "2026-12-19T19:00:00.000Z",
+  timezone: "America/New_York",
+  venueName: "The Bliss",
+  address: "100 Main St",
+  mapUrl: null,
+  rsvpDeadline: null,
+  styleGuide: { note: "traditional aso-ebi", colors: [{ name: "gold", color: "#C5A046" }] },
+  additionalSections: [],
+});
 
 Object.assign(globalThis, { React });
 
@@ -46,8 +63,9 @@ async function withComposer(
           <GuestMessageComposer
             eventId="event-1"
             eventName="Mercy & John"
-            eventTitle="You're Invited"
             backHref="/invitations/manage/event-1"
+            templateValues={templateValues}
+            smsBudget={{ limit: 500, remaining: 500 }}
             initialRecipientCounts={{ email: 8, sms: 5 }}
             initialTotalResponses={10}
             initialHistory={[]}
@@ -117,15 +135,39 @@ test("selecting a template fills in subject and body, and sending posts the comp
   });
 });
 
-test("selecting a template inserts the invitation title, not the honoree-names-based eventName", async () => {
+test("selecting a template inserts host, date, and venue, and SMS uses the short version", async () => {
   await withComposer(async () => ({ ok: true, json: async () => ({}) }) as Response, async (container) => {
     const reminderButton = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Reminder")!;
     assert.ok(reminderButton, "expected a Reminder template button");
     await act(async () => { reminderButton.click(); });
 
     const textarea = container.querySelector<HTMLTextAreaElement>("textarea")!;
-    assert.match(textarea.value, /You're Invited/, "expected the Reminder template body to reference eventTitle ('You're Invited'), not eventName");
-    assert.doesNotMatch(textarea.value, /Mercy & John/, "the template body should use eventTitle specifically, not the honoree-names-based eventName used elsewhere on the page");
+    assert.match(textarea.value, /Mercy and John/);
+    assert.match(textarea.value, /The Bliss/);
+    assert.match(textarea.value, /mercy-john\.invitespot\.app/);
+    assert.doesNotMatch(textarea.value, /You're Invited/);
+
+    const smsRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
+      .find((input) => input.parentElement?.textContent?.includes("Text message"))!;
+    await act(async () => { smsRadio.click(); });
+    assert.match(container.textContent ?? "", /500 of 500 guest texts left/);
+    assert.match(textarea.value, /Mercy and John reminder:/);
+    assert.ok(textarea.value.length <= 160);
+
+    const photos = Array.from(container.querySelectorAll("button")).find((b) => b.textContent === "Share photos")!;
+    await act(async () => { photos.click(); });
+    assert.match(textarea.value, /https:\/\/mercy-john\.invitespot\.app\/memories/);
+    assert.ok(textarea.value.length <= 160);
+
+    const setValue = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(textarea), "value")!.set!;
+    await act(async () => {
+      setValue.call(textarea, "Custom note for guests");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    const emailRadio = Array.from(container.querySelectorAll<HTMLInputElement>("input[type='radio']"))
+      .find((input) => input.parentElement?.textContent?.includes("Email"))!;
+    await act(async () => { emailRadio.click(); });
+    assert.equal(textarea.value, "Custom note for guests");
   });
 });
 

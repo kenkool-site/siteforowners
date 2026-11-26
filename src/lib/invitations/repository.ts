@@ -100,7 +100,7 @@ const MANAGEMENT_SELECT = [
   "design_recipe", "reference_analysis",
   "designed_invite_path", "cover_image_path", "video_path",
   "show_public_rsvp_count", "comment_wall_enabled", "comment_wall_reviewed_at", "capacity", "rsvp_deadline", "rsvp_override_open", "private_guest_list_enabled", "submission_limit",
-  "email_notification_limit", "sms_notification_limit", "owner_email_notifications",
+  "email_notification_limit", "sms_notification_limit", "sms_broadcast_limit", "owner_email_notifications",
   "owner_sms_notifications", "notification_email", "notification_phone",
   "guest_email_confirmations", "status", "expire_at", "created_at", "updated_at",
   "invitation_owners!invitation_events_owner_id_fkey!inner(id,name,email,phone,is_active,created_at,updated_at)",
@@ -250,7 +250,7 @@ export const invitationRepository: InvitationRepository & InvitationManagementRe
     const supabase = createAdminClient();
     const { data, error } = await supabase
       .from("invitation_notifications")
-      .select("id,channel,status")
+      .select("id,channel,status,kind")
       .eq("event_id", eventId);
     if (error) throw new Error("Unable to load response notifications", { cause: error });
     return (data ?? []) as InvitationNotificationWarningRow[];

@@ -370,6 +370,8 @@ test("event update rows map editable fields without inventing passcode changes",
 });
 
 test("the RSVP override toggle maps onto its persisted column", () => {
+  assert.equal(buildInvitationEventUpdateRow({ smsBroadcastLimit: null }).sms_broadcast_limit, null);
+  assert.equal(buildInvitationEventUpdateRow({ smsBroadcastLimit: 800 }).sms_broadcast_limit, 800);
   assert.equal(buildInvitationEventUpdateRow({ rsvpOverrideOpen: true }).rsvp_override_open, true);
   assert.equal(buildInvitationEventUpdateRow({ rsvpOverrideOpen: false }).rsvp_override_open, false);
 });

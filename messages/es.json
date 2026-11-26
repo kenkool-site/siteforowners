@@ -382,14 +382,80 @@
         "templates": {
           "label": "Comenzar con una plantilla",
           "blank": "Comenzar en blanco",
-          "thankYou": { "label": "Agradecimiento", "subject": "¡Gracias por celebrar con nosotros!", "body": "{name}: Muchas gracias por ser parte de nuestro día especial. Significó mucho tenerte ahí." },
-          "reminder": { "label": "Recordatorio", "subject": "Un recordatorio sobre nuestro gran día", "body": "{name}: Solo un recordatorio amistoso sobre nuestro próximo evento. ¡No podemos esperar a verte!" },
-          "update": { "label": "Actualización", "subject": "Una actualización sobre nuestro evento", "body": "{name}: Queríamos contarte sobre una pequeña actualización. Revisa la página de la invitación para los últimos detalles." }
+          "hint": "Las plantillas llenan el mensaje. Edítalo antes de enviar. No se envía nada hasta que pulses Enviar.",
+          "thankYou": {
+            "label": "Agradecimiento",
+            "subject": "Gracias de parte de {name}",
+            "email": "{name}\n\nGracias por celebrar con nosotros. Significó mucho tenerte ahí.\n\nCon cariño,\n{name}",
+            "sms": "{name}: Gracias por celebrar con nosotros."
+          },
+          "reminder": {
+            "label": "Recordatorio",
+            "subject": "Recordatorio de {name}",
+            "email": "{name}\n\nUn recordatorio de nuestra celebración.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}",
+            "sms": "{name}: Recordatorio {smsWhen} en {venue}. {inviteUrl}"
+          },
+          "dayBefore": {
+            "label": "Día anterior",
+            "subject": "Mañana: {name}",
+            "email": "{name}\n\nMañana celebramos y nos encantaría verte.\n\nCuándo: {when}\nDónde: {place}\n\nInvitación: {inviteUrl}",
+            "sms": "{name} es mañana, {smsWhen}, en {venue}. {inviteUrl}"
+          },
+          "eventDay": {
+            "label": "Día del evento",
+            "subject": "Hoy: {name}",
+            "email": "{name}\n\nHoy es el día. Aquí están los detalles para llegar.\n\nHora: {time}\nDónde: {place}\nCómo llegar: {directions}\nEstacionamiento: {parking}\n\nInvitación: {inviteUrl}",
+            "sms": "{name} es hoy a las {smsTime}, {venue}. Direcciones: {smsDirections}. Estacionamiento: {parking}"
+          },
+          "dressCode": {
+            "label": "Vestimenta",
+            "subject": "Vestimenta para {name}",
+            "email": "{name}\n\nEsto es lo que pedimos vestir, incluido aso-ebi u otros colores.\n\nVestimenta: {dressCode}\nColores: {colors}\n\nInvitación: {inviteUrl}",
+            "sms": "{name}: Vestimenta / aso-ebi: {smsDressCode}. Colores: {smsColors}."
+          },
+          "scheduleChange": {
+            "label": "Cambio de horario",
+            "subject": "Un cambio para {name}",
+            "email": "{name}\n\nHay un cambio de horario o de lugar.\n\nQué cambió: {change}\n\nUsa la invitación para los detalles más recientes:\n{inviteUrl}\n\nDonde lo teníamos: {place}",
+            "sms": "{name}: Cambio - {change}. Detalles: {inviteUrl}"
+          },
+          "rsvpDeadline": {
+            "label": "Fecha límite de RSVP",
+            "subject": "Confirma tu asistencia a {name}",
+            "email": "{name}\n\nPor favor confirma tu asistencia antes del {deadline} para poder contar contigo.\n\n{inviteUrl}",
+            "sms": "{name}: Confirma tu asistencia antes del {smsDeadline}. {inviteUrl}"
+          },
+          "photoSharing": {
+            "label": "Compartir fotos",
+            "subject": "Comparte fotos de {name}",
+            "email": "{name}\n\nAgrega tus fotos y videos a nuestra página de recuerdos. Nos encantaría ver el día desde tus ojos.\n\n{memoriesUrl}",
+            "sms": "{name}: Comparte tus fotos: {memoriesUrl}"
+          },
+          "thankYouPhotos": {
+            "label": "Agradecimiento y fotos",
+            "subject": "Gracias y fotos de {name}",
+            "email": "{name}\n\nGracias por celebrar con nosotros. Significó mucho tenerte ahí.\n\nFotos y momentos: {memoriesUrl}",
+            "sms": "{name}: Gracias por celebrar con nosotros. Fotos: {memoriesUrl}"
+          },
+          "livestream": {
+            "label": "En vivo",
+            "subject": "En vivo: {name}",
+            "email": "{name}\n\nAcompáñanos en línea si no puedes estar en persona.\n\n{livestream}\n\nInvitación: {inviteUrl}",
+            "sms": "{name}: En vivo: {livestream}"
+          },
+          "update": {
+            "label": "Actualización",
+            "subject": "Una actualización de {name}",
+            "email": "{name}\n\nTenemos una actualización para ti.\n\n{change}\n\nDetalles: {inviteUrl}",
+            "sms": "{name}: {change}. Detalles: {inviteUrl}"
+          }
         },
         "fields": {
           "subject": "Asunto",
           "body": "Mensaje"
         },
+        "smsRemaining": "Quedan {remaining} de {limit} textos para invitados en este evento.",
+        "smsRemainingShort": "Este texto necesita {needed} envíos y quedan {remaining}, así que algunos invitados no lo recibirán.",
         "smsCharacterCount": "{count} caracteres",
         "smsSegmentWarning": "{count, plural, one {Esto se enviará como # segmento de mensaje por destinatario.} other {Esto se enviará como # segmentos de mensaje por destinatario — los mensajes más largos cuestan más.}}",
         "recipientPreview": "Esto llegará a {reached} de {total, plural, one {# invitado} other {# invitados}}.",
@@ -512,6 +578,7 @@
         "submissionLimit": "Límite de respuestas",
         "emailLimit": "Límite de notificaciones por correo",
         "smsLimit": "Límite de notificaciones SMS",
+        "smsBroadcastLimit": "Límite de textos a invitados",
         "ownerName": "Nombre del propietario",
         "ownerEmail": "Correo de acceso del propietario",
         "ownerPhone": "Teléfono del propietario",
@@ -536,7 +603,8 @@
         "venueUrl": "https://lugar.example/",
         "address": "Calle, ciudad, estado",
         "mapUrl": "https://maps.google.com/…",
-        "passcode": "Déjelo en blanco para conservar la clave actual"
+        "passcode": "Déjelo en blanco para conservar la clave actual",
+        "smsBroadcastLimit": "Valor de la plataforma"
       },
       "status": {
         "label": "Estado",
@@ -730,6 +798,8 @@
       "passcodeHelp": "Por seguridad, la clave actual nunca se muestra.",
       "rsvpOverrideHelp": "Permite que cualquiera responda aunque la fecha límite ya haya pasado. No olvide desactivarlo cuando termine.",
       "founderLimitsHelp": "Solo el fundador puede cambiar los límites de mensajes y respuestas.",
+      "smsLimitHelp": "Textos al anfitrión cuando alguien confirma. Los mensajes a invitados no usan este límite.",
+      "smsBroadcastLimitHelp": "Textos que el anfitrión envía a los invitados. Déjalo en blanco para usar el valor de la plataforma (500, o INVITATION_SMS_BROADCAST_LIMIT). No incluye las alertas de RSVP al anfitrión.",
       "privateGuestList": {
         "title": "Lista privada de invitados (solo con invitación)",
         "badge": "Premium",

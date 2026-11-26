@@ -4,6 +4,7 @@ import { isSameOrigin } from "@/lib/invitations/auth";
 import {
   dispatchInvitationBroadcast,
   eligibleBroadcastRecipients,
+  getInvitationSmsBroadcastBudget,
   listInvitationBroadcasts,
   parseComposeBroadcastInput,
 } from "@/lib/invitations/broadcasts";
@@ -13,9 +14,10 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
   const actor = await requireInvitationAccess(request, params.eventId);
   if (!actor) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const [broadcasts, rows] = await Promise.all([
+    const [broadcasts, rows, smsBudget] = await Promise.all([
       listInvitationBroadcasts(params.eventId),
       listInvitationResponseRows(params.eventId),
+      getInvitationSmsBroadcastBudget(params.eventId),
     ]);
     return NextResponse.json({
       broadcasts,
@@ -24,6 +26,7 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
         sms: eligibleBroadcastRecipients(rows, "sms").length,
       },
       totalResponses: rows.length,
+      smsBudget,
     }, { headers: { "cache-control": "private, no-store" } });
   } catch (error) {
     console.error("[invitations/messages] list failed", { eventId: params.eventId, error });
@@ -58,6 +61,9 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       emailFrom: EMAIL_FROM,
       smsFrom: TWILIO_FROM,
     });
+    const smsBudget = parsed.value.channel === "sms"
+      ? await getInvitationSmsBroadcastBudget(params.eventId, event.smsBroadcastLimit ?? null)
+      : null;
 
     console.info("[invitations/messages] broadcast sent", {
       eventId: params.eventId, actor: actor.kind, channel: parsed.value.channel,
@@ -72,6 +78,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       sentCount: result.sentCount,
       failedCount: result.failedCount,
       suppressedCount: result.suppressedCount,
+      smsBudget,
     });
   } catch (error) {
     console.error("[invitations/messages] send failed", { eventId: params.eventId, actor: actor.kind, error });

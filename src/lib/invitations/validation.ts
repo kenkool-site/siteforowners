@@ -7,6 +7,7 @@ import { validatePlatformSubdomain } from "@/lib/subdomain";
 import { parseInvitationStyleGuide, type InvitationStyleGuide } from "./style-guide";
 import { parseInvitationAdditionalSections, type InvitationAdditionalSection } from "./additional-sections";
 import { parseInvitationEventSchedule, type EventScheduleItem } from "./event-schedule";
+import { MAX_SMS_BROADCAST_LIMIT } from "./sms-broadcast-limit";
 
 export type ParsedRsvpInput = {
   primaryName: string;
@@ -64,6 +65,7 @@ export type InvitationEventUpdate = {
   submissionLimit?: number;
   emailNotificationLimit?: number;
   smsNotificationLimit?: number;
+  smsBroadcastLimit?: number | null;
   ownerEmailNotifications?: boolean;
   ownerSmsNotifications?: boolean;
   notificationEmail?: string | null;
@@ -335,6 +337,15 @@ export function parseEventUpdate(
     parsePositiveInteger(body, "submissionLimit", value, errors, false);
     parsePositiveInteger(body, "emailNotificationLimit", value, errors, false);
     parsePositiveInteger(body, "smsNotificationLimit", value, errors, false);
+    if ("smsBroadcastLimit" in body) {
+      const raw = body.smsBroadcastLimit;
+      if (raw === null || raw === "") value.smsBroadcastLimit = null;
+      else if (typeof raw === "number" && Number.isInteger(raw) && raw > 0 && raw <= MAX_SMS_BROADCAST_LIMIT) {
+        value.smsBroadcastLimit = raw;
+      } else {
+        errors.smsBroadcastLimit = "Enter a whole number from 1 to 1000000, or leave it blank for the platform default.";
+      }
+    }
     if ("privateGuestListEnabled" in body) {
       if (typeof body.privateGuestListEnabled === "boolean") value.privateGuestListEnabled = body.privateGuestListEnabled;
       else errors.privateGuestListEnabled = "Choose on or off.";

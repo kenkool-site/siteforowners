@@ -1,6 +1,7 @@
 import type {
   InvitationEventStatus,
   InvitationNotificationChannel,
+  InvitationNotificationKind,
   InvitationNotificationStatus,
   RsvpSummary,
 } from "./types";
@@ -35,6 +36,7 @@ export type InvitationNotificationWarningRow = {
   id: string;
   channel: InvitationNotificationChannel;
   status: InvitationNotificationStatus;
+  kind?: InvitationNotificationKind | null;
 };
 
 export type InvitationResponse = {
@@ -184,11 +186,18 @@ export function filterSortInvitationResponses(
     .map(projectResponse);
 }
 
+function countsTowardChannelLimit(row: InvitationNotificationWarningRow, channel: InvitationNotificationChannel): boolean {
+  if (row.channel !== channel || row.status === "suppressed") return false;
+  // Guest broadcasts have their own SMS budget and must not trip the host RSVP alert warning.
+  if (channel === "sms" && row.kind === "celebrant_broadcast") return false;
+  return true;
+}
+
 function notificationUsage(
   notifications: readonly InvitationNotificationWarningRow[],
   channel: InvitationNotificationChannel,
 ): number {
-  return notifications.filter((row) => row.channel === channel && row.status !== "suppressed").length;
+  return notifications.filter((row) => countsTowardChannelLimit(row, channel)).length;
 }
 
 export function buildInvitationResponsesDashboard(input: {
@@ -231,7 +240,7 @@ export function buildInvitationResponsesDashboard(input: {
   ) warnings.push({ code: "email_limit_reached", count: 1 });
   if (
     notificationUsage(input.notifications, "sms") >= input.event.sms_notification_limit
-    || suppressed.some((row) => row.channel === "sms")
+    || suppressed.some((row) => row.channel === "sms" && row.kind !== "celebrant_broadcast")
   ) warnings.push({ code: "sms_limit_reached", count: 1 });
   if (failed.length) warnings.push({ code: "failed_delivery", count: failed.length });
   if (expired) warnings.push({ code: "expired", count: 1 });

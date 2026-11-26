@@ -140,6 +140,35 @@ test("filtered response pages keep whole-event summary and stable name ordering"
   ]);
 });
 
+test("guest broadcast texts do not consume the host RSVP SMS warning budget", () => {
+  const query = { status: "all" as const, search: "", sort: "newest" as const, page: 1, perPage: 25 };
+  const now = new Date("2026-08-01T00:00:00.000Z");
+  const open = buildInvitationResponsesDashboard({
+    event: { ...event, rsvp_deadline: null, email_notification_limit: 100, sms_notification_limit: 2 },
+    rows: [],
+    notifications: [
+      { id: "b1", channel: "sms", status: "sent", kind: "celebrant_broadcast" },
+      { id: "b2", channel: "sms", status: "sent", kind: "celebrant_broadcast" },
+      { id: "h1", channel: "sms", status: "sent", kind: "rsvp_created" },
+    ],
+    query,
+    now,
+  });
+  assert.equal(open.warnings.some((warning) => warning.code === "sms_limit_reached"), false);
+
+  const exhausted = buildInvitationResponsesDashboard({
+    event: { ...event, rsvp_deadline: null, email_notification_limit: 100, sms_notification_limit: 1 },
+    rows: [],
+    notifications: [
+      { id: "h1", channel: "sms", status: "sent", kind: "rsvp_created" },
+      { id: "b1", channel: "sms", status: "sent", kind: "celebrant_broadcast" },
+    ],
+    query,
+    now,
+  });
+  assert.equal(exhausted.warnings.some((warning) => warning.code === "sms_limit_reached"), true);
+});
+
 test("newest and oldest sorts use ids as a stable tie-breaker", () => {
   const newest = buildInvitationResponsesDashboard({
     event: { ...event, rsvp_deadline: null }, rows, notifications: [],
