@@ -10,7 +10,7 @@ import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import { defaultMediaSrc, type MediaImageSrc } from "./media-src";
 import { VideoPlaybackFallback } from "./VideoPlaybackFallback";
-import { downloadMemoryFile, nextVideoSourceAttempt, playWithSoundFallback, prefersReducedMotion, resolveVerticalSwipe, shareMemoryItem, videoSourceUrl } from "./video-playback";
+import { connectionLooksSlow, downloadMemoryFile, nextVideoSourceAttempt, playWithSoundFallback, prefersReducedMotion, resolveVerticalSwipe, shareMemoryItem, videoSourceUrl } from "./video-playback";
 
 const SLIDE_MS = 260;
 
@@ -99,6 +99,8 @@ export function GuestVideoPlayer({
     setFillById((known) => (known[id] === fill ? known : { ...known, [id]: fill }));
   }
   const reduceMotion = prefersReducedMotion();
+  // On a slow connection, spend the bandwidth on the clip being watched.
+  const slowConnection = connectionLooksSlow();
 
   useEffect(() => {
     const timer = slideTimer;
@@ -357,8 +359,9 @@ export function GuestVideoPlayer({
         )}
         {/* Start loading the next clip before the swipe. It shares the key the
             current-clip <video> below will use for it, so React keeps this same
-            element (and what it has buffered) when that clip becomes current. */}
-        {next && (
+            element (and what it has buffered) when that clip becomes current.
+            Skipped on a slow connection. */}
+        {next && !slowConnection && (
           <video
             key={`${next.id}-0`}
             ref={holdPreloadedClip}
