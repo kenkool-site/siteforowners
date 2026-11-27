@@ -202,7 +202,7 @@ function pickFiles(dom: JSDOM, files: File[]): void {
 }
 
 function confirmButton(dom: JSDOM): HTMLButtonElement {
-  const button = Array.from(dom.window.document.querySelectorAll("button")).find((candidate) => /^Add \d+ photo/.test(candidate.textContent ?? ""));
+  const button = Array.from(dom.window.document.querySelectorAll("button")).find((candidate) => /^Add \d+ (photo|video)/.test(candidate.textContent ?? ""));
   assert.ok(button, "expected the review button that starts the upload");
   return button as HTMLButtonElement;
 }
@@ -396,7 +396,7 @@ test("a picked photo file is still enqueued with mediaKind photo and no poster, 
   );
 });
 
-test("a video whose poster frame capture fails is never enqueued and shows the generic error", async () => {
+test("a video whose poster frame capture fails is still offered for upload with a fallback poster", async () => {
   const { XHRClass } = createRecordingXHRClass();
   await withMountedUploadView(
     {
@@ -416,15 +416,12 @@ test("a video whose poster frame capture fails is never enqueued and shows the g
         await flush();
       });
 
-      // capturePosterFrame rejects (no canvas context) inside handleFiles's
-      // try block, before queueRef.current.enqueue is ever reached — so no
-      // upload/init call and no queued item, same as the other pre-queue
-      // rejections (HEIC, duration) above.
-      assert.equal(fetchCalls.length, 0, "expected no network call when poster capture fails");
-      assert.deepEqual(getLatestItems(), [], "expected the video to never be enqueued");
-
-      const alertText = dom.window.document.querySelector('[role="alert"]')?.textContent ?? "";
-      assert.match(alertText, /Something went wrong — please try again/);
+      // Capture can fail on HEVC iPhones. The clip is still staged, with a
+      // generic JPEG poster, instead of dying before the guest can send it.
+      assert.equal(fetchCalls.length, 0, "picking a file does not upload it yet");
+      assert.deepEqual(getLatestItems(), []);
+      assert.equal(dom.window.document.querySelector('[role="alert"]'), null);
+      assert.match(dom.window.document.body.textContent ?? "", /Add 1 video/);
     },
   );
 });

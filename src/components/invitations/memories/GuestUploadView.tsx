@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, Check, ChevronRight, Images, Plus, Shield, Sparkles, Upload, User, Video, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
+import { genericPosterFile, resolveGuestUpload } from "@/lib/invitations/memories/guest-upload-file";
 import { guestNameSkippedKey, suggestMomentId } from "@/lib/invitations/memories/guest-presentation";
+import { formatMediaSummary } from "@/lib/invitations/memories/upload-sheet-copy";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import { createUploadQueue, type QueueItem, type UploadQueue } from "@/lib/invitations/memories/upload-queue";
 import { memoriesAboveTabClass, PlanningSoftLink } from "./MemoriesChrome";
@@ -19,14 +21,15 @@ const ERROR_WINDOW_CLOSED = "window_closed";
 const ERROR_TOO_LARGE = "too_large";
 const ERROR_UNSUPPORTED_TYPE = "unsupported_type";
 const ERROR_GENERIC = "generic";
+const ERROR_UPLOAD_BLOCKED = "upload_blocked";
 // Retrying the same file can't help any of these — they're a property of the
 // file itself (or the event), not a transient network hiccup — so the retry
 // button is hidden for all of them, not just quota/window-closed.
 const TERMINAL_UPLOAD_ERRORS = new Set([ERROR_QUOTA, ERROR_WINDOW_CLOSED, ERROR_TOO_LARGE, ERROR_UNSUPPORTED_TYPE]);
 const PREVIEW_LIFETIME_MS = 30_000;
 
-function isVideoFile(file: File): boolean {
-  return VIDEO_CONTENT_TYPES.has(file.type);
+function isVideoFile(file: { name: string; type: string }): boolean {
+  return resolveGuestUpload(file)?.mediaKind === "video" || VIDEO_CONTENT_TYPES.has(file.type);
 }
 
 // Pure and unit-testable in isolation from the real (unmockable-in-jsdom)
@@ -198,11 +201,13 @@ function capturePosterFrame(file: File): Promise<File> {
 }
 
 async function uploadOne(eventId: string, file: File, posterFile: File | undefined, onProgress: (percent: number) => void): Promise<{ mediaId: string }> {
-  const mediaKind = isVideoFile(file) ? "video" : "photo";
+  const resolved = resolveGuestUpload(file);
+  if (!resolved) throw new Error(ERROR_UNSUPPORTED_TYPE);
+  const { mediaKind, contentType } = resolved;
   const initRes = await fetch(`/api/memories/events/${eventId}/upload/init`, {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify({ mediaKind, contentType: file.type, sizeBytes: file.size, ...(videoDurations.has(file) ? { durationSeconds: videoDurations.get(file) } : {}) }),
+    body: JSON.stringify({ mediaKind, contentType, sizeBytes: file.size, ...(videoDurations.has(file) ? { durationSeconds: videoDurations.get(file) } : {}) }),
   });
   if (!initRes.ok) {
     if (initRes.status === 429) throw new Error(ERROR_QUOTA);
@@ -218,25 +223,33 @@ async function uploadOne(eventId: string, file: File, posterFile: File | undefin
   }
   const { mediaId, ticket, uploadUrl, posterUploadUrl } = await initRes.json();
 
-  async function putFile(url: string, body: File, trackProgress: boolean): Promise<void> {
+  async function putFile(url: string, body: File, trackProgress: boolean, signedType: string): Promise<void> {
     await new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", url);
-      xhr.setRequestHeader("content-type", body.type);
+      // The signature was made for `signedType`. An iPhone file's own type is
+      // often blank, so sending file.type here would not match the signature.
+      xhr.setRequestHeader("content-type", signedType);
       if (trackProgress) {
         xhr.upload.addEventListener("progress", (event) => {
           if (event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100));
         });
       }
-      xhr.addEventListener("error", () => reject(new Error("upload failed")));
-      xhr.addEventListener("load", () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error("upload failed")));
+      // status 0 is the browser discarding the response, which is what happens
+      // when R2's CORS allowlist does not include this page's origin.
+      xhr.addEventListener("error", () => reject(new Error(ERROR_UPLOAD_BLOCKED)));
+      xhr.addEventListener("load", () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else if (xhr.status === 0) reject(new Error(ERROR_UPLOAD_BLOCKED));
+        else reject(new Error(ERROR_GENERIC));
+      });
       xhr.send(body);
     });
   }
 
-  await putFile(uploadUrl, file, true);
+  await putFile(uploadUrl, file, true, contentType);
   if (mediaKind === "video" && posterFile && posterUploadUrl) {
-    await putFile(posterUploadUrl, posterFile, false);
+    await putFile(posterUploadUrl, posterFile, false, "image/jpeg");
   }
 
   const completeRes = await fetch(`/api/memories/events/${eventId}/upload/complete`, {
@@ -250,11 +263,12 @@ async function uploadOne(eventId: string, file: File, posterFile: File | undefin
 
 function failureMessageKey(
   error: string | undefined,
-): "quotaError" | "windowClosedError" | "fileTooLargeError" | "unsupportedTypeError" | "genericError" | "failed" {
+): "quotaError" | "windowClosedError" | "fileTooLargeError" | "unsupportedTypeError" | "genericError" | "uploadBlockedError" | "failed" {
   if (error === ERROR_QUOTA) return "quotaError";
   if (error === ERROR_WINDOW_CLOSED) return "windowClosedError";
   if (error === ERROR_TOO_LARGE) return "fileTooLargeError";
   if (error === ERROR_UNSUPPORTED_TYPE) return "unsupportedTypeError";
+  if (error === ERROR_UPLOAD_BLOCKED) return "uploadBlockedError";
   if (error === ERROR_GENERIC) return "genericError";
   return "failed";
 }
@@ -406,18 +420,26 @@ export function GuestUploadView({
         continue;
       }
       if (isVideoFile(file)) {
+        let duration: number | undefined;
         try {
-          const duration = await readVideoDurationSeconds(file);
-          if (exceedsMaxVideoDuration(duration)) {
-            setRejectionError(t("videoTooLongError"));
-            continue;
-          }
-          const poster = await capturePosterFrame(file);
-          videoDurations.set(file, duration);
-          next.push({ key: `${file.name}-${file.size}-${file.lastModified}-${next.length}`, file, poster, previewUrl: URL.createObjectURL(file), durationSeconds: duration });
+          duration = await readVideoDurationSeconds(file);
         } catch {
-          setRejectionError(t("genericError"));
+          // HEVC on iOS can refuse to report a duration. That must not stop
+          // the upload; the server stores a null duration when we omit it.
+          duration = undefined;
         }
+        if (duration != null && Number.isFinite(duration) && exceedsMaxVideoDuration(duration)) {
+          setRejectionError(t("videoTooLongError"));
+          continue;
+        }
+        let poster: File;
+        try {
+          poster = await capturePosterFrame(file);
+        } catch {
+          poster = genericPosterFile();
+        }
+        if (duration != null && Number.isFinite(duration)) videoDurations.set(file, duration);
+        next.push({ key: `${file.name}-${file.size}-${file.lastModified}-${next.length}`, file, poster, previewUrl: URL.createObjectURL(poster), durationSeconds: duration });
         continue;
       }
       next.push({ key: `${file.name}-${file.size}-${file.lastModified}-${next.length}`, file, previewUrl: URL.createObjectURL(file) });
@@ -454,6 +476,24 @@ export function GuestUploadView({
 
   const batchItems = items.filter((item) => batchIds.includes(item.id));
   const doneCount = batchItems.filter((item) => item.status === "done").length;
+  function mediaSummary(photos: number, videos: number) {
+    return formatMediaSummary(photos, videos, {
+      photos: (count) => tr("countPhotos", { count }),
+      videos: (count) => tr("countVideos", { count }),
+      join: (left, right) => tr("joinMedia", { left, right }),
+    });
+  }
+  function countKinds(files: Array<{ name: string; type: string }>) {
+    return files.reduce((totals, file) => {
+      const kind = resolveGuestUpload(file)?.mediaKind;
+      if (kind === "video") totals.videos += 1;
+      else if (kind === "photo") totals.photos += 1;
+      return totals;
+    }, { photos: 0, videos: 0 });
+  }
+  const stagedKinds = countKinds(staged.map((item) => item.file));
+  const batchKinds = countKinds(batchItems.map((item) => ({ name: item.fileName, type: item.contentType })));
+  const batchSummary = mediaSummary(batchKinds.photos, batchKinds.videos);
   const momentName = moments.find((moment) => moment.id === momentId)?.name;
   const accept = "image/jpeg,image/png,image/webp,image/gif,video/mp4,video/webm,video/quicktime";
 
@@ -490,7 +530,7 @@ export function GuestUploadView({
               <div className="text-center">
                 <div className="mx-auto grid size-14 place-items-center rounded-full" style={{ backgroundColor: `${accent}14`, color: accent }}><User className="size-7" /></div>
                 <h2 className="mt-3 font-serif text-2xl font-semibold" style={{ color: accent }}>{tr("nameTitle")}</h2>
-                <p className="mt-1 text-sm opacity-70">{tr("nameBody", { event: eventTitle })}</p>
+                <p className="mt-1 text-sm opacity-70">{tr("nameBodyMedia", { event: eventTitle })}</p>
                 <input value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} placeholder={tr("namePlaceholder")} className="mt-4 h-12 w-full rounded-2xl border px-4" style={{ borderColor: accent }} />
                 <button type="button" className="mt-4 h-14 w-full rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }} onClick={() => { if (nameDraft.trim()) onGuestName?.(nameDraft.trim()); setStep("source"); }}>{tr("continue")}</button>
                 <button type="button" className="mt-3 text-sm font-semibold opacity-60" onClick={() => { try { window.localStorage.setItem(guestNameSkippedKey(eventId), "1"); } catch { /* private mode */ } setStep("source"); }}>{tr("skip")}</button>
@@ -531,14 +571,14 @@ export function GuestUploadView({
                   <input value={nameDraft} onChange={(event) => setNameDraft(event.target.value)} className="mt-2 h-12 w-full rounded-2xl border bg-white px-3 text-base font-medium normal-case" style={{ borderColor: accent }} />
                 </label>
                 <p className="mt-1 text-xs opacity-60">{tr("nameHint")}</p>
-                <p className="mt-3 rounded-2xl px-3 py-2 text-xs leading-5" style={{ backgroundColor: `${accent}12` }}><b>{tr("whoSees")}</b> {tr("whoSeesBody", { event: eventTitle })}</p>
-                <button type="button" onClick={() => void confirmUpload()} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }}><Upload className="size-4" />{tr("addCount", { count: staged.length })}</button>
-                <p className="mt-2 flex items-center justify-center gap-1 text-center text-[11px] opacity-60"><Shield className="size-3.5" />{tr("finePrint")}</p>
+                <p className="mt-3 rounded-2xl px-3 py-2 text-xs leading-5" style={{ backgroundColor: `${accent}12` }}><b>{tr("whoSees")}</b> {tr("whoSeesBodyMedia", { event: eventTitle })}</p>
+                <button type="button" onClick={() => void confirmUpload()} className="mt-4 flex h-14 w-full items-center justify-center gap-2 rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }}><Upload className="size-4" />{tr("addMedia", { summary: mediaSummary(stagedKinds.photos, stagedKinds.videos) })}</button>
+                <p className="mt-2 flex items-center justify-center gap-1 text-center text-[11px] opacity-60"><Shield className="size-3.5" />{tr("finePrintMedia")}</p>
               </div>
             )}
             {step === "uploading" && (
               <div>
-                <h2 className="font-serif text-2xl font-semibold" style={{ color: accent }}>{tr("uploadingTitle", { count: batchTotal })}</h2>
+                <h2 className="font-serif text-2xl font-semibold" style={{ color: accent }}>{batchSummary ? tr("addingMedia", { summary: batchSummary }) : tr("uploadingTitle", { count: batchTotal })}</h2>
                 <p className="text-xs opacity-60">{momentName ? tr("uploadingMeta", { done: doneCount, total: batchTotal, moment: momentName }) : tr("uploadingMetaPlain", { done: doneCount, total: batchTotal })}</p>
                 <ul className="mt-4 grid gap-2.5">
                   {batchItems.map((item, index) => (
@@ -560,7 +600,7 @@ export function GuestUploadView({
               <div className="text-center">
                 <div className="mx-auto grid size-16 place-items-center rounded-full text-white" style={{ backgroundColor: accent }}><Check className="size-8" /></div>
                 <h2 className="mt-4 font-serif text-3xl font-semibold" style={{ color: accent }}>{nameDraft.trim() ? tr("thanks", { name: nameDraft.trim() }) : tr("thanksAnon")}</h2>
-                <p className="text-sm opacity-70">{tr("thanksMeta", { count: successCount || doneCount || batchTotal, event: eventTitle })}</p>
+                <p className="text-sm opacity-70">{batchSummary ? tr("thanksMedia", { summary: batchSummary, event: eventTitle }) : tr("thanksMeta", { count: successCount || doneCount || batchTotal, event: eventTitle })}</p>
                 <p className="mt-4 flex gap-2 rounded-2xl px-3 py-3 text-left text-xs leading-5" style={{ backgroundColor: `${accent}12` }}><Shield className="size-4 shrink-0" style={{ color: accent }} />{tr("moderationNote")}</p>
                 <button type="button" onClick={() => { setStep("closed"); onSeeGallery?.(); }} className="mt-4 h-14 w-full rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }}>{tr("seeGallery")}</button>
                 <button type="button" onClick={() => setStep("source")} className="mt-2 h-12 w-full rounded-full border text-sm font-semibold" style={{ color: accent, borderColor: `${accent}33` }}><Plus className="mr-1 inline size-4" />{tr("addMore")}</button>
