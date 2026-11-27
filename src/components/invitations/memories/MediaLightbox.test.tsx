@@ -60,9 +60,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 // properties (clientX, pointerId) that MediaLightbox's handlers actually
 // read — React's synthetic event system pulls these off the native event by
 // plain property access, not by checking `instanceof PointerEvent`.
-function pointerEvent(dom: JSDOM, type: string, clientX: number): Event {
+function pointerEvent(dom: JSDOM, type: string, clientX: number, clientY = 0): Event {
   const event = new dom.window.Event(type, { bubbles: true, cancelable: true });
   Object.defineProperty(event, "clientX", { value: clientX, configurable: true });
+  Object.defineProperty(event, "clientY", { value: clientY, configurable: true });
   Object.defineProperty(event, "pointerId", { value: 1, configurable: true });
   return event;
 }
@@ -223,23 +224,19 @@ test("swipe navigation advances when the gesture starts on the <video> element i
       const videoEl = dom.window.document.querySelector('video[src="/api/memories/media/m1/display"]');
       assert.ok(videoEl, "expected the first (video) item to render initially");
 
-      // Same leftward drag past SWIPE_THRESHOLD_PX as the photo->video swipe
-      // test above, but this time the pointer sequence targets the <video>
-      // element itself, since it's the currently displayed item — the same
-      // onPointerDown/Move/Up handlers are wired to both <img> and <video>,
-      // but until now no test dispatched pointer events at a real <video>
-      // DOM node. Each dispatch keeps its own act() call for the same reason
-      // as above: "pointermove" is a React continuous-priority event, so
-      // batching all three into one act() leaves handlePointerUp reading a
-      // stale dragX.
+      // An upward drag past SWIPE_THRESHOLD_PX, started on the <video>
+      // element itself. On a video only up/down pages (sideways is the guest
+      // scrubbing its timeline). Each dispatch keeps its own act() call for
+      // the same reason as above: "pointermove" is a React continuous-priority
+      // event, so batching all three into one act() can read a stale drag.
       await act(async () => {
-        videoEl!.dispatchEvent(pointerEvent(dom, "pointerdown", 300));
+        videoEl!.dispatchEvent(pointerEvent(dom, "pointerdown", 200, 400));
       });
       await act(async () => {
-        videoEl!.dispatchEvent(pointerEvent(dom, "pointermove", 200));
+        videoEl!.dispatchEvent(pointerEvent(dom, "pointermove", 200, 300));
       });
       await act(async () => {
-        videoEl!.dispatchEvent(pointerEvent(dom, "pointerup", 200));
+        videoEl!.dispatchEvent(pointerEvent(dom, "pointerup", 200, 300));
         await flush(320);
       });
 
