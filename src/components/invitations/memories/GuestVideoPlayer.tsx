@@ -315,7 +315,8 @@ export function GuestVideoPlayer({
         >
         {prevPoster && <SlidePoster src={prevPoster} className="bottom-full" />}
         {nextPoster && <SlidePoster src={nextPoster} className="top-full" />}
-        <div aria-hidden="true" className="absolute inset-0 scale-110 bg-cover opacity-70 blur-2xl" style={{ backgroundImage: `url(${poster})` }} />
+        {/* Sharp poster under the video so the moments before its first frame don't look blurry. */}
+        <SlidePoster src={poster} className="top-0" />
         {index > 0 && (
           <button type="button" aria-label={t("previous")} onPointerDown={(event) => event.stopPropagation()} onClick={() => go(index - 1)} className="absolute left-3 top-[42%] z-10 hidden size-11 -translate-y-8 place-items-center rounded-full bg-white text-[#1c2a20] shadow md:grid">
             <ChevronUp className="size-6" />
