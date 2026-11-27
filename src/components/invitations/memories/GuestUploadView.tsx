@@ -9,13 +9,13 @@ import { guestNameSkippedKey, suggestMomentId } from "@/lib/invitations/memories
 import { formatMediaSummary } from "@/lib/invitations/memories/upload-sheet-copy";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import { createUploadQueue, type QueueItem, type UploadQueue } from "@/lib/invitations/memories/upload-queue";
+import { isLongClip, SHORT_VIDEO_MAX_SECONDS, VIDEO_DURATION_GRACE_SECONDS } from "@/lib/invitations/memories/video-limits";
 import { memoriesAboveTabClass, PlanningSoftLink } from "./MemoriesChrome";
 
 const videoDurations = new WeakMap<File, number>();
 
 const UNSUPPORTED_TYPES = new Set(["image/heic", "image/heif"]);
 const VIDEO_CONTENT_TYPES = new Set(["video/mp4", "video/webm", "video/quicktime"]);
-const MAX_VIDEO_DURATION_SECONDS = 60;
 const ERROR_QUOTA = "quota";
 const ERROR_WINDOW_CLOSED = "window_closed";
 const ERROR_TOO_LARGE = "too_large";
@@ -23,11 +23,22 @@ const ERROR_UNSUPPORTED_TYPE = "unsupported_type";
 const ERROR_GENERIC = "generic";
 const ERROR_UPLOAD_BLOCKED = "upload_blocked";
 const ERROR_UPLOAD_STALLED = "upload_stalled";
+const ERROR_TOO_LONG = "too_long";
+const ERROR_LONG_CLIP_USED = "long_clip_used";
+const ERROR_VIDEO_MINUTES_FULL = "video_minutes_full";
 const UPLOAD_STALL_MS = 45_000;
 // Retrying the same file can't help any of these — they're a property of the
 // file itself (or the event), not a transient network hiccup — so the retry
 // button is hidden for all of them, not just quota/window-closed.
-const TERMINAL_UPLOAD_ERRORS = new Set([ERROR_QUOTA, ERROR_WINDOW_CLOSED, ERROR_TOO_LARGE, ERROR_UNSUPPORTED_TYPE]);
+const TERMINAL_UPLOAD_ERRORS = new Set([
+  ERROR_QUOTA,
+  ERROR_WINDOW_CLOSED,
+  ERROR_TOO_LARGE,
+  ERROR_UNSUPPORTED_TYPE,
+  ERROR_TOO_LONG,
+  ERROR_LONG_CLIP_USED,
+  ERROR_VIDEO_MINUTES_FULL,
+]);
 const PREVIEW_LIFETIME_MS = 30_000;
 
 function isVideoFile(file: { name: string; type: string }): boolean {
@@ -36,8 +47,8 @@ function isVideoFile(file: { name: string; type: string }): boolean {
 
 // Pure and unit-testable in isolation from the real (unmockable-in-jsdom)
 // video-duration-reading step below.
-function exceedsMaxVideoDuration(durationSeconds: number): boolean {
-  return durationSeconds > MAX_VIDEO_DURATION_SECONDS;
+function exceedsMaxVideoDuration(durationSeconds: number, maxSeconds: number): boolean {
+  return durationSeconds > maxSeconds + VIDEO_DURATION_GRACE_SECONDS;
 }
 
 // WebKit-family browsers (Safari, and iOS browsers like Chrome that Apple
@@ -202,81 +213,197 @@ function capturePosterFrame(file: File): Promise<File> {
   });
 }
 
+// A big video uploads in pieces (see upload/init). What already reached
+// storage is remembered per file, so when the queue retries after a dropped
+// signal only the missing pieces go up again.
+interface PieceUpload {
+  mediaId: string;
+  ticket: string;
+  partUrls: string[];
+  partSizeBytes: number;
+  posterUploadUrl?: string;
+  posterDone: boolean;
+  doneParts: Set<number>;
+}
+const pieceUploads = new WeakMap<File, PieceUpload>();
+const PART_RETRY_DELAYS_MS = [1_000, 3_000, 8_000];
+
+function initErrorFromCode(code: string | undefined): string | null {
+  if (code === "too_large") return ERROR_TOO_LARGE;
+  if (code === "unsupported_type") return ERROR_UNSUPPORTED_TYPE;
+  if (code === ERROR_TOO_LONG) return ERROR_TOO_LONG;
+  if (code === ERROR_LONG_CLIP_USED) return ERROR_LONG_CLIP_USED;
+  if (code === ERROR_VIDEO_MINUTES_FULL) return ERROR_VIDEO_MINUTES_FULL;
+  return null;
+}
+
+function putBody(url: string, body: Blob, signedType: string | null, onBytes: (loaded: number) => void): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    // The signature was made for `signedType`. An iPhone file's own type is
+    // often blank, so sending file.type here would not match the signature.
+    // A piece of a big upload is signed without one.
+    if (signedType) xhr.setRequestHeader("content-type", signedType);
+    // On a weak signal a phone can leave the request hanging with no error at
+    // all. Give up after a stretch with no bytes moving, so the queue can try
+    // again by itself instead of sitting at the same percent forever.
+    let stallTimer: ReturnType<typeof setTimeout> | undefined;
+    const armStallTimer = () => {
+      if (stallTimer) clearTimeout(stallTimer);
+      stallTimer = setTimeout(() => xhr.abort(), UPLOAD_STALL_MS);
+    };
+    const clearStallTimer = () => { if (stallTimer) clearTimeout(stallTimer); };
+    xhr.addEventListener("loadend", clearStallTimer);
+    xhr.addEventListener("abort", () => reject(new Error(ERROR_UPLOAD_STALLED)));
+    xhr.upload.addEventListener("progress", (event) => {
+      armStallTimer();
+      if (event.lengthComputable) onBytes(event.loaded);
+    });
+    // status 0 is the browser discarding the response, which is what happens
+    // when R2's CORS allowlist does not include this page's origin.
+    xhr.addEventListener("error", () => reject(new Error(ERROR_UPLOAD_BLOCKED)));
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else if (xhr.status === 0) reject(new Error(ERROR_UPLOAD_BLOCKED));
+      // A piece's signed link ran out or the upload was dropped: start over.
+      else if (xhr.status === 403 || xhr.status === 404) reject(new Error("expired"));
+      else reject(new Error(ERROR_GENERIC));
+    });
+    xhr.send(body);
+    armStallTimer();
+  });
+}
+
+async function uploadPieces(file: File, state: PieceUpload, posterFile: File | undefined, onProgress: (percent: number) => void): Promise<void> {
+  // The small poster goes first, while its link is fresh.
+  if (posterFile && state.posterUploadUrl && !state.posterDone) {
+    await putBody(state.posterUploadUrl, posterFile, "image/jpeg", () => undefined);
+    state.posterDone = true;
+  }
+  const total = file.size;
+  const doneBytes = () =>
+    Array.from(state.doneParts).reduce((sum, index) => sum + Math.min(state.partSizeBytes, total - index * state.partSizeBytes), 0);
+  onProgress(Math.round((doneBytes() / total) * 100));
+  for (let index = 0; index < state.partUrls.length; index += 1) {
+    if (state.doneParts.has(index)) continue;
+    const start = index * state.partSizeBytes;
+    const piece = file.slice(start, Math.min(total, start + state.partSizeBytes));
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const before = doneBytes();
+        await putBody(state.partUrls[index], piece, null, (loaded) => onProgress(Math.round(((before + loaded) / total) * 100)));
+        state.doneParts.add(index);
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "";
+        if (message === "expired") {
+          pieceUploads.delete(file);
+          throw new Error(ERROR_UPLOAD_STALLED);
+        }
+        if (attempt >= PART_RETRY_DELAYS_MS.length) throw error;
+        await new Promise((resolve) => setTimeout(resolve, PART_RETRY_DELAYS_MS[attempt]));
+      }
+    }
+  }
+}
+
+async function completeUpload(eventId: string, mediaId: string, ticket: string): Promise<void> {
+  const completeRes = await fetch(`/api/memories/events/${eventId}/upload/complete`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mediaId, ticket }),
+  });
+  if (!completeRes.ok) {
+    const errorBody: { code?: string } | null = await completeRes.json().catch(() => null);
+    if (errorBody?.code === ERROR_LONG_CLIP_USED) throw new Error(ERROR_LONG_CLIP_USED);
+    throw new Error("upload completion failed");
+  }
+}
+
 async function uploadOne(eventId: string, file: File, posterFile: File | undefined, onProgress: (percent: number) => void): Promise<{ mediaId: string }> {
   const resolved = resolveGuestUpload(file);
   if (!resolved) throw new Error(ERROR_UNSUPPORTED_TYPE);
   const { mediaKind, contentType } = resolved;
+
+  const resumable = pieceUploads.get(file);
+  if (resumable) {
+    await uploadPieces(file, resumable, posterFile, onProgress);
+    await completeUpload(eventId, resumable.mediaId, resumable.ticket);
+    pieceUploads.delete(file);
+    return { mediaId: resumable.mediaId };
+  }
+
   const initRes = await fetch(`/api/memories/events/${eventId}/upload/init`, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ mediaKind, contentType, sizeBytes: file.size, ...(videoDurations.has(file) ? { durationSeconds: videoDurations.get(file) } : {}) }),
   });
   if (!initRes.ok) {
+    // The server names the specific rejection reason (too_large/unsupported_type,
+    // or a video limit) in the response body — surface that instead of a generic
+    // failure so the guest knows why (e.g. their video's too big) rather than
+    // just "try again" forever on a file that will never succeed.
+    const errorBody: { code?: string } | null = await initRes.json().catch(() => null);
+    const fromCode = initErrorFromCode(errorBody?.code);
+    if (fromCode) throw new Error(fromCode);
     if (initRes.status === 429) throw new Error(ERROR_QUOTA);
     if (initRes.status === 404) throw new Error(ERROR_WINDOW_CLOSED);
-    // The server names the specific rejection reason (too_large/unsupported_type)
-    // in the response body — surface that instead of a generic failure so the
-    // guest knows why (e.g. their video's too big) rather than just "try again"
-    // forever on a file that will never succeed.
-    const errorBody: { code?: string } | null = await initRes.json().catch(() => null);
-    if (errorBody?.code === "too_large") throw new Error(ERROR_TOO_LARGE);
-    if (errorBody?.code === "unsupported_type") throw new Error(ERROR_UNSUPPORTED_TYPE);
     throw new Error(ERROR_GENERIC);
   }
-  const { mediaId, ticket, uploadUrl, posterUploadUrl } = await initRes.json();
+  const { mediaId, ticket, uploadUrl, posterUploadUrl, multipart } = (await initRes.json()) as {
+    mediaId: string;
+    ticket: string;
+    uploadUrl?: string;
+    posterUploadUrl?: string;
+    multipart?: { partSizeBytes: number; partUrls: string[] };
+  };
 
-  async function putFile(url: string, body: File, trackProgress: boolean, signedType: string): Promise<void> {
-    await new Promise<void>((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      xhr.open("PUT", url);
-      // The signature was made for `signedType`. An iPhone file's own type is
-      // often blank, so sending file.type here would not match the signature.
-      xhr.setRequestHeader("content-type", signedType);
-      // On a weak signal a phone can leave the request hanging with no error at
-      // all. Give up after a stretch with no bytes moving, so the queue can try
-      // again by itself instead of sitting at the same percent forever.
-      let stallTimer: ReturnType<typeof setTimeout> | undefined;
-      const armStallTimer = () => {
-        if (stallTimer) clearTimeout(stallTimer);
-        stallTimer = setTimeout(() => xhr.abort(), UPLOAD_STALL_MS);
-      };
-      const clearStallTimer = () => { if (stallTimer) clearTimeout(stallTimer); };
-      xhr.addEventListener("loadend", clearStallTimer);
-      xhr.addEventListener("abort", () => reject(new Error(ERROR_UPLOAD_STALLED)));
-      xhr.upload.addEventListener("progress", (event) => {
-        armStallTimer();
-        if (trackProgress && event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100));
-      });
-      // status 0 is the browser discarding the response, which is what happens
-      // when R2's CORS allowlist does not include this page's origin.
-      xhr.addEventListener("error", () => reject(new Error(ERROR_UPLOAD_BLOCKED)));
-      xhr.addEventListener("load", () => {
-        if (xhr.status >= 200 && xhr.status < 300) resolve();
-        else if (xhr.status === 0) reject(new Error(ERROR_UPLOAD_BLOCKED));
-        else reject(new Error(ERROR_GENERIC));
-      });
-      xhr.send(body);
-      armStallTimer();
-    });
+  if (multipart) {
+    const state: PieceUpload = {
+      mediaId,
+      ticket,
+      partUrls: multipart.partUrls,
+      partSizeBytes: multipart.partSizeBytes,
+      posterUploadUrl,
+      posterDone: !(mediaKind === "video" && posterFile && posterUploadUrl),
+      doneParts: new Set(),
+    };
+    pieceUploads.set(file, state);
+    await uploadPieces(file, state, posterFile, onProgress);
+    await completeUpload(eventId, mediaId, ticket);
+    pieceUploads.delete(file);
+    return { mediaId };
   }
 
-  await putFile(uploadUrl, file, true, contentType);
-  if (mediaKind === "video" && posterFile && posterUploadUrl) {
-    await putFile(posterUploadUrl, posterFile, false, "image/jpeg");
-  }
-
-  const completeRes = await fetch(`/api/memories/events/${eventId}/upload/complete`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({ mediaId, ticket }),
+  if (!uploadUrl) throw new Error(ERROR_GENERIC);
+  await putBody(uploadUrl, file, contentType, (loaded) => {
+    if (file.size > 0) onProgress(Math.round((loaded / file.size) * 100));
   });
-  if (!completeRes.ok) throw new Error("upload completion failed");
+  if (mediaKind === "video" && posterFile && posterUploadUrl) {
+    await putBody(posterUploadUrl, posterFile, "image/jpeg", () => undefined);
+  }
+
+  await completeUpload(eventId, mediaId, ticket);
   return { mediaId };
 }
 
 function failureMessageKey(
   error: string | undefined,
-): "quotaError" | "windowClosedError" | "fileTooLargeError" | "unsupportedTypeError" | "genericError" | "uploadBlockedError" | "failed" {
+):
+  | "quotaError"
+  | "windowClosedError"
+  | "fileTooLargeError"
+  | "unsupportedTypeError"
+  | "genericError"
+  | "uploadBlockedError"
+  | "videoTooLongError"
+  | "longClipUsedError"
+  | "videoMinutesFullError"
+  | "failed" {
+  if (error === ERROR_TOO_LONG) return "videoTooLongError";
+  if (error === ERROR_LONG_CLIP_USED) return "longClipUsedError";
+  if (error === ERROR_VIDEO_MINUTES_FULL) return "videoMinutesFullError";
   if (error === ERROR_QUOTA) return "quotaError";
   if (error === ERROR_WINDOW_CLOSED) return "windowClosedError";
   if (error === ERROR_TOO_LARGE) return "fileTooLargeError";
@@ -302,6 +429,7 @@ export function GuestUploadView({
   onSeeGallery,
   onBind,
   demo = null,
+  longVideoSeconds = SHORT_VIDEO_MAX_SECONDS,
 }: {
   eventId: string;
   accent: string;
@@ -315,6 +443,8 @@ export function GuestUploadView({
   onSeeGallery?: () => void;
   onBind?: (api: { open: (momentId?: string) => void }) => void;
   demo?: { step: UploadStep; name?: string; previews?: string[] } | null;
+  // How long a guest's one long clip may be; 60 while long clips are off.
+  longVideoSeconds?: number;
 }) {
   const t = useTranslations("invitations.public.memories.upload");
   const tr = useTranslations("invitations.public.memories.redesign");
@@ -444,8 +574,13 @@ export function GuestUploadView({
           // the upload; the server stores a null duration when we omit it.
           duration = undefined;
         }
-        if (duration != null && Number.isFinite(duration) && exceedsMaxVideoDuration(duration)) {
-          setRejectionError(t("videoTooLongError"));
+        if (duration != null && Number.isFinite(duration) && exceedsMaxVideoDuration(duration, longVideoSeconds)) {
+          setRejectionError(t(longVideoSeconds > SHORT_VIDEO_MAX_SECONDS ? "longVideoTooLongError" : "videoTooLongError"));
+          continue;
+        }
+        // One long clip per guest; the server checks clips from earlier visits.
+        if (isLongClip(duration) && [...staged, ...next].some((item) => isLongClip(item.durationSeconds))) {
+          setRejectionError(t("oneLongClipError"));
           continue;
         }
         let poster: File;

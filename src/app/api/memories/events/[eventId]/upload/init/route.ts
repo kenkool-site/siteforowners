@@ -2,14 +2,29 @@ import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
 import { verifyMemoriesGuestSession } from "@/lib/invitations/memories/guest-session";
-import { createMemoriesUploadTicket, objectKeyForVideoPoster } from "@/lib/invitations/memories/upload-tickets";
+import { createMemoriesUploadTicket, objectKeyForOriginal, objectKeyForVideoPoster } from "@/lib/invitations/memories/upload-tickets";
 import {
   countMemoryMediaForEvent,
   createPendingMemoryMedia,
   getEventMemoriesSettings,
+  getEventVideoMinutesCap,
+  guestHasUploadedLongClip,
   markMemoryMediaUploaded,
   simulateFixtureMediaReady,
+  sumUploadedVideoSecondsForEvent,
 } from "@/lib/invitations/memories/repository";
+import { isStreamConfigured } from "@/lib/invitations/memories/stream";
+import {
+  checkVideoLimits,
+  eventVideoMinutesCap,
+  isLongClip,
+  longestAllowedVideoSeconds,
+  maxVideoBytes,
+  MULTIPART_PART_BYTES,
+  multipartPartCount,
+  usesMultipartUpload,
+  VIDEO_DURATION_GRACE_SECONDS,
+} from "@/lib/invitations/memories/video-limits";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 import { isUploadWindowOpen } from "@/lib/invitations/memories/upload-window";
 import type { MediaKind } from "@/lib/invitations/memories/types";
@@ -20,7 +35,9 @@ import type { MediaKind } from "@/lib/invitations/memories/types";
 // and is what access.ts and broadcasts.ts import directly.
 import { isInvitationE2EFixturesEnabled } from "@/lib/invitations/e2e-guard";
 
-// Video: 60s/200MB cap (client-checked duration, this constant covers size),
+// Video: 60s/200MB cap, plus one long clip per guest of up to 5 minutes/1GB
+// once Cloudflare Stream is set up (see video-limits.ts; client-checked
+// duration, maxVideoBytes covers size),
 // moderated via a client-captured poster frame — see
 // docs/superpowers/specs/2026-09-24-invitespot-memories-video-support-design.md.
 // Video never enters the photon-rs processing Worker pipeline (no transcoding),
@@ -43,6 +60,8 @@ const ALLOWED_CONTENT_TYPES = new Set([
 // 4K/30fps clips at the 60s duration cap.
 const MAX_UPLOAD_BYTES = 200 * 1024 * 1024;
 const MAX_MEDIA_PER_EVENT = 2000;
+// A piece of a big video can wait while earlier pieces retry on a weak signal.
+const MULTIPART_PART_URL_SECONDS = 3 * 60 * 60;
 
 export async function POST(request: NextRequest, { params }: { params: { eventId: string } }) {
   if (!isSameOrigin(request)) {
@@ -73,7 +92,12 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
         { status: 400 },
       );
     }
-    if (typeof parsedBody.sizeBytes !== "number" || parsedBody.sizeBytes <= 0 || parsedBody.sizeBytes > MAX_UPLOAD_BYTES) {
+    const reportedDuration =
+      parsedBody.mediaKind === "video" && typeof parsedBody.durationSeconds === "number" && Number.isFinite(parsedBody.durationSeconds) && parsedBody.durationSeconds >= 0
+        ? parsedBody.durationSeconds
+        : null;
+    const maxBytes = parsedBody.mediaKind === "video" ? maxVideoBytes(reportedDuration) : MAX_UPLOAD_BYTES;
+    if (typeof parsedBody.sizeBytes !== "number" || parsedBody.sizeBytes <= 0 || parsedBody.sizeBytes > maxBytes) {
       return NextResponse.json({ error: "invalid or oversized file", code: "too_large" }, { status: 400 });
     }
 
@@ -95,9 +119,43 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
 
     const mediaId = randomUUID();
     const mediaKind = parsedBody.mediaKind as MediaKind;
+    const streamConfigured = isStreamConfigured();
+
+    if (mediaKind === "video") {
+      const guest = { sessionId: session?.sessionId ?? null, rsvpId: session?.rsvpId ?? null };
+      const [guestHasLongClip, eventVideoSecondsUsed, eventCap] = await Promise.all([
+        isLongClip(reportedDuration) ? guestHasUploadedLongClip(eventId, guest) : Promise.resolve(false),
+        sumUploadedVideoSecondsForEvent(eventId),
+        getEventVideoMinutesCap(eventId),
+      ]);
+      const limit = checkVideoLimits({
+        durationSeconds: reportedDuration,
+        streamConfigured,
+        guestHasLongClip,
+        guestIdentified: Boolean(guest.sessionId || guest.rsvpId),
+        eventVideoSecondsUsed,
+        eventVideoMinutesCap: eventVideoMinutesCap(eventCap, process.env.MEMORIES_VIDEO_MINUTES_PER_EVENT),
+      });
+      if (limit === "video_minutes_full") {
+        return NextResponse.json({ error: "this event has no room left for more video", code: limit }, { status: 429 });
+      }
+      if (limit) {
+        return NextResponse.json({ error: "video is too long", code: limit }, { status: 400 });
+      }
+    }
+
     // Pass the validated content type so the object key carries the guest's real
     // format — the Worker dispatches on that extension.
-    const { ticket, objectKey } = createMemoriesUploadTicket(eventId, mediaId, mediaKind, contentType);
+    const multipart = !isInvitationE2EFixturesEnabled() && usesMultipartUpload(mediaKind, parsedBody.sizeBytes);
+    const storage = isInvitationE2EFixturesEnabled() ? null : new R2StorageProvider();
+    const multipartUpload =
+      multipart && storage
+        ? {
+            uploadId: await storage.createMultipartUpload(objectKeyForOriginal(eventId, mediaId, mediaKind, contentType), contentType),
+            partCount: multipartPartCount(parsedBody.sizeBytes),
+          }
+        : undefined;
+    const { ticket, objectKey } = createMemoriesUploadTicket(eventId, mediaId, mediaKind, contentType, undefined, multipartUpload);
 
     await createPendingMemoryMedia({
       id: mediaId,
@@ -108,8 +166,8 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       uploaderRsvpId: session?.rsvpId ?? null,
       uploaderSessionId: session?.sessionId ?? null,
       uploaderDisplayName: session?.guestName ?? null,
-      durationSeconds: mediaKind === "video" && typeof parsedBody.durationSeconds === "number" && parsedBody.durationSeconds >= 0 && parsedBody.durationSeconds <= 60
-        ? parsedBody.durationSeconds
+      durationSeconds: reportedDuration !== null && reportedDuration <= longestAllowedVideoSeconds(streamConfigured) + VIDEO_DURATION_GRACE_SECONDS
+        ? reportedDuration
         : null,
     });
 
@@ -132,8 +190,15 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
       });
     }
 
-    const storage = new R2StorageProvider();
-    const uploadUrl = await storage.createPresignedUploadUrl(objectKey, contentType, 15 * 60, parsedBody.sizeBytes);
+    if (!storage) throw new Error("storage unavailable");
+    const upload = multipartUpload
+      ? {
+          multipart: {
+            partSizeBytes: MULTIPART_PART_BYTES,
+            partUrls: await storage.createPresignedPartUrls(objectKey, multipartUpload.uploadId, multipartUpload.partCount, MULTIPART_PART_URL_SECONDS),
+          },
+        }
+      : { uploadUrl: await storage.createPresignedUploadUrl(objectKey, contentType, 15 * 60, parsedBody.sizeBytes) };
     // Video is moderated via a client-captured poster frame (see the
     // ALLOWED_KINDS comment above) — issue a second presigned PUT so the guest
     // client can upload that frame as a plain JPEG alongside the video itself.
@@ -154,7 +219,7 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
         ? await storage.createPresignedUploadUrl(objectKeyForVideoPoster(eventId, mediaId), "image/jpeg", 15 * 60)
         : undefined;
 
-    return NextResponse.json({ mediaId, ticket, uploadUrl, ...(posterUploadUrl ? { posterUploadUrl } : {}) });
+    return NextResponse.json({ mediaId, ticket, ...upload, ...(posterUploadUrl ? { posterUploadUrl } : {}) });
   } catch (error) {
     console.error("[memories/upload/init] submission failed", { error });
     return NextResponse.json({ error: "upload initialization failed" }, { status: 500 });

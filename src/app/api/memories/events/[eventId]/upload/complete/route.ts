@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOrigin } from "@/lib/invitations/auth";
-import { verifyMemoriesUploadTicket, objectKeyForVideoPoster, MAX_POSTER_UPLOAD_BYTES } from "@/lib/invitations/memories/upload-tickets";
-import { getMemoryMediaById, markMemoryMediaUploaded, markVideoMemoryMediaReady } from "@/lib/invitations/memories/repository";
+import { readMemoriesUploadTicket, objectKeyForVideoPoster, MAX_POSTER_UPLOAD_BYTES } from "@/lib/invitations/memories/upload-tickets";
+import {
+  getMemoryMediaById,
+  guestHasUploadedLongClip,
+  markMemoryMediaUploaded,
+  markVideoMemoryMediaReady,
+  updateMemoryMediaStream,
+} from "@/lib/invitations/memories/repository";
+import { copyVideoToStream, getStreamConfig } from "@/lib/invitations/memories/stream";
+import { isLongClip } from "@/lib/invitations/memories/video-limits";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 import { moderateMedia } from "@/app/api/memories/moderate/moderate-media";
 
@@ -24,13 +32,39 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
     if (!parsedBody.mediaId || !parsedBody.ticket) {
       return NextResponse.json({ error: "missing mediaId or ticket" }, { status: 400 });
     }
-    if (!verifyMemoriesUploadTicket(parsedBody.ticket, eventId, parsedBody.mediaId)) {
+    const ticket = readMemoriesUploadTicket(parsedBody.ticket, eventId, parsedBody.mediaId);
+    if (!ticket) {
       return NextResponse.json({ error: "invalid ticket" }, { status: 403 });
     }
 
     const media = await getMemoryMediaById(parsedBody.mediaId);
     if (!media) {
       return NextResponse.json({ error: "media not found" }, { status: 404 });
+    }
+
+    // A big video arrives in pieces; join them into the one original object.
+    // A repeated /complete finds the object already joined and moves on.
+    if (ticket.multipart) {
+      const storage = new R2StorageProvider();
+      if (!(await storage.objectExists(media.objectKeyOriginal))) {
+        const joined = await storage.completeMultipartUpload(media.objectKeyOriginal, ticket.multipart.uploadId, ticket.multipart.partCount);
+        if (!joined) {
+          return NextResponse.json({ error: "upload incomplete" }, { status: 409 });
+        }
+      }
+    }
+
+    // Each guest gets one long clip. upload/init already checked, but two long
+    // clips could have been uploading at once.
+    if (media.mediaKind === "video" && isLongClip(media.durationSeconds)) {
+      const alreadyHasOne = await guestHasUploadedLongClip(
+        eventId,
+        { sessionId: media.uploaderSessionId, rsvpId: media.uploaderRsvpId },
+        media.id,
+      );
+      if (alreadyHasOne) {
+        return NextResponse.json({ error: "video is too long", code: "long_clip_used" }, { status: 409 });
+      }
     }
 
     if (media.mediaKind === "video") {
@@ -52,6 +86,20 @@ export async function POST(request: NextRequest, { params }: { params: { eventId
         return NextResponse.json({ error: "poster upload too large" }, { status: 400 });
       }
       await markVideoMemoryMediaReady(parsedBody.mediaId, media.objectKeyOriginal, posterKey);
+
+      // Best effort, like moderation below: without a Stream copy the video
+      // still plays from its R2 original.
+      const streamConfig = getStreamConfig();
+      if (streamConfig) {
+        try {
+          // Stream fetches the clip in the background, so give it a while.
+          const sourceUrl = await storage.getSignedDownloadUrl(media.objectKeyOriginal, 6 * 60 * 60);
+          const streamUid = await copyVideoToStream(streamConfig, { sourceUrl, name: `${eventId}/${media.id}` });
+          await updateMemoryMediaStream(media.id, streamUid ? { streamUid, streamStatus: "copying" } : { streamStatus: "failed" });
+        } catch (err) {
+          console.error("[memories/upload/complete] failed to start the Stream copy (non-fatal)", { mediaId: media.id, error: err });
+        }
+      }
 
       // Video never reaches the Cloudflare Worker's own moderation trigger —
       // that Worker returns early for any unsupported (non-image) extension,

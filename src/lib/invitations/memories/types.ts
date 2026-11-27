@@ -42,4 +42,10 @@ export interface MemoryMedia {
   moderationCategories: string[] | null;
   // Null for photos and for videos uploaded before duration was stored.
   durationSeconds?: number | null;
+  // The Cloudflare Stream copy of a video, when there is one (see stream.ts).
+  streamUid?: string | null;
+  streamStatus?: StreamStatus | null;
+  streamHlsUrl?: string | null;
 }
+
+export type StreamStatus = "copying" | "ready" | "failed" | "archived";

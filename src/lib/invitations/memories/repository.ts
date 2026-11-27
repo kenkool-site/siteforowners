@@ -1,7 +1,8 @@
 // src/lib/invitations/memories/repository.ts
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normalizeInvitationEventSchedule, type EventScheduleItem } from "@/lib/invitations/event-schedule";
-import type { MediaKind, MemoriesGuestLevel, MemoryMedia } from "./types";
+import type { MediaKind, MemoriesGuestLevel, MemoryMedia, StreamStatus } from "./types";
+import { countedVideoSeconds, SHORT_VIDEO_MAX_SECONDS, VIDEO_DURATION_GRACE_SECONDS } from "./video-limits";
 import { allowedModerationStatuses, buildMemoriesEventSummary, moderationStatusForFilter, type HostModerationAction, type HostReviewFilter, type MemoriesEventSummary } from "./host";
 import type {
   HighlightGenerationMode,
@@ -35,6 +36,9 @@ export function mapRow(row: Record<string, unknown>): MemoryMedia {
     moderationScore: (row.moderation_score as number | null) ?? null,
     moderationCategories: (row.moderation_categories as string[] | null) ?? null,
     durationSeconds: typeof row.duration_seconds === "number" ? row.duration_seconds : null,
+    streamUid: typeof row.stream_uid === "string" ? row.stream_uid : null,
+    streamStatus: typeof row.stream_status === "string" ? (row.stream_status as StreamStatus) : null,
+    streamHlsUrl: typeof row.stream_hls_url === "string" ? row.stream_hls_url : null,
   };
 }
 
@@ -339,6 +343,107 @@ export async function countMemoryMediaForEvent(eventId: string): Promise<number>
     return 0;
   }
   return count ?? 0;
+}
+
+// --- Video limits and Cloudflare Stream copies (see video-limits.ts, stream.ts).
+// The stream_* and memories_video_minutes_cap columns come from migration 072.
+// Every reader below tolerates that migration not having run yet, so the app
+// keeps working exactly as before until it has.
+
+// Whether this guest already finished uploading their one long clip.
+export async function guestHasUploadedLongClip(
+  eventId: string,
+  guest: { sessionId: string | null; rsvpId: string | null },
+  excludeMediaId?: string,
+): Promise<boolean> {
+  const filters = [
+    guest.sessionId ? `uploader_session_id.eq.${guest.sessionId}` : null,
+    guest.rsvpId ? `uploader_rsvp_id.eq.${guest.rsvpId}` : null,
+  ].filter((value): value is string => value !== null);
+  if (filters.length === 0) return false;
+  const client = createAdminClient();
+  let query = client
+    .from("memory_media")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("media_kind", "video")
+    .eq("upload_status", "uploaded")
+    .gt("duration_seconds", SHORT_VIDEO_MAX_SECONDS + VIDEO_DURATION_GRACE_SECONDS)
+    .or(filters.join(","))
+    .limit(2);
+  if (excludeMediaId) query = query.neq("id", excludeMediaId);
+  const { data, error } = await query;
+  if (error) {
+    console.error("[memories/repository] guestHasUploadedLongClip failed", { eventId, error });
+    return false;
+  }
+  return (data ?? []).length > 0;
+}
+
+export async function sumUploadedVideoSecondsForEvent(eventId: string, excludeMediaId?: string): Promise<number> {
+  const client = createAdminClient();
+  let query = client
+    .from("memory_media")
+    .select("id,duration_seconds")
+    .eq("event_id", eventId)
+    .eq("media_kind", "video")
+    .eq("upload_status", "uploaded")
+    .limit(5000);
+  if (excludeMediaId) query = query.neq("id", excludeMediaId);
+  const { data, error } = await query;
+  if (error) {
+    console.error("[memories/repository] sumUploadedVideoSecondsForEvent failed", { eventId, error });
+    return 0;
+  }
+  return (data ?? []).reduce((total, row) => total + countedVideoSeconds(row.duration_seconds as number | null), 0);
+}
+
+// null means the event has no cap of its own (or the column doesn't exist yet).
+export async function getEventVideoMinutesCap(eventId: string): Promise<number | null> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("invitation_events")
+    .select("memories_video_minutes_cap")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (error || !data) return null;
+  return typeof data.memories_video_minutes_cap === "number" ? data.memories_video_minutes_cap : null;
+}
+
+export async function updateMemoryMediaStream(
+  mediaId: string,
+  update: { streamUid?: string | null; streamStatus: StreamStatus; streamHlsUrl?: string | null; durationSeconds?: number },
+): Promise<void> {
+  const patch: Record<string, unknown> = { stream_status: update.streamStatus };
+  if (update.streamUid !== undefined) patch.stream_uid = update.streamUid;
+  if (update.streamHlsUrl !== undefined) patch.stream_hls_url = update.streamHlsUrl;
+  if (update.durationSeconds !== undefined) patch.duration_seconds = Math.round(update.durationSeconds);
+  const client = createAdminClient();
+  const { error } = await client.from("memory_media").update(patch).eq("id", mediaId);
+  if (error) throw new Error(`failed to update memory_media stream copy: ${error.message}`);
+}
+
+// Stream copies of videos from events that started before the cutoff.
+export async function listStreamCopiesToArchive(
+  startedBeforeIso: string,
+  limit: number,
+): Promise<{ id: string; streamUid: string }[]> {
+  const client = createAdminClient();
+  const { data: events, error: eventsError } = await client
+    .from("invitation_events")
+    .select("id")
+    .lt("starts_at", startedBeforeIso)
+    .limit(1000);
+  if (eventsError || !events || events.length === 0) return [];
+  const { data, error } = await client
+    .from("memory_media")
+    .select("id,stream_uid")
+    .in("event_id", events.map((event) => event.id as string))
+    .not("stream_uid", "is", null)
+    .neq("stream_status", "archived")
+    .limit(limit);
+  if (error || !data) return [];
+  return data.map((row) => ({ id: row.id as string, streamUid: row.stream_uid as string }));
 }
 
 export async function listMediaForHostReview(eventId: string, filter: HostReviewFilter): Promise<MemoryMedia[]> {

@@ -15,6 +15,21 @@ export function videoSourceUrl(base: string, refreshNonce: number): string {
   return `${base}${joiner}r=${refreshNonce}`;
 }
 
+// iPhones (and some Android browsers) play Stream's adaptive HLS copy in a
+// plain <video>. Anything else keeps playing the original MP4, and a phone
+// that claims support but then fails falls back to the original too.
+let nativeHlsSupport: boolean | null = null;
+export function canPlayNativeHls(): boolean {
+  if (nativeHlsSupport !== null) return nativeHlsSupport;
+  if (typeof document === "undefined") return false;
+  try {
+    nativeHlsSupport = document.createElement("video").canPlayType("application/vnd.apple.mpegurl") !== "";
+  } catch {
+    nativeHlsSupport = false;
+  }
+  return nativeHlsSupport;
+}
+
 export function nextVideoSourceAttempt(alreadyRetried: boolean): "refresh" | "fallback" {
   return alreadyRetried ? "fallback" : "refresh";
 }
