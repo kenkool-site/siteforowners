@@ -53,6 +53,26 @@ export function prefersReducedMotion(): boolean {
   }
 }
 
+type NetworkInformationLike = { saveData?: boolean; effectiveType?: string };
+
+let slowConnectionSeen = false;
+
+// A preview that wouldn't start or kept stalling marks the connection slow for
+// the rest of the visit, since iPhone Safari doesn't report connection speed.
+export function noteSlowConnection(): void {
+  slowConnectionSeen = true;
+}
+
+// True on data saver, on a 2G or 3G class connection, or once a clip has
+// stalled on this visit. Used to skip autoplay previews and preloading.
+export function connectionLooksSlow(): boolean {
+  if (slowConnectionSeen) return true;
+  if (typeof navigator === "undefined") return false;
+  const connection = (navigator as Navigator & { connection?: NetworkInformationLike }).connection;
+  if (!connection) return false;
+  return connection.saveData === true || ["slow-2g", "2g", "3g"].includes(connection.effectiveType ?? "");
+}
+
 export async function shareMemoryItem(mediaId: string): Promise<"shared" | "copied" | "unavailable"> {
   const url = new URL(window.location.pathname, window.location.origin);
   url.searchParams.set("photo", mediaId);
