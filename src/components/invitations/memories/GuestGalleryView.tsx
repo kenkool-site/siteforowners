@@ -33,9 +33,76 @@ import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
 import { MadeWithFooter, memoriesTabClearanceClass, PlanningEndCard } from "./MemoriesChrome";
 import { MediaLightbox } from "./MediaLightbox";
 import { GuestVideoPlayer } from "./GuestVideoPlayer";
+import { connectionLooksSlow, noteSlowConnection, prefersReducedMotion } from "./video-playback";
 
 const IDLE_POLL_MS = 15_000;
 const PUBLISHING_POLL_MS = 2_000;
+
+const PREVIEW_SECONDS = 4;
+const START_TIMEOUT_MS = 2500;
+const STALL_TIMEOUT_MS = 2000;
+
+// A muted peek that loops the first few seconds of a Watch card's clip, shown
+// over the card's still. If the clip won't start or keeps stalling, it gives up,
+// leaves the still in place and tells the page the connection is slow.
+function WatchCardPreview({ src }: { src: string }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [gaveUp, setGaveUp] = useState(false);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || gaveUp) return;
+    const tooSlow = () => {
+      noteSlowConnection();
+      setGaveUp(true);
+    };
+    const stop = () => setGaveUp(true);
+    let timer = window.setTimeout(tooSlow, START_TIMEOUT_MS);
+    const onPlaying = () => {
+      window.clearTimeout(timer);
+      setPlaying(true);
+    };
+    const onWaiting = () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(tooSlow, STALL_TIMEOUT_MS);
+    };
+    const onTimeUpdate = () => {
+      if (video.currentTime >= PREVIEW_SECONDS) video.currentTime = 0;
+    };
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("timeupdate", onTimeUpdate);
+    video.addEventListener("error", stop);
+    // iOS only autoplays a clip that is muted before play() is called.
+    video.muted = true;
+    const started = video.play();
+    if (started && typeof started.catch === "function") started.catch(stop);
+    return () => {
+      window.clearTimeout(timer);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("timeupdate", onTimeUpdate);
+      video.removeEventListener("error", stop);
+      video.pause();
+    };
+  }, [gaveUp]);
+
+  if (gaveUp) return null;
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      muted
+      playsInline
+      loop
+      preload="auto"
+      aria-hidden="true"
+      tabIndex={-1}
+      className={`pointer-events-none absolute inset-0 size-full object-cover transition-opacity duration-300 ${playing ? "opacity-100" : "opacity-0"}`}
+    />
+  );
+}
 
 export function GuestGalleryView({
   context,
@@ -169,6 +236,41 @@ export function GuestGalleryView({
     if (index !== -1) setLightboxIndex(index);
   }, [loaded, lightboxMedia, searchParams, watchVideos]);
 
+  // Watch row autoplay: a muted preview plays only on the one card mostly in
+  // view, and never with reduced motion, data saver or a slow connection.
+  const watchRowRef = useRef<HTMLDivElement | null>(null);
+  const [previewId, setPreviewId] = useState<string | null>(null);
+  useEffect(() => {
+    const row = watchRowRef.current;
+    if (!row || typeof IntersectionObserver === "undefined" || prefersReducedMotion() || connectionLooksSlow()) return;
+    const ratios = new Map<string, number>();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const id = (entry.target as HTMLElement).dataset.watchId;
+          if (id) ratios.set(id, entry.intersectionRatio);
+        }
+        let best: string | null = null;
+        let bestRatio = 0.6;
+        Array.from(row.querySelectorAll<HTMLElement>("[data-watch-id]")).forEach((card) => {
+          const id = card.dataset.watchId ?? "";
+          const ratio = ratios.get(id) ?? 0;
+          if (ratio > bestRatio || (best === null && ratio >= bestRatio)) {
+            best = id;
+            bestRatio = ratio;
+          }
+        });
+        setPreviewId(connectionLooksSlow() ? null : best);
+      },
+      { threshold: [0, 0.6, 1] },
+    );
+    row.querySelectorAll("[data-watch-id]").forEach((card) => observer.observe(card));
+    return () => {
+      observer.disconnect();
+      setPreviewId(null);
+    };
+  }, [watchVideos, filter, loaded]);
+
   if (!loaded && optimistic.length === 0) return <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>;
   if (error && media.length === 0 && optimistic.length === 0) return <p role="alert" className="p-8 text-center text-sm text-red-700">{t("error")}</p>;
 
@@ -258,15 +360,16 @@ export function GuestGalleryView({
               <ChevronRight className="size-4" />
             </button>
           </div>
-          <div className="flex gap-2.5 overflow-x-auto pb-1">
+          <div ref={watchRowRef} className="flex gap-2.5 overflow-x-auto pb-1">
             {watchVideos.map((item, watchIndex) => {
               const name = knownContributorName(item.uploaderDisplayName);
               const length = formatVideoDuration(item.durationSeconds);
               const momentName = momentForMedia(item, moments)?.name ?? null;
               return (
-                <figure key={item.id} className="w-[9.25rem] shrink-0">
+                <figure key={item.id} data-watch-id={item.id} className="w-[9.25rem] shrink-0">
                   <button type="button" onClick={() => setPlayerIndex(watchIndex)} className="relative block aspect-[9/16] w-full overflow-hidden rounded-2xl bg-[#1c2a20] text-left" aria-label={name ? t("videoBy", { name }) : tr("watch")}>
                     <img src={imageSrc(item.id, "thumbnail")} alt="" className="size-full object-cover" />
+                    {previewId === item.id && playerIndex === null && <WatchCardPreview src={imageSrc(item.id, "display")} />}
                     <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
                       <span className="grid size-14 place-items-center rounded-full bg-white text-[#1c2a20] shadow-lg">
                         <Play className="ml-0.5 size-6 fill-current" />

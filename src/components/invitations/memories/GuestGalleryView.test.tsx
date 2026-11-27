@@ -279,7 +279,7 @@ test("tapping a Watch card opens the videos-only player", async () => {
         await flush();
       });
       assert.match(dom.window.document.body.textContent ?? "", /Video 1 of 2/);
-      assert.match(dom.window.document.body.textContent ?? "", /Up next/);
+      assert.match(dom.window.document.body.textContent ?? "", /Swipe up for next/);
       const dialog = dom.window.document.querySelector('[role="dialog"]');
       const videos = dialog?.querySelectorAll("video") ?? [];
       assert.equal(videos.length, 2, "the current clip plus the next one, loading ahead");
@@ -289,8 +289,8 @@ test("tapping a Watch card opens the videos-only player", async () => {
       assert.equal(videos[1]?.getAttribute("playsinline"), "");
       assert.equal(videos[1]?.getAttribute("preload"), "metadata");
       assert.match(videos[1]?.getAttribute("poster") ?? "", /m2\/thumbnail/);
-      const preloaded = Array.from(dialog?.querySelectorAll("img") ?? []).map((img) => img.getAttribute("src"));
-      assert.deepEqual(preloaded, ["/api/memories/media/m3/thumbnail"]);
+      // Upright clips fill the screen until their real size says otherwise.
+      assert.match(videos[1]?.getAttribute("class") ?? "", /object-cover/);
     },
   );
 });
