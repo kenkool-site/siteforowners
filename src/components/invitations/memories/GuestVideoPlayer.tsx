@@ -131,7 +131,7 @@ export function GuestVideoPlayer({
       cancelled = true;
       video.removeEventListener("error", fail);
     };
-  }, [item?.id, nonce, failed]);
+  }, [item, nonce, failed]);
 
   if (!item) return null;
 

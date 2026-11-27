@@ -14,7 +14,6 @@ import {
   formatInTimeZone,
   formatVideoDuration,
   galleryGridMedia,
-  initialOf,
   knownContributorName,
   memoriesOverline,
   photoVideoCounts,
