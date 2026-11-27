@@ -282,10 +282,13 @@ test("tapping a Watch card opens the videos-only player", async () => {
       assert.match(dom.window.document.body.textContent ?? "", /Up next/);
       const dialog = dom.window.document.querySelector('[role="dialog"]');
       const videos = dialog?.querySelectorAll("video") ?? [];
-      assert.equal(videos.length, 1, "only the current clip is mounted");
-      assert.equal(videos[0]?.getAttribute("playsinline"), "");
-      assert.equal(videos[0]?.getAttribute("preload"), "metadata");
-      assert.match(videos[0]?.getAttribute("poster") ?? "", /m2\/thumbnail/);
+      assert.equal(videos.length, 2, "the current clip plus the next one, loading ahead");
+      assert.equal(videos[0]?.getAttribute("preload"), "auto");
+      assert.equal(videos[0]?.getAttribute("aria-hidden"), "true");
+      assert.match(videos[0]?.getAttribute("src") ?? "", /m3\/display/);
+      assert.equal(videos[1]?.getAttribute("playsinline"), "");
+      assert.equal(videos[1]?.getAttribute("preload"), "metadata");
+      assert.match(videos[1]?.getAttribute("poster") ?? "", /m2\/thumbnail/);
       const preloaded = Array.from(dialog?.querySelectorAll("img") ?? []).map((img) => img.getAttribute("src"));
       assert.deepEqual(preloaded, ["/api/memories/media/m3/thumbnail"]);
     },

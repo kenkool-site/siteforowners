@@ -25,6 +25,14 @@ function SlidePoster({ src, className }: { src: string; className: string }) {
   );
 }
 
+// The preloaded next clip must stay still. After a swipe back, React hands it
+// the element that was just playing, so stop it and rewind.
+function holdPreloadedClip(video: HTMLVideoElement | null) {
+  if (!video) return;
+  video.pause();
+  if (video.currentTime > 0) video.currentTime = 0;
+}
+
 export function GuestVideoPlayer({
   videos,
   index,
@@ -142,6 +150,8 @@ export function GuestVideoPlayer({
       });
     }
     video.addEventListener("error", fail);
+    // A clip preloaded while it was next has already fired loadedmetadata.
+    if (Number.isFinite(video.duration) && video.duration > 0) setDuration(video.duration);
     if (video.error) fail();
     else {
       void playWithSoundFallback(video).then((result) => {
@@ -326,6 +336,23 @@ export function GuestVideoPlayer({
           <button type="button" aria-label={t("next")} onPointerDown={(event) => event.stopPropagation()} onClick={() => go(index + 1)} className="absolute right-3 top-[58%] z-10 hidden size-11 -translate-y-8 place-items-center rounded-full bg-white text-[#1c2a20] shadow md:grid">
             <ChevronDown className="size-6" />
           </button>
+        )}
+        {/* Start loading the next clip before the swipe. It shares the key the
+            current-clip <video> below will use for it, so React keeps this same
+            element (and what it has buffered) when that clip becomes current. */}
+        {next && (
+          <video
+            key={`${next.id}-0`}
+            ref={holdPreloadedClip}
+            src={imageSrc(next.id, "display")}
+            poster={nextPoster ?? undefined}
+            playsInline
+            preload="auto"
+            muted
+            aria-hidden="true"
+            tabIndex={-1}
+            className="pointer-events-none absolute inset-0 size-full object-contain opacity-0"
+          />
         )}
         {failed ? (
           <div className="relative z-10 flex h-full items-center justify-center p-4">
