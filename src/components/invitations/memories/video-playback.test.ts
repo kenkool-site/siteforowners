@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { nextVideoSourceAttempt, playWithSoundFallback, resolveVerticalSwipe, videoSourceUrl } from "./video-playback";
+import { connectionLooksSlow, nextVideoSourceAttempt, noteSlowConnection, playWithSoundFallback, resolveVerticalSwipe, videoSourceUrl } from "./video-playback";
 
 test("swipe up advances and swipe down goes back, staying inside the list", () => {
   assert.equal(resolveVerticalSwipe(-60, 0, 3), 1);
@@ -37,4 +37,10 @@ test("autoplay tries sound, then muted, then reports a tap is required", async (
 
   const blocked = { muted: false, play() { return Promise.reject(new Error("no")); } };
   assert.equal(await playWithSoundFallback(blocked), "blocked");
+});
+
+test("a stalled preview marks the connection slow for the rest of the visit", () => {
+  assert.equal(connectionLooksSlow(), false);
+  noteSlowConnection();
+  assert.equal(connectionLooksSlow(), true);
 });
