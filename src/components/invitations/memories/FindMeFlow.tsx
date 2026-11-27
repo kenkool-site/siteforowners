@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Camera, Check, Lock, Shield, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
-import { MediaLightbox } from "./MediaLightbox";
+import { MemoryMediaViewer } from "./MemoryMediaViewer";
 import { defaultMediaSrc, type MediaImageSrc } from "./media-src";
 import { PlanningSoftLink } from "./MemoriesChrome";
 
@@ -32,7 +32,7 @@ export function FindMeFlow({ eventId, accent, surface, onClose, eventTitle = "",
   const tr = useTranslations("invitations.public.memories.redesign");
   const [status, setStatus] = useState<FindMeStatus>(previewResults && previewResults.length > 0 ? "results" : "idle");
   const [results, setResults] = useState<PublicMemoryMedia[]>(previewResults ?? []);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   // Explicit, affirmative gate — the guest must actively check this before
   // the capture button becomes usable at all, rather than consent being
   // implied by the mere presence of descriptive copy on screen. This is the
@@ -216,8 +216,8 @@ export function FindMeFlow({ eventId, accent, surface, onClose, eventTitle = "",
             <button type="button" onClick={() => void shareAlbum()} className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border text-sm font-semibold" style={{ color: accent, borderColor: `${accent}33` }}>{tr("shareAlbum")}</button>
           </div>
           <div className="grid grid-cols-3 gap-1">
-            {results.map((item, index) => (
-              <button key={item.id} type="button" onClick={() => setLightboxIndex(index)} className="aspect-square overflow-hidden rounded-lg">
+            {results.map((item) => (
+              <button key={item.id} type="button" onClick={() => setOpenId(item.id)} className="aspect-square overflow-hidden rounded-lg">
                 <img src={imageSrc(item.id, "thumbnail")} alt="" className="size-full object-cover" loading="lazy" />
               </button>
             ))}
@@ -232,9 +232,7 @@ export function FindMeFlow({ eventId, accent, surface, onClose, eventTitle = "",
         </div>
       )}
 
-      {lightboxIndex !== null && (
-        <MediaLightbox media={results} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
-      )}
+      <MemoryMediaViewer media={results} openId={openId} onOpen={setOpenId} imageSrc={imageSrc} accent={accent} />
     </div>
   );
 }

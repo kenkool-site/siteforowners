@@ -9,7 +9,7 @@ import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
 import { memoriesTabClearanceClass } from "./MemoriesChrome";
-import { MediaLightbox } from "./MediaLightbox";
+import { MemoryMediaViewer } from "./MemoryMediaViewer";
 
 export function GuestMomentsView({
   eventId,
@@ -38,7 +38,7 @@ export function GuestMomentsView({
   const [media, setMedia] = useState<PublicMemoryMedia[]>(preview?.media ?? []);
   const [selected, setSelected] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(Boolean(preview));
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const now = preview?.now ?? Date.now();
 
   useEffect(() => {
@@ -59,20 +59,18 @@ export function GuestMomentsView({
   if (selectedMoment) {
     const selectedMedia = media.filter((item) => momentForMedia(item, moments)?.id === selectedMoment.id);
     return <div className={`space-y-4 px-4 pt-4 ${memoriesTabClearanceClass}`}>
-      <button type="button" onClick={() => { setSelected(null); setLightboxIndex(null); }} className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-sm font-semibold" style={{ color: accent }}>
+      <button type="button" onClick={() => { setSelected(null); setOpenId(null); }} className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-sm font-semibold" style={{ color: accent }}>
         <ChevronLeft className="size-5" />
         {t("back")}
       </button>
       <h2 className="font-serif text-2xl font-semibold">{selectedMoment.name}</h2>
-      <div className="columns-2 gap-2 sm:columns-3">{selectedMedia.map((item, index) => <button key={item.id} type="button" onClick={() => setLightboxIndex(index)} className="relative mb-2 block w-full break-inside-avoid">
+      <div className="columns-2 gap-2 sm:columns-3">{selectedMedia.map((item) => <button key={item.id} type="button" onClick={() => setOpenId(item.id)} className="relative mb-2 block w-full break-inside-avoid">
         <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt="" className="h-auto w-full rounded-xl" loading="lazy" />
         {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
           <span className="grid size-14 place-items-center rounded-full bg-white/95 text-[#1c2a20] shadow-lg"><Play className="ml-0.5 size-6 fill-current" /></span>
         </span>}
       </button>)}</div>
-      {lightboxIndex !== null && (
-        <MediaLightbox media={selectedMedia} index={lightboxIndex} moments={moments} imageSrc={imageSrc} timeZone={timeZone} locale={locale} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
-      )}
+      <MemoryMediaViewer media={selectedMedia} openId={openId} onOpen={setOpenId} moments={moments} imageSrc={imageSrc} timeZone={timeZone} locale={locale} accent={accent} />
     </div>;
   }
 

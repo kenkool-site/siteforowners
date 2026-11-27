@@ -154,6 +154,31 @@ test("tapping a photo inside a moment's detail view opens the lightbox, scoped t
   );
 });
 
+test("tapping a video inside a moment opens the same full-screen video player as the Gallery", async () => {
+  const m = moment({ id: "moment-1" });
+  await withMountedMoments(
+    [mediaItem("m1"), mediaItem("m2", { mediaKind: "video" })],
+    [m],
+    async ({ dom }) => {
+      const coverCard = dom.window.document.querySelector('img[src="/api/memories/media/m1/thumbnail"]')?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, coverCard);
+        await flush();
+      });
+
+      const videoTile = dom.window.document.querySelector('img[src="/api/memories/media/m2/thumbnail"]')?.closest("button") ?? null;
+      await act(async () => {
+        click(dom, videoTile);
+        await flush();
+      });
+
+      assert.match(dom.window.document.body.textContent ?? "", /Video 1 of 1/);
+      const video = dom.window.document.querySelector('[role="dialog"] video');
+      assert.ok((video?.getAttribute("src") ?? "").includes("m2/display"), "expected the player to play the tapped video");
+    },
+  );
+});
+
 test("a moment's cover tile shows a play-badge overlay when its first photo is a video", async () => {
   const momentA = moment({ id: "moment-a", name: "First Dance" });
   const momentB = moment({ id: "moment-b", name: "Cake Cutting", startsAt: "2026-09-22T21:00:00Z", endsAt: "2026-09-22T22:00:00Z", sortOrder: 1 });
