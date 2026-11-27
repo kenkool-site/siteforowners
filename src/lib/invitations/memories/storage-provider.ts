@@ -1,9 +1,12 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
+// signingDate makes the link the same for everyone signed at that moment.
+export type SignedDownloadOptions = { signingDate?: Date };
+
 export interface StorageProvider {
   createPresignedUploadUrl(objectKey: string, contentType: string, expiresInSeconds: number, contentLength?: number): Promise<string>;
-  getSignedDownloadUrl(objectKey: string, expiresInSeconds: number): Promise<string>;
+  getSignedDownloadUrl(objectKey: string, expiresInSeconds: number, options?: SignedDownloadOptions): Promise<string>;
   deleteObject(objectKey: string): Promise<void>;
   objectExists(objectKey: string): Promise<boolean>;
   // Optional: only R2StorageProvider's real callers (upload/complete's video
@@ -43,9 +46,9 @@ export class R2StorageProvider implements StorageProvider {
     return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
   }
 
-  async getSignedDownloadUrl(objectKey: string, expiresInSeconds: number): Promise<string> {
+  async getSignedDownloadUrl(objectKey: string, expiresInSeconds: number, options: SignedDownloadOptions = {}): Promise<string> {
     const command = new GetObjectCommand({ Bucket: this.bucket, Key: objectKey });
-    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds });
+    return getSignedUrl(this.client, command, { expiresIn: expiresInSeconds, signingDate: options.signingDate });
   }
 
   async deleteObject(objectKey: string): Promise<void> {
