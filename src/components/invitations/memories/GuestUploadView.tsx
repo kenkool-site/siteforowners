@@ -22,6 +22,8 @@ const ERROR_TOO_LARGE = "too_large";
 const ERROR_UNSUPPORTED_TYPE = "unsupported_type";
 const ERROR_GENERIC = "generic";
 const ERROR_UPLOAD_BLOCKED = "upload_blocked";
+const ERROR_UPLOAD_STALLED = "upload_stalled";
+const UPLOAD_STALL_MS = 45_000;
 // Retrying the same file can't help any of these — they're a property of the
 // file itself (or the event), not a transient network hiccup — so the retry
 // button is hidden for all of them, not just quota/window-closed.
@@ -230,11 +232,21 @@ async function uploadOne(eventId: string, file: File, posterFile: File | undefin
       // The signature was made for `signedType`. An iPhone file's own type is
       // often blank, so sending file.type here would not match the signature.
       xhr.setRequestHeader("content-type", signedType);
-      if (trackProgress) {
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100));
-        });
-      }
+      // On a weak signal a phone can leave the request hanging with no error at
+      // all. Give up after a stretch with no bytes moving, so the queue can try
+      // again by itself instead of sitting at the same percent forever.
+      let stallTimer: ReturnType<typeof setTimeout> | undefined;
+      const armStallTimer = () => {
+        if (stallTimer) clearTimeout(stallTimer);
+        stallTimer = setTimeout(() => xhr.abort(), UPLOAD_STALL_MS);
+      };
+      const clearStallTimer = () => { if (stallTimer) clearTimeout(stallTimer); };
+      xhr.addEventListener("loadend", clearStallTimer);
+      xhr.addEventListener("abort", () => reject(new Error(ERROR_UPLOAD_STALLED)));
+      xhr.upload.addEventListener("progress", (event) => {
+        armStallTimer();
+        if (trackProgress && event.lengthComputable && event.total > 0) onProgress(Math.round((event.loaded / event.total) * 100));
+      });
       // status 0 is the browser discarding the response, which is what happens
       // when R2's CORS allowlist does not include this page's origin.
       xhr.addEventListener("error", () => reject(new Error(ERROR_UPLOAD_BLOCKED)));
@@ -244,6 +256,7 @@ async function uploadOne(eventId: string, file: File, posterFile: File | undefin
         else reject(new Error(ERROR_GENERIC));
       });
       xhr.send(body);
+      armStallTimer();
     });
   }
 
@@ -333,7 +346,9 @@ export function GuestUploadView({
   useEffect(() => {
     const dismissTimers = dismissTimersRef.current;
     const previews = previewsRef.current;
-    const queue = createUploadQueue(eventId, (file, posterFile, onProgress) => uploadOne(eventId, file, posterFile, onProgress));
+    const queue = createUploadQueue(eventId, (file, posterFile, onProgress) => uploadOne(eventId, file, posterFile, onProgress), {
+      isRetryable: (error) => !TERMINAL_UPLOAD_ERRORS.has(error),
+    });
     queueRef.current = queue;
     const unsubscribe = queue.subscribe((queueItems) => {
       const liveIds = new Set(queueItems.map((item) => item.id));
@@ -360,6 +375,7 @@ export function GuestUploadView({
     });
     return () => {
       unsubscribe();
+      queue.dispose();
       queueRef.current = null;
       if (successTimerRef.current) clearTimeout(successTimerRef.current);
       dismissTimers.forEach(clearTimeout);
