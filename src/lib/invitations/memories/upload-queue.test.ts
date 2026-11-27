@@ -229,3 +229,63 @@ test("a video upload's poster survives a hydration round-trip (page reload) alon
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(hydratedPosterSize, 500);
 });
+
+test("a retryable failure goes back in line by itself after a short wait", async () => {
+  let attempts = 0;
+  const queue = createUploadQueue("event-auto-1", async (_file, _posterFile, _onProgress) => {
+    attempts += 1;
+    if (attempts < 3) throw new Error("network error");
+    return { mediaId: "media-auto-1" };
+  }, { isRetryable: () => true, retryDelaysMs: [5, 5] });
+  const id = await queue.enqueue(fakeFile("auto1.jpg", 1000));
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  const item = queue.getItems().find((i) => i.id === id);
+  assert.equal(item!.status, "done");
+  assert.equal(attempts, 3);
+  queue.dispose();
+});
+
+test("automatic retries stop after the last wait and leave the item failed", async () => {
+  let attempts = 0;
+  const queue = createUploadQueue("event-auto-2", async (_file, _posterFile, _onProgress) => {
+    attempts += 1;
+    throw new Error("network error");
+  }, { isRetryable: () => true, retryDelaysMs: [5, 5] });
+  const id = await queue.enqueue(fakeFile("auto2.jpg", 1000));
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  const item = queue.getItems().find((i) => i.id === id);
+  assert.equal(item!.status, "failed");
+  assert.equal(item!.error, "network error");
+  assert.equal(attempts, 3);
+  queue.dispose();
+});
+
+test("a non-retryable failure is not retried automatically", async () => {
+  let attempts = 0;
+  const queue = createUploadQueue("event-auto-3", async (_file, _posterFile, _onProgress) => {
+    attempts += 1;
+    throw new Error("quota");
+  }, { isRetryable: (error) => error !== "quota", retryDelaysMs: [5, 5] });
+  const id = await queue.enqueue(fakeFile("auto3.jpg", 1000));
+  await new Promise((resolve) => setTimeout(resolve, 60));
+  const item = queue.getItems().find((i) => i.id === id);
+  assert.equal(item!.status, "failed");
+  assert.equal(attempts, 1);
+  queue.dispose();
+});
+
+test("a waiting retry does not hold up the next file in the batch", async () => {
+  const order: string[] = [];
+  let firstAttempts = 0;
+  const queue = createUploadQueue("event-auto-4", async (file, _posterFile, _onProgress) => {
+    order.push(file.name);
+    if (file.name === "first.jpg" && ++firstAttempts === 1) throw new Error("network error");
+    return { mediaId: file.name };
+  }, { isRetryable: () => true, retryDelaysMs: [30] });
+  await queue.enqueue(fakeFile("first.jpg", 1000));
+  await queue.enqueue(fakeFile("second.jpg", 1000));
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.deepEqual(order, ["first.jpg", "second.jpg", "first.jpg"]);
+  assert.ok(queue.getItems().every((i) => i.status === "done"));
+  queue.dispose();
+});
