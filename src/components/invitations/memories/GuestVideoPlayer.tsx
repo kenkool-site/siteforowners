@@ -12,6 +12,19 @@ import { defaultMediaSrc, type MediaImageSrc } from "./media-src";
 import { VideoPlaybackFallback } from "./VideoPlaybackFallback";
 import { downloadMemoryFile, nextVideoSourceAttempt, playWithSoundFallback, prefersReducedMotion, resolveVerticalSwipe, shareMemoryItem, videoSourceUrl } from "./video-playback";
 
+const SLIDE_MS = 260;
+
+// The neighbouring clip's poster, parked just above or below the current one
+// so it follows the finger in and fills the screen when the slide lands.
+function SlidePoster({ src, className }: { src: string; className: string }) {
+  return (
+    <div aria-hidden="true" className={`absolute inset-x-0 h-full overflow-hidden ${className}`}>
+      <div className="absolute inset-0 scale-110 bg-cover opacity-70 blur-2xl" style={{ backgroundImage: `url(${src})` }} />
+      <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${src})` }} />
+    </div>
+  );
+}
+
 export function GuestVideoPlayer({
   videos,
   index,
@@ -44,10 +57,13 @@ export function GuestVideoPlayer({
   const activeLocale = locale || intlLocale || "en";
   const item = videos[index];
   const next = videos[index + 1];
+  const prev = index > 0 ? videos[index - 1] : undefined;
   const videoRef = useRef<HTMLVideoElement>(null);
   const retried = useRef(false);
   const handlingError = useRef(false);
   const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const slideTimer = useRef<number | null>(null);
   const [nonce, setNonce] = useState(0);
   const [failed, setFailed] = useState(false);
   const [muted, setMuted] = useState(false);
@@ -59,6 +75,13 @@ export function GuestVideoPlayer({
   const [dragging, setDragging] = useState(false);
   const [copied, setCopied] = useState(false);
   const reduceMotion = prefersReducedMotion();
+
+  useEffect(() => {
+    const timer = slideTimer;
+    return () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    };
+  }, []);
 
   useEffect(() => {
     retried.current = false;
@@ -145,23 +168,46 @@ export function GuestVideoPlayer({
   const displaySrc = videoSourceUrl(imageSrc(item.id, "display"), nonce);
   const poster = imageSrc(item.id, "thumbnail");
   const nextPoster = next ? imageSrc(next.id, "thumbnail") : null;
+  const prevPoster = prev ? imageSrc(prev.id, "thumbnail") : null;
   const progressMax = Number.isFinite(duration) && duration > 0 ? duration : item.durationSeconds ?? 0;
 
   function go(nextIndex: number) {
-    setDragY(0);
+    dragStart.current = null;
+    const stageHeight = stageRef.current?.clientHeight ?? 0;
+    if (reduceMotion || !stageHeight || Math.abs(nextIndex - index) !== 1) {
+      setDragY(0);
+      setDragging(false);
+      onNavigate(nextIndex);
+      return;
+    }
+    if (slideTimer.current !== null) return;
+    // Slide the current clip off screen so the neighbour's poster slides in,
+    // then swap clips with the transition off so the swap isn't visible.
     setDragging(false);
-    onNavigate(nextIndex);
+    setDragY(nextIndex > index ? -stageHeight : stageHeight);
+    slideTimer.current = window.setTimeout(() => {
+      slideTimer.current = null;
+      setDragging(true);
+      setDragY(0);
+      onNavigate(nextIndex);
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!dragStart.current) setDragging(false);
+      }));
+    }, SLIDE_MS);
   }
 
   function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (failed) return;
+    if (failed || slideTimer.current !== null) return;
     dragStart.current = { x: event.clientX, y: event.clientY };
     setDragging(true);
   }
 
   function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
     if (!dragStart.current || reduceMotion) return;
-    setDragY(event.clientY - dragStart.current.y);
+    const offset = event.clientY - dragStart.current.y;
+    // Resist past the first and last clip so the edge feels like an edge.
+    const atEdge = (offset < 0 && !next) || (offset > 0 && !prev);
+    setDragY(atEdge ? offset / 3 : offset);
   }
 
   function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
@@ -169,14 +215,14 @@ export function GuestVideoPlayer({
     const deltaY = event.clientY - dragStart.current.y;
     const deltaX = event.clientX - dragStart.current.x;
     dragStart.current = null;
-    setDragging(false);
-    setDragY(0);
-    if (Math.abs(deltaY) < 10 && Math.abs(deltaX) < 10) {
-      togglePlay();
+    const nextIndex = resolveVerticalSwipe(deltaY, index, videos.length);
+    if (nextIndex !== null && Math.abs(deltaY) >= Math.abs(deltaX)) {
+      go(nextIndex);
       return;
     }
-    const nextIndex = resolveVerticalSwipe(deltaY, index, videos.length);
-    if (nextIndex !== null) go(nextIndex);
+    setDragging(false);
+    setDragY(0);
+    if (Math.abs(deltaY) < 10 && Math.abs(deltaX) < 10) togglePlay();
   }
 
   function handlePointerCancel() {
@@ -254,14 +300,21 @@ export function GuestVideoPlayer({
       )}
 
       <div
+        ref={stageRef}
         data-video-stage
         className="relative min-h-0 flex-1 touch-none overflow-hidden"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        style={reduceMotion ? undefined : { transform: `translateY(${dragY}px)`, transition: dragging ? "none" : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)" }}
       >
+        <div
+          data-video-track
+          className="absolute inset-0"
+          style={reduceMotion ? undefined : { transform: `translateY(${dragY}px)`, transition: dragging ? "none" : `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` }}
+        >
+        {prevPoster && <SlidePoster src={prevPoster} className="bottom-full" />}
+        {nextPoster && <SlidePoster src={nextPoster} className="top-full" />}
         <div aria-hidden="true" className="absolute inset-0 scale-110 bg-cover opacity-70 blur-2xl" style={{ backgroundImage: `url(${poster})` }} />
         {index > 0 && (
           <button type="button" aria-label={t("previous")} onPointerDown={(event) => event.stopPropagation()} onClick={() => go(index - 1)} className="absolute left-3 top-[42%] z-10 hidden size-11 -translate-y-8 place-items-center rounded-full bg-white text-[#1c2a20] shadow md:grid">
@@ -306,6 +359,7 @@ export function GuestVideoPlayer({
             <Play className="ml-1 size-7 fill-current" />
           </button>
         )}
+        </div>
       </div>
 
       <div className="relative z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3" onPointerDown={(event) => event.stopPropagation()}>
