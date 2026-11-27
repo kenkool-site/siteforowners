@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import { ChevronLeft, ChevronRight, Play, Share2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Play, Share2, X } from "lucide-react";
 import { useLocale, useTimeZone, useTranslations } from "next-intl";
 import { Download, ScanFace } from "lucide-react";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
@@ -32,9 +32,9 @@ export interface MediaLightboxProps {
 }
 
 const SWIPE_THRESHOLD_PX = 50;
-// SSR-safe fallback only — real usage always computes this from the live
-// viewport (see exitDistance below), since this component never renders
-// during SSR (it's only ever mounted in response to a real click/tap).
+// SSR-safe fallback only — real usage always measures the stage (see
+// navigateWithSlide), since this component never renders during SSR (it's
+// only ever mounted in response to a real click/tap).
 const FALLBACK_EXIT_DISTANCE_PX = 600;
 // Shared duration/easing for every post-release motion: the confirmed-swipe
 // exit-then-reenter, and the cancelled-swipe bounce-back. 200ms with a flat
@@ -81,8 +81,15 @@ export function resolveNearbyTap(
   return null;
 }
 
-function exitDistance(): number {
-  return (typeof window !== "undefined" ? window.innerWidth : FALLBACK_EXIT_DISTANCE_PX) + 100;
+// The neighbouring photo (or a video's poster), parked just above or below
+// the current one so it follows the finger in, the way a vertical feed does.
+function NeighborSlide({ src, className }: { src: string; className: string }) {
+  return (
+    <div aria-hidden="true" className={`absolute inset-x-0 h-full overflow-hidden ${className}`}>
+      <div className="absolute inset-0 scale-110 bg-cover opacity-80 blur-md" style={{ backgroundImage: `url(${src})` }} />
+      <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${src})` }} />
+    </div>
+  );
 }
 
 // Where navigateWithSlide is headed: either the next index within whatever
@@ -108,7 +115,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   // today only rendered as alt text on gallery thumbnails — rather than
   // duplicating an equivalent string under the lightbox namespace.
   const tGallery = useTranslations("invitations.public.memories.gallery");
-  const [dragX, setDragX] = useState(0);
+  const [dragY, setDragY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
   // True only for the single instant "jump to the opposite edge" reposition
   // between a photo exiting one side and the next one sliding in from the
@@ -122,7 +129,8 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   // exits entirely, from either mode, matching how far a guest can already
   // wander via ordinary swipe/prev-next.
   const [detour, setDetour] = useState<{ media: PublicMemoryMedia[]; index: number } | null>(null);
-  const dragStartX = useRef<number | null>(null);
+  const dragStart = useRef<{ x: number; y: number } | null>(null);
+  const stageRef = useRef<HTMLDivElement | null>(null);
   // number, not NodeJS.Timeout — this is always window.setTimeout (browser),
   // but bare ReturnType<typeof window.setTimeout> resolves ambiguously in a
   // mixed Node+DOM tsconfig, so the type is spelled out explicitly.
@@ -239,8 +247,8 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
-      else if (event.key === "ArrowLeft" && activeIndex > 0) navigateWithSlide(stepTarget(activeIndex - 1), 1);
-      else if (event.key === "ArrowRight" && activeIndex < activeMedia.length - 1) navigateWithSlide(stepTarget(activeIndex + 1), -1);
+      else if ((event.key === "ArrowLeft" || event.key === "ArrowUp") && activeIndex > 0) navigateWithSlide(stepTarget(activeIndex - 1), 1);
+      else if ((event.key === "ArrowRight" || event.key === "ArrowDown") && activeIndex < activeMedia.length - 1) navigateWithSlide(stepTarget(activeIndex + 1), -1);
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
@@ -252,6 +260,9 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
 
   if (!item) return null;
   const fullLoaded = loadedId === item.id;
+  const prevItem = activeIndex > 0 ? activeMedia[activeIndex - 1] : undefined;
+  const nextItem = activeMedia[activeIndex + 1];
+  const neighborSrc = (neighbor: PublicMemoryMedia) => imageSrc(neighbor.id, neighbor.mediaKind === "video" ? "thumbnail" : "display");
 
   const capturedLabel = item.capturedAt ? formatCapturedAt(item.capturedAt, zone, activeLocale) : null;
   const contributor = knownContributorName(item.uploaderDisplayName);
@@ -269,22 +280,21 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
       : capturedLabel
     : null;
 
-  // Drives every non-drag transition: the current photo exits fully
-  // off-screen in `exitSign`'s direction (continuing whatever motion — a
-  // swipe's own direction, or a button/keyboard tap's implied direction),
-  // then swaps content and jumps instantly to the opposite edge, then slides
-  // that in to center. One <img>/<video> element, three chained visual
-  // states, rather than a two-panel carousel. `target` decides what the swap
-  // actually does: advance within the current list (calling the parent's
-  // onNavigate), advance within an already-active detour (local state only),
-  // or start a brand-new detour.
+  // Drives every non-drag transition, vertically like the video feed: the
+  // current photo slides up (next) or down (previous) by a full screen. For a
+  // step to the photo right before or after, its neighbour is already parked
+  // there and slides in with it, so the swap lands with no jump. Anything
+  // further away (a nearby-strip tap) slides out, jumps to the opposite edge,
+  // then slides in. `target` decides what the swap actually does: advance
+  // within the current list (calling the parent's onNavigate), advance within
+  // an already-active detour (local state only), or start a brand-new detour.
   function navigateWithSlide(target: NavigationTarget, exitSign: -1 | 1) {
     if (prefersReducedMotion()) {
       if (target.kind === "detour") setDetour({ media: target.media, index: target.index });
       else if (detour) setDetour({ media: detour.media, index: target.index });
       else onNavigate(target.index);
       setIsDragging(false);
-      setDragX(0);
+      setDragY(0);
       return;
     }
     pendingTimeouts.current.forEach((id) => window.clearTimeout(id));
@@ -292,10 +302,11 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
     pendingTimeouts.current = [];
     pendingFrames.current = [];
 
-    const distance = exitDistance();
+    const distance = stageRef.current?.clientHeight || (typeof window !== "undefined" ? window.innerHeight : FALLBACK_EXIT_DISTANCE_PX);
+    const neighbourStep = (target.kind === "list" || target.media === activeMedia) && Math.abs(target.index - activeIndex) === 1;
     setIsDragging(false);
     setSuppressTransition(false);
-    setDragX(exitSign * distance);
+    setDragY(exitSign * distance);
 
     const swapTimeout = window.setTimeout(() => {
       if (target.kind === "detour") {
@@ -306,7 +317,9 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
         onNavigate(target.index);
       }
       setSuppressTransition(true);
-      setDragX(-exitSign * distance);
+      // The neighbour is already on screen: snap the track home under it.
+      // Otherwise start the new photo from the opposite edge.
+      setDragY(neighbourStep ? 0 : -exitSign * distance);
 
       // Two nested frames: the first can still land in the same paint as the
       // style change above, so a single one isn't reliably enough to force
@@ -315,7 +328,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
       const frame1 = window.requestAnimationFrame(() => {
         const frame2 = window.requestAnimationFrame(() => {
           setSuppressTransition(false);
-          setDragX(0);
+          setDragY(0);
         });
         pendingFrames.current.push(frame2);
       });
@@ -361,11 +374,10 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
     else navigateWithSlide({ kind: "detour", media: result.media, index: result.index }, -1);
   }
 
-  // HTMLImageElement | HTMLVideoElement, not just HTMLImageElement — these
-  // three handlers are now shared verbatim between the <img> and <video>
-  // branches below, and TS's PointerEvent<T> is invariant enough in T that a
-  // handler typed for one element only isn't assignable to the other's prop.
-  function handlePointerDown(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
+  // The handlers sit on the stage, so a drag anywhere on it (photo, video or
+  // the blurred margins) moves the feed. Up/down follows the finger; a
+  // sideways swipe still pages too, for guests used to the old viewer.
+  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     // A new gesture starting mid-settle (fast repeated swipes) must not let
     // the previous swipe's deferred steps land in the middle of this one.
     pendingTimeouts.current.forEach((id) => window.clearTimeout(id));
@@ -374,33 +386,54 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
     pendingFrames.current = [];
     setSuppressTransition(false);
 
-    dragStartX.current = event.clientX;
+    dragStart.current = { x: event.clientX, y: event.clientY };
     setIsDragging(true);
-    event.currentTarget.setPointerCapture?.(event.pointerId);
+    // No pointer capture: it would retarget the tap that follows onto the
+    // stage, so a video's own play and scrub controls would stop working.
   }
 
-  function handlePointerMove(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
-    if (dragStartX.current === null) return;
-    setDragX(event.clientX - dragStartX.current);
+  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragStart.current) return;
+    const offsetY = (event.clientY ?? 0) - (dragStart.current.y ?? 0);
+    const offsetX = (event.clientX ?? 0) - (dragStart.current.x ?? 0);
+    if (Math.abs(offsetY) < Math.abs(offsetX)) {
+      setDragY(0);
+      return;
+    }
+    // Resist past the first and last photo so the edge feels like an edge.
+    const atEdge = (offsetY < 0 && !nextItem) || (offsetY > 0 && !prevItem);
+    setDragY(atEdge ? offsetY / 3 : offsetY);
   }
 
-  function handlePointerUp(event: ReactPointerEvent<HTMLImageElement | HTMLVideoElement>) {
-    if (dragStartX.current === null) return;
-    const releasedAt = dragX;
-    const nextIndex = resolveSwipeNavigation(releasedAt, activeIndex, activeMedia.length);
-    dragStartX.current = null;
-    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  function handlePointerUp(event: ReactPointerEvent<HTMLDivElement>) {
+    if (!dragStart.current) return;
+    const deltaY = (event.clientY ?? 0) - (dragStart.current.y ?? 0);
+    const deltaX = (event.clientX ?? 0) - (dragStart.current.x ?? 0);
+    dragStart.current = null;
+    const vertical = Math.abs(deltaY) >= Math.abs(deltaX);
+    // Sideways on a video is the guest scrubbing its timeline, not paging.
+    const nextIndex = vertical || item.mediaKind !== "video" ? resolveSwipeNavigation(vertical ? deltaY : deltaX, activeIndex, activeMedia.length) : null;
 
     if (nextIndex === null) {
       // Below the threshold, or already at the end being swiped past — ease
       // back to center instead of snapping the drag away instantly.
       setIsDragging(false);
-      setDragX(0);
+      setDragY(0);
       return;
     }
 
-    navigateWithSlide(stepTarget(nextIndex), releasedAt < 0 ? -1 : 1);
+    navigateWithSlide(stepTarget(nextIndex), nextIndex > activeIndex ? -1 : 1);
   }
+
+  function handlePointerCancel() {
+    // The browser took the gesture over; settle back without navigating.
+    dragStart.current = null;
+    setIsDragging(false);
+    setDragY(0);
+  }
+
+  const stopDrag = (event: ReactPointerEvent) => event.stopPropagation();
+  const trackStyle = { transform: `translateY(${dragY}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION };
 
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d0c] text-white" onClick={onClose}>
@@ -419,33 +452,47 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
         </p>
       )}
 
-      <div data-lightbox-stage className="relative h-[52vh] overflow-hidden bg-[#151917]" onClick={(event) => event.stopPropagation()}>
+      <div
+        ref={stageRef}
+        data-lightbox-stage
+        className="relative min-h-0 flex-1 touch-none overflow-hidden bg-[#151917]"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+      >
         {activeIndex > 0 && (
           <button
             type="button"
+            onPointerDown={stopDrag}
             onClick={(event) => {
               event.stopPropagation();
               navigateWithSlide(stepTarget(activeIndex - 1), 1);
             }}
             aria-label={t("previous")}
-            className="absolute left-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
+            className="absolute left-3 top-[42%] z-10 hidden size-11 -translate-y-8 place-items-center rounded-full bg-white text-[#1c2a20] shadow md:grid"
           >
-            <ChevronLeft className="size-6" />
+            <ChevronUp className="size-6" />
           </button>
         )}
         {activeIndex < activeMedia.length - 1 && (
           <button
             type="button"
+            onPointerDown={stopDrag}
             onClick={(event) => {
               event.stopPropagation();
               navigateWithSlide(stepTarget(activeIndex + 1), -1);
             }}
             aria-label={t("next")}
-            className="absolute right-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
+            className="absolute right-3 top-[58%] z-10 hidden size-11 -translate-y-8 place-items-center rounded-full bg-white text-[#1c2a20] shadow md:grid"
           >
-            <ChevronRight className="size-6" />
+            <ChevronDown className="size-6" />
           </button>
         )}
+        <div data-lightbox-track className="absolute inset-0" style={trackStyle}>
+        {prevItem && <NeighborSlide src={neighborSrc(prevItem)} className="bottom-full" />}
+        {nextItem && <NeighborSlide src={neighborSrc(nextItem)} className="top-full" />}
         <div aria-hidden="true" className="absolute inset-0 scale-110 bg-cover opacity-80 blur-md" style={{ backgroundImage: `url(${imageSrc(item.id, "thumbnail")})` }} />
         {!fullLoaded && !videoFailed && (
           <div className="absolute left-1/2 top-1/2 z-[2] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 rounded-2xl bg-black/40 px-4 py-3 text-xs font-medium">
@@ -454,7 +501,7 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
           </div>
         )}
         {item.mediaKind === "video" && videoFailed ? (
-          <div className="relative z-10 flex h-full items-center justify-center overflow-y-auto p-3">
+          <div className="relative z-10 flex h-full items-center justify-center overflow-y-auto p-3" onPointerDown={stopDrag}>
             <VideoPlaybackFallback
               durationLabel={formatVideoDuration(item.durationSeconds)}
               sizeLabel={formatApproxFileSize(item.byteSize)}
@@ -473,32 +520,23 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
             onLoadedData={() => setLoadedId(item.id)}
             onError={onVideoError}
             onClick={(event) => event.stopPropagation()}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
-            className="relative z-[1] size-full touch-pan-y object-contain"
+            className="relative z-[1] size-full object-contain"
           />
         ) : (
           <img
             src={imageSrc(item.id, "display")}
             alt=""
+            draggable={false}
             ref={(node) => { if (node?.complete) setLoadedId(item.id); }}
             onLoad={() => setLoadedId(item.id)}
             onClick={(event) => event.stopPropagation()}
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            style={{ transform: `translateX(${dragX}px)`, transition: isDragging || suppressTransition ? "none" : SETTLE_TRANSITION }}
-            className="relative z-[1] size-full touch-pan-y select-none object-contain"
+            className="relative z-[1] size-full select-none object-contain"
           />
         )}
         {honorLabels?.[item.id] && <HonorCreamLabel label={honorLabels[item.id] ?? ""} icon={honorIcon} className="absolute bottom-16 left-3.5 z-[6] h-7 px-2.5 text-[12.5px]" />}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/45 to-transparent px-3 pb-3 pt-8">
           {!isDragging && !suppressTransition && item.mediaKind !== "video" && nearby.length > 0 && (
-            <div className="pointer-events-auto mb-2.5" onClick={(event) => event.stopPropagation()}>
+            <div className="pointer-events-auto mb-2.5" onClick={(event) => event.stopPropagation()} onPointerDown={stopDrag}>
               <p className="mb-2 text-[11px] font-semibold tracking-wide text-white/90">{t("nearbyCount", { count: nearby.length })}</p>
               <div className="flex gap-2 overflow-x-auto">
                 {nearby.map((match) => (
@@ -524,8 +562,9 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
               : t("viewerLabel", { current: activeIndex + 1, total: activeMedia.length })}
           </p>
         </div>
+        </div>
       </div>
-      <div className="px-4 pt-4" onClick={(event) => event.stopPropagation()}>
+      <div className="px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3" onClick={(event) => event.stopPropagation()}>
         {contributor && (
           <div className="flex items-center gap-2.5 text-sm">
             <span className="grid size-8 place-items-center rounded-full bg-[#e9d6af] text-sm font-bold text-[#1c2a20]">{Array.from(contributor)[0]?.toUpperCase()}</span>
