@@ -7,7 +7,7 @@ import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import type { MemoryHighlightGroup } from "@/lib/invitations/memories/highlight-types";
 import type { PublicHonorView } from "@/lib/invitations/memories/guests-of-honor";
 import { HonorCreamLabel, HonorGlyph } from "./HonorMark";
-import { MediaLightbox } from "./MediaLightbox";
+import { MemoryMediaViewer } from "./MemoryMediaViewer";
 import { memoriesTabClearanceClass } from "./MemoriesChrome";
 import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
 
@@ -32,7 +32,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
   const t = useTranslations("invitations.public.memories.aiHighlight");
   const [groups, setGroups] = useState<GuestHighlightGroup[]>(previewGroups ?? []);
   const [selected, setSelected] = useState<string | null>(null);
-  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const [loaded, setLoaded] = useState(Boolean(previewGroups) && !forceLoading);
   // Where the grid was scrolled to before entering a category — a plain
   // state swap loses this (the browser clamps scroll to whatever the new,
@@ -72,7 +72,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
 
   function closeGroup() {
     setSelected(null);
-    setLightboxIndex(null);
+    setOpenId(null);
   }
 
   const tr = useTranslations("invitations.public.memories.redesign");
@@ -118,11 +118,11 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
           </p>
         )}
         <div className="columns-2 gap-2 sm:columns-3">
-          {selectedGroup.media.map((item, index) => (
+          {selectedGroup.media.map((item) => (
             <button
               key={item.id}
               type="button"
-              onClick={() => setLightboxIndex(index)}
+              onClick={() => setOpenId(item.id)}
               className="relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl"
             >
               <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt="" className="h-auto w-full" loading="lazy" />
@@ -136,9 +136,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
             </button>
           ))}
         </div>
-        {lightboxIndex !== null && (
-          <MediaLightbox media={selectedGroup.media} index={lightboxIndex} imageSrc={imageSrc} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
-        )}
+        <MemoryMediaViewer media={selectedGroup.media} openId={openId} onOpen={setOpenId} imageSrc={imageSrc} accent={accent} />
       </div>
     );
   }
@@ -152,16 +150,14 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
         </button>
         <h2 className="text-2xl font-semibold">{honorTitle}</h2>
         <div className="columns-2 gap-2 sm:columns-3">
-          {honor.media.map((item, index) => (
-            <button key={item.id} type="button" onClick={() => setLightboxIndex(index)} className="relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl">
+          {honor.media.map((item) => (
+            <button key={item.id} type="button" onClick={() => setOpenId(item.id)} className="relative mb-2 block w-full break-inside-avoid overflow-hidden rounded-xl">
               <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt="" className="h-auto w-full" loading="lazy" />
               {honor.labels[item.id] && <HonorCreamLabel label={honor.labels[item.id] ?? ""} icon={honor.icon} className="absolute left-2 top-2" />}
             </button>
           ))}
         </div>
-        {lightboxIndex !== null && (
-          <MediaLightbox media={honor.media} index={lightboxIndex} imageSrc={imageSrc} honorLabels={honor.labels} honorIcon={honor.icon} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
-        )}
+        <MemoryMediaViewer media={honor.media} openId={openId} onOpen={setOpenId} imageSrc={imageSrc} accent={accent} honorLabels={honor.labels} honorIcon={honor.icon} />
       </div>
     );
   }
