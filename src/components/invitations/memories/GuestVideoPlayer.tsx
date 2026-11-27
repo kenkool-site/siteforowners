@@ -179,6 +179,13 @@ export function GuestVideoPlayer({
     if (nextIndex !== null) go(nextIndex);
   }
 
+  function handlePointerCancel() {
+    // The browser took the gesture over; reset without treating it as a tap or a swipe.
+    dragStart.current = null;
+    setDragging(false);
+    setDragY(0);
+  }
+
   function togglePlay() {
     const video = videoRef.current;
     if (!video) {
@@ -248,11 +255,11 @@ export function GuestVideoPlayer({
 
       <div
         data-video-stage
-        className="relative min-h-0 flex-1 overflow-hidden"
+        className="relative min-h-0 flex-1 touch-none overflow-hidden"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
         style={reduceMotion ? undefined : { transform: `translateY(${dragY}px)`, transition: dragging ? "none" : "transform 220ms cubic-bezier(0.22, 1, 0.36, 1)" }}
       >
         <div aria-hidden="true" className="absolute inset-0 scale-110 bg-cover opacity-70 blur-2xl" style={{ backgroundImage: `url(${poster})` }} />
