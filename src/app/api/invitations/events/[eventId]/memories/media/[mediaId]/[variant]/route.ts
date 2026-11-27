@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireInvitationAccess } from "@/lib/invitations/access";
+import { signedDownloadTtlSeconds } from "@/lib/invitations/memories/media-download-ttl";
 import { getMemoryMediaById } from "@/lib/invitations/memories/repository";
 import { R2StorageProvider } from "@/lib/invitations/memories/storage-provider";
 
@@ -10,5 +11,6 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
   if (!media || media.eventId !== params.eventId || media.uploadStatus !== "uploaded" || media.processingStatus !== "ready") return NextResponse.json({ error: "not found" }, { status: 404 });
   const key = params.variant === "display" ? media.objectKeyDisplay : media.objectKeyThumbnail;
   if (!key) return NextResponse.json({ error: "not ready" }, { status: 404 });
-  return NextResponse.redirect(await new R2StorageProvider().getSignedDownloadUrl(key, 5 * 60));
+  const variant = params.variant === "display" ? "display" : "thumbnail";
+  return NextResponse.redirect(await new R2StorageProvider().getSignedDownloadUrl(key, signedDownloadTtlSeconds(media.mediaKind, variant)));
 }

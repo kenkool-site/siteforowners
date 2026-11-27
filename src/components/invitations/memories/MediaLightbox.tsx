@@ -3,15 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { ChevronLeft, ChevronRight, Play, Share2, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTimeZone, useTranslations } from "next-intl";
 import { Download, ScanFace } from "lucide-react";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
-import { knownContributorName } from "@/lib/invitations/memories/guest-presentation";
+import { formatApproxFileSize, formatCapturedAt, formatVideoDuration, knownContributorName, resolveTimeZone } from "@/lib/invitations/memories/guest-presentation";
 import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import type { HonorIcon } from "@/lib/invitations/memories/guests-of-honor";
 import { HonorCreamLabel } from "./HonorMark";
 import { defaultMediaSrc, type MediaImageSrc } from "./media-src";
+import { VideoPlaybackFallback } from "./VideoPlaybackFallback";
+import { downloadMemoryFile, nextVideoSourceAttempt, prefersReducedMotion, shareMemoryItem, videoSourceUrl } from "./video-playback";
+
+export { formatCapturedAt };
 
 export interface MediaLightboxProps {
   media: PublicMemoryMedia[];
@@ -23,6 +27,8 @@ export interface MediaLightboxProps {
   onFindMe?: () => void;
   honorLabels?: Record<string, string>;
   honorIcon?: HonorIcon;
+  timeZone?: string | null;
+  locale?: string;
 }
 
 const SWIPE_THRESHOLD_PX = 50;
@@ -75,18 +81,6 @@ export function resolveNearbyTap(
   return null;
 }
 
-// Compact "Sep 24, 6:15 PM"-style label for a photo/video's capture time.
-// Uses the environment's default locale (no explicit locale argument), matching
-// this codebase's existing bare toLocaleDateString()/toLocaleString() convention
-// (see OwnerMomentsManager.tsx) rather than introducing next-intl's useFormatter
-// as a new pattern for a single label.
-export function formatCapturedAt(capturedAt: string): string {
-  const date = new Date(capturedAt);
-  const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  return `${day}, ${time}`;
-}
-
 function exitDistance(): number {
   return (typeof window !== "undefined" ? window.innerWidth : FALLBACK_EXIT_DISTANCE_PX) + 100;
 }
@@ -103,9 +97,13 @@ type NavigationTarget = { kind: "list"; index: number } | { kind: "detour"; medi
 // touch/pointer swipe support. Also shows "Every Perspective": other
 // gallery-visible media captured around the same instant as the item being
 // viewed.
-export function MediaLightbox({ media, index, onClose, onNavigate, moments = [], imageSrc = defaultMediaSrc, onFindMe, honorLabels, honorIcon = "rings" }: MediaLightboxProps) {
+export function MediaLightbox({ media, index, onClose, onNavigate, moments = [], imageSrc = defaultMediaSrc, onFindMe, honorLabels, honorIcon = "rings", timeZone, locale }: MediaLightboxProps) {
   const t = useTranslations("invitations.public.memories.lightbox");
   const tr = useTranslations("invitations.public.memories.redesign");
+  const intlLocale = useLocale();
+  const intlTimeZone = useTimeZone();
+  const zone = resolveTimeZone(timeZone ?? intlTimeZone);
+  const activeLocale = locale || intlLocale || "en";
   // Reuses the gallery namespace's existing "Photo shared by {name}" copy —
   // today only rendered as alt text on gallery thumbnails — rather than
   // duplicating an equivalent string under the lightbox namespace.
@@ -137,6 +135,11 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   const [nearby, setNearby] = useState<PublicMemoryMedia[]>([]);
   const [showCopiedToast, setShowCopiedToast] = useState(false);
   const [loadedId, setLoadedId] = useState<string | null>(null);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const [videoNonce, setVideoNonce] = useState(0);
+  const videoRetried = useRef(false);
+  const handlingVideoError = useRef(false);
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     return () => {
@@ -178,6 +181,22 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   const activeMedia = detour ? detour.media : media;
   const activeIndex = detour ? detour.index : index;
   const item = activeMedia[activeIndex];
+
+  useEffect(() => {
+    videoRetried.current = false;
+    handlingVideoError.current = false;
+    setVideoNonce(0);
+    setVideoFailed(false);
+  }, [item?.id]);
+
+  useEffect(() => {
+    const video = videoElRef.current;
+    if (!video || videoFailed || item?.mediaKind !== "video") return;
+    if (video.error) onVideoError();
+    // onVideoError closes over the latest retry flag; item id / nonce are the
+    // only reasons to look again.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?.id, item?.mediaKind, videoNonce, videoFailed]);
 
   useEffect(() => {
     if (!item) return;
@@ -234,18 +253,15 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   if (!item) return null;
   const fullLoaded = loadedId === item.id;
 
-  const capturedLabel = item.capturedAt ? formatCapturedAt(item.capturedAt) : null;
+  const capturedLabel = item.capturedAt ? formatCapturedAt(item.capturedAt, zone, activeLocale) : null;
   const contributor = knownContributorName(item.uploaderDisplayName);
   const momentName = momentForMedia(item, moments)?.name ?? null;
   async function downloadCurrent() {
-    const response = await fetch(imageSrc(item.id, "display"));
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = `memory-${item.id}`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    try {
+      await downloadMemoryFile(imageSrc(item.id, "display"), `memory-${item.id}`);
+    } catch {
+      // A fresh tap asks the media route for a new signed URL.
+    }
   }
   const itemMetaLabel = capturedLabel
     ? item.uploaderDisplayName
@@ -263,6 +279,14 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   // onNavigate), advance within an already-active detour (local state only),
   // or start a brand-new detour.
   function navigateWithSlide(target: NavigationTarget, exitSign: -1 | 1) {
+    if (prefersReducedMotion()) {
+      if (target.kind === "detour") setDetour({ media: target.media, index: target.index });
+      else if (detour) setDetour({ media: detour.media, index: target.index });
+      else onNavigate(target.index);
+      setIsDragging(false);
+      setDragX(0);
+      return;
+    }
     pendingTimeouts.current.forEach((id) => window.clearTimeout(id));
     pendingFrames.current.forEach((id) => window.cancelAnimationFrame(id));
     pendingTimeouts.current = [];
@@ -308,27 +332,25 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   // src/app/invite/[slug]/memories/page.tsx and PasscodeGate.tsx), so a
   // shared link still lands on this photo after the guest enters the code.
   async function handleShare() {
-    const url = new URL(window.location.pathname, window.location.origin);
-    url.searchParams.set("photo", item.id);
-    const shareUrl = url.toString();
-
-    if (typeof navigator.share === "function") {
-      try {
-        await navigator.share({ url: shareUrl });
-      } catch {
-        // The guest cancelled the native share sheet, or the browser refused
-        // — either way there's nothing to recover from or fall back to.
-      }
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const result = await shareMemoryItem(item.id);
+    if (result === "copied") {
       setShowCopiedToast(true);
       window.setTimeout(() => setShowCopiedToast(false), 2000);
-    } catch {
-      // Clipboard permission denied/unavailable — no further fallback.
     }
+  }
+
+  function onVideoError() {
+    if (handlingVideoError.current) return;
+    handlingVideoError.current = true;
+    if (nextVideoSourceAttempt(videoRetried.current) === "refresh") {
+      videoRetried.current = true;
+      setVideoNonce(Date.now());
+    } else {
+      setVideoFailed(true);
+    }
+    queueMicrotask(() => {
+      handlingVideoError.current = false;
+    });
   }
 
   function handleNearbyTap(tappedId: string) {
@@ -381,8 +403,8 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
   }
 
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex flex-col bg-[#0b0d0c] text-white" onClick={onClose}>
-      <div className="flex items-center justify-between px-4 pb-2 pt-4" onClick={(event) => event.stopPropagation()}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d0c] text-white" onClick={onClose}>
+      <div data-lightbox-header className="relative z-30 flex items-center justify-between px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]" onClick={(event) => event.stopPropagation()}>
         <button type="button" onClick={onClose} aria-label={t("close")} className="grid size-10 place-items-center rounded-full bg-white/15"><X className="size-5" /></button>
         <p className="text-sm font-semibold">
           {detour
@@ -397,47 +419,59 @@ export function MediaLightbox({ media, index, onClose, onNavigate, moments = [],
         </p>
       )}
 
-      {activeIndex > 0 && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            navigateWithSlide(stepTarget(activeIndex - 1), 1);
-          }}
-          aria-label={t("previous")}
-          className="absolute left-3 top-[42%] z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
-        >
-          <ChevronLeft className="size-6" />
-        </button>
-      )}
-      {activeIndex < activeMedia.length - 1 && (
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-            navigateWithSlide(stepTarget(activeIndex + 1), -1);
-          }}
-          aria-label={t("next")}
-          className="absolute right-3 top-[42%] z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
-        >
-          <ChevronRight className="size-6" />
-        </button>
-      )}
-
-      <div className="relative h-[52vh] overflow-hidden bg-[#151917]" onClick={(event) => event.stopPropagation()}>
+      <div data-lightbox-stage className="relative h-[52vh] overflow-hidden bg-[#151917]" onClick={(event) => event.stopPropagation()}>
+        {activeIndex > 0 && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              navigateWithSlide(stepTarget(activeIndex - 1), 1);
+            }}
+            aria-label={t("previous")}
+            className="absolute left-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
+          >
+            <ChevronLeft className="size-6" />
+          </button>
+        )}
+        {activeIndex < activeMedia.length - 1 && (
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              navigateWithSlide(stepTarget(activeIndex + 1), -1);
+            }}
+            aria-label={t("next")}
+            className="absolute right-3 top-1/2 z-10 grid size-11 -translate-y-1/2 place-items-center rounded-full bg-white text-[#1c2a20] shadow"
+          >
+            <ChevronRight className="size-6" />
+          </button>
+        )}
         <div aria-hidden="true" className="absolute inset-0 scale-110 bg-cover opacity-80 blur-md" style={{ backgroundImage: `url(${imageSrc(item.id, "thumbnail")})` }} />
-        {!fullLoaded && (
+        {!fullLoaded && !videoFailed && (
           <div className="absolute left-1/2 top-1/2 z-[2] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-2 rounded-2xl bg-black/40 px-4 py-3 text-xs font-medium">
             <span className="size-7 animate-spin rounded-full border-[3px] border-white/30 border-t-white motion-reduce:animate-none" />
             {tr("loadingFull")}
           </div>
         )}
-        {item.mediaKind === "video" ? (
+        {item.mediaKind === "video" && videoFailed ? (
+          <div className="relative z-10 flex h-full items-center justify-center overflow-y-auto p-3">
+            <VideoPlaybackFallback
+              durationLabel={formatVideoDuration(item.durationSeconds)}
+              sizeLabel={formatApproxFileSize(item.byteSize)}
+              onDownload={() => void downloadCurrent()}
+              onNext={activeIndex < activeMedia.length - 1 ? () => navigateWithSlide(stepTarget(activeIndex + 1), -1) : undefined}
+            />
+          </div>
+        ) : item.mediaKind === "video" ? (
           <video
-            src={imageSrc(item.id, "display")}
+            ref={videoElRef}
+            src={videoSourceUrl(imageSrc(item.id, "display"), videoNonce)}
             poster={imageSrc(item.id, "thumbnail")}
             controls
+            playsInline
+            preload="metadata"
             onLoadedData={() => setLoadedId(item.id)}
+            onError={onVideoError}
             onClick={(event) => event.stopPropagation()}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}

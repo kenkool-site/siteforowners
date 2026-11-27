@@ -10,6 +10,7 @@ import { invitationOwnerOwnsEvent } from "@/lib/invitations/access";
 import { hasFounderInvitationSession } from "@/lib/invitations/founder-access";
 import { invitationPageMetadata } from "@/lib/invitations/public-access";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
+import { resolveTimeZone } from "@/lib/invitations/memories/guest-presentation";
 import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 import enMessages from "../../../../../messages/en.json";
@@ -75,7 +76,7 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
   }
 
   return (
-    <InvitationPublicProvider locale={invitation.event.locale} timeZone={invitation.event.timezone || "UTC"}>
+    <InvitationPublicProvider locale={invitation.event.locale} timeZone={resolveTimeZone(invitation.event.timezone)}>
       <GuestMemoriesApp
         eventId={invitation.event.id}
         eventTitle={invitation.event.honoreeNames.trim() || invitation.event.title}
@@ -87,7 +88,7 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
         brandingEnabled={settings.brandingEnabled}
         slug={invitation.event.slug}
         startsAt={invitation.event.startsAt}
-        timeZone={invitation.event.timezone || "UTC"}
+        timeZone={resolveTimeZone(invitation.event.timezone)}
         venueName={invitation.event.venueName}
         address={invitation.event.address}
         eventType={invitation.event.eventType}

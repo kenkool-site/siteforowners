@@ -105,20 +105,82 @@ export function formatVideoDuration(seconds: number | null | undefined): string 
   return `${minutes}:${remainder.toString().padStart(2, "0")}`;
 }
 
+/** Event timezone when the host hasn't set one, or set one Intl cannot use. */
+export const DEFAULT_EVENT_TIME_ZONE = "America/New_York";
+
+export function resolveTimeZone(timeZone: string | null | undefined): string {
+  const candidate = timeZone?.trim() ?? "";
+  if (!candidate) return DEFAULT_EVENT_TIME_ZONE;
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone: candidate });
+    return candidate;
+  } catch {
+    return DEFAULT_EVENT_TIME_ZONE;
+  }
+}
+
 export function formatInTimeZone(
   iso: string | null | undefined,
-  timeZone: string,
+  timeZone: string | null | undefined,
   locale: string,
   options: Intl.DateTimeFormatOptions,
 ): string | null {
   if (!iso) return null;
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return null;
+  const zone = resolveTimeZone(timeZone);
+  const loc = locale.trim() || "en";
   try {
-    return new Intl.DateTimeFormat(locale, { timeZone, ...options }).format(date);
+    return new Intl.DateTimeFormat(loc, { ...options, timeZone: zone }).format(date);
   } catch {
-    return new Intl.DateTimeFormat(locale, options).format(date);
+    return new Intl.DateTimeFormat("en-US", { ...options, timeZone: zone }).format(date);
   }
+}
+
+// "Sep 24, 6:15 PM". Gallery day headings and this label must share
+// resolveTimeZone — a guest's browser zone used to shift the lightbox onto
+// a different calendar day than the section the same photo was filed under.
+export function formatCapturedAt(capturedAt: string, timeZone?: string | null, locale = "en"): string {
+  const day = formatInTimeZone(capturedAt, timeZone, locale, { month: "short", day: "numeric" }) ?? "";
+  const time = formatInTimeZone(capturedAt, timeZone, locale, { hour: "numeric", minute: "2-digit" }) ?? "";
+  return [day, time].filter(Boolean).join(", ");
+}
+
+// "Sat, Dec 19, 4:12 PM" — the video player's contributor line.
+export function formatCapturedAtDetail(capturedAt: string, timeZone?: string | null, locale = "en"): string {
+  const day = formatInTimeZone(capturedAt, timeZone, locale, { weekday: "short", month: "short", day: "numeric" }) ?? "";
+  const time = formatInTimeZone(capturedAt, timeZone, locale, { hour: "numeric", minute: "2-digit" }) ?? "";
+  return [day, time].filter(Boolean).join(", ");
+}
+
+export function formatApproxFileSize(bytes: number | null | undefined): string | null {
+  if (bytes == null || !Number.isFinite(bytes) || bytes <= 0) return null;
+  if (bytes >= 1024 * 1024) {
+    const mb = bytes / (1024 * 1024);
+    const rounded = mb >= 10 ? Math.round(mb) : Math.round(mb * 10) / 10;
+    const text = Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(1);
+    return `${text} MB`;
+  }
+  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+export function photoVideoCounts(media: Array<{ mediaKind: string }>): { photos: number; videos: number } {
+  const videos = media.filter((item) => item.mediaKind === "video").length;
+  return { photos: media.length - videos, videos };
+}
+
+/** Ready videos in gallery order. The Watch row and the player share this list. */
+export function watchableVideos<T extends { mediaKind: string }>(media: T[]): T[] {
+  return media.filter((item) => item.mediaKind === "video");
+}
+
+/**
+ * On All, videos live in the Watch row instead of the masonry so a clip
+ * isn't shown twice. Every other filter keeps the items it already selected.
+ */
+export function galleryGridMedia<T extends { mediaKind: string }>(media: T[], filter: GalleryFilter | "honor"): T[] {
+  if (filter === "all") return media.filter((item) => item.mediaKind !== "video");
+  return media;
 }
 
 export function venueLine(venueName: string | null | undefined, address: string | null | undefined): string | null {

@@ -7,7 +7,7 @@ import type { GuestUploadPreview } from "@/lib/invitations/memories/guest-galler
 import { guestNameSkippedKey, suggestMomentId } from "@/lib/invitations/memories/guest-presentation";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import { createUploadQueue, type QueueItem, type UploadQueue } from "@/lib/invitations/memories/upload-queue";
-import { PlanningSoftLink } from "./MemoriesChrome";
+import { memoriesAboveTabClass, PlanningSoftLink } from "./MemoriesChrome";
 
 const videoDurations = new WeakMap<File, number>();
 
@@ -464,7 +464,7 @@ export function GuestUploadView({
       <input ref={videoRef} type="file" accept="video/mp4,video/webm,video/quicktime" capture="environment" className="hidden" onChange={(event) => void stageFiles(event.target.files)} />
 
       {(rejectionError || failed[0]) && (
-        <div className="fixed inset-x-4 bottom-28 z-50 mx-auto max-w-xl">
+        <div className={`fixed inset-x-4 z-50 mx-auto max-w-xl ${memoriesAboveTabClass}`}>
           {rejectionError && <div role="alert" className="flex items-start justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-sm text-red-700 shadow-lg"><span>{rejectionError}</span><button type="button" aria-label={t("dismiss")} onClick={() => setRejectionError(null)}><X className="size-4" /></button></div>}
           {failed.slice(0, 1).map((item) => <div key={item.id} role="alert" className="mt-2 flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
             <p className="min-w-0 flex-1 text-sm"><span className="block truncate font-medium">{item.fileName}</span><span className="text-red-700">{t(failureMessageKey(item.error))}</span></p>
@@ -475,7 +475,7 @@ export function GuestUploadView({
       )}
 
       {step === "browsing" && active.length > 0 && (
-        <button type="button" onClick={() => setStep("uploading")} className="fixed inset-x-4 bottom-24 z-40 mx-auto flex h-12 max-w-xl items-center gap-2 rounded-full bg-[#1c2a20] px-3 text-sm font-semibold text-white shadow-lg">
+        <button type="button" onClick={() => setStep("uploading")} className={`fixed inset-x-4 z-40 mx-auto flex h-12 max-w-xl items-center gap-2 rounded-full bg-[#1c2a20] px-3 text-sm font-semibold text-white shadow-lg ${memoriesAboveTabClass}`}>
           <span className="grid size-7 place-items-center rounded-full border-2 border-[#9fd0ab] text-[10px]">{doneCount}</span>
           {tr("addingPill")} <small className="font-medium text-[#b9cdbf]">{tr("pillCount", { done: doneCount, total: batchTotal || active.length })}</small>
           <span className="ml-auto rounded-full bg-white/15 px-3 py-1 text-xs">{tr("viewProgress")}</span>

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { formatCapturedAt, resolveNearbyTap, resolveSwipeNavigation } from "./MediaLightbox";
+import { formatCapturedAt as formatCapturedAtDirect } from "@/lib/invitations/memories/guest-presentation";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 
 // resolveSwipeNavigation is pure and DOM-free by design specifically so it
@@ -84,21 +85,28 @@ test("resolveNearbyTap: returns null when the tapped id is in neither the curren
   assert.equal(result, null);
 });
 
-// formatCapturedAt uses the environment's own default locale (matching this
-// codebase's existing bare toLocaleString()/toLocaleDateString() convention,
-// e.g. OwnerMomentsManager.tsx), so these tests compute their expectation the
-// same way rather than hardcoding a literal string that would drift with the
-// test environment's ICU locale data.
-test("formatCapturedAt combines a short date and a short time", () => {
+// formatCapturedAt formats in an explicit timezone (the event's, or
+// America/New_York). Expectations are built with the same Intl options so
+// they don't drift with the machine's zone.
+test("formatCapturedAt combines a short date and a short time in the event timezone", () => {
   const iso = "2026-09-24T22:08:00.000Z";
   const date = new Date(iso);
-  const expectedDay = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  const expectedTime = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-  assert.equal(formatCapturedAt(iso), `${expectedDay}, ${expectedTime}`);
+  const zone = "America/Chicago";
+  const expectedDay = new Intl.DateTimeFormat("en-US", { timeZone: zone, month: "short", day: "numeric" }).format(date);
+  const expectedTime = new Intl.DateTimeFormat("en-US", { timeZone: zone, hour: "numeric", minute: "2-digit" }).format(date);
+  assert.equal(formatCapturedAt(iso, zone, "en-US"), `${expectedDay}, ${expectedTime}`);
+  assert.equal(formatCapturedAt(iso, zone, "en-US"), formatCapturedAtDirect(iso, zone, "en-US"));
 });
 
 test("formatCapturedAt reflects a different instant distinctly", () => {
-  const morning = formatCapturedAt("2026-01-01T09:05:00.000Z");
-  const evening = formatCapturedAt("2026-06-15T20:45:00.000Z");
+  const morning = formatCapturedAt("2026-01-01T09:05:00.000Z", "America/New_York", "en-US");
+  const evening = formatCapturedAt("2026-06-15T20:45:00.000Z", "America/New_York", "en-US");
   assert.notEqual(morning, evening);
+});
+
+test("formatCapturedAt defaults to America/New_York so it cannot drift onto the browser zone", () => {
+  // 03:30 UTC is still the previous evening in New York.
+  const iso = "2026-09-23T03:30:00.000Z";
+  assert.match(formatCapturedAt(iso), /Sep 22/);
+  assert.match(formatCapturedAt(iso, "UTC", "en-US"), /Sep 23/);
 });

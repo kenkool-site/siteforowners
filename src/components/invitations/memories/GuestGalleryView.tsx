@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Calendar, Camera, MapPin, Play, ScanFace } from "lucide-react";
+import { Calendar, Camera, ChevronRight, MapPin, Play, ScanFace } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import type { GuestMemoriesContext } from "@/lib/invitations/memories/guest-presentation";
@@ -13,20 +13,26 @@ import {
   filterGalleryMedia,
   formatInTimeZone,
   formatVideoDuration,
+  galleryGridMedia,
   knownContributorName,
   memoriesOverline,
+  photoVideoCounts,
+  resolveTimeZone,
   shotSuggestions,
   venueLine,
+  watchableVideos,
   type GalleryFilter,
 } from "@/lib/invitations/memories/guest-presentation";
 import { visibleOptimisticUploads, type GuestUploadPreview } from "@/lib/invitations/memories/guest-gallery-presentation";
 import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
+import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import type { PublicHonorView } from "@/lib/invitations/memories/guests-of-honor";
 import { HonorCreamLabel, HonorGlyph } from "./HonorMark";
 import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
-import { MadeWithFooter, PlanningEndCard } from "./MemoriesChrome";
+import { MadeWithFooter, memoriesTabClearanceClass, PlanningEndCard } from "./MemoriesChrome";
 import { MediaLightbox } from "./MediaLightbox";
+import { GuestVideoPlayer } from "./GuestVideoPlayer";
 
 const IDLE_POLL_MS = 15_000;
 const PUBLISHING_POLL_MS = 2_000;
@@ -41,6 +47,7 @@ export function GuestGalleryView({
   imageSrc = defaultMediaSrc,
   preview,
   openViewer,
+  openPlayer,
   honor = null,
   viewerIsHost = false,
 }: {
@@ -53,6 +60,7 @@ export function GuestGalleryView({
   imageSrc?: MediaImageSrc;
   preview?: { media: PublicMemoryMedia[]; moments: MemoryMoment[]; viewerMediaIds?: string[]; viewerKnown?: boolean; now?: number } | null;
   openViewer?: boolean;
+  openPlayer?: boolean;
   honor?: PublicHonorView | null;
   viewerIsHost?: boolean;
 }) {
@@ -69,6 +77,7 @@ export function GuestGalleryView({
   const [now, setNow] = useState(() => preview?.now ?? Date.now());
   const [filter, setFilter] = useState<GalleryFilter | "honor">("all");
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(openViewer ? 0 : null);
+  const [playerIndex, setPlayerIndex] = useState<number | null>(openPlayer ? 0 : null);
   const previousIds = useRef<Set<string>>(new Set());
   const searchParams = useSearchParams();
   const appliedPhotoParam = useRef(false);
@@ -118,37 +127,47 @@ export function GuestGalleryView({
     ...uploads.map((item) => item.mediaId).filter((id): id is string => Boolean(id)),
   ]);
   const honorTitle = honor ? (honor.fixedKey ? th(honor.fixedKey) : honor.name ?? th("guestsOfHonor")) : "";
+  const zone = resolveTimeZone(context.timeZone);
   const filtered = filter === "honor"
     ? media.filter((item) => Boolean(honor?.labels[item.id]))
     : filterGalleryMedia(media, filter, localMine);
+  const gridMedia = galleryGridMedia(filtered, filter);
+  const watchVideos = useMemo(() => watchableVideos(media), [media]);
+  const counts = photoVideoCounts(media);
   const timeSections = useMemo(
-    () => buildGallerySections(filtered, moments, context.timeZone, context.locale),
-    [filtered, moments, context.timeZone, context.locale],
+    () => buildGallerySections(gridMedia, moments, zone, context.locale),
+    [gridMedia, moments, zone, context.locale],
   );
   const sections = filter === "honor"
     ? [{ id: "honor", title: honorTitle, whenLabel: "", items: filtered }]
     : timeSections;
   const lightboxMedia = sections.flatMap((section) => section.items);
-  const videoCount = media.filter((item) => item.mediaKind === "video").length;
+  const videoCount = counts.videos;
   const showMine = viewerKnown || localMine.size > 0;
   const contributors = contributorSummary(media.map((item) => item.uploaderDisplayName));
   const place = venueLine(context.venueName, context.address);
   const started = eventHasStarted(context.startsAt, new Date(now));
   const days = countdownDays(context.startsAt, new Date(now));
-  const when = formatInTimeZone(context.startsAt, context.timeZone, context.locale, started
+  const when = formatInTimeZone(context.startsAt, zone, context.locale, started
     ? { month: "short", day: "numeric", year: "numeric" }
     : { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-  const shots = shotSuggestions(moments, context.schedule, context.timeZone, context.locale);
-  const heroPhotos = media.slice(0, 3);
+  const shots = shotSuggestions(moments, context.schedule, zone, context.locale);
+  const photosOnly = media.filter((item) => item.mediaKind !== "video");
+  const heroPhotos = (photosOnly.length > 0 ? photosOnly : media).slice(0, 3);
 
   useEffect(() => {
     if (appliedPhotoParam.current || !loaded) return;
     appliedPhotoParam.current = true;
     const photoId = searchParams?.get("photo");
     if (!photoId) return;
+    const videoIndex = watchVideos.findIndex((item) => item.id === photoId);
+    if (videoIndex !== -1) {
+      setPlayerIndex(videoIndex);
+      return;
+    }
     const index = lightboxMedia.findIndex((item) => item.id === photoId);
     if (index !== -1) setLightboxIndex(index);
-  }, [loaded, lightboxMedia, searchParams]);
+  }, [loaded, lightboxMedia, searchParams, watchVideos]);
 
   if (!loaded && optimistic.length === 0) return <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>;
   if (error && media.length === 0 && optimistic.length === 0) return <p role="alert" className="p-8 text-center text-sm text-red-700">{t("error")}</p>;
@@ -156,7 +175,7 @@ export function GuestGalleryView({
   const empty = media.length === 0 && optimistic.length === 0;
 
   return (
-    <div className="px-4 pb-36">
+    <div className={`px-4 ${memoriesTabClearanceClass}`}>
       {newCount > 0 && <button type="button" onClick={() => setNewCount(0)} className="sticky top-3 z-10 mx-auto mb-3 block min-h-10 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-lg" style={{ backgroundColor: accent }}>{t("newPhotos", { count: newCount })}</button>}
 
       <section className="relative overflow-hidden rounded-3xl px-5 pb-4 pt-5 text-white shadow-lg" style={{ background: `radial-gradient(120% 90% at 100% 0%, ${accent} 0%, #163824 70%)` }}>
@@ -181,7 +200,7 @@ export function GuestGalleryView({
         </div>
         {!empty && (
           <div className="mt-3 flex items-center gap-2 border-t border-white/20 pt-3 text-xs">
-            <span className="font-semibold">{tr("photoCount", { count: media.length })}</span>
+            <span className="font-semibold">{counts.videos > 0 ? tr("photoVideoCount", { photos: counts.photos, videos: counts.videos }) : tr("photoCount", { count: counts.photos })}</span>
             {contributors.named.length > 0 && (
               <span>
                 {contributors.more > 0
@@ -226,6 +245,44 @@ export function GuestGalleryView({
             </figure>
           ))}
         </div>
+      )}
+
+      {!empty && filter === "all" && watchVideos.length > 0 && (
+        <section className="mt-5" aria-label={tr("watch")}>
+          <div className="mb-2.5 flex items-baseline justify-between gap-3">
+            <h3 className="font-serif text-lg font-semibold" style={{ color: accent }}>
+              {tr("watch")} <span className="font-sans text-xs font-medium text-[#1c2a20]/60">{tr("watchCount", { count: watchVideos.length })}</span>
+            </h3>
+            <button type="button" onClick={() => setFilter("videos")} className="inline-flex items-center gap-0.5 text-sm font-semibold" style={{ color: accent }}>
+              {tr("seeAllVideos")}
+              <ChevronRight className="size-4" />
+            </button>
+          </div>
+          <div className="flex gap-2.5 overflow-x-auto pb-1">
+            {watchVideos.map((item, watchIndex) => {
+              const name = knownContributorName(item.uploaderDisplayName);
+              const length = formatVideoDuration(item.durationSeconds);
+              const momentName = momentForMedia(item, moments)?.name ?? null;
+              return (
+                <figure key={item.id} className="w-[9.25rem] shrink-0">
+                  <button type="button" onClick={() => setPlayerIndex(watchIndex)} className="relative block aspect-[9/16] w-full overflow-hidden rounded-2xl bg-[#1c2a20] text-left" aria-label={name ? t("videoBy", { name }) : tr("watch")}>
+                    <img src={imageSrc(item.id, "thumbnail")} alt="" className="size-full object-cover" />
+                    <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+                      <span className="grid size-14 place-items-center rounded-full bg-white text-[#1c2a20] shadow-lg">
+                        <Play className="ml-0.5 size-6 fill-current" />
+                      </span>
+                    </span>
+                    {length && <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">{length}</span>}
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-2.5 pb-2.5 pt-8">
+                      {name && <span className="block truncate text-sm font-semibold text-white">{name}</span>}
+                      {momentName && <span className="block truncate text-xs text-white/80">{momentName}</span>}
+                    </span>
+                  </button>
+                </figure>
+              );
+            })}
+          </div>
+        </section>
       )}
 
       {empty ? (
@@ -280,13 +337,27 @@ export function GuestGalleryView({
                 const index = lightboxMedia.findIndex((candidate) => candidate.id === item.id);
                 return (
                   <figure key={item.id} className="relative mb-2.5 break-inside-avoid overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
-                    <button type="button" onClick={() => setLightboxIndex(index)} className="relative block w-full">
-                      <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt={name ? t("photoBy", { name }) : ""} className="h-auto w-full" loading="lazy" />
+                    <button type="button" onClick={() => {
+                      if (filter === "videos" && item.mediaKind === "video") {
+                        const watchIndex = watchVideos.findIndex((candidate) => candidate.id === item.id);
+                        if (watchIndex !== -1) {
+                          setPlayerIndex(watchIndex);
+                          return;
+                        }
+                      }
+                      setLightboxIndex(index);
+                    }} className="relative block w-full">
+                      <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt={name ? t(item.mediaKind === "video" ? "videoBy" : "photoBy", { name }) : ""} className="h-auto w-full" loading="lazy" />
                       {honor?.labels[item.id] && <HonorCreamLabel label={honor.labels[item.id] ?? ""} icon={honor.icon} className="absolute left-2 top-2 z-[1]" />}
                       {item.mediaKind === "video" && (
-                        <span aria-hidden="true" data-play-badge="true" className={`pointer-events-none absolute top-2 inline-flex h-6 items-center gap-1 rounded-full bg-black/50 px-2 text-[11px] font-semibold text-white ${honor?.labels[item.id] ? "right-2" : "left-2"}`}>
-                          <Play className="size-2.5 fill-current" />{length}
-                        </span>
+                        <>
+                          <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
+                            <span className="grid size-14 place-items-center rounded-full bg-white/95 text-[#1c2a20] shadow-lg">
+                              <Play className="ml-0.5 size-6 fill-current" />
+                            </span>
+                          </span>
+                          {length && <span className="pointer-events-none absolute right-2 top-2 rounded-full bg-black/60 px-2 py-0.5 text-[11px] font-semibold text-white">{length}</span>}
+                        </>
                       )}
                       {name && (
                         <span className="pointer-events-none absolute bottom-2 left-2 inline-flex h-6 max-w-[90%] items-center gap-1 rounded-full bg-black/50 pl-0.5 pr-2 text-[11px] font-semibold text-white">
@@ -313,11 +384,27 @@ export function GuestGalleryView({
           index={lightboxIndex}
           moments={moments}
           imageSrc={imageSrc}
+          timeZone={zone}
+          locale={context.locale}
           onFindMe={context.findMeEnabled ? onFindMe : undefined}
           honorLabels={honor?.labels}
           honorIcon={honor?.icon}
           onClose={() => setLightboxIndex(null)}
           onNavigate={setLightboxIndex}
+        />
+      )}
+      {playerIndex !== null && watchVideos[playerIndex] && (
+        <GuestVideoPlayer
+          videos={watchVideos}
+          index={playerIndex}
+          moments={moments}
+          imageSrc={imageSrc}
+          timeZone={zone}
+          locale={context.locale}
+          accent={accent}
+          onFindMe={context.findMeEnabled ? onFindMe : undefined}
+          onClose={() => setPlayerIndex(null)}
+          onNavigate={setPlayerIndex}
         />
       )}
     </div>
