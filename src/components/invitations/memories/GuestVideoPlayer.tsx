@@ -8,9 +8,9 @@ import type { PublicMemoryMedia } from "@/lib/invitations/memories/gallery";
 import { formatApproxFileSize, formatCapturedAtDetail, formatVideoDuration, initialOf, knownContributorName, resolveTimeZone } from "@/lib/invitations/memories/guest-presentation";
 import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
-import { defaultMediaSrc, type MediaImageSrc } from "./media-src";
+import { adaptiveVideoSrc, defaultMediaSrc, type MediaImageSrc } from "./media-src";
 import { VideoPlaybackFallback } from "./VideoPlaybackFallback";
-import { connectionLooksSlow, downloadMemoryFile, nextVideoSourceAttempt, playWithSoundFallback, prefersReducedMotion, resolveVerticalSwipe, shareMemoryItem, videoSourceUrl } from "./video-playback";
+import { canPlayNativeHls, connectionLooksSlow, downloadMemoryFile, nextVideoSourceAttempt, playWithSoundFallback, prefersReducedMotion, resolveVerticalSwipe, shareMemoryItem, videoSourceUrl } from "./video-playback";
 
 const SLIDE_MS = 260;
 
@@ -81,6 +81,9 @@ export function GuestVideoPlayer({
   const slideTimer = useRef<number | null>(null);
   const [nonce, setNonce] = useState(0);
   const [failed, setFailed] = useState(false);
+  // Set once the Stream copy failed to play, so this clip uses its original.
+  const [originalOnly, setOriginalOnly] = useState(false);
+  const adaptiveInUse = useRef(false);
   const [muted, setMuted] = useState(false);
   const [needsTap, setNeedsTap] = useState(false);
   const [userPaused, setUserPaused] = useState(false);
@@ -114,6 +117,7 @@ export function GuestVideoPlayer({
     handlingError.current = false;
     setNonce(0);
     setFailed(false);
+    setOriginalOnly(false);
     setNeedsTap(false);
     setUserPaused(false);
     setCurrent(0);
@@ -157,7 +161,11 @@ export function GuestVideoPlayer({
     function fail() {
       if (cancelled || handlingError.current) return;
       handlingError.current = true;
-      if (nextVideoSourceAttempt(retried.current) === "refresh") {
+      if (adaptiveInUse.current) {
+        adaptiveInUse.current = false;
+        setOriginalOnly(true);
+        setNonce(Date.now());
+      } else if (nextVideoSourceAttempt(retried.current) === "refresh") {
         retried.current = true;
         setNonce(Date.now());
       } else {
@@ -193,7 +201,12 @@ export function GuestVideoPlayer({
   const elapsedLabel = formatVideoDuration(current) ?? "0:00";
   const totalLabel = formatVideoDuration(Number.isFinite(duration) && duration > 0 ? duration : item.durationSeconds) ?? storedDuration ?? "0:00";
   const sizeLabel = formatApproxFileSize(item.byteSize);
-  const displaySrc = videoSourceUrl(imageSrc(item.id, "display"), nonce);
+  // Stream's adaptive copy where this phone can play it, otherwise the original.
+  const playbackSrc = (clip: PublicMemoryMedia, allowAdaptive = true) =>
+    allowAdaptive && clip.adaptiveVideo && canPlayNativeHls() ? adaptiveVideoSrc(clip.id) : imageSrc(clip.id, "display");
+  const currentUsesAdaptive = !originalOnly && Boolean(item.adaptiveVideo) && canPlayNativeHls();
+  adaptiveInUse.current = currentUsesAdaptive;
+  const displaySrc = videoSourceUrl(playbackSrc(item, !originalOnly), nonce);
   const poster = imageSrc(item.id, "thumbnail");
   const nextPoster = next ? imageSrc(next.id, "thumbnail") : null;
   const prevPoster = prev ? imageSrc(prev.id, "thumbnail") : null;
@@ -365,7 +378,7 @@ export function GuestVideoPlayer({
           <video
             key={`${next.id}-0`}
             ref={holdPreloadedClip}
-            src={imageSrc(next.id, "display")}
+            src={playbackSrc(next)}
             poster={nextPoster ?? undefined}
             playsInline
             preload="auto"

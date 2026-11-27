@@ -46,6 +46,7 @@ export function GuestMemoriesApp({
   brandingEnabled = true,
   schedule = [],
   viewerIsHost = false,
+  longVideoSeconds,
   preview,
 }: {
   eventId: string;
@@ -65,6 +66,8 @@ export function GuestMemoriesApp({
   brandingEnabled?: boolean;
   schedule?: GuestMemoriesContext["schedule"];
   viewerIsHost?: boolean;
+  // How long a guest's one long clip may be (see video-limits.ts).
+  longVideoSeconds?: number;
   preview?: {
     now?: number;
     media?: PublicMemoryMedia[];
@@ -245,6 +248,7 @@ export function GuestMemoriesApp({
           onItemsChange={handleUploadsChange}
           onBind={(api) => { openUpload.current = api.open; }}
           demo={preview?.uploadStep ? { step: preview.uploadStep, name: "Chanelle", previews: preview.uploadPreviews } : null}
+          longVideoSeconds={longVideoSeconds}
         />
       </div>
       <MemoriesTabBar tab={tab} accent={accent} background={background} text={text} onTab={(next) => { setTab(next); if (next === "find" && findMeEnabled) setFindOpen(true); }} onAdd={() => openUpload.current()} />

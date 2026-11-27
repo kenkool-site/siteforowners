@@ -12,6 +12,8 @@ import { invitationPageMetadata } from "@/lib/invitations/public-access";
 import { getPublicInvitationBySlug } from "@/lib/invitations/repository";
 import { resolveTimeZone } from "@/lib/invitations/memories/guest-presentation";
 import { getEventMemoriesSettings } from "@/lib/invitations/memories/repository";
+import { isStreamConfigured } from "@/lib/invitations/memories/stream";
+import { longestAllowedVideoSeconds } from "@/lib/invitations/memories/video-limits";
 import { getEffectiveEventState } from "@/lib/invitations/state";
 import enMessages from "../../../../../messages/en.json";
 import esMessages from "../../../../../messages/es.json";
@@ -95,6 +97,7 @@ export default async function GuestMemoriesPage({ params }: { params: { slug: st
         locale={invitation.event.locale}
         schedule={invitation.event.eventSchedule ?? []}
         viewerIsHost={viewerIsHost}
+        longVideoSeconds={longestAllowedVideoSeconds(isStreamConfigured())}
       />
     </InvitationPublicProvider>
   );

@@ -77,17 +77,60 @@ export function objectKeyForVideoPoster(eventId: string, mediaId: string): strin
 // enforced limit.
 export const MAX_POSTER_UPLOAD_BYTES = 2 * 1024 * 1024;
 
+// A big video uploads in pieces (see R2StorageProvider.createMultipartUpload);
+// the ticket carries that upload's id and piece count so upload/complete can
+// finish it without trusting anything else the guest's browser sends.
+export interface TicketMultipart {
+  uploadId: string;
+  partCount: number;
+}
+
+interface TicketPayload {
+  eventId: string;
+  mediaId: string;
+  objectKey: string;
+  multipart?: TicketMultipart;
+}
+
 export function createMemoriesUploadTicket(
   eventId: string,
   mediaId: string,
   mediaKind: MediaKind,
   contentType?: string,
   secret = getTicketSecret(),
+  multipart?: TicketMultipart,
 ): { ticket: string; objectKey: string } {
   const objectKey = objectKeyForOriginal(eventId, mediaId, mediaKind, contentType);
-  const body = Buffer.from(JSON.stringify({ eventId, mediaId, objectKey })).toString("base64url");
+  const payload: TicketPayload = multipart ? { eventId, mediaId, objectKey, multipart } : { eventId, mediaId, objectKey };
+  const body = Buffer.from(JSON.stringify(payload)).toString("base64url");
   const signature = createHmac("sha256", secret).update(`memories-upload-ticket-v1:${body}`).digest("base64url");
   return { ticket: `${body}.${signature}`, objectKey };
+}
+
+export function readMemoriesUploadTicket(
+  ticket: string,
+  eventId: string,
+  mediaId: string,
+  secret = getTicketSecret(),
+): TicketPayload | null {
+  const parts = ticket.split(".");
+  if (parts.length !== 2) return null;
+  const [body, signature] = parts;
+
+  const expected = createHmac("sha256", secret).update(`memories-upload-ticket-v1:${body}`).digest("base64url");
+  const signatureBuffer = Buffer.from(signature);
+  const expectedBuffer = Buffer.from(expected);
+  if (signatureBuffer.length !== expectedBuffer.length) return null;
+  if (!timingSafeEqual(signatureBuffer, expectedBuffer)) return null;
+
+  let parsed: TicketPayload;
+  try {
+    parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+
+  return parsed.eventId === eventId && parsed.mediaId === mediaId ? parsed : null;
 }
 
 export function verifyMemoriesUploadTicket(
@@ -96,22 +139,5 @@ export function verifyMemoriesUploadTicket(
   mediaId: string,
   secret = getTicketSecret(),
 ): boolean {
-  const parts = ticket.split(".");
-  if (parts.length !== 2) return false;
-  const [body, signature] = parts;
-
-  const expected = createHmac("sha256", secret).update(`memories-upload-ticket-v1:${body}`).digest("base64url");
-  const signatureBuffer = Buffer.from(signature);
-  const expectedBuffer = Buffer.from(expected);
-  if (signatureBuffer.length !== expectedBuffer.length) return false;
-  if (!timingSafeEqual(signatureBuffer, expectedBuffer)) return false;
-
-  let parsed: { eventId: string; mediaId: string; objectKey: string };
-  try {
-    parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
-  } catch {
-    return false;
-  }
-
-  return parsed.eventId === eventId && parsed.mediaId === mediaId;
+  return readMemoriesUploadTicket(ticket, eventId, mediaId, secret) !== null;
 }

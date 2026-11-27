@@ -6,7 +6,12 @@ import type { MemoryMedia } from "./types";
 export type PublicMemoryMedia = Pick<
   MemoryMedia,
   "id" | "mediaKind" | "uploaderDisplayName" | "objectKeyDisplay" | "objectKeyThumbnail" | "capturedAt" | "uploadedAt"
-> & { durationSeconds?: number | null; byteSize?: number | null };
+> & {
+  durationSeconds?: number | null;
+  byteSize?: number | null;
+  // The video has a Cloudflare Stream copy (made, or being made).
+  adaptiveVideo?: boolean;
+};
 
 export function toPublicMemoryMedia(media: MemoryMedia): PublicMemoryMedia {
   return {
@@ -18,6 +23,9 @@ export function toPublicMemoryMedia(media: MemoryMedia): PublicMemoryMedia {
     capturedAt: media.capturedAt,
     uploadedAt: media.uploadedAt,
     durationSeconds: media.durationSeconds ?? null,
+    ...(media.mediaKind === "video" && media.streamUid && media.streamStatus !== "failed" && media.streamStatus !== "archived"
+      ? { adaptiveVideo: true }
+      : {}),
   };
 }
 

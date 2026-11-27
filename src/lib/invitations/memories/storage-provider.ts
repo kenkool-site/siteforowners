@@ -1,4 +1,14 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  ListPartsCommand,
+  CompleteMultipartUploadCommand,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 // signingDate makes the link the same for everyone signed at that moment.
@@ -73,6 +83,41 @@ export class R2StorageProvider implements StorageProvider {
       Body: bytes,
       ContentType: contentType,
     }));
+  }
+
+  // Big videos upload in pieces: each piece has its own signed PUT link, so a
+  // dropped signal only resends that piece. The pieces' ETags are read back
+  // here when the upload finishes, so the bucket's CORS rules don't need to
+  // expose the ETag header to the guest's browser.
+  async createMultipartUpload(objectKey: string, contentType: string): Promise<string> {
+    const response = await this.client.send(new CreateMultipartUploadCommand({ Bucket: this.bucket, Key: objectKey, ContentType: contentType }));
+    if (!response.UploadId) throw new Error("R2 returned no multipart upload id");
+    return response.UploadId;
+  }
+
+  async createPresignedPartUrls(objectKey: string, uploadId: string, partCount: number, expiresInSeconds: number): Promise<string[]> {
+    const urls: string[] = [];
+    for (let partNumber = 1; partNumber <= partCount; partNumber += 1) {
+      const command = new UploadPartCommand({ Bucket: this.bucket, Key: objectKey, UploadId: uploadId, PartNumber: partNumber });
+      urls.push(await getSignedUrl(this.client, command, { expiresIn: expiresInSeconds }));
+    }
+    return urls;
+  }
+
+  async completeMultipartUpload(objectKey: string, uploadId: string, expectedParts: number): Promise<boolean> {
+    const parts: { PartNumber: number; ETag: string }[] = [];
+    let marker: string | undefined;
+    do {
+      const listed = await this.client.send(new ListPartsCommand({ Bucket: this.bucket, Key: objectKey, UploadId: uploadId, PartNumberMarker: marker }));
+      for (const part of listed.Parts ?? []) {
+        if (part.PartNumber && part.ETag) parts.push({ PartNumber: part.PartNumber, ETag: part.ETag });
+      }
+      marker = listed.IsTruncated ? listed.NextPartNumberMarker : undefined;
+    } while (marker);
+    parts.sort((a, b) => a.PartNumber - b.PartNumber);
+    if (parts.length !== expectedParts || parts.some((part, index) => part.PartNumber !== index + 1)) return false;
+    await this.client.send(new CompleteMultipartUploadCommand({ Bucket: this.bucket, Key: objectKey, UploadId: uploadId, MultipartUpload: { Parts: parts } }));
+    return true;
   }
 
   async getObjectSizeBytes(objectKey: string): Promise<number | null> {
