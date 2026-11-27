@@ -13,7 +13,7 @@ import { GuestGalleryView } from "./GuestGalleryView";
 import { GuestMomentsView } from "./GuestMomentsView";
 import { GuestUploadView } from "./GuestUploadView";
 import { FindMeFlow } from "./FindMeFlow";
-import { AboutInviteSpotSheet, MemoriesTabBar, MemoriesTopBar, type MemoriesTab } from "./MemoriesChrome";
+import { AboutInviteSpotSheet, memoriesTabClearanceClass, MemoriesTabBar, MemoriesTopBar, type MemoriesTab } from "./MemoriesChrome";
 import type { PublicHonorView } from "@/lib/invitations/memories/guests-of-honor";
 import type { MediaImageSrc } from "./media-src";
 
@@ -38,7 +38,7 @@ export function GuestMemoriesApp({
   findMeEnabled,
   slug = "",
   startsAt = null,
-  timeZone = "UTC",
+  timeZone = "America/New_York",
   venueName = null,
   address = null,
   eventType = "event",
@@ -73,6 +73,7 @@ export function GuestMemoriesApp({
     viewerMediaIds?: string[];
     imageSrc?: MediaImageSrc;
     openViewer?: boolean;
+    openPlayer?: boolean;
     openFind?: boolean;
     findResults?: PublicMemoryMedia[];
     openAbout?: boolean;
@@ -196,6 +197,7 @@ export function GuestMemoriesApp({
               imageSrc={preview?.imageSrc}
               preview={previewGallery}
               openViewer={preview?.openViewer}
+              openPlayer={preview?.openPlayer}
               honor={honor}
               viewerIsHost={preview?.viewerIsHost ?? viewerIsHost}
             />
@@ -225,7 +227,7 @@ export function GuestMemoriesApp({
             />
           )}
           {tab === "find" && !findOpen && (
-            <div className="px-4 pb-36">
+            <div className={`px-4 ${memoriesTabClearanceClass}`}>
               <button type="button" onClick={() => findMeEnabled && setFindOpen(true)} className="font-serif text-3xl font-semibold" style={{ color: accent }}>{tr("navFind")}</button>
             </div>
           )}

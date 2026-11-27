@@ -153,6 +153,8 @@ test("a video item renders a <video controls> element with the display URL, not 
     // frame before tapping play.
     assert.equal(videoEl!.getAttribute("poster"), "/api/memories/media/m1/thumbnail");
     assert.ok(videoEl!.hasAttribute("controls"));
+    assert.equal(videoEl!.getAttribute("playsinline"), "");
+    assert.equal(videoEl!.getAttribute("preload"), "metadata");
     // The feature's global constraint: video must never autoplay — the guest
     // taps the native controls to start playback. Asserted here so a future
     // edit (e.g. copy-pasting from a different video component) that adds
@@ -402,13 +404,53 @@ test("tapping a nearby thumbnail outside the current list starts a detour, with 
   );
 });
 
+test("the close control is in a header above the stage, so the arrows cannot cover it", async () => {
+  await withMountedLightbox([mediaItem("m1"), mediaItem("m2")], 0, async ({ dom }) => {
+    const header = dom.window.document.querySelector("[data-lightbox-header]");
+    const stage = dom.window.document.querySelector("[data-lightbox-stage]");
+    const close = dom.window.document.querySelector('button[aria-label="Close"]');
+    assert.ok(header && stage && close);
+    assert.match(header.className, /z-30/);
+    assert.equal(header.contains(close), true);
+    assert.equal(stage.contains(close), false);
+    assert.equal(stage.contains(dom.window.document.querySelector('button[aria-label="Next photo"]')), true);
+    assert.match(dom.window.document.querySelector('[role="dialog"]')?.className ?? "", /z-\[60\]/);
+  });
+});
+
+test("a video error refreshes the signed url once, then shows the device fallback", async () => {
+  await withMountedLightbox([mediaItem("m1", { mediaKind: "video", durationSeconds: 55, byteSize: 48 * 1024 * 1024 }), mediaItem("m2", { mediaKind: "video" })], 0, async ({ dom }) => {
+    const first = dom.window.document.querySelector("video");
+    assert.ok(first);
+    await act(async () => {
+      first!.dispatchEvent(new dom.window.Event("error"));
+      await flush();
+    });
+    const refreshed = dom.window.document.querySelector("video");
+    assert.ok(refreshed);
+    assert.match(refreshed!.getAttribute("src") ?? "", /[?&]r=/);
+    await act(async () => {
+      refreshed!.dispatchEvent(new dom.window.Event("error"));
+      await flush();
+    });
+    const text = dom.window.document.body.textContent ?? "";
+    assert.match(text, /This video can't play on your device/);
+    assert.match(text, /Download to watch/);
+    assert.match(text, /Next video/);
+    assert.match(text, /0:55/);
+    assert.match(text, /about 48 MB/);
+  });
+});
+
 test("shows who shared the photo and when, for a named uploader", async () => {
   const capturedAt = "2026-09-24T22:08:00.000Z";
   await withMountedLightbox([mediaItem("m1", { uploaderDisplayName: "Priya", capturedAt })], 0, async ({ dom }) => {
     await flush();
     const date = new Date(capturedAt);
-    const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    // The harness provider's timeZone is UTC, which is what the lightbox uses
+    // when a caller doesn't pass the event zone — not the machine zone.
+    const day = new Intl.DateTimeFormat("en", { timeZone: "UTC", month: "short", day: "numeric" }).format(date);
+    const time = new Intl.DateTimeFormat("en", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(date);
     const text = dom.window.document.body.textContent ?? "";
     assert.match(text, new RegExp(`Photo shared by Priya · ${day}, ${time}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
@@ -419,8 +461,8 @@ test("shows just the date, with no uploader phrasing, when the upload is anonymo
   await withMountedLightbox([mediaItem("m1", { uploaderDisplayName: null, capturedAt })], 0, async ({ dom }) => {
     await flush();
     const date = new Date(capturedAt);
-    const day = date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-    const time = date.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    const day = new Intl.DateTimeFormat("en", { timeZone: "UTC", month: "short", day: "numeric" }).format(date);
+    const time = new Intl.DateTimeFormat("en", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(date);
     const text = dom.window.document.body.textContent ?? "";
     assert.doesNotMatch(text, /Photo shared by/);
     assert.match(text, new RegExp(`${day}, ${time}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));

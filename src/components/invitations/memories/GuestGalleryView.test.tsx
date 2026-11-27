@@ -233,6 +233,65 @@ test("closing the lightbox returns to the gallery grid", async () => {
   });
 });
 
+test("a ready video renders a Watch row and leaves the photo grid to photos", async () => {
+  await withMountedGallery([mediaItem("m1"), mediaItem("m2", { mediaKind: "video", durationSeconds: 42, uploaderDisplayName: "Tunde" })], async ({ dom }) => {
+    const text = dom.window.document.body.textContent ?? "";
+    assert.match(text, /Watch/);
+    assert.match(text, /1 video/);
+    assert.match(text, /See all/);
+    assert.match(text, /Add photos & videos/);
+    assert.match(text, /1 photo · 1 video/);
+    assert.match(text, /Tunde/);
+    assert.match(text, /0:42/);
+    const watch = dom.window.document.querySelector('[aria-label="Watch"]');
+    assert.ok(watch?.querySelector('img[src="/api/memories/media/m2/thumbnail"]'), "watch card uses the poster");
+    assert.ok(watch?.querySelector('[data-play-badge="true"]'));
+    const dateHeading = Array.from(dom.window.document.querySelectorAll("section h3")).find((heading) => /Jan/.test(heading.textContent ?? ""));
+    const gridSrcs = Array.from(dateHeading?.closest("section")?.querySelectorAll("img") ?? []).map((img) => img.getAttribute("src"));
+    assert.equal(gridSrcs.includes("/api/memories/media/m2/thumbnail"), false, "the all-filter grid should not repeat the video");
+    assert.ok(dom.window.document.querySelector('[class*="pb-[calc(140px+env(safe-area-inset-bottom))]"]'), "content clears the tab bar");
+
+    await act(async () => {
+      click(dom, Array.from(dom.window.document.querySelectorAll("button")).find((button) => button.textContent?.includes("See all")) ?? null);
+      await flush();
+    });
+    assert.equal(dom.window.document.querySelector('[aria-label="Watch"]'), null, "See all applies the videos filter and hides the watch row");
+    assert.ok(dom.window.document.querySelector('img[src="/api/memories/media/m2/thumbnail"]'), "the videos filter shows the clip in the grid");
+  });
+});
+
+test("the watch row is absent when the event has no videos", async () => {
+  await withMountedGallery([mediaItem("m1")], async ({ dom }) => {
+    assert.equal(dom.window.document.querySelector('[aria-label="Watch"]'), null);
+    const text = dom.window.document.body.textContent ?? "";
+    assert.match(text, /1 photo/);
+    assert.doesNotMatch(text, /1 video/);
+  });
+});
+
+test("tapping a Watch card opens the videos-only player", async () => {
+  await withMountedGallery(
+    [mediaItem("m1"), mediaItem("m2", { mediaKind: "video", uploaderDisplayName: "Tunde" }), mediaItem("m3", { mediaKind: "video", uploaderDisplayName: "Aunty Bisi" })],
+    async ({ dom }) => {
+      const card = dom.window.document.querySelector('[aria-label="Video shared by Tunde"]');
+      await act(async () => {
+        click(dom, card);
+        await flush();
+      });
+      assert.match(dom.window.document.body.textContent ?? "", /Video 1 of 2/);
+      assert.match(dom.window.document.body.textContent ?? "", /Up next/);
+      const dialog = dom.window.document.querySelector('[role="dialog"]');
+      const videos = dialog?.querySelectorAll("video") ?? [];
+      assert.equal(videos.length, 1, "only the current clip is mounted");
+      assert.equal(videos[0]?.getAttribute("playsinline"), "");
+      assert.equal(videos[0]?.getAttribute("preload"), "metadata");
+      assert.match(videos[0]?.getAttribute("poster") ?? "", /m2\/thumbnail/);
+      const preloaded = Array.from(dialog?.querySelectorAll("img") ?? []).map((img) => img.getAttribute("src"));
+      assert.deepEqual(preloaded, ["/api/memories/media/m3/thumbnail"]);
+    },
+  );
+});
+
 test("shows the Find Me banner when findMeEnabled is true, and nothing when it's false", async () => {
   await withMountedGallery([mediaItem("m1")], async ({ dom }) => {
     assert.doesNotMatch(dom.window.document.body.textContent ?? "", /Find yourself in these photos/);

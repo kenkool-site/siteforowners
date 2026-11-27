@@ -8,6 +8,7 @@ import type { MemoryHighlightGroup } from "@/lib/invitations/memories/highlight-
 import type { PublicHonorView } from "@/lib/invitations/memories/guests-of-honor";
 import { HonorCreamLabel, HonorGlyph } from "./HonorMark";
 import { MediaLightbox } from "./MediaLightbox";
+import { memoriesTabClearanceClass } from "./MemoriesChrome";
 import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
 
 // The guest-facing shape returned by GET /api/memories/events/[eventId]/highlights
@@ -88,7 +89,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
   const badge = honor?.badgeKey === "birthdayStar" ? th("birthdayStar") : honor?.badgeKey === "graduate" ? th("graduateBadge") : honor?.badgeKey === "honorees" ? th("honoreesBadge") : th("autoGrouped");
 
   if (!loaded) return (
-    <div className="px-4 pb-36">
+    <div className={`px-4 ${memoriesTabClearanceClass}`}>
       <p className="p-8 text-center text-sm opacity-70">{t("loading")}</p>
       <div className="grid grid-cols-2 gap-3">
         {[0, 1].map((slot) => <div key={slot} className="overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}><div className="h-32 animate-pulse bg-black/5" /><div className="h-4 w-2/3 m-3 animate-pulse rounded bg-black/5" /></div>)}
@@ -100,7 +101,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
 
   if (selectedGroup) {
     return (
-      <div className="space-y-4 p-4">
+      <div className={`space-y-4 px-4 pt-4 ${memoriesTabClearanceClass}`}>
         <button
           type="button"
           onClick={closeGroup}
@@ -127,8 +128,8 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
               <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt="" className="h-auto w-full" loading="lazy" />
               {item.mediaKind === "video" && (
                 <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
-                  <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white">
-                    <Play className="size-4 fill-current" />
+                  <span className="grid size-14 place-items-center rounded-full bg-white/95 text-[#1c2a20] shadow-lg">
+                    <Play className="ml-0.5 size-6 fill-current" />
                   </span>
                 </span>
               )}
@@ -144,7 +145,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
 
   if (selected === "guests-of-honor" && honor) {
     return (
-      <div className="space-y-4 p-4">
+      <div className={`space-y-4 px-4 pt-4 ${memoriesTabClearanceClass}`}>
         <button type="button" onClick={closeGroup} className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-sm font-semibold" style={{ color: accent }}>
           <ChevronLeft className="size-5" />
           {t("back")}
@@ -166,7 +167,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
   }
 
   if (groups.length === 0 && !(honor && honor.count > 0)) return (
-    <div className="px-4 pb-36">
+    <div className={`px-4 ${memoriesTabClearanceClass}`}>
       <h2 className="font-serif text-3xl font-semibold" style={{ color: accent }}>{tr("navHighlights")}</h2>
       <p className="mt-4 text-sm" style={{ color: accent }}>{t("empty")}</p>
       <p className="mt-2 text-sm opacity-70">{tr("highlightsEmpty")}</p>
@@ -178,7 +179,7 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
   const totalPhotos = groups.reduce((sum, group) => sum + group.media.length, 0);
 
   return (
-    <div className="px-4 pb-36">
+    <div className={`px-4 ${memoriesTabClearanceClass}`}>
       <h2 className="font-serif text-3xl font-semibold" style={{ color: accent }}>{tr("navHighlights")}</h2>
       <p className="mt-1 flex items-center gap-2 text-sm opacity-70">
         <span className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold" style={{ backgroundColor: `${accent}18`, color: accent }}>{tr("aiCurated")}</span>
@@ -244,8 +245,8 @@ export function GuestAiHighlightView({ eventId, accent, surface, previewGroups, 
                 <img src={imageSrc(group.media[0].id, "thumbnail")} alt="" className="aspect-[4/5] w-full object-cover" loading="lazy" />
                 {group.media[0].mediaKind === "video" && (
                   <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
-                    <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white">
-                      <Play className="size-4 fill-current" />
+                    <span className="grid size-14 place-items-center rounded-full bg-white/95 text-[#1c2a20] shadow-lg">
+                      <Play className="ml-0.5 size-6 fill-current" />
                     </span>
                   </span>
                 )}

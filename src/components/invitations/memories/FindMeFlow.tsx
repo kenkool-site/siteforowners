@@ -144,7 +144,7 @@ export function FindMeFlow({ eventId, accent, surface, onClose, eventTitle = "",
   }
 
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="find-me-title" className="fixed inset-0 z-40 overflow-y-auto" style={{ backgroundColor: surface }}>
+    <div role="dialog" aria-modal="true" aria-labelledby="find-me-title" className="fixed inset-0 z-[70] overflow-y-auto" style={{ backgroundColor: surface }}>
       <div className="flex items-center justify-between px-4 pt-4">
         <button type="button" onClick={onClose} aria-label={t("close")} className="grid size-10 place-items-center rounded-full" style={{ backgroundColor: `${accent}12`, color: accent }}>
           <X className="size-4" />

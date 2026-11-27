@@ -5,7 +5,12 @@ import {
   contributorSummary,
   countdownDays,
   filterGalleryMedia,
+  formatApproxFileSize,
+  formatCapturedAt,
   formatVideoDuration,
+  galleryGridMedia,
+  photoVideoCounts,
+  watchableVideos,
   invitespotGuestUrl,
   knownContributorName,
   minutesUntil,
@@ -84,6 +89,40 @@ test("gallery sections follow moments and leave unnamed uploads without a fake c
   assert.deepEqual(sections.map((section) => section.title), ["Reception", "Ceremony"]);
   assert.equal(sections[0].items.length, 2);
   assert.equal(sections[1].items[0].id, "early");
+});
+
+test("gallery day headings and captured labels share the event timezone", () => {
+  // 02:30 UTC on Sep 25 is still the evening of Sep 24 in New York. Grouping
+  // that instant in UTC titles the section "Fri, Sep 25" while a browser-local
+  // label in New York reads "Sep 24" — the split guests were seeing.
+  const iso = "2026-09-25T02:30:00.000Z";
+  const item = media("p", { capturedAt: iso, uploadedAt: iso });
+  const ny = buildGallerySections([item], [], "America/New_York", "en-US");
+  assert.match(ny[0].title, /Thu, Sep 24/);
+  assert.match(formatCapturedAt(iso, "America/New_York", "en-US"), /Sep 24/);
+  const utc = buildGallerySections([item], [], "UTC", "en-US");
+  assert.match(utc[0].title, /Fri, Sep 25/);
+});
+
+test("a missing or invalid event timezone falls back to America/New_York for grouping and labels", () => {
+  const iso = "2026-09-25T02:30:00.000Z";
+  const item = media("p", { capturedAt: iso, uploadedAt: iso });
+  for (const zone of ["", "Not/AZone"]) {
+    const sections = buildGallerySections([item], [], zone, "en-US");
+    assert.match(sections[0].title, /Sep 24/);
+    assert.match(formatCapturedAt(iso, zone, "en-US"), /Sep 24/);
+  }
+  assert.equal(formatCapturedAt(iso, null, "en-US").includes("Sep 24"), true);
+});
+
+test("watch row keeps videos in gallery order and the all-filter grid leaves them out", () => {
+  const items = [media("a"), media("b", { mediaKind: "video" }), media("c", { mediaKind: "video" })];
+  assert.deepEqual(watchableVideos(items).map((item) => item.id), ["b", "c"]);
+  assert.deepEqual(galleryGridMedia(items, "all").map((item) => item.id), ["a"]);
+  assert.deepEqual(galleryGridMedia(items, "videos").map((item) => item.id), ["a", "b", "c"]);
+  assert.deepEqual(photoVideoCounts(items), { photos: 1, videos: 2 });
+  assert.equal(formatApproxFileSize(48 * 1024 * 1024), "48 MB");
+  assert.equal(formatApproxFileSize(null), null);
 });
 
 test("filters only hide videos or the viewer's own ids", () => {

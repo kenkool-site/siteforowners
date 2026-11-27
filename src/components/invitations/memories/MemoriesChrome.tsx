@@ -7,6 +7,11 @@ import { invitespotGuestUrl } from "@/lib/invitations/memories/guest-presentatio
 
 export type MemoriesTab = "gallery" | "highlights" | "moments" | "find";
 
+/** Clears the fixed tab bar, the raised camera, and the home-indicator inset. */
+export const memoriesTabClearanceClass = "pb-[calc(140px+env(safe-area-inset-bottom))]";
+/** Pins a floating chip just above that same bar. */
+export const memoriesAboveTabClass = "bottom-[calc(140px+env(safe-area-inset-bottom))]";
+
 export function MemoriesTopBar({
   branding,
   displayName,
@@ -71,7 +76,7 @@ export function MemoriesTabBar({
     { id: "find", label: t("navFind"), icon: <ScanFace className="size-5" /> },
   ];
   return (
-    <nav aria-label={tLanding("navigationLabel")} className="fixed inset-x-0 bottom-0 z-30 border-t backdrop-blur" style={{ backgroundColor: `${background}f5`, borderColor: `${accent}22` }}>
+    <nav aria-label={tLanding("navigationLabel")} className="fixed inset-x-0 bottom-0 z-30 border-t pb-[env(safe-area-inset-bottom)] backdrop-blur" style={{ backgroundColor: `${background}f5`, borderColor: `${accent}22` }}>
       <div className="mx-auto grid h-[5.4rem] max-w-2xl grid-cols-5 px-1 pt-2">
         {items.map((item) => item.id === "add" ? (
           <button key="add" type="button" onClick={onAdd} className="flex -mt-6 flex-col items-center gap-1 text-[11px] font-semibold" style={{ color: accent }}>

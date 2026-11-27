@@ -38,11 +38,14 @@ const moments: MemoryMoment[] = [
 
 const media: PublicMemoryMedia[] = [
   item("m1", { capturedAt: "2026-12-19T19:10:00.000Z" }),
-  item("m2", { capturedAt: "2026-12-19T19:25:00.000Z", mediaKind: "video", durationSeconds: 24 }),
+  item("m2", { capturedAt: "2026-12-19T23:40:00.000Z", mediaKind: "video", durationSeconds: 42, uploaderDisplayName: "Tunde", byteSize: 18 * 1024 * 1024 }),
   item("m3", { capturedAt: "2026-12-19T19:40:00.000Z", uploaderDisplayName: null }),
   item("m4", { capturedAt: "2026-12-19T19:50:00.000Z" }),
   item("m5", { capturedAt: "2026-12-19T19:15:00.000Z", uploaderDisplayName: "ken" }),
   item("m6", { capturedAt: "2026-12-19T19:35:00.000Z", uploaderDisplayName: null }),
+  item("v2", { capturedAt: "2026-12-19T20:20:00.000Z", mediaKind: "video", durationSeconds: 18, uploaderDisplayName: "Aunty Bisi", byteSize: 12 * 1024 * 1024 }),
+  item("v3", { capturedAt: "2026-12-19T19:12:00.000Z", mediaKind: "video", durationSeconds: 55, uploaderDisplayName: "Chioma O.", byteSize: 48 * 1024 * 1024 }),
+  item("v4", { capturedAt: "2026-12-19T23:55:00.000Z", mediaKind: "video", durationSeconds: 27, uploaderDisplayName: "Ngozi", byteSize: 20 * 1024 * 1024 }),
 ];
 
 const highlights: GuestHighlightGroup[] = [
@@ -78,8 +81,14 @@ export function MemoriesDesignPreview({ screen }: { screen: string }) {
           moments,
           highlights: screen === "highlights-empty" ? [] : highlights,
           viewerMediaIds: ["m1", "m4"],
-          imageSrc: (id) => paint(id),
+          imageSrc: (id, variant) => {
+            if (variant === "display" && (id === "m2" || id.startsWith("v"))) {
+              return screen === "player-error" ? "data:text/plain,not-a-video" : "/dev/memories-sample.mp4";
+            }
+            return paint(id);
+          },
           openViewer: screen === "viewer",
+          openPlayer: screen === "player" || screen === "player-error",
           openAbout: screen === "about",
           screen: screen === "album" ? "find" : screen === "highlights-empty" || screen === "highlights-loading" ? screen : screen === "moments" || screen === "highlights" || screen === "find" ? screen : "gallery",
           findResults: screen === "album" ? media : undefined,

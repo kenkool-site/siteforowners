@@ -8,6 +8,7 @@ import { formatInTimeZone, minutesUntil, momentPhase } from "@/lib/invitations/m
 import { momentForMedia } from "@/lib/invitations/memories/gallery-view";
 import type { MemoryMoment } from "@/lib/invitations/memories/repository";
 import { defaultMediaSrc, gridVariant, type MediaImageSrc } from "./media-src";
+import { memoriesTabClearanceClass } from "./MemoriesChrome";
 import { MediaLightbox } from "./MediaLightbox";
 
 export function GuestMomentsView({
@@ -16,7 +17,7 @@ export function GuestMomentsView({
   surface,
   onAddPhotos,
   onShowGallery,
-  timeZone = "UTC",
+  timeZone = "America/New_York",
   locale = "en",
   preview,
   imageSrc = defaultMediaSrc,
@@ -57,7 +58,7 @@ export function GuestMomentsView({
   const selectedMoment = moments.find((moment) => moment.id === selected);
   if (selectedMoment) {
     const selectedMedia = media.filter((item) => momentForMedia(item, moments)?.id === selectedMoment.id);
-    return <div className="space-y-4 p-4 pb-36">
+    return <div className={`space-y-4 px-4 pt-4 ${memoriesTabClearanceClass}`}>
       <button type="button" onClick={() => { setSelected(null); setLightboxIndex(null); }} className="-ml-1 inline-flex min-h-11 items-center gap-1 rounded-full py-1 pl-1 pr-3 text-sm font-semibold" style={{ color: accent }}>
         <ChevronLeft className="size-5" />
         {t("back")}
@@ -66,11 +67,11 @@ export function GuestMomentsView({
       <div className="columns-2 gap-2 sm:columns-3">{selectedMedia.map((item, index) => <button key={item.id} type="button" onClick={() => setLightboxIndex(index)} className="relative mb-2 block w-full break-inside-avoid">
         <img src={imageSrc(item.id, gridVariant(item.mediaKind))} alt="" className="h-auto w-full rounded-xl" loading="lazy" />
         {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center">
-          <span className="grid size-9 place-items-center rounded-full bg-black/45 text-white"><Play className="size-4 fill-current" /></span>
+          <span className="grid size-14 place-items-center rounded-full bg-white/95 text-[#1c2a20] shadow-lg"><Play className="ml-0.5 size-6 fill-current" /></span>
         </span>}
       </button>)}</div>
       {lightboxIndex !== null && (
-        <MediaLightbox media={selectedMedia} index={lightboxIndex} moments={moments} imageSrc={imageSrc} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
+        <MediaLightbox media={selectedMedia} index={lightboxIndex} moments={moments} imageSrc={imageSrc} timeZone={timeZone} locale={locale} onClose={() => setLightboxIndex(null)} onNavigate={setLightboxIndex} />
       )}
     </div>;
   }
@@ -79,7 +80,7 @@ export function GuestMomentsView({
 
   const day = formatInTimeZone(moments[0]?.startsAt, timeZone, locale, { weekday: "long", month: "short", day: "numeric" });
 
-  return <div className="px-4 pb-36">
+  return <div className={`px-4 ${memoriesTabClearanceClass}`}>
     <h2 className="font-serif text-3xl font-semibold" style={{ color: accent }}>{tr("navMoments")}</h2>
     {day && <p className="mt-1 text-sm opacity-70">{day} · {tr("momentsFollows")}</p>}
     <div className="mt-4 flex items-center gap-3 rounded-2xl px-3.5 py-3 text-white" style={{ backgroundColor: "#163824" }}>
@@ -109,7 +110,7 @@ export function GuestMomentsView({
                   {thumbs.map((item) => (
                     <button key={item.id} type="button" onClick={() => setSelected(moment.id)} className="relative aspect-square overflow-hidden rounded-lg">
                       <img src={imageSrc(item.id, "thumbnail")} alt="" className="size-full object-cover" />
-                      {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center"><span className="grid size-6 place-items-center rounded-full bg-black/45 text-white"><Play className="size-3 fill-current" /></span></span>}
+                      {item.mediaKind === "video" && <span aria-hidden="true" data-play-badge="true" className="pointer-events-none absolute inset-0 grid place-items-center"><span className="grid size-8 place-items-center rounded-full bg-white/95 text-[#1c2a20] shadow"><Play className="ml-0.5 size-3.5 fill-current" /></span></span>}
                     </button>
                   ))}
                   {items.length > thumbs.length && <button type="button" onClick={() => setSelected(moment.id)} className="grid aspect-square place-items-center rounded-lg text-xs font-semibold text-white" style={{ backgroundColor: accent }}>{tr("morePhotos", { count: items.length - thumbs.length })}</button>}
