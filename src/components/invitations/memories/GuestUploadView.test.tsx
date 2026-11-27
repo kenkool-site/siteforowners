@@ -131,6 +131,9 @@ function createRecordingXHRClass() {
       calls.push({ method, url });
     }
     setRequestHeader() {}
+    // The upload stall timer calls abort() after UPLOAD_STALL_MS; without it
+    // the timer throws an uncaught TypeError once the test has ended.
+    abort() {}
     addEventListener(type: string, listener: EventListener) {
       this.listeners.set(type, listener);
     }
@@ -252,12 +255,14 @@ test("a picked video file is enqueued with mediaKind video and its captured post
   );
 });
 
+// 62, not 61: clips get a 1-second grace past the 60-second limit
+// (VIDEO_DURATION_GRACE_SECONDS), so a 61-second clip is accepted.
 test("a video longer than 60 seconds is rejected before any network call", async () => {
   const { XHRClass } = createRecordingXHRClass();
   await withMountedUploadView(
     {
       eventId: "event-video-toolong",
-      durationSeconds: 61,
+      durationSeconds: 62,
       XHRClass,
       fetchImpl: async (url) => {
         throw new Error(`unexpected fetch ${url}`);
