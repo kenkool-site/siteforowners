@@ -14,13 +14,20 @@ import { downloadMemoryFile, nextVideoSourceAttempt, playWithSoundFallback, pref
 
 const SLIDE_MS = 260;
 
+// Upright phone clips fill the screen edge to edge, like Reels or TikTok.
+// Wider clips (landscape, square, 3:4) are shown whole over a blurred backdrop
+// so nothing important is cut off.
+function fillsScreen(video: HTMLVideoElement): boolean {
+  return video.videoWidth > 0 && video.videoHeight / video.videoWidth >= 1.5;
+}
+
 // The neighbouring clip's poster, parked just above or below the current one
 // so it follows the finger in and fills the screen when the slide lands.
-function SlidePoster({ src, className }: { src: string; className: string }) {
+function SlidePoster({ src, className, fill }: { src: string; className: string; fill: boolean }) {
   return (
     <div aria-hidden="true" className={`absolute inset-x-0 h-full overflow-hidden ${className}`}>
       <div className="absolute inset-0 scale-110 bg-cover opacity-70 blur-2xl" style={{ backgroundImage: `url(${src})` }} />
-      <div className="absolute inset-0 bg-contain bg-center bg-no-repeat" style={{ backgroundImage: `url(${src})` }} />
+      <div className={`absolute inset-0 bg-center bg-no-repeat ${fill ? "bg-cover" : "bg-contain"}`} style={{ backgroundImage: `url(${src})` }} />
     </div>
   );
 }
@@ -82,6 +89,15 @@ export function GuestVideoPlayer({
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Whether each clip fills the screen, learned from its own size once it
+  // loads. Most event clips are upright phone videos, so fill until we know.
+  const [fillById, setFillById] = useState<Record<string, boolean>>({});
+  const fills = (id: string | undefined) => (id ? fillById[id] ?? true : true);
+  function rememberShape(id: string, video: HTMLVideoElement) {
+    if (video.videoWidth === 0) return;
+    const fill = fillsScreen(video);
+    setFillById((known) => (known[id] === fill ? known : { ...known, [id]: fill }));
+  }
   const reduceMotion = prefersReducedMotion();
 
   useEffect(() => {
@@ -294,7 +310,9 @@ export function GuestVideoPlayer({
 
   return (
     <div role="dialog" aria-modal="true" aria-label={t("label", { current: index + 1, total: videos.length })} className="fixed inset-0 z-[60] flex flex-col bg-[#0b0d0c] text-white">
-      <div data-video-header className="relative z-30 flex items-center justify-between px-4 pb-2 pt-[max(1rem,env(safe-area-inset-top))]">
+      {/* The clip runs behind the top bar and the controls, which sit on soft
+          shades over it, so the video gets the whole screen. */}
+      <div data-video-header className="relative z-30 flex items-center justify-between bg-gradient-to-b from-black/60 to-transparent px-4 pb-6 pt-[max(1rem,env(safe-area-inset-top))]">
         <button type="button" onClick={onClose} aria-label={tLightbox("close")} className="grid size-10 place-items-center rounded-full bg-white/15">
           <X className="size-5" />
         </button>
@@ -312,7 +330,7 @@ export function GuestVideoPlayer({
       <div
         ref={stageRef}
         data-video-stage
-        className="relative min-h-0 flex-1 touch-none overflow-hidden"
+        className="absolute inset-0 touch-none overflow-hidden"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -323,10 +341,10 @@ export function GuestVideoPlayer({
           className="absolute inset-0"
           style={reduceMotion ? undefined : { transform: `translateY(${dragY}px)`, transition: dragging ? "none" : `transform ${SLIDE_MS}ms cubic-bezier(0.22, 1, 0.36, 1)` }}
         >
-        {prevPoster && <SlidePoster src={prevPoster} className="bottom-full" />}
-        {nextPoster && <SlidePoster src={nextPoster} className="top-full" />}
+        {prevPoster && <SlidePoster src={prevPoster} className="bottom-full" fill={fills(prev?.id)} />}
+        {nextPoster && <SlidePoster src={nextPoster} className="top-full" fill={fills(next?.id)} />}
         {/* Sharp poster under the video so the moments before its first frame don't look blurry. */}
-        <SlidePoster src={poster} className="top-0" />
+        <SlidePoster src={poster} className="top-0" fill={fills(item?.id)} />
         {index > 0 && (
           <button type="button" aria-label={t("previous")} onPointerDown={(event) => event.stopPropagation()} onClick={() => go(index - 1)} className="absolute left-3 top-[42%] z-10 hidden size-11 -translate-y-8 place-items-center rounded-full bg-white text-[#1c2a20] shadow md:grid">
             <ChevronUp className="size-6" />
@@ -351,6 +369,7 @@ export function GuestVideoPlayer({
             muted
             aria-hidden="true"
             tabIndex={-1}
+            onLoadedMetadata={(event) => rememberShape(next.id, event.currentTarget)}
             className="pointer-events-none absolute inset-0 size-full object-contain opacity-0"
           />
         )}
@@ -374,12 +393,13 @@ export function GuestVideoPlayer({
             preload="metadata"
             muted={muted}
             onLoadedMetadata={(event) => {
+              rememberShape(item.id, event.currentTarget);
               const nextDuration = event.currentTarget.duration;
               if (Number.isFinite(nextDuration)) setDuration(nextDuration);
             }}
             onTimeUpdate={(event) => setCurrent(event.currentTarget.currentTime)}
             onPlay={() => setUserPaused(false)}
-            className="relative z-[1] size-full object-contain"
+            className={`relative z-[1] size-full ${fills(item?.id) ? "object-cover" : "object-contain"}`}
           />
         )}
         {!failed && (needsTap || userPaused) && (
@@ -390,7 +410,9 @@ export function GuestVideoPlayer({
         </div>
       </div>
 
-      <div className="relative z-20 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3" onPointerDown={(event) => event.stopPropagation()}>
+      {/* Only the controls themselves take touches, so a swipe that starts on
+          the shaded part of the video still moves to the next clip. */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/45 to-transparent px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-10 [&>*]:pointer-events-auto" onPointerDown={(event) => event.stopPropagation()}>
         {(contributor || captured || momentName) && (
           <div className="flex items-center gap-2.5 text-sm">
             <span className="grid size-9 place-items-center rounded-full bg-[#e9d6af] text-sm font-bold text-[#1c2a20]">{initialOf(contributor ?? "?")}</span>
@@ -443,26 +465,10 @@ export function GuestVideoPlayer({
           )}
         </div>
         {!failed && next && (
-          <>
-            <p className="mt-3 flex items-center justify-center gap-1 text-xs text-white/70">
-              <ChevronUp className="size-4" />
-              {t("swipeNext")}
-            </p>
-            <button type="button" onClick={() => go(index + 1)} className="mt-2 w-full overflow-hidden rounded-t-2xl bg-white/10 text-left">
-              <span className="flex items-center gap-2.5 px-3 py-2.5">
-                <span className="grid size-7 shrink-0 place-items-center rounded-full bg-[#e9d6af] text-xs font-bold text-[#1c2a20]">
-                  {initialOf(knownContributorName(next.uploaderDisplayName) ?? "?")}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {knownContributorName(next.uploaderDisplayName) ? t("upNext", { name: knownContributorName(next.uploaderDisplayName) ?? "" }) : t("upNextAnon")}
-                </span>
-                {formatVideoDuration(next.durationSeconds) && (
-                  <span className="rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-semibold">{formatVideoDuration(next.durationSeconds)}</span>
-                )}
-              </span>
-              {nextPoster && <img src={nextPoster} alt="" className="h-16 w-full object-cover" />}
-            </button>
-          </>
+          <p className="mt-3 flex items-center justify-center gap-1 text-xs text-white/70">
+            <ChevronUp className="size-4" />
+            {t("swipeNext")}
+          </p>
         )}
       </div>
     </div>
