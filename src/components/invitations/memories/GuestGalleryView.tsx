@@ -208,7 +208,10 @@ export function GuestGalleryView({
   const sections = filter === "honor"
     ? [{ id: "honor", title: honorTitle, whenLabel: "", items: filtered }]
     : timeSections;
-  const lightboxMedia = sections.flatMap((section) => section.items);
+  // Photos open in the photo viewer and videos in the full-screen player,
+  // which swipes through the videos the current filter shows.
+  const lightboxMedia = sections.flatMap((section) => section.items).filter((item) => item.mediaKind !== "video");
+  const playerVideos = filter === "all" || filter === "videos" ? watchVideos : watchableVideos(filtered);
   const videoCount = counts.videos;
   const showMine = viewerKnown || localMine.size > 0;
   const contributors = contributorSummary(media.map((item) => item.uploaderDisplayName));
@@ -441,8 +444,8 @@ export function GuestGalleryView({
                 return (
                   <figure key={item.id} className="relative mb-2.5 break-inside-avoid overflow-hidden rounded-2xl" style={{ backgroundColor: surface }}>
                     <button type="button" onClick={() => {
-                      if (filter === "videos" && item.mediaKind === "video") {
-                        const watchIndex = watchVideos.findIndex((candidate) => candidate.id === item.id);
+                      if (item.mediaKind === "video") {
+                        const watchIndex = playerVideos.findIndex((candidate) => candidate.id === item.id);
                         if (watchIndex !== -1) {
                           setPlayerIndex(watchIndex);
                           return;
@@ -496,9 +499,9 @@ export function GuestGalleryView({
           onNavigate={setLightboxIndex}
         />
       )}
-      {playerIndex !== null && watchVideos[playerIndex] && (
+      {playerIndex !== null && playerVideos[playerIndex] && (
         <GuestVideoPlayer
-          videos={watchVideos}
+          videos={playerVideos}
           index={playerIndex}
           moments={moments}
           imageSrc={imageSrc}
