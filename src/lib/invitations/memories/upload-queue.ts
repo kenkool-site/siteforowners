@@ -24,7 +24,21 @@ export interface UploadQueue {
   dismiss(id: string): void;
   subscribe(listener: (items: QueueItem[]) => void): () => void;
   getItems(): QueueItem[];
+  dispose(): void;
 }
+
+export interface UploadQueueOptions {
+  // Errors that a fresh attempt can fix (a dropped connection, a timeout). When
+  // this returns true the item goes back in line by itself after a short wait,
+  // and again whenever the phone comes back online or the page comes back into
+  // view. Errors it rejects (quota, closed window, file too big) stay failed.
+  isRetryable?: (error: string) => boolean;
+  retryDelaysMs?: number[];
+}
+
+// Spread over about four minutes, so a guest walking out of a dead spot at the
+// venue gets their upload through without tapping anything.
+const DEFAULT_RETRY_DELAYS_MS = [2_000, 5_000, 15_000, 30_000, 60_000, 120_000];
 
 const DB_NAME = "memories-upload-queue";
 const DB_VERSION = 1;
@@ -77,7 +91,9 @@ async function deleteItem(db: IDBDatabase, id: string): Promise<void> {
   });
 }
 
-export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): UploadQueue {
+export function createUploadQueue(eventId: string, uploadOne: UploadOneFn, options: UploadQueueOptions = {}): UploadQueue {
+  const isRetryable = options.isRetryable ?? (() => false);
+  const retryDelaysMs = options.retryDelaysMs ?? DEFAULT_RETRY_DELAYS_MS;
   // Bundled into one map (not two parallel maps keyed by id) so a file and its
   // optional poster can never drift out of sync with each other.
   const filesById = new Map<string, { file: File; posterFile?: File }>();
@@ -88,6 +104,10 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
   let dbPromise: Promise<IDBDatabase> | null = null;
   let processing = false;
   let nextSeq = 0;
+  // Automatic attempts used so far, and when a waiting item may go again.
+  const autoRetriesById = new Map<string, number>();
+  const notBeforeById = new Map<string, number>();
+  const retryTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
   function getDb(): Promise<IDBDatabase> {
     if (!dbPromise) dbPromise = openDb(eventId);
@@ -105,7 +125,8 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
 
   async function processNext(): Promise<void> {
     if (processing) return;
-    const next = items.find((i) => i.status === "queued");
+    const now = Date.now();
+    const next = items.find((i) => i.status === "queued" && (notBeforeById.get(i.id) ?? 0) <= now);
     if (!next) return;
     processing = true;
     next.status = "uploading";
@@ -119,9 +140,21 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       next.status = "done";
       next.progress = 100;
       next.mediaId = result.mediaId;
+      autoRetriesById.delete(next.id);
     } catch (error) {
-      next.status = "failed";
-      next.error = error instanceof Error ? error.message : "upload failed";
+      const message = error instanceof Error ? error.message : "upload failed";
+      const used = autoRetriesById.get(next.id) ?? 0;
+      if (isRetryable(message) && used < retryDelaysMs.length) {
+        // Back in line, but only after a wait, so the rest of the batch keeps moving.
+        autoRetriesById.set(next.id, used + 1);
+        next.status = "queued";
+        next.progress = 0;
+        next.error = undefined;
+        scheduleRetry(next.id, retryDelaysMs[used]);
+      } else {
+        next.status = "failed";
+        next.error = message;
+      }
     }
     notify();
     try {
@@ -147,6 +180,52 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     }
   }
 
+  function scheduleRetry(id: string, delayMs: number): void {
+    clearRetry(id);
+    notBeforeById.set(id, Date.now() + delayMs);
+    retryTimers.set(id, setTimeout(() => {
+      retryTimers.delete(id);
+      notBeforeById.delete(id);
+      void processNext();
+    }, delayMs));
+  }
+
+  function clearRetry(id: string): void {
+    const timer = retryTimers.get(id);
+    if (timer) clearTimeout(timer);
+    retryTimers.delete(id);
+    notBeforeById.delete(id);
+  }
+
+  // Signal is back (or the guest reopened the page): try everything that can
+  // be retried right away instead of waiting out the backoff.
+  function retryNow(): void {
+    let changed = false;
+    for (const item of items) {
+      if (item.status === "queued" && notBeforeById.has(item.id)) {
+        clearRetry(item.id);
+        changed = true;
+      } else if (item.status === "failed" && isRetryable(item.error ?? "")) {
+        autoRetriesById.delete(item.id);
+        item.status = "queued";
+        item.progress = 0;
+        item.error = undefined;
+        changed = true;
+      }
+    }
+    if (changed) {
+      notify();
+      void processNext();
+    }
+  }
+
+  function onVisibilityChange(): void {
+    if (document.visibilityState === "visible") retryNow();
+  }
+
+  if (typeof window !== "undefined") window.addEventListener("online", retryNow);
+  if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
+
   void (async function hydrate() {
     const db = await getDb();
     const entries = await readAllItems(db);
@@ -154,7 +233,7 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     const restored: QueueItem[] = [];
     for (const entry of entries) {
       const item: QueueItem = { ...entry.item };
-      if (item.status === "queued" || item.status === "uploading") {
+      if (item.status === "queued" || item.status === "uploading" || (item.status === "failed" && isRetryable(item.error ?? ""))) {
         item.status = "queued";
         item.progress = 0;
         item.error = undefined;
@@ -197,6 +276,7 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     retry(id: string): void {
       const item = findItem(id);
       if (!item || item.status !== "failed") return;
+      autoRetriesById.delete(id);
       item.status = "queued";
       item.error = undefined;
       item.progress = 0;
@@ -207,6 +287,8 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
       const index = items.findIndex((item) => item.id === id);
       if (index < 0) return;
       items.splice(index, 1);
+      clearRetry(id);
+      autoRetriesById.delete(id);
       filesById.delete(id);
       createdAtById.delete(id);
       seqById.delete(id);
@@ -219,6 +301,12 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn): Uplo
     },
     getItems(): QueueItem[] {
       return items.map((i) => ({ ...i }));
+    },
+    dispose(): void {
+      retryTimers.forEach(clearTimeout);
+      retryTimers.clear();
+      if (typeof window !== "undefined") window.removeEventListener("online", retryNow);
+      if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
     },
   };
 }
