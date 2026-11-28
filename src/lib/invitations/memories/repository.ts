@@ -368,6 +368,8 @@ export async function guestHasUploadedLongClip(
     .eq("event_id", eventId)
     .eq("media_kind", "video")
     .eq("upload_status", "uploaded")
+    // A clip the host removed must hand the guest their long-clip slot back.
+    .neq("moderation_status", "rejected")
     .gt("duration_seconds", SHORT_VIDEO_MAX_SECONDS + VIDEO_DURATION_GRACE_SECONDS)
     .or(filters.join(","))
     .limit(2);
@@ -388,6 +390,8 @@ export async function sumUploadedVideoSecondsForEvent(eventId: string, excludeMe
     .eq("event_id", eventId)
     .eq("media_kind", "video")
     .eq("upload_status", "uploaded")
+    // Removed videos must not keep eating the event's minutes budget.
+    .neq("moderation_status", "rejected")
     .limit(5000);
   if (excludeMediaId) query = query.neq("id", excludeMediaId);
   const { data, error } = await query;
