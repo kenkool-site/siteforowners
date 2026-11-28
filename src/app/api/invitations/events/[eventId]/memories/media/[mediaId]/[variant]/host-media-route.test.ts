@@ -21,5 +21,19 @@ test("resolves display/thumbnail generically off the row, with no mediaKind-spec
   const source = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
 
   assert.match(source, /params\.variant === "display" \? media\.objectKeyDisplay : media\.objectKeyThumbnail/);
-  assert.doesNotMatch(source, /mediaKind/);
+  // mediaKind may flow through as data (signedDownloadTtlSeconds takes it);
+  // what must never appear is a kind-conditional choosing a different path.
+  assert.doesNotMatch(source, /mediaKind\s*[=!]==/);
+  assert.doesNotMatch(source, /"video"|"photo"/);
+});
+
+// The host's full-screen player asks this route for a video's Stream copy the
+// same way guests ask /api/memories/media/[mediaId]/adaptive — authorized, and
+// falling back to this route's own display variant until the copy is ready.
+test("serves the adaptive variant through adaptivePlaybackLink with a display fallback", () => {
+  const source = readFileSync(new URL("./route.ts", import.meta.url), "utf8");
+
+  assert.match(source, /adaptivePlaybackLink/);
+  assert.match(source, /params\.variant === "adaptive"/);
+  assert.match(source, /memories\/media\/\$\{params\.mediaId\}\/display/);
 });

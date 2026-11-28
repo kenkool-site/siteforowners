@@ -288,6 +288,7 @@
         "empty": "Nothing here right now.",
         "anonymous": "Anonymous guest",
         "selectPhoto": "Select photo from {name}",
+        "openMedia": "View upload from {name}",
         "downloadSelected": "Download selected",
         "downloadAll": "Download originals",
         "actionError": "That change could not be completed. Refresh and try again.",

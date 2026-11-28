@@ -288,6 +288,7 @@
         "empty": "No hay nada aquí por ahora.",
         "anonymous": "Invitado anónimo",
         "selectPhoto": "Seleccionar foto de {name}",
+        "openMedia": "Ver lo que compartió {name}",
         "downloadSelected": "Descargar seleccionadas",
         "downloadAll": "Descargar originales",
         "actionError": "No se pudo completar el cambio. Actualice e inténtelo de nuevo.",
