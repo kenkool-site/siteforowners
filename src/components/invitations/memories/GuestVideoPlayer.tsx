@@ -47,6 +47,7 @@ export function GuestVideoPlayer({
   onNavigate,
   moments = [],
   imageSrc = defaultMediaSrc,
+  adaptiveSrc = adaptiveVideoSrc,
   onFindMe,
   timeZone,
   locale,
@@ -58,6 +59,7 @@ export function GuestVideoPlayer({
   onNavigate: (index: number) => void;
   moments?: MemoryMoment[];
   imageSrc?: MediaImageSrc;
+  adaptiveSrc?: (id: string) => string;
   onFindMe?: () => void;
   timeZone?: string | null;
   locale?: string;
@@ -203,7 +205,7 @@ export function GuestVideoPlayer({
   const sizeLabel = formatApproxFileSize(item.byteSize);
   // Stream's adaptive copy where this phone can play it, otherwise the original.
   const playbackSrc = (clip: PublicMemoryMedia, allowAdaptive = true) =>
-    allowAdaptive && clip.adaptiveVideo && canPlayNativeHls() ? adaptiveVideoSrc(clip.id) : imageSrc(clip.id, "display");
+    allowAdaptive && clip.adaptiveVideo && canPlayNativeHls() ? adaptiveSrc(clip.id) : imageSrc(clip.id, "display");
   const currentUsesAdaptive = !originalOnly && Boolean(item.adaptiveVideo) && canPlayNativeHls();
   adaptiveInUse.current = currentUsesAdaptive;
   const displaySrc = videoSourceUrl(playbackSrc(item, !originalOnly), nonce);

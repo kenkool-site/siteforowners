@@ -17,6 +17,7 @@ export function MemoryMediaViewer({
   onOpen,
   moments,
   imageSrc,
+  adaptiveSrc,
   timeZone,
   locale,
   accent,
@@ -29,6 +30,7 @@ export function MemoryMediaViewer({
   onOpen: (id: string | null) => void;
   moments?: MemoryMoment[];
   imageSrc?: MediaImageSrc;
+  adaptiveSrc?: (id: string) => string;
   timeZone?: string | null;
   locale?: string;
   accent?: string;
@@ -47,6 +49,7 @@ export function MemoryMediaViewer({
         index={videoIndex}
         moments={moments}
         imageSrc={imageSrc}
+        adaptiveSrc={adaptiveSrc}
         timeZone={timeZone}
         locale={locale}
         accent={accent}
