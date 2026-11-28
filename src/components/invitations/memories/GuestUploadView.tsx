@@ -607,19 +607,25 @@ export function GuestUploadView({
 
   async function confirmUpload() {
     if (!queueRef.current || staged.length === 0) return;
-    const ids: string[] = [];
-    for (const item of staged) {
-      if (item.durationSeconds != null) videoDurations.set(item.file, item.durationSeconds);
-      const id = await queueRef.current.enqueue(item.file, item.poster);
-      previewsRef.current.set(id, item.previewUrl);
-      ids.push(id);
+    // Never let this die silently: a throw anywhere below would otherwise
+    // leave the Add button looking dead with no feedback at all.
+    try {
+      const ids: string[] = [];
+      for (const item of staged) {
+        if (item.durationSeconds != null) videoDurations.set(item.file, item.durationSeconds);
+        const id = await queueRef.current.enqueue(item.file, item.poster);
+        previewsRef.current.set(id, item.previewUrl);
+        ids.push(id);
+      }
+      setBatchIds(ids);
+      setBatchTotal(ids.length);
+      setStaged([]);
+      setStep("uploading");
+      if (nameDraft.trim()) onGuestName?.(nameDraft.trim());
+      publishItems(queueRef.current.getItems());
+    } catch {
+      setRejectionError(t("genericError"));
     }
-    setBatchIds(ids);
-    setBatchTotal(ids.length);
-    setStaged([]);
-    setStep("uploading");
-    if (nameDraft.trim()) onGuestName?.(nameDraft.trim());
-    publishItems(queueRef.current.getItems());
   }
 
   const active = items.filter((item) => item.status === "queued" || item.status === "uploading");
