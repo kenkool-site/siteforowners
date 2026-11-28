@@ -1440,6 +1440,8 @@
           "keepBrowsingNote": "La subida sigue mientras esta página esté abierta.",
           "waiting": "En espera",
           "addedStatus": "Agregada",
+          "removeUpload": "Eliminar",
+          "removeUploadConfirm": "¿Eliminar lo que subiste? Desaparecerá de la galería para todos.",
           "uploadingStatus": "Subiendo · {percent}%",
           "addingPill": "Agregando recuerdos",
           "pillCount": "{done} de {total}",

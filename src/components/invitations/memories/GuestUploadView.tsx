@@ -450,6 +450,7 @@ export function GuestUploadView({
   const tr = useTranslations("invitations.public.memories.redesign");
   const [items, setItems] = useState<GuestUploadPreview[]>([]);
   const [rejectionError, setRejectionError] = useState<string | null>(null);
+  const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
   const [successCount, setSuccessCount] = useState(0);
   const [step, setStep] = useState<UploadStep>(demo?.step ?? "closed");
   const [staged, setStaged] = useState<StagedUpload[]>([]);
@@ -628,6 +629,27 @@ export function GuestUploadView({
     }
   }
 
+  // A guest un-doing an accidental upload, right from the success screen. The
+  // server only honors this for their own session within the first hour.
+  async function removeUploaded(queueId: string, mediaId: string) {
+    setRemovingIds((current) => new Set(current).add(queueId));
+    try {
+      const response = await fetch(`/api/memories/events/${eventId}/media/${mediaId}`, { method: "DELETE" });
+      if (!response.ok) throw new Error(`delete ${response.status}`);
+      queueRef.current?.dismiss(queueId);
+      setBatchIds((current) => current.filter((id) => id !== queueId));
+      setBatchTotal((current) => Math.max(0, current - 1));
+    } catch {
+      setRejectionError(t("genericError"));
+    } finally {
+      setRemovingIds((current) => {
+        const next = new Set(current);
+        next.delete(queueId);
+        return next;
+      });
+    }
+  }
+
   const active = items.filter((item) => item.status === "queued" || item.status === "uploading");
   const failed = items.filter((item) => item.status === "failed");
 
@@ -759,6 +781,17 @@ export function GuestUploadView({
                 <h2 className="mt-4 font-serif text-3xl font-semibold" style={{ color: accent }}>{nameDraft.trim() ? tr("thanks", { name: nameDraft.trim() }) : tr("thanksAnon")}</h2>
                 <p className="text-sm opacity-70">{batchSummary ? tr("thanksMedia", { summary: batchSummary, event: eventTitle }) : tr("thanksMeta", { count: successCount || doneCount || batchTotal, event: eventTitle })}</p>
                 <p className="mt-4 flex gap-2 rounded-2xl px-3 py-3 text-left text-xs leading-5" style={{ backgroundColor: `${accent}12` }}><Shield className="size-4 shrink-0" style={{ color: accent }} />{tr("moderationNote")}</p>
+                {batchItems.some((item) => item.status === "done" && item.mediaId) && (
+                  <ul className="mt-4 grid gap-2.5 text-left">
+                    {batchItems.filter((item) => item.status === "done" && item.mediaId).map((item) => (
+                      <li key={item.id} className="flex items-center gap-3">
+                        <span className="size-11 overflow-hidden rounded-xl bg-black/5">{previewsRef.current.get(item.id) && <img src={previewsRef.current.get(item.id)} alt="" className="size-full object-cover" />}</span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-semibold">{item.fileName}</span>
+                        <button type="button" disabled={removingIds.has(item.id)} onClick={() => { if (window.confirm(tr("removeUploadConfirm"))) void removeUploaded(item.id, item.mediaId!); }} className="min-h-10 shrink-0 text-sm font-semibold text-red-700 disabled:opacity-40">{tr("removeUpload")}</button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
                 <button type="button" onClick={() => { setStep("closed"); onSeeGallery?.(); }} className="mt-4 h-14 w-full rounded-full text-base font-semibold text-white" style={{ backgroundColor: accent }}>{tr("seeGallery")}</button>
                 <button type="button" onClick={() => setStep("source")} className="mt-2 h-12 w-full rounded-full border text-sm font-semibold" style={{ color: accent, borderColor: `${accent}33` }}><Plus className="mr-1 inline size-4" />{tr("addMore")}</button>
                 {branding && <PlanningSoftLink slug={slug} accent={accent} surface="#fff" text="#1c2a20" content="success" />}
