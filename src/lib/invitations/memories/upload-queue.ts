@@ -70,6 +70,9 @@ async function persistItem(db: IDBDatabase, entry: PersistedEntry): Promise<void
     tx.objectStore(STORE_NAME).put(entry);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    // A blown storage quota aborts the transaction without an error event;
+    // leaving this unhandled would leave the promise pending forever.
+    tx.onabort = () => reject(tx.error ?? new Error("transaction aborted"));
   });
 }
 
@@ -88,6 +91,7 @@ async function deleteItem(db: IDBDatabase, id: string): Promise<void> {
     tx.objectStore(STORE_NAME).delete(id);
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error("transaction aborted"));
   });
 }
 
@@ -267,8 +271,14 @@ export function createUploadQueue(eventId: string, uploadOne: UploadOneFn, optio
       createdAtById.set(id, createdAt);
       seqById.set(id, seq);
       items.push(item);
-      const db = await getDb();
-      await persistItem(db, { id, file, posterFile, item: { ...item }, createdAt, seq });
+      try {
+        const db = await getDb();
+        await persistItem(db, { id, file, posterFile, item: { ...item }, createdAt, seq });
+      } catch {
+        // Persistence only lets a reload resume the upload. A video can be far
+        // bigger than the browser grants IndexedDB (quota aborts, private
+        // browsing), and that must never block the upload itself.
+      }
       notify();
       void processNext();
       return id;

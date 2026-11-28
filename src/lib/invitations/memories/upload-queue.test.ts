@@ -289,3 +289,60 @@ test("a waiting retry does not hold up the next file in the batch", async () => 
   assert.ok(queue.getItems().every((i) => i.status === "done"));
   queue.dispose();
 });
+
+// A big clip can blow the browser's IndexedDB quota. Quota failures surface as
+// a transaction *abort* (not an error event), and persistence is only there so
+// a reload can resume — it must never block the upload itself.
+test("enqueue still uploads when persisting to IndexedDB aborts (quota)", async () => {
+  const realIndexedDB = globalThis.indexedDB;
+  const abortingIndexedDB = {
+    open() {
+      const request: Record<string, unknown> = {};
+      const db = {
+        transaction(_store: string, mode: string) {
+          const tx: Record<string, unknown> = {
+            error: new Error("QuotaExceededError"),
+            objectStore() {
+              return {
+                getAll() {
+                  const req: Record<string, unknown> = {};
+                  queueMicrotask(() => {
+                    req.result = [];
+                    (req.onsuccess as (() => void) | undefined)?.();
+                  });
+                  return req;
+                },
+                put() {
+                  return {};
+                },
+              };
+            },
+          };
+          if (mode === "readwrite") queueMicrotask(() => (tx.onabort as (() => void) | undefined)?.());
+          return tx;
+        },
+      };
+      queueMicrotask(() => {
+        request.result = db;
+        (request.onsuccess as (() => void) | undefined)?.();
+      });
+      return request;
+    },
+  };
+  globalThis.indexedDB = abortingIndexedDB as unknown as IDBFactory;
+  try {
+    const queue = createUploadQueue("event-quota-abort", async (_file, _posterFile, _onProgress) => {
+      return { mediaId: "media-quota" };
+    });
+    const id = await Promise.race([
+      queue.enqueue(fakeFile("big.mp4", 1000, "video/mp4")),
+      new Promise<never>((_resolve, reject) => setTimeout(() => reject(new Error("enqueue hung on a persist abort")), 2_000)),
+    ]);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    const item = queue.getItems().find((i) => i.id === id);
+    assert.equal(item?.status, "done");
+    assert.equal(item?.mediaId, "media-quota");
+  } finally {
+    globalThis.indexedDB = realIndexedDB;
+  }
+});
