@@ -1440,6 +1440,8 @@
           "keepBrowsingNote": "Uploads keep going while this page is open.",
           "waiting": "Waiting",
           "addedStatus": "Added",
+          "removeUpload": "Remove",
+          "removeUploadConfirm": "Remove this upload? It disappears from the gallery for everyone.",
           "uploadingStatus": "Uploading · {percent}%",
           "addingPill": "Adding memories",
           "pillCount": "{done} of {total}",

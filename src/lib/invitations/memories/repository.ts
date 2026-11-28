@@ -382,6 +382,32 @@ export async function guestHasUploadedLongClip(
   return (data ?? []).length > 0;
 }
 
+// A guest deleting their own fresh upload (see guest-delete.ts). Every
+// condition sits inside the delete itself so nothing can race it: the row
+// must still belong to this event and uploader session and be younger than
+// the cutoff. Returns whether a row was actually removed.
+export async function deleteOwnRecentMemoryMediaRow(
+  eventId: string,
+  mediaId: string,
+  uploaderSessionId: string,
+  uploadedAfterIso: string,
+): Promise<boolean> {
+  const client = createAdminClient();
+  const { data, error } = await client
+    .from("memory_media")
+    .delete()
+    .eq("id", mediaId)
+    .eq("event_id", eventId)
+    .eq("uploader_session_id", uploaderSessionId)
+    .gte("uploaded_at", uploadedAfterIso)
+    .select("id");
+  if (error) {
+    console.error("[memories/repository] deleteOwnRecentMemoryMediaRow failed", { eventId, mediaId, error });
+    return false;
+  }
+  return (data ?? []).length > 0;
+}
+
 export async function sumUploadedVideoSecondsForEvent(eventId: string, excludeMediaId?: string): Promise<number> {
   const client = createAdminClient();
   let query = client
