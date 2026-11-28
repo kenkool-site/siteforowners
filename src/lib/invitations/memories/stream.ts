@@ -45,14 +45,14 @@ async function callStream<T>(
   path: string,
   init: RequestInit,
   fetchImpl: StreamFetch,
-): Promise<{ status: number; result: T | null }> {
+): Promise<{ status: number; result: T | null; errors: unknown }> {
   const response = await fetchImpl(`${API_BASE}/accounts/${config.accountId}/stream${path}`, {
     ...init,
     headers: { authorization: `Bearer ${config.apiToken}`, "content-type": "application/json", ...(init.headers ?? {}) },
   });
-  const body = (await response.json().catch(() => null)) as { success?: boolean; result?: T } | null;
-  if (!response.ok || !body?.success) return { status: response.status, result: null };
-  return { status: response.status, result: body.result ?? null };
+  const body = (await response.json().catch(() => null)) as { success?: boolean; result?: T; errors?: unknown } | null;
+  if (!response.ok || !body?.success) return { status: response.status, result: null, errors: body?.errors ?? null };
+  return { status: response.status, result: body.result ?? null, errors: null };
 }
 
 // Asks Stream to fetch the clip from a signed R2 link. Returns Stream's id for
@@ -63,7 +63,7 @@ export async function copyVideoToStream(
   input: { sourceUrl: string; name: string },
   fetchImpl: StreamFetch = fetch,
 ): Promise<string | null> {
-  const { result } = await callStream<{ uid?: string }>(
+  const { status, result, errors } = await callStream<{ uid?: string }>(
     config,
     "/copy",
     {
@@ -72,7 +72,11 @@ export async function copyVideoToStream(
     },
     fetchImpl,
   );
-  return typeof result?.uid === "string" && result.uid ? result.uid : null;
+  if (typeof result?.uid === "string" && result.uid) return result.uid;
+  // The row only records "failed"; without this line the reason Stream said no
+  // (no subscription, out of storage, could not fetch the link) is lost.
+  console.error("[memories/stream] Stream refused the copy (non-fatal)", { name: input.name, status, errors });
+  return null;
 }
 
 export interface StreamVideoState {
